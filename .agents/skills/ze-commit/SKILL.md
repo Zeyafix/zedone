@@ -1,9 +1,9 @@
 ---
-name: ze-commit-base
+name: ze-commit
 description: Draft, review, and create Conventional Commits with plain English subjects that explain what becomes possible or what gets fixed. Use when preparing commit messages or committing changes.
 ---
 
-# Ze Commit Base
+# Ze Commit
 
 Write commit messages in English. Make the subject understandable to a person who has not read the diff: explain the capability, corrected behavior, or practical benefit of the change. Put technical details in the optional body.
 
@@ -21,7 +21,7 @@ Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.
 ```text
 type(scope): plain English outcome
 
-Optional explanation of why the change matters and how it works.
+- Optional explanation of why the change matters and how it works.
 
 Optional footers.
 ```
@@ -59,17 +59,16 @@ Examples of weak subjects and better alternatives, assuming the diff supports ea
 
 ## Add details when useful
 
-Separate the body from the subject with a blank line. Use the body for motivation, previous and new behavior, implementation details, compatibility notes, or relevant verification results. Keep it in English and avoid repeating the subject. Omit the body when the subject is enough.
+Separate the body from the subject with a blank line. Write the body as a bulleted list using `- `, with one point per item. Use the body for motivation, previous and new behavior, implementation details, compatibility notes, or relevant verification results. Keep it in English and avoid repeating the subject. Omit the body when the subject is enough.
 
 For example:
 
 ```text
 fix(cards): keep card descriptions after reopening a workspace
 
-Include the description in the saved card data and restore it when loading
-the workspace. Previously, only the title survived a restart.
-
-Add a regression test for saving and reopening a card with a description.
+- Include the description in the saved card data and restore it when loading
+  the workspace. Previously, only the title survived a restart.
+- Add a regression test for saving and reopening a card with a description.
 ```
 
 Separate footers from preceding text with a blank line. Preserve required trailer syntax and include issue references or verification claims only when supported by the task and actual work.

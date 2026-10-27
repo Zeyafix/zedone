@@ -2,6 +2,8 @@
 
 Инструкция для разработчика и AI-агента на **Windows 11 x64**. Сначала подготовьте базовые инструменты и проверьте Rust-сборку, затем добавьте Android-окружение. Репозиторий пока содержит проектную документацию: команды запуска самого ZeDone появятся вместе с прототипом.
 
+Состояние текущей машины (`state.json`), отчёты, доказательства проверок и снимки настроек сохраняйте в `docs/reports/`. Загрузки, распаковки и проверочные примеры размещайте в `temp/`: их можно безопасно удалить и воссоздать командами ниже. Обе папки исключены из Git. Инструменты устанавливаются в штатные каталоги; отдельная папка `environment/` не требуется. При наличии старых отчётов в `temp/environment/` сначала перенесите их по [локальному порядку](../agent/work-queue.md#локальная-подготовка-машины).
+
 ## 1. Установите базовые инструменты
 
 Используйте стабильные выпуски. Ниже закреплена стартовая база P00.02 от 2026-10-27; совместимость всей цепочки Vue/Vite/OpenAPI/Tauri ещё проверяется в P01. Перед будущим обновлением сверяйте официальные выпуски и повторяйте проверки. Сведения конкретной машины в этот документ не записываются.
@@ -73,16 +75,16 @@ cargo clippy --version
 bun --version
 ```
 
-Проверьте компиляцию и линковку на изолированном примере. Все файлы остаются в игнорируемом `temp/environment/`; повторный запуск использует тот же пример. После каждой команды Cargo код завершения должен быть `0`; при ошибке устраните её перед продолжением.
+Проверьте компиляцию и линковку на изолированном примере в `temp/rust-smoke/`. Повторный запуск использует существующий пример или создаёт его заново после очистки `temp/`; результат проверки сохраняйте в `docs/reports/`. После каждой команды Cargo код завершения должен быть `0`; при ошибке устраните её перед продолжением.
 
 ```powershell
-if (-not (Test-Path -LiteralPath temp/environment/rust-smoke/Cargo.toml)) {
-    cargo new --bin --vcs none --name zedone_environment_probe temp/environment/rust-smoke
+if (-not (Test-Path -LiteralPath temp/rust-smoke/Cargo.toml)) {
+    cargo new --bin --vcs none --name zedone_environment_probe temp/rust-smoke
 }
-cargo build --manifest-path temp/environment/rust-smoke/Cargo.toml --offline
-cargo run --manifest-path temp/environment/rust-smoke/Cargo.toml --offline
-cargo fmt --manifest-path temp/environment/rust-smoke/Cargo.toml --check
-cargo clippy --manifest-path temp/environment/rust-smoke/Cargo.toml --offline -- -D warnings
+cargo build --manifest-path temp/rust-smoke/Cargo.toml --offline
+cargo run --manifest-path temp/rust-smoke/Cargo.toml --offline
+cargo fmt --manifest-path temp/rust-smoke/Cargo.toml --check
+cargo clippy --manifest-path temp/rust-smoke/Cargo.toml --offline -- -D warnings
 ```
 
 Ожидается `Hello, world!`, успешные сборка, форматирование и Clippy. Здесь нет внешних Rust-зависимостей, поэтому после установки toolchain проверка работает без сети. Успех подтверждает базовый компилятор/линкер, а сборка зависимостей ZeDone проверяется отдельно в P01.
@@ -112,7 +114,7 @@ SDK 37.0 подготовлен для [актуального шаблона Ta
 Для новой установки используйте официальный ZIP-выпуск Studio в профиле пользователя. IDE запускается из `bin/studio64.exe`; для удобства можно создать ярлык в пользовательском меню Пуск. Если Studio уже установлен, сохраните настройки, обновите его штатно и укажите его каталог в `$studioDirectory` ниже. Не распаковывайте ZIP поверх работающей IDE.
 
 ```powershell
-$androidSetup = 'temp/environment/android-setup'
+$androidSetup = 'temp/android-setup'
 New-Item -ItemType Directory -Path $androidSetup -Force | Out-Null
 $studioArchive = Join-Path $androidSetup 'android-studio-rabbit1-windows.zip'
 Invoke-WebRequest 'https://dl.google.com/dl/android/studio/ide-zips/2026.2.1.8/android-studio-rabbit1-windows.zip' -OutFile $studioArchive
@@ -125,7 +127,7 @@ Expand-Archive -LiteralPath $studioArchive -DestinationPath $studioParent
 $studioDirectory = Join-Path $studioParent 'android-studio'
 ```
 
-Загрузите Command-line Tools и проверьте SHA256 до распаковки. Архив и результаты остаются в игнорируемом `temp/environment/`.
+Загрузите Command-line Tools и проверьте SHA256 до распаковки. Архив и временная распаковка остаются в `temp/android-setup/`; результаты проверки сохраняйте в `docs/reports/`. До выполнения следующего блока сохраните прежние значения переменных User и Machine в `docs/reports/`.
 
 ```powershell
 $toolsArchive = Join-Path $androidSetup 'commandlinetools-win-16111833_latest.zip'
@@ -151,7 +153,7 @@ $androidCli = Join-Path (Resolve-Path (Join-Path $androidSetup 'tools/cmdline-to
 & $androidCli --no-metrics --version
 ```
 
-До изменения переменных сохраните их прежние значения User и Machine локально. Команды меняют только User и текущий процесс; глобальный PATH менять не требуется. В новом терминале переменные применяются после обновления окружения родительского приложения; при необходимости перечитайте только `JAVA_HOME`, `ANDROID_HOME`, `NDK_HOME` из User в Process. Если уже задан `ANDROID_SDK_ROOT`, он должен совпадать с `ANDROID_HOME`, иначе устраните расхождение перед установкой.
+Команды меняют только User и текущий процесс; глобальный PATH менять не требуется. В новом терминале переменные применяются после обновления окружения родительского приложения; при необходимости перечитайте только `JAVA_HOME`, `ANDROID_HOME`, `NDK_HOME` из User в Process. Если уже задан `ANDROID_SDK_ROOT`, он должен совпадать с `ANDROID_HOME`, иначе устраните расхождение перед установкой.
 
 Установите пакеты из стабильного канала; прочитайте и примите запрошенные лицензии SDK. После каждой команды проверяйте `$LASTEXITCODE`: ошибка прерывает подготовку.
 
@@ -181,7 +183,7 @@ rustup target list --installed
 Проверьте линковку Rust и NDK на изолированном исполняемом файле для эмулятора. Это проверка toolchain, а не APK ZeDone.
 
 ```powershell
-$androidProbeDirectory = 'temp/environment/android-rust-smoke'
+$androidProbeDirectory = 'temp/android-rust-smoke'
 New-Item -ItemType Directory -Path $androidProbeDirectory -Force | Out-Null
 $androidProbeSource = Join-Path $androidProbeDirectory 'main.rs'
 $androidProbeExecutable = Join-Path $androidProbeDirectory 'x86_64-linux-android'
@@ -211,8 +213,9 @@ $adb = Join-Path $env:ANDROID_HOME 'platform-tools/adb.exe'
 
 ```powershell
 & $adb devices -l
-$emulatorLog = Join-Path (Resolve-Path 'temp/environment') 'emulator-stdout.log'
-$emulatorErrorLog = Join-Path (Resolve-Path 'temp/environment') 'emulator-stderr.log'
+$reportsDirectory = New-Item -ItemType Directory -Path 'docs/reports' -Force
+$emulatorLog = Join-Path $reportsDirectory.FullName 'emulator-stdout.log'
+$emulatorErrorLog = Join-Path $reportsDirectory.FullName 'emulator-stderr.log'
 Start-Process -FilePath $emulator -WindowStyle Hidden -ArgumentList @('-avd', 'zedone_api33_aosp_x86_64', '-port', '5554', '-no-window', '-no-audio', '-no-boot-anim', '-no-snapshot', '-gpu', 'software', '-accel', 'on', '-memory', '2048', '-cores', '2') -RedirectStandardOutput $emulatorLog -RedirectStandardError $emulatorErrorLog
 $bootDeadline = (Get-Date).AddMinutes(5)
 do {
@@ -234,7 +237,7 @@ if ($bootCompleted -ne '1') { throw 'AVD не загрузился за пять
 & $adb -s emulator-5554 emu kill
 ```
 
-Ожидаются состояние `device`, `sys.boot_completed=1`, Android `13`, API `33`, ABI `x86_64`, пустой список пакетов GMS и вывод `ZEDONE_ANDROID_TOOLCHAIN_OK` с кодом `0`. Последняя команда штатно завершает только выбранный эмулятор. При ошибке проверки также остановите свой AVD этой командой после сохранения логов. Запишите точный образ, ABI, состояние GMS, ускорение и результат загрузки локально; наличие пакетов без запуска AVD не закрывает T14.
+Ожидаются состояние `device`, `sys.boot_completed=1`, Android `13`, API `33`, ABI `x86_64`, пустой список пакетов GMS и вывод `ZEDONE_ANDROID_TOOLCHAIN_OK` с кодом `0`. Последняя команда штатно завершает только выбранный эмулятор. При ошибке проверки также остановите свой AVD этой командой после сохранения логов. Запишите точный образ, ABI, состояние GMS, ускорение и результат загрузки в `docs/reports/`; наличие пакетов без запуска AVD не закрывает T14.
 
 ## 4. Добавляйте средства выпуска и связи по задаче
 
@@ -248,10 +251,12 @@ if ($bootCompleted -ne '1') { throw 'AVD не загрузился за пять
 
 ## Обновление, отмена и результаты
 
-Перед изменениями сохраните список версий, выбранный `rustup show active-toolchain` и изменяемые переменные окружения. Старые отдельные установки удаляйте штатно **после** проверки замены, с учётом других проектов. Для Rust используйте `rustup toolchain uninstall <точное-имя-старого-toolchain>`; сначала проверьте имя через `rustup toolchain list`.
+Перед изменениями сохраните в `docs/reports/` список версий, выбранный `rustup show active-toolchain` и изменяемые переменные окружения. Старые отдельные установки удаляйте штатно **после** проверки замены, с учётом других проектов. Для Rust используйте `rustup toolchain uninstall <точное-имя-старого-toolchain>`; сначала проверьте имя через `rustup toolchain list`.
 
-Для отмены восстановите прежние версии официальными установщиками, прежний Rust — через `rustup toolchain install` и `rustup default`. Программы удаляются в **Settings → Apps → Installed apps**, компоненты MSVC/SDK — через Visual Studio Installer или их штатный деинсталлятор. Для Bun используйте тот же способ управления, что при установке; WinGet-установка удаляется через `winget uninstall --id Oven-sh.Bun --exact`. Возвращайте только изменённые вами значения PATH/переменных; сохраняйте профили браузеров, Git-настройки и учётные записи. Тестовый пример можно удалить отдельно из `temp/environment/rust-smoke`.
+Для отмены восстановите прежние версии официальными установщиками, прежний Rust — через `rustup toolchain install` и `rustup default`. Программы удаляются в **Settings → Apps → Installed apps**, компоненты MSVC/SDK — через Visual Studio Installer или их штатный деинсталлятор. Для Bun используйте тот же способ управления, что при установке; WinGet-установка удаляется через `winget uninstall --id Oven-sh.Bun --exact`. Возвращайте только изменённые вами значения PATH/переменных; сохраняйте профили браузеров, Git-настройки и учётные записи. Тестовый пример можно удалить отдельно из `temp/rust-smoke`.
 
 Для Android сначала остановите свой AVD и IDE. AVD удаляется через `avdmanager delete avd --name zedone_api33_aosp_x86_64`, выбранные SDK-пакеты — через `android --sdk=<каталог-SDK> sdk remove <точный-ID-со-слешами>`, CLI — через `cargo uninstall tauri-cli`, Rust-цели — через `rustup target remove --toolchain 1.99.1-x86_64-pc-windows-msvc <точная-цель>`. Удаление общего SDK-пакета затрагивает все использующие его проекты: сверьте зависимости. ZIP-установка Studio удаляется из её отдельного каталога после проверки абсолютного пути; сохраняйте пользовательские настройки IDE. Восстановите исходные Android-переменные из локального снимка. Если WHP был выключен до подготовки и больше не нужен другим приложениям, его можно выключить штатно через Windows Features или `Disable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -NoRestart` из PowerShell администратора; требуемую перезагрузку выполняет разработчик.
 
-Агент продолжает работу по [очереди P00](../agent/work-queue.md#p00--окружение) и [плану-журналу](../agent/plan-journal.md). Локальные версии, пути, результаты и EV записываются только в `temp/environment/`, точка продолжения — `temp/environment/state.json`. Этот Quick Start хранит общие требования и команды; готовность каждой машины и полная приёмка T13–T17 подтверждаются отдельно.
+Очистка `temp/` сохраняет установленные инструменты, состояние подготовки, доказательства проверок и снимки для отмены настройки. Нужные повторно загрузки и примеры воссоздаются командами выше. `docs/reports/` хранится отдельно от временных файлов и не удаляется при их очистке.
+
+Агент продолжает работу по [очереди P00](../agent/work-queue.md#p00--окружение) и [плану-журналу](../agent/plan-journal.md). Локальные версии, пути, результаты и EV записываются только в `docs/reports/`, точка продолжения — `docs/reports/state.json`. При отсутствии состояния сначала проверьте фактическое окружение в P00.01 без установки. Этот Quick Start хранит общие требования и команды; готовность каждой машины и полная приёмка T13–T17 подтверждаются отдельно.

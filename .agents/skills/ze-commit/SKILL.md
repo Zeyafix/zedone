@@ -48,8 +48,6 @@ Mark incompatible changes with `!` immediately before the colon, a `BREAKING CHA
 
 Examples of weak subjects and better alternatives, assuming the diff supports each result:
 
-- Weak: `feat(runtime): implement runtime export`
-  Better: `feat(runtime): let authors export runtime for remote hosting`
 - Weak: `fix(cards): fix serialization`
   Better: `fix(cards): keep card descriptions after reopening a workspace`
 - Weak: `perf(board): memoize board selectors`

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Ze Commit Base"
-  short_description: "Write Conventional Commits that explain the outcome"
-  default_prompt: "Use $ze-commit-base to prepare an English Conventional Commit message for the current changes."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ze PR"
+  short_description: "Create clear English PRs with UI evidence and checks"
+  default_prompt: "Use $ze-pr to prepare an English pull request for the current changes."

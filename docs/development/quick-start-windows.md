@@ -239,21 +239,148 @@ if ($bootCompleted -ne '1') { throw 'AVD не загрузился за пять
 
 Ожидаются состояние `device`, `sys.boot_completed=1`, Android `13`, API `33`, ABI `x86_64`, пустой список пакетов GMS и вывод `ZEDONE_ANDROID_TOOLCHAIN_OK` с кодом `0`. Последняя команда штатно завершает только выбранный эмулятор. При ошибке проверки также остановите свой AVD этой командой после сохранения логов. Запишите точный образ, ABI, состояние GMS, ускорение и результат загрузки в `docs/reports/`; наличие пакетов без запуска AVD не закрывает T14.
 
-## 4. Добавляйте средства выпуска и связи по задаче
+## 4. Подготовьте средства выпуска и связи (P00.04)
 
-| Задача | Что понадобится | Официальный источник и настройка |
+Сначала проверьте существующие установки и доступы. Рабочие инструменты не требуется обновлять ради проверки. Для новой установки на Windows x64 закреплена база от 2026-10-27:
+
+| Инструмент | Версия | Официальный источник |
 | --- | --- | --- |
-| Windows: установщик, P00.04 | Inno Setup и компилятор ISCC | [Inno Setup](https://jrsoftware.org/isdl.php). |
-| Связь двух устройств, P00.04 | Tailscale на Windows и Android | [Tailscale](https://tailscale.com/download). Вход и подключение устройств относятся к сетевым проверкам. |
-| Проверки CI и выпуск, P00.04–P00.06 | GitHub CLI и доступ к репозиторию/Actions/Releases | [GitHub CLI](https://cli.github.com/). Проверка доступа не требует публикации релиза. |
+| Inno Setup / ISCC | 7.1.0, x64 | [Загрузка](https://jrsoftware.org/isdl.php), [выпуск и контрольные суммы](https://github.com/jrsoftware/issrc/releases/tag/is-7_1_0), [лицензия](https://jrsoftware.org/files/is/license.txt). |
+| Tailscale | 1.104.2, Stable | [Пакеты Windows и Android](https://pkgs.tailscale.com/stable/); у файлов доступна контрольная сумма по адресу с суффиксом `.sha256`. |
+| GitHub CLI | 2.103.3 | [Закреплённый выпуск](https://github.com/cli/cli/releases/tag/v2.103.3), [установка](https://cli.github.com/). |
 
-Таблица служит списком подготовки, а не доказательством готового выпуска. CLI и зависимости Vue/TypeScript/Vite/Tauri будут закреплены вместе с прототипом и lock-файлами.
+Эта база задаёт версии новых установок. Воспроизведение всей цепочки на чистой машине принимается в P00.07; фактически проверенные версии текущей машины записываются отдельно в `docs/reports/`.
+
+### Inno Setup: установка и компиляция
+
+Проверьте `Get-Command ISCC.exe -ErrorAction SilentlyContinue`, пользовательский каталог ниже и существующие установки в **Installed apps**. Если Inno Setup уже установлен, используйте его фактический путь и запишите версию. Следующий блок предназначен только для отсутствующей установки: он проверяет SHA256 и Authenticode, устанавливает для текущего пользователя без изменения PATH и сохраняет журнал. [Параметры установщика](https://jrsoftware.org/ishelp/topic_setupcmdline.htm).
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$releaseSetup = New-Item -ItemType Directory -Path 'temp/release-setup' -Force
+$releaseReports = New-Item -ItemType Directory -Path 'docs/reports' -Force
+$innoDirectory = Join-Path $env:LOCALAPPDATA 'Programs/Inno Setup 7'
+if (Test-Path -LiteralPath $innoDirectory) { throw 'Каталог уже существует; сначала проверьте установку.' }
+$innoInstaller = Join-Path $releaseSetup.FullName 'innosetup-7.1.0-x64.exe'
+Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $innoInstaller
+if ((Get-FileHash -LiteralPath $innoInstaller -Algorithm SHA256).Hash -ne '0362A383ED217D4C4239B5933866DD96D3EB2102737DA92F80F6057A4B40DF2F') {
+    throw 'Контрольная сумма Inno Setup не совпала.'
+}
+$innoSignature = Get-AuthenticodeSignature -LiteralPath $innoInstaller
+if ($innoSignature.Status -ne 'Valid' -or $innoSignature.SignerCertificate.Subject -notmatch 'CN=Pyrsys B.V.,') {
+    throw 'Подпись Inno Setup не подтверждена.'
+}
+$innoArguments = @(
+    '/CURRENTUSER', '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
+    '/RESTARTEXITCODE=3010', '/NOCLOSEAPPLICATIONS', '/SP-', '/NOICONS', '/TASKS=""',
+    ('/DIR="' + $innoDirectory + '"'),
+    ('/LOG="' + (Join-Path $releaseReports.FullName 'inno-install.log') + '"')
+)
+$innoProcess = Start-Process -FilePath $innoInstaller -WindowStyle Hidden -ArgumentList $innoArguments -Wait -PassThru
+if ($innoProcess.ExitCode -ne 0) { throw "Установка не принята; код $($innoProcess.ExitCode). Проверьте журнал; 3010 требует перезагрузки." }
+```
+
+Для существующей установки задайте `$iscc` её фактическим путём. У новой установки он следующий. [ISCC](https://jrsoftware.org/ishelp/topic_compilercmdline.htm) должен вернуть `0` при запросе версии и компиляции синтетического примера:
+
+```powershell
+$iscc = Join-Path $env:LOCALAPPDATA 'Programs/Inno Setup 7/ISCC.exe'
+& $iscc --version
+if ($LASTEXITCODE -ne 0) { throw 'ISCC недоступен.' }
+$isccProbe = New-Item -ItemType Directory -Path 'temp/iscc-smoke' -Force
+'ZeDone environment probe' | Set-Content -LiteralPath (Join-Path $isccProbe.FullName 'probe.txt') -Encoding ASCII
+@'
+[Setup]
+AppName=ZeDone Environment Probe
+AppVersion=0.0.0
+DefaultDirName={localappdata}\ZeDoneEnvironmentProbe
+PrivilegesRequired=lowest
+OutputDir=.
+OutputBaseFilename=zedone-environment-probe
+[Files]
+Source: "probe.txt"; DestDir: "{app}"
+'@ | Set-Content -LiteralPath (Join-Path $isccProbe.FullName 'probe.iss') -Encoding UTF8
+& $iscc --no-ide-signtools (Join-Path $isccProbe.FullName 'probe.iss')
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $isccProbe.FullName 'zedone-environment-probe.exe'))) {
+    throw 'Проверочная компиляция ISCC не прошла.'
+}
+```
+
+Сохраните команду, версию, код завершения и вывод в `docs/reports/`. Полученный EXE остаётся в `temp/iscc-smoke/`; запускать и публиковать его для P00.04 не требуется. Установщик ZeDone, обновление и удаление с сохранением пользовательских данных проверяются отдельно в P08.02.
+
+### Tailscale: доступность клиента и состояние связи
+
+Если Tailscale или GitHub CLI отсутствуют, установите их; команды могут запросить системные права. Для существующей установки сначала выполните проверки ниже. Версию, источник и состояние до изменений сохраните в `docs/reports/`.
+
+```powershell
+winget install --id Tailscale.Tailscale --exact --source winget --version 1.104.2
+if ($LASTEXITCODE -ne 0) { throw 'Установка Tailscale не подтверждена.' }
+winget install --id GitHub.cli --exact --source winget --version 2.103.3
+if ($LASTEXITCODE -ne 0) { throw 'Установка GitHub CLI не подтверждена.' }
+```
+
+В новом терминале проверьте клиент и локальную службу. Если PATH родительского приложения ещё не обновился, используйте полные пути: `%ProgramFiles%\Tailscale\tailscale.exe` и `%ProgramFiles%\GitHub CLI\gh.exe`. [Команды Tailscale](https://tailscale.com/docs/reference/tailscale-cli):
+
+```powershell
+tailscale version
+if ($LASTEXITCODE -ne 0) { throw 'Клиент Tailscale недоступен.' }
+Get-Service -Name Tailscale | Select-Object Name, Status, StartType
+New-Item -ItemType Directory -Path 'docs/reports' -Force | Out-Null
+$tailscaleStateText = tailscale status --json
+if ($LASTEXITCODE -ne 0) { throw 'Нет ответа локальной службы Tailscale.' }
+$tailscaleState = $tailscaleStateText | Out-String | ConvertFrom-Json
+$tailscaleState.PSObject.Properties.Remove('AuthURL')
+$tailscaleState | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath 'docs/reports/tailscale-status.json' -Encoding UTF8
+$tailscaleState | Select-Object BackendState, Health
+tailscale netcheck --format=json > docs/reports/tailscale-netcheck.json
+if ($LASTEXITCODE -ne 0) { throw 'Диагностика сети Tailscale не прошла.' }
+```
+
+Код `0` команды `status --json` подтверждает ответ службы; подключение оценивайте по `BackendState`, `Self.Online`, `CurrentTailnet` и `Health`. `NeedsLogin`, `NoState` или `Stopped` требуют отдельной записи ограничения. `netcheck` проверяет условия сети и доступность реле, но не доказывает связь двух устройств. Полный вывод содержит адреса и идентификаторы: он остаётся в игнорируемых локальных отчётах.
+
+В P00.04 достаточно подготовить клиент и записать недостающие действия. Если ещё нужен вход, одобрение устройства или доступ к tailnet, их выполняет владелец перед P01.11/P06; ключи и URL авторизации в отчёт не сохраняются. На Android используйте официальный клиент из таблицы, включая APK для AOSP без Google Play. Вход, разрешение VPN и взаимодействие Windows/Android проверяются в сетевом прототипе P01.11; физическое устройство не заменяется эмулятором. Подключение Tailscale само по себе не выдаёт прав на пространства ZeDone.
+
+### GitHub: проверка имеющихся прав
+
+Команды выполняются в корне репозитория, только читают API и не создают релиз или workflow. Не используйте `gh auth token` и `--show-token`; строку с замаскированным токеном также исключайте при сохранении вывода. Если вход отсутствует, владелец выполняет [авторизацию GitHub CLI](https://cli.github.com/manual/gh_auth_login); уже настроенную учётную запись не переключайте автоматически.
+
+```powershell
+gh --version
+gh auth status --active --hostname github.com
+if ($LASTEXITCODE -ne 0) { throw 'Авторизация GitHub не подтверждена.' }
+gh api repos/Zeyafix/zedone --jq '{private: .private, permissions: .permissions, archived: .archived}'
+if ($LASTEXITCODE -ne 0) { throw 'Репозиторий недоступен.' }
+gh api repos/Zeyafix/zedone/actions/permissions
+if ($LASTEXITCODE -ne 0) { throw 'Политика Actions не прочитана; запишите отсутствующее право.' }
+gh api 'repos/Zeyafix/zedone/actions/workflows?per_page=1' --jq '{total_count: .total_count}'
+if ($LASTEXITCODE -ne 0) { throw 'Список workflows недоступен.' }
+gh api 'repos/Zeyafix/zedone/actions/runs?per_page=1' --jq '{total_count: .total_count}'
+if ($LASTEXITCODE -ne 0) { throw 'Список запусков Actions недоступен.' }
+gh api 'repos/Zeyafix/zedone/releases?per_page=1' --jq 'length'
+if ($LASTEXITCODE -ne 0) { throw 'Список Releases недоступен.' }
+```
+
+Пустые списки с кодом `0` означают отсутствие объектов. Проверяйте `permissions.push`, состояние архива и `enabled` у Actions. Публичное чтение Releases не доказывает возможность публикации. [Получение политики Actions](https://docs.github.com/en/rest/actions/permissions#get-github-actions-permissions-for-a-repository) требует отдельных прав; отказ этой административной проверке сам по себе не означает запрет запуска CI. Для следующего шага нужны возможность добавить workflow и разрешённые Actions. Если workflow записывается через classic/OAuth-токен, проверяется scope `workflow`; у fine-grained токена — соответствующие права репозитория. Текущие scopes можно увидеть в `gh auth status`; расширять их заранее не требуется.
+
+Запишите подтверждённые права, отказы и непроверенные операции. Проверка права записи по метаданным не заменяет будущий реальный запуск CI в P00.05–P00.06 и не разрешает публикацию. [Создание релиза](https://docs.github.com/en/rest/releases/releases#create-a-release) требует `Contents: write`; эта операция в P00.04 не выполняется.
+
+### Что готовится позднее
+
+| Средство или полномочие | Когда подготовить и проверить |
+| --- | --- |
+| Android `keytool`, `apksigner`, release keystore и безопасное хранение его паролей/резервной копии | Инструменты уже входят в JDK/Build-Tools; закрепление цепочки сборки — P01.04, ключ подписи и проверка обновления APK — P08.03. Наличие инструментов не подтверждает наличие ключа. |
+| Windows SignTool, сертификат подписи и служба меток времени | SignTool проверяется по фактическому пути Windows SDK; решение о подписи и необходимые средства/полномочия готовятся до использования в P08.02/P08.06. Покупка сертификата в P00 не требуется. |
+| GitHub CI secrets, разрешения `GITHUB_TOKEN`, публикация и загрузка артефактов Releases | Минимальные права CI — P00.05–P00.06; секреты подписи и права выпуска — P08.03/P08.06. Публикация требует отдельного поручения. |
+| Tailnet, вход и VPN-разрешение Android, сетевые правила | До проверки транспорта P01.11 и сценариев P06; реальные подключения и продуктовые права не создаются проверкой инструментов. |
+
+P00.04 принимается локально по ISCC, диагностике Tailscale и доступам GitHub с явно записанными ограничениями и отложенными средствами. Готовность выпуска и паритет самого приложения принимаются в последующих шагах.
 
 ## Обновление, отмена и результаты
 
 Перед изменениями сохраните в `docs/reports/` список версий, выбранный `rustup show active-toolchain` и изменяемые переменные окружения. Старые отдельные установки удаляйте штатно **после** проверки замены, с учётом других проектов. Для Rust используйте `rustup toolchain uninstall <точное-имя-старого-toolchain>`; сначала проверьте имя через `rustup toolchain list`.
 
 Для отмены восстановите прежние версии официальными установщиками, прежний Rust — через `rustup toolchain install` и `rustup default`. Программы удаляются в **Settings → Apps → Installed apps**, компоненты MSVC/SDK — через Visual Studio Installer или их штатный деинсталлятор. Для Bun используйте тот же способ управления, что при установке; WinGet-установка удаляется через `winget uninstall --id Oven-sh.Bun --exact`. Возвращайте только изменённые вами значения PATH/переменных; сохраняйте профили браузеров, Git-настройки и учётные записи. Тестовый пример можно удалить отдельно из `temp/rust-smoke`.
+
+Inno Setup удаляется через **Installed apps** или `unins000.exe` именно из его каталога установки; пользовательский установщик выше не меняет глобальный PATH и ассоциации `.iss`. Для добавленных через WinGet GitHub CLI/Tailscale используйте `winget uninstall --id GitHub.cli --exact` и `winget uninstall --id Tailscale.Tailscale --exact`. Существующие до проверки программы удалять не нужно. Если в отдельном сетевом шаге менялось подключение, `tailscale down` отключает его, а `tailscale logout` завершает вход; удаление зарегистрированного устройства из tailnet выполняется владельцем отдельно. Уже существующее подключение и GitHub-авторизацию сохраняйте. Синтетический ISCC-пример удаляется только из проверенного `temp/iscc-smoke/`; результат и журнал установки остаются в `docs/reports/`.
 
 Для Android сначала остановите свой AVD и IDE. AVD удаляется через `avdmanager delete avd --name zedone_api33_aosp_x86_64`, выбранные SDK-пакеты — через `android --sdk=<каталог-SDK> sdk remove <точный-ID-со-слешами>`, CLI — через `cargo uninstall tauri-cli`, Rust-цели — через `rustup target remove --toolchain 1.99.1-x86_64-pc-windows-msvc <точная-цель>`. Удаление общего SDK-пакета затрагивает все использующие его проекты: сверьте зависимости. ZIP-установка Studio удаляется из её отдельного каталога после проверки абсолютного пути; сохраняйте пользовательские настройки IDE. Восстановите исходные Android-переменные из локального снимка. Если WHP был выключен до подготовки и больше не нужен другим приложениям, его можно выключить штатно через Windows Features или `Disable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -NoRestart` из PowerShell администратора; требуемую перезагрузку выполняет разработчик.
 

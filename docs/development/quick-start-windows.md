@@ -374,6 +374,26 @@ if ($LASTEXITCODE -ne 0) { throw 'Список Releases недоступен.' }
 
 P00.04 принимается локально по ISCC, диагностике Tailscale и доступам GitHub с явно записанными ограничениями и отложенными средствами. Готовность выпуска и паритет самого приложения принимаются в последующих шагах.
 
+## 5. Проверьте Windows теми же командами, что CI (P00.05)
+
+Авторитетные версии Rust и Bun для проверки находятся в [scripts/environment-versions.json](../../scripts/environment-versions.json). Локальный скрипт и workflow читают этот файл; таблица выше описывает исходную базу установки. Перед обновлением версий меняйте файл и согласованные инструкции вместе, затем повторяйте локальную и удалённую проверки.
+
+После установки инструментов выполните из корня репозитория в PowerShell 7:
+
+```powershell
+New-Item -ItemType Directory -Path docs/reports/p00-05 -Force | Out-Null
+pwsh -NoProfile -File scripts/check-windows-environment.ps1 *> docs/reports/p00-05/local-check.log
+if ($LASTEXITCODE -ne 0) { throw 'Проверка Windows не пройдена; см. local-check.log.' }
+```
+
+[Общий скрипт](../../scripts/check-windows-environment.ps1) проверяет Git, rustup, закреплённый Rust MSVC x64 с Cargo/rustfmt/Clippy, точную версию Bun и выполнение JavaScript. На отдельном примере без зависимостей выполняются Cargo build/run/fmt/Clippy; ожидается `Hello, world!`. Сборка проверяет доступность компилятора, линкера и SDK. Пример создаётся в собственном подкаталоге `temp/` и удаляется даже при ошибке. Ненулевой код внешней команды завершает проверку с ошибкой. Скрипт не устанавливает инструменты и не меняет глобальный Rust toolchain.
+
+[Workflow Windows environment](../../.github/workflows/windows-environment.yml) запускается при push/PR с изменениями workflow, скрипта или файла версий. После появления workflow в основной ветке доступен ручной запуск **Actions → Windows environment → Run workflow** для выбранной ветки. Он устанавливает закреплённые Rust/Bun и вызывает тот же скрипт на стандартном `windows-2025`. MSVC/SDK, Git, rustup и PowerShell поставляет [обновляемый образ runner](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md); точные версии образа и инструментов сохраняются в журнале запуска. Это проверка среды Windows Server, а не замена локальной Windows 11 и Chrome/Opera. Node.js обслуживает actions; потребность инструментов ZeDone в Node.js по-прежнему проверяется в P01.
+
+Workflow имеет только `contents: read`, не использует пользовательские секреты и не публикует артефакты или кеши. Журнал доступен в Actions; срок хранения задаёт политика репозитория. Для публичного репозитория стандартный hosted runner [бесплатен](https://docs.github.com/en/billing/concepts/product-billing/github-actions); для приватного репозитория сначала проверьте квоту. Тайм-аут — 15 минут, устаревшие запуски одной ветки/PR отменяются. Отменить текущий запуск можно через **Cancel workflow**; отключить проверку — **Disable workflow**, вернуть конфигурацию — обратным коммитом. Одноразовый runner удаляется GitHub; локальные установки не затрагиваются.
+
+Результат фиксируется в [EV-008](../agent/verification/EV-008-windows-environment-ci.md). P00.05 проверяет только Windows-среду; Linux с Android-эмулятором — P00.06, полное воспроизведение — P00.07, сборка приложения — P01.
+
 ## Обновление, отмена и результаты
 
 Перед изменениями сохраните в `docs/reports/` список версий, выбранный `rustup show active-toolchain` и изменяемые переменные окружения. Старые отдельные установки удаляйте штатно **после** проверки замены, с учётом других проектов. Для Rust используйте `rustup toolchain uninstall <точное-имя-старого-toolchain>`; сначала проверьте имя через `rustup toolchain list`.

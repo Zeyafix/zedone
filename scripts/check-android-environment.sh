@@ -47,11 +47,14 @@ cleanup() {
         if [[ $status != 0 ]]; then
             tail -n 80 "$probe/emulator.log" >&2 || true
         fi
-        # Stop only our process, even when adb is offline or startup failed.
-        kill "$emulator_pid" 2>/dev/null || true
+        # Own a separate process group. QEMU can ignore TERM even after a successful boot.
+        kill -TERM -- "-$emulator_pid" 2>/dev/null || true
+        timeout 10 tail --pid="$emulator_pid" -f /dev/null >/dev/null 2>&1 || true
+        kill -KILL -- "-$emulator_pid" 2>/dev/null || true
         wait "$emulator_pid" 2>/dev/null || true
     fi
     rm -rf -- "$probe"
+    echo 'Android probe cleanup completed.'
     exit "$status"
 }
 trap cleanup EXIT
@@ -72,7 +75,7 @@ printf 'no\n' | avdmanager create avd --name "$avd_name" --package "${image//\//
 # Require a free port instead of touching an existing emulator.
 ports=$(ss -H -ltn)
 echo "$ports" | awk '{print $4}' | grep -Eq ':(5554|5555)$' && fail 'Emulator ports 5554/5555 are occupied.'
-emulator -avd "$avd_name" -port 5554 -no-window -no-audio -no-boot-anim \
+setsid emulator -avd "$avd_name" -port 5554 -no-window -no-audio -no-boot-anim \
     -no-snapshot -gpu software -accel on -memory 2048 -cores 2 > "$probe/emulator.log" 2>&1 &
 emulator_pid=$!
 booted=false

@@ -1,2 +1,36 @@
 /temp/
 /docs/reports/
+
+# Local environment and credentials; examples must contain synthetic values.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.git-credentials
+.netrc
+_netrc
+.npmrc
+.pypirc
+.ssh/
+.aws/
+credentials.json
+credentials.local.*
+
+# Private keys and signing material.
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+keystore.properties
+
+# SDK paths and editor state belong to the current machine.
+local.properties
+.idea/
+.vscode/

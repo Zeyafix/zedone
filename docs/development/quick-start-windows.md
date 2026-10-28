@@ -63,6 +63,8 @@ git clone https://github.com/Zeyafix/zedone.git
 Set-Location zedone
 ```
 
+Перед первым коммитом настройте GitHub noreply и проверку pre-push по [правилам публикуемых данных](repository-privacy.md). Локальные отчёты и настройки машины не включаются в Git.
+
 В PowerShell 7 проверьте инструменты:
 
 ```powershell

@@ -28,9 +28,13 @@ checks:
   - "Русский/Unicode/пустой ввод, неверный JSON/тип, неизвестный маршрут, отказ HTTP и повтор."
   - "Целевые Chrome/Opera при доступности; Windows/Linux CI подготовить, не объявлять пройденным до запуска."
 reverse_and_failure: "Echo не хранит данные; очистка формы и повтор после отказа. Генерация сначала в памяти, запись только после успеха. Сервер только loopback, процессы проверок останавливаются."
-result: "Локально verified: Rust/генерация/типы/сборка/HTTP и Chrome/Opera пройдены. CI, публикация и интеграция ожидаются."
+result: "P01.03 done: Windows/Linux Actions пройдены, PR #10 интегрирован в main."
+revision: 3c929177a2fb49ff7721dd6658d8353257b5e9ff
+integration_revision: c4a1cee7f5cb40207f0a876b234f7c9e9537e00d
+pull_request: https://github.com/Zeyafix/zedone/pull/10
+report: https://github.com/Zeyafix/zedone/actions/runs/40704452219
 evidence: ["Локальные логи и отпечатки: docs/reports/p01-03/ (игнорируются)"]
-next: "Проверить Windows/Linux Actions и интегрировать P01.03 в рамках поручения на публикацию; P01.04 после done."
+next: "P01.04: минимальный APK и вызов общего Rust echo через IPC; зависимость интегрирована, реализация не начата."
 ```
 
 Один проверяемый срез соединяет Rust-контракт, транспорт и потребителя Vue.
@@ -93,8 +97,8 @@ SHA-256 и использован только в PATH процесса; сущ�
   полный diff и исключение машинных отчётов проверены локально.
 
 CI расширен установкой закреплённого Node, frozen-установкой JavaScript-пакетов и
-Chromium; Windows/Linux выполнят ту же общую команду. В этом поручении Actions не
-запускались; успешность Linux и CI ещё не подтверждена. Коммит, PR и слияние не создавались.
+Chromium. Windows/Linux выполнили ту же общую команду после публикации: PR/push
+Actions прошли на head, указанном выше. PR #10 слит в main; подробности ниже.
 T01 остаётся `partial`, DEC-001 открыт; Tauri, Markdown, Android WebView/IPC/APK,
 прикладной паритет платформ и измерения не проверены. Это не блокировки локального
 объёма P01.03 и не доказательство пригодности полного стека.
@@ -111,3 +115,25 @@ OpenAPI и TypeScript производны. Прикладной паритет 
 - [Vue language tools: vue-tsc](https://github.com/vuejs/language-tools/tree/master/packages/tsc).
 - [Node LTS: официальный дистрибутив](https://nodejs.org/dist/v24.22.1/).
 - [Axum: JSON/маршрутизация](https://docs.rs/axum/0.8.9/axum/).
+
+
+## Интеграция
+
+- [PR #10](https://github.com/Zeyafix/zedone/pull/10) слит в `main` 2026-10-28
+  в 14:25:05 UTC; head `3c929177a2fb49ff7721dd6658d8353257b5e9ff`,
+  merge `c4a1cee7f5cb40207f0a876b234f7c9e9537e00d`.
+- [PR Actions 40704452219](https://github.com/Zeyafix/zedone/actions/runs/40704452219)
+  и [push Actions 40704424567](https://github.com/Zeyafix/zedone/actions/runs/40704424567)
+  успешно выполнили полную цепочку на Windows/Linux: Rust, обе сверки контрактов,
+  строгие Vue-типы под закреплённым Node, сборка Vite под Bun и HTTP/браузер в Chromium.
+  Все восемь проверок push/PR, включая Windows/Android environment workflows, успешны.
+- Перед merge подтверждены ожидаемый head, `MERGEABLE / CLEAN`, отсутствие комментариев,
+  отклоняющих ревью и невыполненных правил ветки. Внешнее ревью не требовалось и не
+  проводилось; административный обход не использован. Описание PR содержит фактические
+  CI-результаты и два проверенных UI-вложения GitHub вне Git-дерева.
+- Head подтверждён в `origin/main`; локальный main обновлён fast-forward.
+  Ветка `feat/p01-03-typed-http-client` удалена на GitHub и локально.
+  Итоговая запись изменяет только документы состояния, не проверенные код и версии.
+- P01.03 — `done`; T01 остаётся `partial`, DEC-001 открыт. Android environment
+  не проверяет контракт в APK, WebView/IPC или паритет приложения. Приёмка P00
+  сохраняет границы EV-012. Следующий шаг — P01.04; он пока `planned` и не начат.

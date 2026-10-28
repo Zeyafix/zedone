@@ -394,6 +394,10 @@ Workflow имеет только `contents: read`, не использует п�
 
 Результат фиксируется в [EV-008](../agent/verification/EV-008-windows-environment-ci.md). P00.05 проверяет только Windows-среду; Linux с Android-эмулятором — P00.06, полное воспроизведение — P00.07, сборка приложения — P01.
 
+## 6. Linux Actions и Android-эмулятор (P00.06)
+
+Общий набор Android-версий, отдельный SDK, команды Linux-проверки, бесплатные ограничения Actions и отмена настройки описаны в [инструкции Android CI](android-environment-ci.md). Linux workflow проверяет ту же базу SDK и AOSP API 33, что подготовлена выше; выполнение на Windows этим не заменяется. Доказательства — [EV-009](../agent/verification/EV-009-android-environment-ci.md).
+
 ## Обновление, отмена и результаты
 
 Перед изменениями сохраните в `docs/reports/` список версий, выбранный `rustup show active-toolchain` и изменяемые переменные окружения. Старые отдельные установки удаляйте штатно **после** проверки замены, с учётом других проектов. Для Rust используйте `rustup toolchain uninstall <точное-имя-старого-toolchain>`; сначала проверьте имя через `rustup toolchain list`.

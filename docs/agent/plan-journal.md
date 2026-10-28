@@ -7,21 +7,21 @@ updated: 2026-10-28
 development_state: prototyping
 current_stage: P01
 current_stage_state: in_progress
-current_step: P01.02
+current_step: P01.03
 last_completed_stage: null
-last_completed_step: P01.01
-active_work: "P01.02: публикация проверенного среза, merge после успешных проверок и удаление рабочей ветки по поручению разработчика."
-next_action: "Опубликовать PR P01.02, проверить Windows/Linux Actions и условия слияния; после успеха выполнить merge и удалить ветку. P01.03 доступен после done и не входит в текущее поручение."
+last_completed_step: P01.02
+active_work: ""
+next_action: "P01.03: Vue/TypeScript strict/Vite, генерация типов и типизированный HTTP-вызов на интегрированной основе P01.02 (EV-014, PR #9). Шаг пока planned, реализация не начата. Общая приёмка P00 сохраняет границы EV-012."
 passed_acceptance: [T16]
 open_bugs: []
 open_gaps: []
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
-last_event: LOG-105
+last_event: LOG-106
 ```
 
-Фактическое состояние: общие Windows/Android-проверки окружения интегрированы в main после успешных Actions в PR #5/#6 ([EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md)); T16 пройден. Инструкции P00.07 интегрированы через PR #7 ([EV-010](verification/EV-010-environment-reproduction.md)). Сверка P00 завершена в [EV-012](verification/EV-012-p00-acceptance-review.md); полная общая приёмка P00 остаётся открытой, T17 — частичным. P01.01 завершён: каркас Rust/Bun и методика проверок интегрированы через PR #8 после успешных Windows/Linux Actions ([EV-013](verification/EV-013-prototype-foundation.md)). P01.02 локально проверен в отдельной ветке: Rust-контракт и генерация OpenAPI готовы, состояние verified, CI и интеграция ожидаются ([EV-014](verification/EV-014-openapi-contract.md)). Рабочего прототипа с прикладными операциями, APK, продуктовых сборок и измерений ещё нет. Пустой список багов означает отсутствие зарегистрированных багов, а не доказанное отсутствие ошибок. Открытые решения сохраняются для соответствующих последующих шагов.
+Фактическое состояние: общие Windows/Android-проверки окружения интегрированы в main после успешных Actions в PR #5/#6 ([EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md)); T16 пройден. Инструкции P00.07 интегрированы через PR #7 ([EV-010](verification/EV-010-environment-reproduction.md)). Сверка P00 завершена в [EV-012](verification/EV-012-p00-acceptance-review.md); полная общая приёмка P00 остаётся открытой, T17 — частичным. P01.01 завершён: каркас Rust/Bun и методика проверок интегрированы через PR #8 после успешных Windows/Linux Actions ([EV-013](verification/EV-013-prototype-foundation.md)). P01.02 завершён: Rust-контракт и генерация OpenAPI интегрированы через PR #9 после успешных Windows/Linux Actions ([EV-014](verification/EV-014-openapi-contract.md)). Следующий шаг — P01.03, пока planned. Рабочего прототипа с прикладными операциями, APK, продуктовых сборок и измерений ещё нет. Пустой список багов означает отсутствие зарегистрированных багов, а не доказанное отсутствие ошибок. Открытые решения сохраняются для соответствующих последующих шагов.
 
 Этот блок — краткая проекция реестров. При расхождении сначала сверить доказательства и актуальное дерево, затем исправить проекцию. Источники истины: спецификация для требований; [очередь малых шагов](work-queue.md) для их объёма, зависимостей и состояния; реестр приёмки ниже для результатов T/A/M/S; реестр проблем для багов, недочётов и решений. Журнал событий сохраняет историю изменений этих состояний. Состояние малого шага не дублируется отдельным списком в журнале; `current_step` указывает выбранную строку очереди.
 
@@ -144,7 +144,7 @@ P00–P09 — итоговые контрольные точки, а не еди
 Состояние: `in_progress`. Зависимости этапа: P00; исполняемые зависимости малых
 шагов — в очереди. Приёмка этапа: `T01–T04`, `A62`. P01.01 — `done` после
 Windows/Linux Actions и интеграции PR #8; полный прототип не готов ([EV-013](verification/EV-013-prototype-foundation.md)).
-P01.02 — `verified` в отдельной ветке, ожидает CI и интеграции ([EV-014](verification/EV-014-openapi-contract.md)).
+P01.02 — `done` после Windows/Linux Actions и интеграции PR #9 ([EV-014](verification/EV-014-openapi-contract.md)).
 
 Для прототипа приняты стартовые ориентиры 300 мс на открытие/перемещение/отметку выполнения карточки, 1 с на первые результаты поиска, 3 с на первый рабочий экран, запуск самого браузера ПК отдельно; ADR-0020/A62. Методика и данные уточняются до измерений, результаты эмулятора отдельно от целевого телефона. Неполный срез действий не закрывает A62.
 
@@ -248,7 +248,7 @@ P01.02 — `verified` в отдельной ветке, ожидает CI и и�
 | T15 | P00 | ISCC и Tailscale доступны и проверены; доступ к GitHub для репозитория, Releases и Actions проверен в необходимом объёме, без публикации и выдачи продуктовых прав; отложенные средства выпуска связаны с этапом подготовки | not_run | [EV-012](verification/EV-012-p00-acceptance-review.md): сверка завершена; локальная готовность не переносится в общий реестр |
 | T16 | P00 | Минимальные проверки окружения проходят в GitHub Actions на Windows и Linux с закреплёнными инструментами, включая запуск Android-эмулятора на Linux; сохранены реальные результаты, бесплатные ограничения учтены | passed | [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md): Windows и Linux/Android CI пройдены и интегрированы через PR #5/#6; обе проверки PR #6 прошли на 651e342, merge ec67cd9 |
 | T17 | P00 | Инструкция в docs/development позволяет воспроизвести окружение и проверки на существующей ОС теми же командами человеку и агенту; описаны версии/источники, настройки и отмена внесённых изменений, отчёт связан с EV; неподтверждённые части явно отмечены; проверка на совершенно чистой системе исключена решением разработчика (LOG-098) | partial | [EV-003](verification/EV-003-windows-quick-start.md), [EV-005](verification/EV-005-android-quick-start.md), [EV-006](verification/EV-006-local-reports-layout.md), [EV-007](verification/EV-007-release-connectivity-quick-start.md), [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md), [EV-010](verification/EV-010-environment-reproduction.md): инструкция воспроизведения и обратных действий дополнена, ревизии Android-пакетов Windows берутся из общего JSON. Общие инструкции интегрированы через PR #7; LOG-098 исключает проверку на чистой системе из ожидаемого охвата, сверка завершена в [EV-012](verification/EV-012-p00-acceptance-review.md); общий partial сохранён без переноса машинных результатов |
-| T01 | P01 | Воспроизводимая цепочка Bun/Vue/TypeScript/Vite/Tauri, utoipa/OpenAPI/openapi-typescript/openapi-fetch и установка/сборка markdown-it/DOMPurify на Windows и CI; генерация/согласованность артефактов, версии, lock-файл, команды и реальные среды выполнения, явная фиксация потребности в Node.js; ADR-0003 | partial | [EV-013](verification/EV-013-prototype-foundation.md): Rust/Bun-каркас интегрирован после Windows/Linux Actions. [EV-014](verification/EV-014-openapi-contract.md): локально проверены Rust→OpenAPI, воспроизводимость и отказы; CI P01.02 и остальной стек не проверены |
+| T01 | P01 | Воспроизводимая цепочка Bun/Vue/TypeScript/Vite/Tauri, utoipa/OpenAPI/openapi-typescript/openapi-fetch и установка/сборка markdown-it/DOMPurify на Windows и CI; генерация/согласованность артефактов, версии, lock-файл, команды и реальные среды выполнения, явная фиксация потребности в Node.js; ADR-0003 | partial | [EV-013](verification/EV-013-prototype-foundation.md): Rust/Bun-каркас интегрирован после Windows/Linux Actions. [EV-014](verification/EV-014-openapi-contract.md): Rust→OpenAPI, воспроизводимость и отказы проверены локально, Windows/Linux Actions пройдены, PR #9 интегрирован; остальной стек не проверен |
 | T02 | P01 | Общий локальный UI и APK: русский ввод, CommonMark на markdown-it/DOMPurify с буквальным HTML (ADR-0006/A50), навигация/клавиатура, жесты, жизненный цикл, дизайн; Tauri 2 (ADR-0001), Reka UI/HTML (ADR-0004), SortableJS/VueDraggablePlus (ADR-0005), фокус и совместимость; qrcodegen/SVG и Tauri Barcode Scanner, точное чтение QR, камера/разрешения/отмена, первый запуск без сети/модели/Google Play Services и ручной ввод на синтетических данных (ADR-0009/0022/0023/A51) | not_run | — |
 | T03 | P01 | rusqlite bundled на обеих платформах: запись/перезапуск, Unicode-поиск, согласованный снимок A без данных B, отсутствие блокировки UI/сети длительными операциями | not_run | — |
 | T04 | P01 | IPC и Axum вызывают общее ядро; прямой HTTP к открытому APK через Tailscale, ограничения доступа и доступность при смене состояния APK | not_run | — |
@@ -1248,3 +1248,10 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Разработчик поручил создать PR и при успешном результате выполнить merge с удалением рабочей ветки. Публикуется проверенный срез P01.02 из [EV-014](verification/EV-014-openapi-contract.md); P01.03 не начинается.
 - Перед публикацией проверяются состав diff относительно main, совпадение с локально проверенными исходниками, GitHub noreply и исключение машинных отчётов/временных копий из Git. Проверенные код, версии и workflow не меняются.
 - Следующее действие — создать PR, проверить фактические Windows/Linux Actions, ожидаемый head, отсутствие конфликтов, отклоняющих ревью и невыполненных правил ветки. Успех CI и интеграции этой записью не заявляется; P01.02 остаётся `verified`, T01 — `partial`.
+
+### LOG-106 — 2026-10-28 — агент Codex, P01.02 интегрирован
+
+- [PR #9](https://github.com/Zeyafix/zedone/pull/9) слит в `main` в 13:48:55 UTC, merge `dcdda2d46193eff725afd2567ab420e8ea38214f`, head `614e9229cef356ad71bc35b56785976b6ee8c3b3`. [PR Actions 40699124122](https://github.com/Zeyafix/zedone/actions/runs/40699124122) и [push Actions 40699067352](https://github.com/Zeyafix/zedone/actions/runs/40699067352) успешно выполнили общие проверки контракта на Windows/Linux. Отдельные Android environment workflows тоже прошли; контракт в APK и прикладной паритет этим не подтверждаются.
+- Перед merge проверены ожидаемый head, `MERGEABLE / CLEAN`, все успешные проверки, отсутствие комментариев, отклоняющих ревью и невыполненных правил ветки. Внешнее ревью не требовалось и не проводилось; административный обход не применялся. Описание PR обновлено фактическими результатами CI.
+- После подтверждения head в `origin/main` локальный `main` обновлён fast-forward. Рабочая ветка `feat/p01-02-openapi-contract` удалена локально и на GitHub. P01.02 — `done`, доказательства обновлены в [EV-014](verification/EV-014-openapi-contract.md); T01 остаётся `partial`, DEC-001 открыт, границы приёмки P00 сохраняются.
+- Итоговая запись меняет только документацию. Обратимость, общие команды человека и агента и Rust как источник контракта проверены в охвате прототипа; паритет Windows/Android приложения пока не доказан. Следующий шаг — P01.03: клиент и типизированный HTTP-вызов; зависимость интегрирована, шаг пока `planned`, реализация не начата, `active_work` пуст.

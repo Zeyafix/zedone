@@ -25,9 +25,12 @@ checks:
   - "Новая копия без target, cargo fetch --locked и общая проверка."
   - "Статическая проверка workflow и документации, git diff --check."
 reverse_and_failure: "Echo не меняет состояния; артефакт удаляется и восстанавливается генератором. Неуспешная компиляция не перезаписывает его."
-result: "verified локально; коммита, PR/CI/интеграции нет."
-revision: "base_revision + незакоммиченные scope_files; отпечатки проверенного кода в локальном отчёте."
-next: "Проверить Windows/Linux Actions и интегрировать P01.02 в рамках поручения на публикацию; затем P01.03."
+result: "P01.02 done: Windows/Linux Actions пройдены, PR #9 интегрирован в main."
+revision: 614e9229cef356ad71bc35b56785976b6ee8c3b3
+integration_revision: dcdda2d46193eff725afd2567ab420e8ea38214f
+pull_request: https://github.com/Zeyafix/zedone/pull/9
+report: https://github.com/Zeyafix/zedone/actions/runs/40699124122
+next: "P01.03: Vue/TypeScript/Vite, генерация типов и типизированный HTTP-вызов."
 ```
 
 Охват — синтетический echo без хранения и сетевого сервера, Rust-модели запроса
@@ -63,11 +66,29 @@ release build, сверка схемы) и повтор в новой копии
 98 критериев и их состояний, полный diff и `git diff --check`.
 Сырые журналы и отпечатки находятся только в игнорируемой `docs/reports/p01-02/`.
 
-T01 остаётся `partial`, DEC-001 остаётся открытым. Новый workflow ещё не запускался
-в Windows/Linux Actions; Android/APK, HTTP, клиент и производительность не проверены.
-P01.02 ожидает CI и интеграции; P01.03 не начат. Приёмка P00 не меняется.
+T01 остаётся `partial`, DEC-001 остаётся открытым. Windows/Linux Actions пройдены;
+Android/APK, HTTP, клиент и производительность не проверены. P01.02 интегрирован;
+P01.03 не начат. Приёмка P00 не меняется.
 
 Правила проекта: echo не меняет состояния и не требует обратной операции;
 генерируемый файл восстанавливается, сборка очищается. Человек и агент используют
 одни команды и контракт. Документация актуализирована; паритет Windows/Android
 ещё не доказан. Ручных копий моделей нет, источники версий и состояний сохранены.
+
+## Интеграция
+
+[PR #9](https://github.com/Zeyafix/zedone/pull/9) слит в `main` 2026-10-28
+в 13:48:55 UTC, merge `dcdda2d46193eff725afd2567ab420e8ea38214f`.
+[PR Actions 40699124122](https://github.com/Zeyafix/zedone/actions/runs/40699124122)
+и [push Actions 40699067352](https://github.com/Zeyafix/zedone/actions/runs/40699067352)
+завершились с `success` на указанном head: Windows и Linux выполнили общие проверки
+контракта. Отдельные [PR Android environment](https://github.com/Zeyafix/zedone/actions/runs/40699124347)
+и [push Android environment](https://github.com/Zeyafix/zedone/actions/runs/40699067602)
+тоже прошли; это проверка окружения, а не контракта в APK или паритета приложения.
+
+Перед merge подтверждены ожидаемый head, `MERGEABLE / CLEAN`, успешные проверки,
+отсутствие комментариев и отклоняющих ревью. Правила ветки и обязательное внешнее
+ревью отсутствовали; внешнее ревью не проводилось, административный обход не применялся.
+После проверки включения head в `origin/main` локальный `main` обновлён fast-forward;
+рабочая ветка удалена локально и на GitHub. Запись результата меняет только
+документацию; проверенные код, workflow, зависимости и схема остаются прежними.

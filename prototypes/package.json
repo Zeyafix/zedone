@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "bun ./scripts/check.mjs"
+    "check": "bun ./scripts/check.mjs",
+    "check:openapi": "bun ./scripts/check.mjs --check-openapi",
+    "generate:openapi": "bun ./scripts/check.mjs --write-openapi"
   }
 }

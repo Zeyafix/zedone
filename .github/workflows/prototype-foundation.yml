@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - 'prototypes/**'
+      - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
   pull_request:
     paths:
       - 'prototypes/**'
+      - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
   workflow_dispatch:
@@ -46,6 +48,11 @@ jobs:
         with:
           bun-version: ${{ steps.versions.outputs.bun }}
           no-cache: true
-      - name: Check prototype foundation
+      - name: Fetch locked Rust dependencies
+        run: |
+          $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
+          cargo "+$($versions.rust)" fetch --locked --manifest-path prototypes/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
+      - name: Check prototype foundation and OpenAPI
         working-directory: prototypes
         run: bun run check

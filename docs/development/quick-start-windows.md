@@ -103,13 +103,13 @@ cargo clippy --manifest-path temp/rust-smoke/Cargo.toml --offline -- -D warnings
 | --- | --- |
 | Android Studio | Rabbit 1, 2026.2.1.8; JBR/JDK 25.0.3 из каталога `jbr` |
 | Command-line Tools | 23.0, Android CLI 1.1.16717390; архив `commandlinetools-win-16111833_latest.zip` |
-| SDK Platform / Build-Tools | `platforms/android-37.0`, `platforms/android-33` / `build-tools/37.0.0` |
+| SDK Platform / Build-Tools | `platforms/android-37.0`, `platforms/android-36`, `platforms/android-33` / `build-tools/37.0.0`, `build-tools/36.0.0` |
 | Platform-Tools / Emulator | 37.0.1 / 37.2.12; SDK Manager распространяет их под именами `platform-tools` / `emulator` |
 | NDK | `ndk/30.0.16248370`, r30 LTS |
 | Tauri CLI | 2.12.4 через Cargo |
 | Образ AVD | `system-images/android-33/default/x86_64`, revision 2; AOSP без Google Play Services |
 
-SDK 37.0 подготовлен для [актуального шаблона Tauri CLI](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/templates/mobile/android/app/build.gradle.kts); API 33 и образ Android 13 нужны для целевой проверки эмулятора. `compileSdk` и `targetSdk` прототипа ещё проверяются в P01. Для JDK 25 требуется Gradle не ниже 9.1.0 по [матрице совместимости Java](https://docs.gradle.org/current/userguide/compatibility.html); [шаблон CLI 2.12.4](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/templates/mobile/android/gradle/wrapper/gradle-wrapper.properties) задаёт wrapper 9.6.1. Используйте wrapper будущего проекта; отдельная установка Gradle не требуется. Пакеты `platform-tools` и `emulator` обновляются в стабильном канале: после установки записывайте фактические версии локально, не считайте их закреплёнными одним лишь именем пакета.
+SDK 37.0 подготовлен для [актуального шаблона Tauri CLI](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/templates/mobile/android/app/build.gradle.kts); API 33 и образ Android 13 нужны для целевой проверки эмулятора. В P01.04 приложение использует compileSdk/targetSdk 37, библиотечный модуль Tauri — compileSdk 36. Для него дополнительно нужны SDK 36 revision 2 и Build-Tools 36.0.0 из общего JSON; [сборка APK](android-prototype.md) не устанавливает отсутствующие SDK-пакеты автоматически. Для JDK 25 требуется Gradle не ниже 9.1.0 по [матрице совместимости Java](https://docs.gradle.org/current/userguide/compatibility.html); [шаблон CLI 2.12.4](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.4/crates/tauri-cli/templates/mobile/android/gradle/wrapper/gradle-wrapper.properties) задаёт wrapper 9.6.1. Используйте wrapper будущего проекта; отдельная установка Gradle не требуется. Пакеты `platform-tools` и `emulator` обновляются в стабильном канале: после установки записывайте фактические версии локально, не считайте их закреплёнными одним лишь именем пакета.
 
 В Tools 23 управление SDK выполняет [Android CLI](https://developer.android.com/tools/agents/android-cli). В его именах пакетов используются `/`; оставшийся `avdmanager` использует прежние идентификаторы с `;`. Не передавайте эти формы другому инструменту: устаревшая обёртка `sdkmanager` может вывести `Package ... not found` и завершиться с кодом `0`. Проверяйте также список и файлы установленных пакетов. `--no-metrics` отключает метрики вызова Android CLI; вход в Google и установка агентских навыков для подготовки не требуются.
 
@@ -174,7 +174,7 @@ foreach ($androidPackage in $androidPackages) {
 $androidCli = Join-Path $env:ANDROID_HOME 'cmdline-tools/23.0/bin/android.exe'
 & $androidCli --no-metrics "--sdk=$env:ANDROID_HOME" sdk list
 rustup target add --toolchain 1.99.1-x86_64-pc-windows-msvc aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-cargo install tauri-cli --version 2.12.4 --locked
+cargo install tauri-cli --version $environmentVersions.android.tauri_cli --locked
 cargo tauri --version
 cargo tauri android --help
 rustup target list --installed

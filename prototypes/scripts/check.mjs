@@ -66,12 +66,16 @@ if (!mode || mode.endsWith("types")) {
   // Import the generator API in this Bun process: no CLI shebang/Node fallback.
   const { default: openapiTS, astToString } = await import("openapi-typescript");
   const types = astToString(await openapiTS(JSON.parse(generated.toString())));
+  const command = JSON.parse(generated.toString()).paths["/prototype/echo"].post.operationId;
+  const ipc = `// Generated from Rust/OpenAPI; do not edit.\nexport const echoCommand = ${JSON.stringify(command)} as const;\n`;
+  const ipcFile = Bun.file(resolve(root, "client/ipc-command.ts"));
   const typesFile = Bun.file(resolve(root, "client/api.d.ts"));
   if (mode === "--write-types") {
     await Bun.write(typesFile, types);
-    console.log("Generated client/api.d.ts from OpenAPI; review its diff.");
-  } else if (!(await typesFile.exists()) || await typesFile.text() !== types) {
-    console.error("client/api.d.ts is missing or stale. Run bun run generate:types and review the diff.");
+    await Bun.write(ipcFile, ipc);
+    console.log("Generated client/api.d.ts and client/ipc-command.ts from OpenAPI; review their diff.");
+  } else if (!(await typesFile.exists()) || await typesFile.text() !== types || !(await ipcFile.exists()) || await ipcFile.text() !== ipc) {
+    console.error("client/api.d.ts or client/ipc-command.ts is missing or stale. Run bun run generate:types and review the diff.");
     process.exit(1);
   }
 }

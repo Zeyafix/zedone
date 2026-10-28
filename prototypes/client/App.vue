@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { client } from "./http";
+import { echo } from "./echo";
 
 const text = ref("");
 const result = ref<string>();
@@ -12,11 +12,7 @@ async function send() {
   result.value = undefined;
   error.value = "";
   try {
-    const { data, response } = await client.POST("/prototype/echo", {
-      body: { text: text.value },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok || !data) throw new Error(`HTTP ${response.status}`);
+    const data = await echo({ text: text.value });
     result.value = data.text;
   } catch {
     error.value = "Не удалось получить ответ. Ввод сохранён — повторите запрос.";

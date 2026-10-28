@@ -3,6 +3,13 @@
 /prototypes/target/
 /prototypes/node_modules/
 /prototypes/dist/
+/prototypes/src-tauri/gen/android/.gradle/
+/prototypes/src-tauri/gen/android/.kotlin/
+/prototypes/src-tauri/gen/android/**/build/
+/prototypes/src-tauri/gen/android/app/src/main/jniLibs/
+/prototypes/src-tauri/gen/android/tauri.settings.gradle
+/prototypes/src-tauri/gen/android/app/tauri.build.gradle.kts
+/prototypes/src-tauri/gen/schemas/
 
 # Local environment and credentials; examples must contain synthetic values.
 .env

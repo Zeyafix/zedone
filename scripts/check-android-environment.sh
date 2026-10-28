@@ -106,3 +106,9 @@ result=$(device_adb shell "$remote_probe" | tr -d '\r')
 device_adb shell rm -f "$remote_probe"
 echo 'Android 13 / API 33 / x86_64 / GMS absent; ZEDONE_ANDROID_TOOLCHAIN_OK'
 echo 'Android environment check passed.'
+
+# Optional application check uses this owned AVD before the existing cleanup trap.
+# Arguments are an executable and its argv, never an evaluated shell string.
+if (( $# )); then
+    ANDROID_SERIAL=emulator-5554 "$@"
+fi

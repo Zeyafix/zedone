@@ -5,6 +5,23 @@
   "scripts": {
     "check": "bun ./scripts/check.mjs",
     "check:openapi": "bun ./scripts/check.mjs --check-openapi",
-    "generate:openapi": "bun ./scripts/check.mjs --write-openapi"
+    "generate:openapi": "bun ./scripts/check.mjs --write-openapi",
+    "generate:types": "bun ./scripts/check.mjs --write-types",
+    "check:types": "bun ./scripts/check.mjs --check-types",
+    "check:http": "bun ./scripts/check-http.mjs",
+    "dev": "bun --bun vite --host 127.0.0.1",
+    "serve": "bun ./scripts/serve.mjs"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0",
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.10",
+    "openapi-typescript": "7.13.0",
+    "playwright": "1.64.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vue-tsc": "3.3.13"
   }
 }

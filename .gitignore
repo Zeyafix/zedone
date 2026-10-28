@@ -1,6 +1,8 @@
 /temp/
 /docs/reports/
 /prototypes/target/
+/prototypes/node_modules/
+/prototypes/dist/
 
 # Local environment and credentials; examples must contain synthetic values.
 .env

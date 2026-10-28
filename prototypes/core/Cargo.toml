@@ -6,6 +6,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+tokio = { version = "=1.54.1", features = ["macros", "rt", "net"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 utoipa = "=6.0.0"
 

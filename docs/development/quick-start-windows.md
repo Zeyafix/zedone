@@ -4,6 +4,8 @@
 
 Состояние текущей машины (`state.json`), отчёты, доказательства проверок и снимки настроек сохраняйте в `docs/reports/`. Загрузки, распаковки и проверочные примеры размещайте в `temp/`: их можно безопасно удалить и воссоздать командами ниже. Обе папки исключены из Git. Инструменты устанавливаются в штатные каталоги; отдельная папка `environment/` не требуется. При наличии старых отчётов в `temp/environment/` сначала перенесите их по [локальному порядку](../agent/work-queue.md#локальная-подготовка-машины).
 
+Полный порядок повторной проверки, чистой установки и сохранения доказательств — [P00.07: воспроизведение окружения](environment-reproduction.md). Успешный повтор на настроенном ПК и установка инструментов с нуля имеют разный охват.
+
 ## 1. Установите базовые инструменты
 
 Используйте стабильные выпуски. Ниже закреплена стартовая база P00.02 от 2026-10-27; совместимость всей цепочки Vue/Vite/OpenAPI/Tauri ещё проверяется в P01. Перед будущим обновлением сверяйте официальные выпуски и повторяйте проверки. Сведения конкретной машины в этот документ не записываются.
@@ -158,14 +160,12 @@ $androidCli = Join-Path (Resolve-Path (Join-Path $androidSetup 'tools/cmdline-to
 Установите пакеты из стабильного канала; прочитайте и примите запрошенные лицензии SDK. После каждой команды проверяйте `$LASTEXITCODE`: ошибка прерывает подготовку.
 
 ```powershell
-$androidPackages = @(
-    'cmdline-tools/23.0', 'platform-tools', 'emulator',
-    'platforms/android-37.0', 'platforms/android-33', 'build-tools/37.0.0',
-    'ndk/30.0.16248370', 'system-images/android-33/default/x86_64'
-)
+$environmentVersions = Get-Content -Raw -LiteralPath 'scripts/environment-versions.json' | ConvertFrom-Json
+$androidPackages = @("cmdline-tools/$($environmentVersions.android.command_line_tools)") + $environmentVersions.android.packages
 foreach ($androidPackage in $androidPackages) {
     & $androidCli --no-metrics "--sdk=$env:ANDROID_HOME" sdk install $androidPackage
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $env:ANDROID_HOME "$androidPackage/source.properties"))) {
+    $androidPackageId = $androidPackage.Split('@')[0]
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $env:ANDROID_HOME "$androidPackageId/source.properties"))) {
         throw "Пакет не установлен: $androidPackage"
     }
 }
@@ -179,6 +179,8 @@ rustup target list --installed
 & "$env:NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe" --version
 & "$env:ANDROID_HOME/platform-tools/adb.exe" version
 ```
+
+Суффиксы `@version` берутся из того же JSON, что Linux CI: установка `platform-tools` или `emulator` без версии могла бы незаметно получить другой выпуск. Сверьте `sdk list` и `Pkg.Revision` в `source.properties` каждого пакета с JSON; наличие файла подтверждает установку, но не совпадение версии. Общие версии Rust/Bun и Android для проверок задаёт [environment-versions.json](../../scripts/environment-versions.json); таблицы выше поясняют назначение компонентов.
 
 Проверьте линковку Rust и NDK на изолированном исполняемом файле для эмулятора. Это проверка toolchain, а не APK ZeDone.
 

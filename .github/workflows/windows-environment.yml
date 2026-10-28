@@ -1,0 +1,46 @@
+name: Windows environment
+
+on:
+  push:
+    paths:
+      - '.github/workflows/windows-environment.yml'
+      - 'scripts/environment-versions.json'
+      - 'scripts/check-windows-environment.ps1'
+  pull_request:
+    paths:
+      - '.github/workflows/windows-environment.yml'
+      - 'scripts/environment-versions.json'
+      - 'scripts/check-windows-environment.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-environment-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust and read Bun version
+        id: versions
+        run: |
+          $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
+          rustup toolchain install "$($versions.rust)-x86_64-pc-windows-msvc" --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+          "bun=$($versions.bun)" >> $env:GITHUB_OUTPUT
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ steps.versions.outputs.bun }}
+          no-cache: true
+      - name: Check Windows environment
+        run: ./scripts/check-windows-environment.ps1

@@ -10,6 +10,7 @@ goal: "Закреплённый Android toolchain собирает Rust-прим
 requirements: [T16, T17]
 dependencies_evidence: "P00.03 проверен по локальному docs/reports/state.json и android-checks.json; P00.05 интегрирован через PR #5, EV-008."
 scope_files:
+  - .gitattributes
   - scripts/environment-versions.json
   - scripts/check-android-environment.sh
   - .github/workflows/android-environment.yml
@@ -20,7 +21,7 @@ scope_files:
   - docs/agent/verification/EV-009-android-environment-ci.md
 checks:
   - "bash -n, shellcheck, actionlint, полный diff, git diff --check."
-  - "Ошибочная версия/команда, тайм-аут и выход эмулятора; очистка своего AVD и сохранение существующих данных."
+  - "Ошибочная версия Bun и отказ компилятора с кодом 23; очистка своего AVD/каталога и сохранение существующих данных."
   - "Реальный завершённый Linux Actions: версии, четыре ABI, KVM, Android 13/API 33/x86_64, GMS отсутствует, Rust-бинарник возвращает ожидаемый результат."
 reverse_and_failure: "Собственный процесс/AVD останавливается и удаляется в EXIT/INT/TERM; ошибки останавливают проверку. Workflow отменяется в Actions, конфигурация возвращается обратным коммитом."
 result: "В работе; локальные проверки и реальный CI ещё не подтверждены."

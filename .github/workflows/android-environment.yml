@@ -3,11 +3,13 @@ name: Android environment
 on:
   push:
     paths:
+      - '.gitattributes'
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
   pull_request:
     paths:
+      - '.gitattributes'
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
@@ -65,6 +67,8 @@ jobs:
             --target i686-linux-android --target x86_64-linux-android
       - name: Allow this runner to use KVM
         run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libpulse0
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
       - name: Check Android environment
         run: |
@@ -77,6 +81,7 @@ jobs:
           mkdir -p "$test_dir/bin" "$test_dir/existing-avd"
           echo preserve > "$test_dir/existing-avd/sentinel"
           find temp -maxdepth 1 -name 'android-environment.*' | sort > "$test_dir/before"
+          test ! -s "$test_dir/before"
           printf '#!/usr/bin/env bash\necho 0.0.0\n' > "$test_dir/bin/bun"
           chmod +x "$test_dir/bin/bun"
           status=0

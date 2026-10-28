@@ -77,7 +77,8 @@ jobs:
       - name: Check rejection and cleanup on compiler failure
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")
-          trap 'rm -rf -- "$test_dir"' EXIT
+          trap 'status=$?; if (( status != 0 )); then cat "$test_dir/"*.log; fi; rm -rf -- "$test_dir"; exit "$status"' EXIT
+          set -x
           mkdir -p "$test_dir/bin" "$test_dir/existing-avd"
           echo preserve > "$test_dir/existing-avd/sentinel"
           find temp -maxdepth 1 -name 'android-environment.*' | sort > "$test_dir/before"

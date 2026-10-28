@@ -2,3 +2,5 @@
 *.sh text eol=lf
 # Keep the generated artifact byte-identical across Windows and Linux checkouts.
 /prototypes/openapi.json text eol=lf
+/prototypes/client/api.d.ts text eol=lf
+/prototypes/bun.lock text eol=lf

@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 const mode = Bun.argv[2];
-if (Bun.argv.length > 3 || (mode && !["--write-openapi", "--check-openapi"].includes(mode))) {
-  console.error("Expected no arguments, --write-openapi or --check-openapi.");
+if (Bun.argv.length > 3 || (mode && !["--write-openapi", "--check-openapi", "--write-types", "--check-types"].includes(mode))) {
+  console.error("Expected no arguments, --write-openapi, --check-openapi, --write-types or --check-types.");
   process.exit(1);
 }
 
@@ -22,8 +22,9 @@ const checks = [
   ["build", "--workspace", "--release", "--locked", "--offline"],
 ];
 
-function cargo(args, capture = false) {
-  const cmd = ["cargo", `+${versions.rust}`, ...args];
+console.log(`Runtime: Bun ${Bun.version}.`);
+
+function run(cmd, capture = false) {
   console.log(`> ${cmd.join(" ")}`);
   const result = Bun.spawnSync(cmd, {
     cwd: root,
@@ -33,11 +34,13 @@ function cargo(args, capture = false) {
     stderr: "inherit",
   });
   if (result.exitCode !== 0 || result.signalCode) {
-    console.error(`Prototype check failed: cargo ${args[0]}.`);
+    console.error(`Prototype check failed: ${cmd.join(" ")}.`);
     process.exit(result.exitCode || 1);
   }
   return result.stdout;
 }
+
+const cargo = (args, capture = false) => run(["cargo", `+${versions.rust}`, ...args], capture);
 
 if (!mode) {
   for (const args of checks) cargo(args);
@@ -56,5 +59,32 @@ if (mode === "--write-openapi") {
     console.error("openapi.json is missing or stale. Run bun run generate:openapi and review the diff.");
     process.exit(1);
   }
-  console.log("OpenAPI matches Rust. HTTP, client and Android remain unverified.");
+  console.log("OpenAPI matches Rust.");
+}
+
+if (!mode || mode.endsWith("types")) {
+  // Import the generator API in this Bun process: no CLI shebang/Node fallback.
+  const { default: openapiTS, astToString } = await import("openapi-typescript");
+  const types = astToString(await openapiTS(JSON.parse(generated.toString())));
+  const typesFile = Bun.file(resolve(root, "client/api.d.ts"));
+  if (mode === "--write-types") {
+    await Bun.write(typesFile, types);
+    console.log("Generated client/api.d.ts from OpenAPI; review its diff.");
+  } else if (!(await typesFile.exists()) || await typesFile.text() !== types) {
+    console.error("client/api.d.ts is missing or stale. Run bun run generate:types and review the diff.");
+    process.exit(1);
+  }
+}
+
+if (!mode) {
+  // vue-tsc patches the CommonJS loader through fs.readFileSync; Bun bypasses it.
+  const nodeVersion = run(["node", "--version"], true).toString().trim();
+  if (nodeVersion !== `v${versions.node}`) {
+    console.error(`vue-tsc requires pinned Node ${versions.node}; found ${nodeVersion}.`);
+    process.exit(1);
+  }
+  run(["node", "node_modules/vue-tsc/bin/vue-tsc.js", "--noEmit"]);
+  // Explicit Bun entry point bypasses Vite's Node shebang.
+  run([process.execPath, "node_modules/vite/bin/vite.js", "build"]);
+  run([process.execPath, "scripts/check-http.mjs"]);
 }

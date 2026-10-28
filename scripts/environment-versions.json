@@ -1,6 +1,7 @@
 {
   "rust": "1.99.1",
   "bun": "1.4.4",
+  "node": "24.22.1",
   "android": {
     "jdk": "25.0.3",
     "command_line_tools": "23.0",

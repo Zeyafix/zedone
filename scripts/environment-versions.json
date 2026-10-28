@@ -1,4 +1,22 @@
 {
   "rust": "1.99.1",
-  "bun": "1.4.4"
+  "bun": "1.4.4",
+  "android": {
+    "jdk": "25.0.3",
+    "command_line_tools": "23.0",
+    "cli": "1.1.16717390",
+    "linux_archive": "commandlinetools-linux-16111833_latest.zip",
+    "linux_sha256": "0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8",
+    "ndk": "30.0.16248370",
+    "image": "system-images/android-33/default/x86_64",
+    "packages": [
+      "platform-tools@37.0.1",
+      "emulator@37.2.12",
+      "platforms/android-37.0@2.0.0",
+      "platforms/android-33@3.0.0",
+      "build-tools/37.0.0@37.0.0",
+      "ndk/30.0.16248370@30.0.16248370",
+      "system-images/android-33/default/x86_64@2.0.0"
+    ]
+  }
 }

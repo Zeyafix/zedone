@@ -24,11 +24,16 @@ checks:
   - "Ошибочная версия Bun и отказ компилятора с кодом 23; очистка своего AVD/каталога и сохранение существующих данных."
   - "Реальный завершённый Linux Actions: версии, четыре ABI, KVM, Android 13/API 33/x86_64, GMS отсутствует, Rust-бинарник возвращает ожидаемый результат."
 reverse_and_failure: "Собственная группа процессов получает TERM, затем KILL после ожидания не более 10 секунд; AVD удаляется в EXIT/INT/TERM, исходный код ошибки сохраняется. Workflow отменяется в Actions, конфигурация возвращается обратным коммитом."
-result: "Linux CI passed; P00.06 verified в рабочей ветке, интеграция ещё не выполнена."
+result: "Linux и Windows PR CI passed; P00.06 done, интеграция через PR #6 подтверждена. T16 passed, T17 partial."
 revision: 711b4f68577524eefe87e6bb9608ee80bcff7b60
 report: https://github.com/Zeyafix/zedone/actions/runs/40668559737
+pull_request: https://github.com/Zeyafix/zedone/pull/6
+pr_revision: 651e342f83c4772e2fc5b1822eb7e0a9fc47ad45
+pr_android_report: https://github.com/Zeyafix/zedone/actions/runs/40669723513
+pr_windows_report: https://github.com/Zeyafix/zedone/actions/runs/40669723747
+integration_revision: ec67cd99e2c93f4b04e1a1450972eb4d4c8ce55e
 evidence: [EV-008, EV-009]
-next: "Интегрировать P00.06; после подтверждения интеграции — отдельный P00.07."
+next: "P00.07: полное воспроизведение окружения после сверки локальных зависимостей P00.04/P00.06."
 ```
 
 Один вопрос проверки — готов ли Android toolchain и AOSP-эмулятор в Linux CI. Установка SDK, общий скрипт, workflow и доказательства составляют один проверяемый результат; превышение ориентира 300 строк связано с этим неделимым охватом и инструкцией воспроизведения/отмены. Продуктовый код и приёмка APK сюда не входят.
@@ -51,4 +56,10 @@ next: "Интегрировать P00.06; после подтверждения 
 
 Повторный [Windows CI 40665979798](https://github.com/Zeyafix/zedone/actions/runs/40665979798), `6014c45`, завершён успешно после изменения общего JSON; последующие изменения Windows-проверку и версии не затрагивают.
 
-P00.06 — `verified`: проверенный код доступен в отдельной ветке, PR и интеграция не выполнялись. T16 остаётся `partial` до интеграции Linux CI, T17 — до P00.07. APK, полный стек Tauri/Gradle, физический Galaxy A32 и продуктовая приёмка не проверялись. Локальные отчёты, JSON и полные журналы прогонов находятся только в игнорируемой `docs/reports/`.
+## Интеграция
+
+[PR #6](https://github.com/Zeyafix/zedone/pull/6) из `chore/android-environment-ci` в `main` прошёл [Android CI 40669723513](https://github.com/Zeyafix/zedone/actions/runs/40669723513) и [Windows CI 40669723747](https://github.com/Zeyafix/zedone/actions/runs/40669723747) для head `651e342f83c4772e2fc5b1822eb7e0a9fc47ad45`. Перед merge подтверждены `MERGEABLE / CLEAN`, отсутствие отклоняющих ревью и невыполненных правил ветки. Внешнее ревью не требовалось и не проводилось; административный обход правил не использовался.
+
+Merge выполнен 2026-10-28 в 10:13:45 UTC, коммит `ec67cd99e2c93f4b04e1a1450972eb4d4c8ce55e`. После подтверждения включения head в `main` удалены локальная и удалённая рабочие ветки; локальный `main` обновлён fast-forward. Проверенные скрипты, workflow и версии при записи результата не менялись.
+
+P00.06 — `done`, T16 — `passed`; T17 остаётся `partial` до P00.07. APK, полный стек Tauri/Gradle, физический Galaxy A32 и продуктовая приёмка не проверялись. Локальные отчёты, JSON и полные журналы прогонов находятся только в игнорируемой `docs/reports/`.

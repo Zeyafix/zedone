@@ -38,6 +38,7 @@ bun -e 'console.log("Bun runtime OK")'
 # Own all generated data; never reuse or remove a developer's AVD.
 mkdir -p "$root/temp"
 probe=$(mktemp -d "$root/temp/android-environment.XXXXXXXX")
+avd_name=$(basename -- "$probe")
 emulator_pid=''
 cleanup() {
     status=$?
@@ -67,11 +68,11 @@ for target in aarch64-linux-android armv7-linux-androideabi i686-linux-android x
     rustc "+$rust" --edition 2024 --target "$target" -C "linker=$clang" \
         -C "link-arg=--target=${clang_target}33" "$probe/main.rs" -o "$probe/$target"
 done
-printf 'no\n' | avdmanager create avd --name zedone_environment --package "${image//\//;}" --device pixel_5
+printf 'no\n' | avdmanager create avd --name "$avd_name" --package "${image//\//;}" --device pixel_5
 # Require a free port instead of touching an existing emulator.
 ports=$(ss -H -ltn)
 echo "$ports" | awk '{print $4}' | grep -Eq ':(5554|5555)$' && fail 'Emulator ports 5554/5555 are occupied.'
-emulator -avd zedone_environment -port 5554 -no-window -no-audio -no-boot-anim \
+emulator -avd "$avd_name" -port 5554 -no-window -no-audio -no-boot-anim \
     -no-snapshot -gpu software -accel on -memory 2048 -cores 2 > "$probe/emulator.log" 2>&1 &
 emulator_pid=$!
 booted=false
@@ -86,6 +87,8 @@ while (( SECONDS < deadline )); do
 done
 [[ $booted == true ]] || fail 'Emulator did not boot within 300 seconds.'
 device_adb() { timeout 30 adb -s emulator-5554 "$@"; }
+running_avd=$(device_adb emu avd name | tr -d '\r')
+[[ ${running_avd%%$'\n'*} == "$avd_name" ]] || fail 'adb connected to a different AVD.'
 [[ $(device_adb get-state) == device ]] || fail 'Emulator is not online.'
 for entry in ro.build.version.release:13 ro.build.version.sdk:33 ro.product.cpu.abi:x86_64; do
     [[ $(device_adb shell getprop "${entry%:*}" | tr -d '\r') == "${entry#*:}" ]] || fail "Unexpected $entry"

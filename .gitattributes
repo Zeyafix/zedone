@@ -1,2 +1,4 @@
 *.md text eol=lf
 *.sh text eol=lf
+# Keep the generated artifact byte-identical across Windows and Linux checkouts.
+/prototypes/openapi.json text eol=lf

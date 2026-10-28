@@ -1,8 +1,8 @@
 # Прототипы P01
 
 P01 проверяет техническую пригодность выбранного стека на синтетических данных.
-Текущий каркас содержит Rust workspace и команду проверки через Bun. Контракта API,
-интерфейса, APK и хранилища приложения пока нет. Объём следующих шагов задаёт
+Текущий каркас содержит Rust workspace, синтетический echo-контракт и генератор
+OpenAPI через utoipa. HTTP-сервера, интерфейса, APK и хранилища пока нет. Объём следующих шагов задаёт
 [очередь](../agent/work-queue.md#p01--ограниченные-прототипы-платформ), состояние
 приёмки — [план-журнал](../agent/plan-journal.md).
 
@@ -10,7 +10,7 @@ P01 проверяет техническую пригодность выбра�
 
 Используйте инструменты из [Quick Start](quick-start-windows.md). Версии Rust и Bun
 берутся только из [environment-versions.json](../../scripts/environment-versions.json).
-Node.js для P01.01 не нужен; совместимость будущих генераторов проверяется в P01.03.
+Node.js для P01.01–02 не нужен; совместимость генератора TypeScript проверяется в P01.03.
 
 Из корня репозитория, в PowerShell 7 на Windows или Linux:
 
@@ -20,6 +20,8 @@ rustup toolchain install $versions.rust --profile minimal --component rustfmt --
 if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
 Push-Location prototypes
 try {
+    cargo "+$($versions.rust)" fetch --locked
+    if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
     bun run check
     if ($LASTEXITCODE -ne 0) { throw 'Prototype check failed.' }
 } finally {
@@ -28,21 +30,52 @@ try {
 ```
 
 Установка toolchain нужна только при его отсутствии. Проверка сама инструменты
-не устанавливает. В подготовленной среде достаточно `bun run check` из `prototypes/`.
+не устанавливает. `cargo fetch --locked` загружает зависимости по lock-файлу;
+повтор нужен после его изменения или при отсутствии кеша. Затем достаточно
+`bun run check` из `prototypes/`.
 Команда проверяет точную версию Bun, запускает закреплённый Rust, rustfmt, Clippy
 с запретом предупреждений, тесты и release-сборку. Ненулевой код любой команды
-останавливает весь прогон. `Cargo.lock` отслеживается; используются `--locked --offline`.
-Rust crate пока пуст: успешный `cargo test` означает отсутствие тестов, а не проверку
-операций ZeDone.
+останавливает весь прогон. `Cargo.lock` отслеживается; проверки используют `--locked --offline`.
+В конце генератор запускается заново, его вывод побайтно сравнивается с `openapi.json`;
+отсутствующий или устаревший файл даёт ненулевой код без перезаписи.
 
-Внешних зависимостей в P01.01 нет, поэтому `bun install` и `bun.lock` не нужны.
+Rust-зависимости закреплены в `core/Cargo.toml` и общем `Cargo.lock`.
+JavaScript-зависимостей пока нет, поэтому `bun install` и `bun.lock` не нужны.
 Повторение в новой копии исходников без `target/` должно проходить теми же командами.
-Добавление библиотек, lock-файла интерфейса и его статической проверки выполняется
-в соответствующих следующих шагах, без заявления о совместимости всего стека сейчас.
+Lock-файл интерфейса и его статическая проверка появятся в P01.03.
 
 Workflow [Prototype foundation](../../.github/workflows/prototype-foundation.yml)
 вызывает ту же команду на Windows и Linux. Наличие workflow не означает успешный
 запуск Actions и не проверяет APK или Android WebView.
+
+## Rust-контракт и OpenAPI
+
+`core/src/lib.rs` — источник моделей `EchoRequest`/`EchoResponse` и описания
+`POST /prototype/echo`. Операция возвращает поле `text` без изменений и хранения;
+допустимы пустая строка, русский текст и Unicode. Отсутствующее поле, `null`
+и значение другого типа отклоняются при десериализации. HTTP-обработка ошибок,
+маршрут и клиент появятся в P01.03; сейчас сетевого вызова ещё нет.
+
+`utoipa` формирует OpenAPI 3.1.0 из Rust. `core/src/bin/generate-openapi.rs`
+выводит только JSON в stdout; Bun запускает закреплённый Cargo и управляет файлом.
+Из `prototypes/`:
+
+```sh
+bun run generate:openapi
+bun run check:openapi
+bun run check
+```
+
+Первая команда явно обновляет отслеживаемый `openapi.json`; проверяйте diff после
+изменения Rust. Вторая сверяет только схему, третья выполняет все проверки.
+JSON не редактируется вручную; LF закреплён в `.gitattributes` для одинаковых
+байтов на Windows/Linux. Генератор не добавляет время или пути машины.
+Ошибка компиляции/генерации останавливает запись. Для отмены изменения правят Rust
+и повторяют генерацию; удалённый файл восстанавливается той же командой.
+
+Rust-тесты проверяют JSON-вход и результат echo, недопустимые значения, обязательные
+строковые поля и ссылки запроса/ответа в схеме. Это проверки прототипного контракта,
+а не прикладных операций ZeDone. Совместимость с TypeScript и Android ещё не проверена.
 
 ## Структура и изоляция
 
@@ -50,15 +83,17 @@ Workflow [Prototype foundation](../../.github/workflows/prototype-foundation.yml
 | --- | --- |
 | `prototypes/core/` | Непубликуемый Rust crate; общий код для последующих проверок |
 | `prototypes/Cargo.lock` | Единственный lock-файл Rust workspace |
+| `prototypes/openapi.json` | Генерируемый HTTP-контракт; сверяется с Rust |
 | `prototypes/scripts/check.mjs` | Общая команда проверок для человека, агента и CI |
 | `prototypes/target/` | Удаляемые результаты сборки, исключённые из Git |
 | `temp/prototypes/<run-id>/` | Будущие синтетические БД, снимки и временные копии |
-| `docs/reports/p01-01/` | Локальные доказательства текущего шага; не публикуются |
+| `docs/reports/p01-02/` | Локальные доказательства текущего шага; не публикуются |
 
 Текущий код не открывает БД, пользовательские каталоги приложения, сеть или камеру.
-Он пишет только результаты сборки в `prototypes/target/`; runner задаёт этот путь
+Проверка пишет только результаты сборки в `prototypes/target/`; runner задаёт этот путь
 явно, независимо от `CARGO_TARGET_DIR` вызывающего процесса. Данные и отчёты не
-переносятся автоматически в продукт.
+переносятся автоматически в продукт. Только `generate:openapi` дополнительно
+пишет производный `prototypes/openapi.json` после успешной генерации.
 
 До первого хранилища в P01.05 требуется реализовать явную передачу изолированного
 каталога запуска. Отсутствие этого параметра должно останавливать прототип без
@@ -77,7 +112,7 @@ cargo "+$($versions.rust)" clean --manifest-path prototypes/Cargo.toml --target-
 if ($LASTEXITCODE -ne 0) { throw 'Prototype cleanup failed.' }
 ```
 
-Исходники, `Cargo.lock` и локальные отчёты сохраняются. Повторный `bun run check`
+Исходники, `Cargo.lock`, OpenAPI и локальные отчёты сохраняются. Повторный `bun run check`
 восстанавливает результат. Будущие БД и снимки очищаются только внутри собственного
 проверенного абсолютного каталога запуска; очистка `temp/` не удаляет доказательства
 из `docs/reports/`. Удалять или переустанавливать общие инструменты для этих проверок
@@ -167,5 +202,7 @@ ZeDone и повторное открытие в уже работающем п�
 уточняются до соответствующих измерений. Время сборки и расход одного пустого
 Rust crate не подтверждают цели задержек или бюджета памяти ZeDone.
 
-Источники команд: [Cargo workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html),
+Источники команд: [utoipa](https://docs.rs/utoipa/6.0.0/utoipa/),
+[Cargo fetch](https://doc.rust-lang.org/cargo/commands/cargo-fetch.html),
+[Cargo workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html),
 [Bun subprocess](https://bun.sh/docs/runtime/child-process).

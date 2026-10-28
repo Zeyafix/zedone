@@ -1,0 +1,8 @@
+{
+  "name": "zedone-prototypes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bun ./scripts/check.mjs"
+  }
+}

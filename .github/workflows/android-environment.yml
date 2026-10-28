@@ -65,11 +65,16 @@ jobs:
           rustup toolchain install "$(jq -r .rust "$versions")" --profile minimal \
             --target aarch64-linux-android --target armv7-linux-androideabi \
             --target i686-linux-android --target x86_64-linux-android
-      - name: Allow this runner to use KVM
+      - name: Prepare emulator runtime and KVM
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libpulse0
-          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          printf 'KERNEL=="kvm", OWNER="%s", MODE="0600", OPTIONS+="static_node=kvm"\n' "$(id -u)" \
+            | sudo tee /etc/udev/rules.d/99-zedone-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=10
+          test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
         run: |
           shellcheck scripts/check-android-environment.sh

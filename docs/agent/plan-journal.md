@@ -7,21 +7,21 @@ updated: 2026-10-28
 development_state: pre_implementation
 current_stage: P00
 current_stage_state: in_progress
-current_step: P00.06
+current_step: P00.07
 last_completed_stage: null
-last_completed_step: P00.05
-active_work: "P00.06: Codex, публикация PR из chore/android-environment-ci, merge после успешных проверок и удаление ветки по поручению разработчика."
-next_action: "Создать PR P00.06, подтвердить успешный CI и условия merge, затем интегрировать и удалить рабочую ветку. Доказательства — EV-009; локальная точка продолжения — docs/reports/state.json."
-passed_acceptance: []
+last_completed_step: P00.06
+active_work: ""
+next_action: "P00.07: проверить полное воспроизведение окружения, общие команды, отмену изменений и отчёт после сверки локальных зависимостей P00.04/P00.06. P00.06 интегрирован через PR #6; доказательства — EV-009, локальная точка продолжения — docs/reports/state.json."
+passed_acceptance: [T16]
 open_bugs: []
 open_gaps: []
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
-last_event: LOG-089
+last_event: LOG-090
 ```
 
-Фактическое состояние: в репозитории есть требования, архитектурные оценки, инструкции агентам и общая Windows-проверка окружения, интегрированная в main после успешного Actions в PR #5 ([EV-008](verification/EV-008-windows-environment-ci.md)). Android-проверка в Linux Actions прошла в ветке `chore/android-environment-ci`, интеграция ожидается ([EV-009](verification/EV-009-android-environment-ci.md)). Кода приложения, его сборок, прототипов, измерений и результатов продуктовой приёмки нет. Пустой список багов означает отсутствие зарегистрированных багов; проверками отсутствие ошибок не подтверждено. Незавершённые решения перечислены ниже и пока не препятствуют подготовке окружения в P00.
+Фактическое состояние: в репозитории есть требования, архитектурные оценки, инструкции агентам и общие Windows/Android-проверки окружения, интегрированные в main после успешных Actions в PR #5 и PR #6 ([EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md)). T16 пройден; полное воспроизведение окружения проверяется в P00.07, T17 остаётся частичным. Кода приложения, его сборок, прототипов, измерений и результатов продуктовой приёмки нет. Пустой список багов означает отсутствие зарегистрированных багов; проверками отсутствие ошибок не подтверждено. Незавершённые решения перечислены ниже и пока не препятствуют подготовке окружения в P00.
 
 Этот блок — краткая проекция реестров. При расхождении сначала сверить доказательства и актуальное дерево, затем исправить проекцию. Источники истины: спецификация для требований; [очередь малых шагов](work-queue.md) для их объёма, зависимостей и состояния; реестр приёмки ниже для результатов T/A/M/S; реестр проблем для багов, недочётов и решений. Журнал событий сохраняет историю изменений этих состояний. Состояние малого шага не дублируется отдельным списком в журнале; `current_step` указывает выбранную строку очереди.
 
@@ -237,8 +237,8 @@ P00–P09 — итоговые контрольные точки, а не еди
 | T13 | P00 | Базовые инструменты и Windows-среда доступны: Git/PowerShell, Rust/Cargo/rustfmt/Clippy, Bun, MSVC C++ Build Tools/Windows SDK, Chrome/Opera; версии зафиксированы, минимальный Rust-пример собирается и запускается; условная потребность в Node.js отражена явно | not_run | — |
 | T14 | P00 | Android-среда подготовлена: Android Studio/JDK/SDK/NDK, Rust-цели и Tauri CLI доступны; пути проверены, Android 13 AVD запускается и виден через adb, зафиксированы ABI/образ, ускорение и состояние Google Play Services | not_run | — |
 | T15 | P00 | ISCC и Tailscale доступны и проверены; доступ к GitHub для репозитория, Releases и Actions проверен в необходимом объёме, без публикации и выдачи продуктовых прав; отложенные средства выпуска связаны с этапом подготовки | not_run | — |
-| T16 | P00 | Минимальные проверки окружения проходят в GitHub Actions на Windows и Linux с закреплёнными инструментами, включая запуск Android-эмулятора на Linux; сохранены реальные результаты, бесплатные ограничения учтены | partial | [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md): Windows CI интегрирован через PR #5; Linux/Android CI прошёл на 711b4f6 в отдельной ветке, интеграция ожидается |
-| T17 | P00 | Инструкция в docs/development позволяет воспроизвести окружение и проверки теми же командами человеку и агенту; описаны версии/источники, настройки и отмена внесённых изменений, отчёт связан с EV; неподтверждённые части явно отмечены | partial | [EV-003](verification/EV-003-windows-quick-start.md), [EV-005](verification/EV-005-android-quick-start.md), [EV-006](verification/EV-006-local-reports-layout.md), [EV-007](verification/EV-007-release-connectivity-quick-start.md), [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md): Quick Start, общие Windows/Android-скрипты и Linux CI проверены; интеграция P00.06 и полное воспроизведение P00.07 ещё предстоят |
+| T16 | P00 | Минимальные проверки окружения проходят в GitHub Actions на Windows и Linux с закреплёнными инструментами, включая запуск Android-эмулятора на Linux; сохранены реальные результаты, бесплатные ограничения учтены | passed | [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md): Windows и Linux/Android CI пройдены и интегрированы через PR #5/#6; обе проверки PR #6 прошли на 651e342, merge ec67cd9 |
+| T17 | P00 | Инструкция в docs/development позволяет воспроизвести окружение и проверки теми же командами человеку и агенту; описаны версии/источники, настройки и отмена внесённых изменений, отчёт связан с EV; неподтверждённые части явно отмечены | partial | [EV-003](verification/EV-003-windows-quick-start.md), [EV-005](verification/EV-005-android-quick-start.md), [EV-006](verification/EV-006-local-reports-layout.md), [EV-007](verification/EV-007-release-connectivity-quick-start.md), [EV-008](verification/EV-008-windows-environment-ci.md), [EV-009](verification/EV-009-android-environment-ci.md): Quick Start, общие Windows/Android-скрипты и CI проверены и интегрированы; полное воспроизведение P00.07 ещё предстоит |
 | T01 | P01 | Воспроизводимая цепочка Bun/Vue/TypeScript/Vite/Tauri, utoipa/OpenAPI/openapi-typescript/openapi-fetch и установка/сборка markdown-it/DOMPurify на Windows и CI; генерация/согласованность артефактов, версии, lock-файл, команды и реальные среды выполнения, явная фиксация потребности в Node.js; ADR-0003 | not_run | — |
 | T02 | P01 | Общий локальный UI и APK: русский ввод, CommonMark на markdown-it/DOMPurify с буквальным HTML (ADR-0006/A50), навигация/клавиатура, жесты, жизненный цикл, дизайн; Tauri 2 (ADR-0001), Reka UI/HTML (ADR-0004), SortableJS/VueDraggablePlus (ADR-0005), фокус и совместимость; qrcodegen/SVG и Tauri Barcode Scanner, точное чтение QR, камера/разрешения/отмена, первый запуск без сети/модели/Google Play Services и ручной ввод на синтетических данных (ADR-0009/0022/0023/A51) | not_run | — |
 | T03 | P01 | rusqlite bundled на обеих платформах: запись/перезапуск, Unicode-поиск, согласованный снимок A без данных B, отсутствие блокировки UI/сети длительными операциями | not_run | — |
@@ -1137,3 +1137,10 @@ limitations: "Непроверенные части и связанные BUG/GA
 - По поручению разработчика подготавливается PR из `chore/android-environment-ci` в `main`, с merge после успешных проверок и удалением рабочей ветки после подтверждения интеграции. Эта запись фиксирует подготовку; URL PR, его head, CI и merge подтверждаются по Git/GitHub.
 - Полный diff сверяется с актуальным `origin/main`; проверяемая реализация совпадает с `711b4f6`, доказательства Linux/Windows CI — [EV-009](verification/EV-009-android-environment-ci.md). Локальные отчёты не публикуются. Отдельная приёмка APK и физического устройства остаётся вне этого PR.
 - До подтверждения merge P00.06 остаётся `verified`, T16/T17 — `partial`. Следующее действие — создать PR и проверить CI/ревью/конфликты без обхода правил ветки; после интеграции и очистки ветки — обновить состояние на P00.07.
+
+### LOG-090 — 2026-10-28 — агент Codex, P00.06 интегрирован
+
+- [PR #6](https://github.com/Zeyafix/zedone/pull/6) прошёл [Android Actions 40669723513](https://github.com/Zeyafix/zedone/actions/runs/40669723513) и [Windows Actions 40669723747](https://github.com/Zeyafix/zedone/actions/runs/40669723747) для head `651e342f83c4772e2fc5b1822eb7e0a9fc47ad45`. Перед merge подтверждены `MERGEABLE / CLEAN`, отсутствие отклоняющих ревью и невыполненных правил ветки. Внешнее ревью не требовалось и не проводилось; обход правил не использовался. Доказательства — [EV-009](verification/EV-009-android-environment-ci.md).
+- Merge выполнен по поручению разработчика 2026-10-28 в 10:13:45 UTC, коммит `ec67cd99e2c93f4b04e1a1450972eb4d4c8ce55e`. После подтверждения включения всех коммитов head в `main` локальный `main` обновлён fast-forward, удалены локальная и удалённая ветки `chore/android-environment-ci`. Эта запись фиксирует результат после merge; проверенные скрипты, workflow и версии не меняются.
+- P00.06 — `done`, T16 — `passed`; текущий выбранный шаг — P00.07, его реализация ещё не начата. T17 остаётся `partial`, фаза P00 не завершена. Следующее действие — проверить полное воспроизведение окружения, общие команды, отмену изменений и отчёт по P00.07 после сверки локальных зависимостей P00.04/P00.06. Локальная точка продолжения — `docs/reports/state.json`.
+- Обратимость, общий порядок человека/агента и единый источник версий подтверждены в EV-009; документация обновлена. Windows/Android CI прошли, приёмка APK и физического устройства остаётся в соответствующих будущих шагах. Все 98 требований приёмки сохранены.

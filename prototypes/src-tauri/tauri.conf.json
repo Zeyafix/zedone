@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ZeDone Prototype",
+  "version": "0.0.1",
+  "identifier": "app.zedone.prototype",
+  "build": {
+    "beforeBuildCommand": "bun --bun vite build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "title": "ZeDone Prototype", "label": "main" }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "capabilities": []
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": ["gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"],
+    "android": { "minSdkVersion": 24 }
+  }
+}

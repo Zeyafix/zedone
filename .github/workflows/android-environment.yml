@@ -1,4 +1,4 @@
-name: Android environment
+name: Android environment and prototype
 
 on:
   push:
@@ -7,12 +7,14 @@ on:
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
+      - 'prototypes/**'
   pull_request:
     paths:
       - '.gitattributes'
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
+      - 'prototypes/**'
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,7 @@ concurrency:
 jobs:
   android:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -60,11 +62,27 @@ jobs:
           while IFS= read -r package; do
             "$tools/bin/android" --no-metrics "--sdk=$sdk" sdk install "$package" < "$RUNNER_TEMP/android-license-answers"
           done < <(jq -r '.android.packages[]' "$versions")
-          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          {
+            echo "ANDROID_HOME=$sdk"
+            echo "ANDROID_SDK_ROOT=$sdk"
+            echo "NDK_HOME=$sdk/ndk/$(jq -r .android.ndk "$versions")"
+          } >> "$GITHUB_ENV"
           rustup toolchain install "$(jq -r .rust "$versions")" --profile minimal \
             --target aarch64-linux-android --target armv7-linux-androideabi \
             --target i686-linux-android --target x86_64-linux-android
+      - name: Build Android prototype and host comparison endpoint
+        working-directory: prototypes
+        run: |
+          versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
+          rust=$(jq -r .rust "$versions")
+          cargo "+$rust" install tauri-cli --version "$(jq -r .android.tauri_cli "$versions")" --locked
+          cargo "+$rust" fetch --locked
+          bun install --frozen-lockfile
+          bun run check:types
+          chmod +x src-tauri/gen/android/gradlew
+          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
+          bun run android:build
+          bun run android:build aarch64
       - name: Prepare emulator runtime and KVM
         run: |
           sudo apt-get update
@@ -78,7 +96,7 @@ jobs:
       - name: Check Android environment
         run: |
           shellcheck scripts/check-android-environment.sh
-          bash scripts/check-android-environment.sh
+          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android.mjs
       - name: Check rejection and cleanup on compiler failure
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")

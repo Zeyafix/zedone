@@ -105,7 +105,8 @@ host echo и prototype-процесс. APK остаётся установлен
 [Android workflow](../../.github/workflows/android-environment.yml) готовит SDK,
 собирает оба ABI и выполняет этот же тест на принадлежащем проверке AVD до его
 очистки. Аргументы `check-android-environment.sh` — необязательная команда проверки
-на уже проверенном эмуляторе, без eval. Actions для этой ветки ещё не запускались.
+на уже проверенном эмуляторе, без eval. Actions P01.04 пройдены на Windows/Linux,
+включая оба APK и Android-сценарии; PR #11 интегрирован.
 Результаты и ограничения: [EV-016](../agent/verification/EV-016-android-ipc.md).
 Проверка на Galaxy A32, HTTP внутри APK, хранение, жесты доски и итоговая
 приёмка T02/T04 относятся к следующим шагам.

@@ -4,6 +4,17 @@
 
 #[cfg(target_os = "android")]
 #[tauri::command]
+fn invitation(
+    request: zedone_prototype_core::invitation::InvitationRequest,
+) -> Result<
+    zedone_prototype_core::invitation::Invitation,
+    zedone_prototype_core::invitation::InvitationError,
+> {
+    zedone_prototype_core::invitation::invitation(request)
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
 fn qr(
     request: zedone_prototype_core::qr::QrRequest,
 ) -> Result<zedone_prototype_core::qr::QrResponse, zedone_prototype_core::qr::QrError> {
@@ -38,6 +49,7 @@ mod entry_point {
     pub fn run() {
         use tauri::Manager;
         tauri::Builder::default()
+            .plugin(tauri_plugin_barcode_scanner::init())
             .plugin(
                 tauri_plugin_opener::Builder::new()
                     .open_js_links_on_click(false)
@@ -51,7 +63,8 @@ mod entry_point {
             .invoke_handler(tauri::generate_handler![
                 super::echo,
                 super::storage,
-                super::qr
+                super::qr,
+                super::invitation
             ])
             .run(tauri::generate_context!())
             // Startup cannot continue without its platform event loop/WebView.

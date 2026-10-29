@@ -16,6 +16,8 @@ allprojects {
     }
 }
 
+apply(from = "tauri-lifecycle.gradle.kts")
+
 tasks.register("clean").configure {
     delete("build")
 }

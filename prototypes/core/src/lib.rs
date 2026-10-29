@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 
+pub mod invitation;
 pub mod qr;
 pub mod storage;
 
@@ -33,7 +34,7 @@ pub fn echo(request: EchoRequest) -> EchoResponse {
 #[derive(OpenApi)]
 #[openapi(
     info(title = "ZeDone synthetic prototype", version = "0.0.0"),
-    paths(echo, storage::storage, qr::qr)
+    paths(echo, storage::storage, qr::qr, invitation::invitation)
 )]
 pub struct ApiDoc;
 

@@ -8,6 +8,7 @@ import { Database } from "bun:sqlite";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
 import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkQr } from "./qr-scenarios.mjs";
+import { checkInvitation } from "./invitation-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -116,6 +117,7 @@ async function check() {
   await page.unroute("**/prototype/echo");
   await checkMarkdown(page);
   await checkQr(page, { baseUrl });
+  await checkInvitation(page, { baseUrl });
   await checkStorageUI(page);
   const boardDriver = await checkBoardUI(page, call);
   await checkBoardRejection(page, call);

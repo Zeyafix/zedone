@@ -70,8 +70,10 @@ if (!mode || mode.endsWith("types")) {
   const ipc = `// Generated from Rust/OpenAPI; do not edit.\nexport const echoCommand = ${JSON.stringify(command)} as const;\n`;
   const storageCommand = JSON.parse(generated.toString()).paths["/prototype/storage"].post.operationId;
   const qrCommand = JSON.parse(generated.toString()).paths["/prototype/qr"].post.operationId;
+  const invitationCommand = JSON.parse(generated.toString()).paths["/prototype/invitation"].post.operationId;
   const commands = ipc + `export const storageCommand = ${JSON.stringify(storageCommand)} as const;\n`
-    + `export const qrCommand = ${JSON.stringify(qrCommand)} as const;\n`;
+    + `export const qrCommand = ${JSON.stringify(qrCommand)} as const;\n`
+    + `export const invitationCommand = ${JSON.stringify(invitationCommand)} as const;\n`;
   const ipcFile = Bun.file(resolve(root, "client/ipc-command.ts"));
   const typesFile = Bun.file(resolve(root, "client/api.d.ts"));
   if (mode === "--write-types") {

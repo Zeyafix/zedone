@@ -39,6 +39,47 @@
         }
       }
     },
+    "/prototype/qr": {
+      "post": {
+        "tags": [
+          "qr"
+        ],
+        "summary": "Encode every UTF-8 byte, without normalization, truncation or network access.",
+        "operationId": "qr",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "QR modules without quiet zone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Entire text cannot fit in a QR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/prototype/storage": {
       "post": {
         "tags": [
@@ -130,6 +171,41 @@
         "properties": {
           "text": {
             "type": "string"
+          }
+        }
+      },
+      "QrError": {
+        "type": "string",
+        "enum": [
+          "too_long"
+        ]
+      },
+      "QrRequest": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "QrResponse": {
+        "type": "object",
+        "required": [
+          "modules"
+        ],
+        "properties": {
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },

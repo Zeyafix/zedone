@@ -9,7 +9,7 @@ export async function checkMarkdown(page, { tap, external } = {}) {
       input.value = source;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }, source);
-    await click('button[type="submit"]');
+    await click('#echo-form button[type="submit"]');
     await page.waitForFunction(source => document.querySelector('[role="status"]')?.textContent === source, source);
     await page.waitForFunction(() => document.querySelector("#markdown-content"));
     assert.equal(await page.locator("#text").inputValue(), source);
@@ -95,7 +95,7 @@ export async function checkMarkdown(page, { tap, external } = {}) {
     await fill("**Новый** текст\n\n![Новое](https://markdown.invalid/new.png)");
     assert.equal(await content.locator("img").count(), 0, "New text cannot inherit consent to fetch an earlier image");
     assert.equal(requested.length, 3);
-    await click('form button[type="button"]');
+    await click('#echo-form button[type="button"]');
     assert.equal(await page.locator("#markdown-content").count(), 0);
     assert.equal(await page.locator("#text").inputValue(), "");
     console.log("Markdown: CommonMark, literal HTML/XSS, unchanged source, inert images, external link, selected load/hide, network failure/retry, edit and clear passed.");

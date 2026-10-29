@@ -1,9 +1,14 @@
 import { client } from "./http";
 import { echo } from "./echo";
 import { storage } from "./storage";
+import { qr } from "./qr";
 
 // Compiled, never executed: these must remain errors after every generation.
 function rejectedCalls() {
+  // @ts-expect-error QR uses the same required string through HTTP and IPC.
+  void qr({ text: 42 });
+  // @ts-expect-error Rendering options are not part of the encoding request.
+  void qr({ text: "synthetic", scale: 4 });
   // @ts-expect-error A move requires the original Rust-derived snapshot.
   void storage({ action: "move_card", card: 1, column: 0, position: 0 });
   // @ts-expect-error Positions are numbers in both HTTP and IPC.

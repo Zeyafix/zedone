@@ -16,6 +16,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/prototype/invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The same inspection for camera content, manual input and direct agent calls.
+         *     These fields deliberately do not specify the future pairing protocol.
+         */
+        post: operations["invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/prototype/qr": {
         parameters: {
             query?: never;
@@ -67,6 +87,22 @@ export interface components {
         };
         EchoResponse: {
             text: string;
+        };
+        Invitation: {
+            address: string;
+            code: string;
+        };
+        /** @enum {string} */
+        InvitationError: "invalid_data";
+        InvitationRequest: {
+            /** @enum {string} */
+            source: "qr";
+            text: string;
+        } | {
+            address: string;
+            code: string;
+            /** @enum {string} */
+            source: "manual";
         };
         /** @enum {string} */
         QrError: "too_long";
@@ -158,6 +194,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EchoResponse"];
+                };
+            };
+        };
+    };
+    invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Synthetic fields, unchanged; no connection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            /** @description Expected nonempty synthetic address/code */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationError"];
                 };
             };
         };

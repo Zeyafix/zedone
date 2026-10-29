@@ -34,4 +34,11 @@ assert.equal(metadata.exitCode, 0, metadata.stderr.toString());
 const result = Bun.spawnSync([
   "cargo", `+${versions.rust}`, "tauri", "android", "build", "--debug", "--target", target, "--split-per-abi", "--apk", "--ci",
 ], { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
-process.exit(result.exitCode || (result.signalCode ? 1 : 0));
+if (result.exitCode || result.signalCode) process.exit(result.exitCode || 1);
+// Compile the real Activity recreation regression against this ABI's built JNI.
+const arch = target === "aarch64" ? "Arm64" : "X86_64";
+const gradle = resolve(root, "src-tauri/gen/android", process.platform === "win32" ? "gradlew.bat" : "gradlew");
+const tests = Bun.spawnSync([gradle, `:app:assemble${arch}DebugAndroidTest`, "-x", `:app:rustBuild${arch}Debug`], {
+  cwd: resolve(root, "src-tauri/gen/android"), env, stdin: "ignore", stdout: "inherit", stderr: "inherit",
+});
+process.exit(tests.exitCode || (tests.signalCode ? 1 : 0));

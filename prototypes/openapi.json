@@ -39,6 +39,47 @@
         }
       }
     },
+    "/prototype/invitation": {
+      "post": {
+        "tags": [
+          "invitation"
+        ],
+        "summary": "The same inspection for camera content, manual input and direct agent calls.\nThese fields deliberately do not specify the future pairing protocol.",
+        "operationId": "invitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Synthetic fields, unchanged; no connection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Expected nonempty synthetic address/code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/prototype/qr": {
       "post": {
         "tags": [
@@ -173,6 +214,72 @@
             "type": "string"
           }
         }
+      },
+      "Invitation": {
+        "type": "object",
+        "required": [
+          "address",
+          "code"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvitationError": {
+        "type": "string",
+        "enum": [
+          "invalid_data"
+        ]
+      },
+      "InvitationRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "text",
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "qr"
+                ]
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "address",
+              "code",
+              "source"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "manual"
+                ]
+              }
+            }
+          }
+        ]
       },
       "QrError": {
         "type": "string",

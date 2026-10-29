@@ -5,6 +5,7 @@ import Storage from "./Storage.vue";
 import Board from "./Board.vue";
 import MarkdownView from "./MarkdownView";
 import Qr from "./Qr.vue";
+import InvitationInput from "./InvitationInput.vue";
 
 const text = ref("");
 const result = ref<string>();
@@ -46,6 +47,7 @@ function clear() {
     <pre v-if="result !== undefined" role="status" aria-label="Ответ">{{ result }}</pre>
     <MarkdownView v-if="result !== undefined" :key="result" :source="result" />
     <Qr />
+    <InvitationInput />
     <Storage />
     <Board />
   </main>

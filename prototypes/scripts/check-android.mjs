@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
 import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkQr } from "./qr-scenarios.mjs";
+import { checkInvitation } from "./invitation-scenarios.mjs";
+import { checkScanner } from "./scanner-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -17,13 +19,14 @@ assert.ok(process.env.ANDROID_HOME, "ANDROID_HOME is required");
 const adb = resolve(process.env.ANDROID_HOME, `platform-tools/adb${process.platform === "win32" ? ".exe" : ""}`);
 const app = "app.zedone.prototype";
 const apk = resolve(root, "src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk");
+const testApk = resolve(root, "src-tauri/gen/android/app/build/outputs/apk/androidTest/x86_64/debug/app-x86_64-debug-androidTest.apk");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-android-storage-"));
 let browser, port, server, page;
 let lock;
 const errors = [];
 
 function device(...args) {
-  const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: args[0] === "install" ? 90000 : 15000 });
+  const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: args[0] === "install" || args.includes("instrument") ? 90000 : 15000 });
   assert.equal(result.exitCode, 0, `${args[0]}: ${result.signalCode || ""} ${result.stderr}`);
   return result.stdout.toString().trim();
 }
@@ -70,7 +73,17 @@ try {
   assert.equal(device("shell", "getprop", "ro.build.version.sdk"), "33");
   assert.equal(device("shell", "pm", "list", "packages", "com.google.android.gms"), "", "Use the AOSP image without GMS");
   device("install", "-r", apk);
+  device("install", "-r", testApk);
+  // Tauri exits when the final window closes. Let the runner publish the result
+  // before Android tears down the process instead of finishing that window first.
+  const instrumentation = device("shell", "am", "instrument", "-w", "-r", "-e", "waitForActivitiesToComplete", "false",
+    "-e", "class", "app.zedone.prototype.PluginLifecycleTest",
+    `${app}.test/androidx.test.runner.AndroidJUnitRunner`);
+  assert.match(instrumentation, /OK \([1-9]\d* tests?\)/, instrumentation);
+  console.log("Real Activity recreation: native plugin owner/WebView, cleanup and config regression passed.");
   device("shell", "am", "force-stop", app);
+  device("shell", "pm", "revoke", app, "android.permission.CAMERA");
+  device("shell", "pm", "clear-permission-flags", app, "android.permission.CAMERA", "user-set", "user-fixed");
   launch();
   page = await connect();
   console.log(await page.evaluate(() => navigator.userAgent));
@@ -218,6 +231,8 @@ try {
   } });
   await page.context().setOffline(true);
   await checkQr(page, { baseUrl: address.trim(), tap });
+  await checkInvitation(page, { baseUrl: address.trim(), tap });
+  await checkScanner(page, { device, tap, until, app });
   const storageCommand = api.paths["/prototype/storage"].post.operationId;
   const storage = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command: storageCommand, request });
   const expected = await checkStorage(storage);
@@ -341,4 +356,6 @@ try {
   if (server) await server.exited;
   await rm(directory, { recursive: true });
   device("shell", "am", "force-stop", app);
+  device("shell", "pm", "revoke", app, "android.permission.CAMERA");
+  device("shell", "pm", "clear-permission-flags", app, "android.permission.CAMERA", "user-set", "user-fixed");
 }

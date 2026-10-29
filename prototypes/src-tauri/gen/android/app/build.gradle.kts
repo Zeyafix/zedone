@@ -22,6 +22,7 @@ android {
         applicationId = "app.zedone.prototype"
         minSdk = 24
         targetSdk = 37
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
@@ -78,6 +79,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.4")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
+    // Match the mapper in the pinned Tauri Android module; test scope only.
+    androidTestImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
 }
 
 apply(from = file("tauri.build.gradle.kts"))

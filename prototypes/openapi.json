@@ -38,10 +38,79 @@
           }
         }
       }
+    },
+    "/prototype/storage": {
+      "post": {
+        "tags": [
+          "storage"
+        ],
+        "summary": "Contract marker: HTTP and Android IPC call Storage::execute asynchronously.",
+        "operationId": "storage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Committed synthetic result or consistent read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage failed; success not confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Card": {
+        "type": "object",
+        "required": [
+          "id",
+          "column",
+          "title",
+          "text"
+        ],
+        "properties": {
+          "column": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "EchoRequest": {
         "type": "object",
         "required": [
@@ -61,6 +130,163 @@
         "properties": {
           "text": {
             "type": "string"
+          }
+        }
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": [
+          "space",
+          "columns",
+          "cards"
+        ],
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "space": {
+            "$ref": "#/components/schemas/Space"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Space": {
+        "type": "string",
+        "enum": [
+          "A",
+          "B"
+        ]
+      },
+      "StorageError": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "StorageRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "space",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "seed"
+                ]
+              },
+              "space": {
+                "$ref": "#/components/schemas/Space"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "space",
+              "query",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "read"
+                ]
+              },
+              "query": {
+                "type": "string"
+              },
+              "space": {
+                "$ref": "#/components/schemas/Space"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "space",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "snapshot"
+                ]
+              },
+              "space": {
+                "$ref": "#/components/schemas/Space"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "snapshot",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "restore"
+                ]
+              },
+              "snapshot": {
+                "$ref": "#/components/schemas/Snapshot"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "space",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "delete"
+                ]
+              },
+              "space": {
+                "$ref": "#/components/schemas/Space"
+              }
+            }
+          }
+        ]
+      },
+      "StorageResponse": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Snapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       }

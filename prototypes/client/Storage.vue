@@ -10,7 +10,7 @@ const error = ref("");
 const result = ref<StorageResponse>();
 const snapshot = ref<Snapshot>();
 
-async function run(action: StorageRequest["action"]) {
+async function run(action: Exclude<StorageRequest["action"], "move_card" | "move_column">) {
   busy.value = true;
   error.value = "";
   result.value = undefined;

@@ -10,7 +10,7 @@ export async function storage(request: StorageRequest): Promise<StorageResponse>
   // Mutations have no UI timeout/retry: a lost reply may follow a committed write.
   // Reconcile with an explicit read; never infer rollback from a transport error.
   if (isTauri()) return invoke<StorageResponse>(storageCommand, { request });
-  const { data, response } = await client.POST("/prototype/storage", { body: request });
-  if (!response.ok || !data) throw new Error(`HTTP ${response.status}`);
+  const { data, error, response } = await client.POST("/prototype/storage", { body: request });
+  if (!response.ok || !data) throw new Error(error?.message ?? `HTTP ${response.status}`);
   return data;
 }

@@ -272,6 +272,72 @@
                 "$ref": "#/components/schemas/Space"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "expected",
+              "card",
+              "column",
+              "position",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "move_card"
+                ]
+              },
+              "card": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "column": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "expected": {
+                "$ref": "#/components/schemas/Snapshot"
+              },
+              "position": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "expected",
+              "column",
+              "position",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "move_column"
+                ]
+              },
+              "column": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              },
+              "expected": {
+                "$ref": "#/components/schemas/Snapshot"
+              },
+              "position": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
           }
         ]
       },

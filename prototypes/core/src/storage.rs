@@ -42,11 +42,33 @@ pub struct Snapshot {
 #[derive(Deserialize, Serialize, ToSchema)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum StorageRequest {
-    Seed { space: Space },
-    Read { space: Space, query: String },
-    Snapshot { space: Space },
-    Restore { snapshot: Snapshot },
-    Delete { space: Space },
+    Seed {
+        space: Space,
+    },
+    Read {
+        space: Space,
+        query: String,
+    },
+    Snapshot {
+        space: Space,
+    },
+    Restore {
+        snapshot: Snapshot,
+    },
+    Delete {
+        space: Space,
+    },
+    MoveCard {
+        expected: Snapshot,
+        card: u32,
+        column: u32,
+        position: u32,
+    },
+    MoveColumn {
+        expected: Snapshot,
+        column: u32,
+        position: u32,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -60,9 +82,12 @@ pub struct StorageError {
 }
 
 impl From<rusqlite::Error> for StorageError {
-    fn from(_: rusqlite::Error) -> Self {
+    fn from(error: rusqlite::Error) -> Self {
         Self {
-            message: "SQLite operation failed; no success was confirmed".into(),
+            message: match error {
+                rusqlite::Error::InvalidParameterName(message) => message,
+                _ => "SQLite operation failed; no success was confirmed".into(),
+            },
         }
     }
 }
@@ -232,6 +257,29 @@ fn run(db: &mut Connection, request: StorageRequest) -> rusqlite::Result<Storage
             tx.execute("DELETE FROM prototype_spaces WHERE id = ?1", [space.key()])?;
             None
         }
+        StorageRequest::MoveCard {
+            expected,
+            card,
+            column,
+            position,
+        } => {
+            board::check(&tx, &expected)?;
+            let mut next = expected;
+            board::move_card(&mut next, card, column, position)?;
+            save(&tx, &next)?;
+            load(&tx, next.space)?
+        }
+        StorageRequest::MoveColumn {
+            expected,
+            column,
+            position,
+        } => {
+            board::check(&tx, &expected)?;
+            let mut next = expected;
+            board::move_column(&mut next, column, position)?;
+            save(&tx, &next)?;
+            load(&tx, next.space)?
+        }
     };
     tx.commit()?;
     Ok(StorageResponse { snapshot })
@@ -276,3 +324,8 @@ pub fn storage() {}
 
 #[cfg(test)]
 mod tests;
+
+mod board;
+
+#[cfg(test)]
+mod board_tests;

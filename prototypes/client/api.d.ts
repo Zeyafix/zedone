@@ -82,6 +82,24 @@ export interface components {
             /** @enum {string} */
             action: "delete";
             space: components["schemas"]["Space"];
+        } | {
+            /** @enum {string} */
+            action: "move_card";
+            /** Format: int32 */
+            card: number;
+            /** Format: int32 */
+            column: number;
+            expected: components["schemas"]["Snapshot"];
+            /** Format: int32 */
+            position: number;
+        } | {
+            /** @enum {string} */
+            action: "move_column";
+            /** Format: int32 */
+            column: number;
+            expected: components["schemas"]["Snapshot"];
+            /** Format: int32 */
+            position: number;
         };
         StorageResponse: {
             snapshot?: components["schemas"]["Snapshot"] | null;

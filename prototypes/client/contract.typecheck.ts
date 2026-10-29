@@ -4,6 +4,10 @@ import { storage } from "./storage";
 
 // Compiled, never executed: these must remain errors after every generation.
 function rejectedCalls() {
+  // @ts-expect-error A move requires the original Rust-derived snapshot.
+  void storage({ action: "move_card", card: 1, column: 0, position: 0 });
+  // @ts-expect-error Positions are numbers in both HTTP and IPC.
+  void storage({ action: "move_column", expected: {}, column: 0, position: "1" });
   // @ts-expect-error The space enum comes from Rust, not arbitrary database paths.
   void storage({ action: "seed", space: "C" });
   // @ts-expect-error A read requires the literal search query.

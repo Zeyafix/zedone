@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
@@ -11,12 +14,14 @@ assert.ok(process.env.ANDROID_HOME, "ANDROID_HOME is required");
 const adb = resolve(process.env.ANDROID_HOME, `platform-tools/adb${process.platform === "win32" ? ".exe" : ""}`);
 const app = "app.zedone.prototype";
 const apk = resolve(root, "src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk");
+const directory = await mkdtemp(resolve(tmpdir(), "zedone-android-storage-"));
 let browser, port, server, page;
+let lock;
 const errors = [];
 
 function device(...args) {
-  const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: 15000 });
-  assert.equal(result.exitCode, 0, result.stderr.toString());
+  const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: args[0] === "install" ? 90000 : 15000 });
+  assert.equal(result.exitCode, 0, `${args[0]}: ${result.signalCode || ""} ${result.stderr}`);
   return result.stdout.toString().trim();
 }
 
@@ -70,7 +75,7 @@ try {
   const api = await Bun.file(resolve(root, "openapi.json")).json();
   const command = api.paths["/prototype/echo"].post.operationId;
   const executable = resolve(root, `target/release/serve-echo${process.platform === "win32" ? ".exe" : ""}`);
-  server = Bun.spawn([executable, "0"], { cwd: root, stdout: "pipe", stderr: "inherit" });
+  server = Bun.spawn([executable, "0", directory], { cwd: root, stdout: "pipe", stderr: "inherit" });
   const reader = server.stdout.getReader();
   let address = "";
   while (!address.includes("\n")) {
@@ -94,7 +99,9 @@ try {
   }, text);
   async function tap(selector) {
     const { x, y } = await page.evaluate(selector => {
-      const box = document.querySelector(selector).getBoundingClientRect();
+      const element = document.querySelector(selector);
+      element.scrollIntoView({ block: "center" });
+      const box = element.getBoundingClientRect();
       return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     }, selector);
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
@@ -179,20 +186,80 @@ try {
   launch();
   await page.waitForFunction(() => document.querySelector("h1"));
   assert.equal(await input(), "Русский ввод: ёж", "Returning to the same activity keeps its form");
+  const storageCommand = api.paths["/prototype/storage"].post.operationId;
+  const storage = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command: storageCommand, request });
+  const expected = await checkStorage(storage);
+  const hostExpected = await checkStorage(async request => {
+    const response = await fetch(`${address.trim()}/prototype/storage`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`Storage HTTP ${response.status}`);
+    return response.json();
+  });
+  assert.deepEqual(expected, hostExpected, "IPC and HTTP must return identical persisted state");
+  await checkStorageUI(page, tap);
+  // Test-only sqlite3 holds a real lock; all data changes still go through Rust.
+  lock = Bun.spawn([adb, "-s", serial, "shell", "run-as", app, "sqlite3", "p01-05-synthetic/synthetic.sqlite3"], {
+    stdin: "pipe", stdout: "pipe", stderr: "inherit",
+  });
+  lock.stdin.write("BEGIN EXCLUSIVE;\n.print LOCKED\n");
+  await lock.stdin.flush();
+  const lockReader = lock.stdout.getReader();
+  let lockTimer;
+  try {
+    await Promise.race([
+      (async () => {
+        let output = "";
+        while (!output.includes("LOCKED")) {
+          const { value, done } = await lockReader.read();
+          assert.ok(!done, `SQLite lock helper exited: ${output}`);
+          output += new TextDecoder().decode(value);
+        }
+      })(),
+      new Promise((_, reject) => { lockTimer = setTimeout(() => reject(new Error("SQLite lock helper timeout")), 5000); }),
+    ]);
+  } finally { clearTimeout(lockTimer); }
+  lockReader.releaseLock();
+  try {
+    await tap("#storage-delete");
+    await page.waitForFunction(() => document.querySelector("#storage-busy"));
+    await fill("Android остаётся отзывчивым");
+    await send();
+    await wait("status");
+    assert.equal(await result(), "Android остаётся отзывчивым");
+    assert.equal(await page.locator("#storage-busy").count(), 1, "IPC echo completes while SQLite is locked");
+    await page.waitForFunction(() => document.querySelector("#storage-error"));
+  } finally {
+    lock.stdin.end("ROLLBACK;\n.quit\n");
+    await lock.exited;
+    lock = undefined;
+  }
+  assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, expected.a);
+  await tap("#storage-read");
+  await page.waitForFunction(() => !document.querySelector("#storage-busy"));
+  assert.equal(await page.locator("#storage-error").count(), 0);
+  console.log("Real Android SQLite lock: UI/IPC responsive, failed write unchanged, explicit read recovered.");
   await disconnect();
   device("shell", "am", "force-stop", app);
   launch();
   page = await connect();
   assert.equal(await input(), "", "Synthetic session is not persisted");
   assert.equal(await count("status"), 0);
+  assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, expected.a);
+  assert.deepEqual((await storage({ action: "snapshot", space: "B" })).snapshot, expected.b);
+  await storage({ action: "delete", space: "A" });
+  await storage({ action: "delete", space: "B" });
+  console.log("SQLite data survives real Android force-stop/restart; synthetic sets removed through the API.");
   assert.deepEqual(errors, []);
   console.log("Android IPC/HTTP parity, offline UI, Unicode, rejection/retry, keyboard/Back and restart passed.");
 } catch (error) {
-  if (page && !page.isClosed()) console.error(await page.evaluate(() => document.body.innerText).catch(() => "WebView closed"));
+  if (page && !page.isClosed()) console.error(await page.evaluate(() => document.body.innerText.slice(0, 2000)).catch(() => "WebView closed"));
   throw error;
 } finally {
+  if (lock) { lock.stdin.end("ROLLBACK;\n.quit\n"); await lock.exited; }
   await disconnect();
   server?.kill();
   if (server) await server.exited;
+  await rm(directory, { recursive: true });
   device("shell", "am", "force-stop", app);
 }

@@ -16,6 +16,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/prototype/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Encode every UTF-8 byte, without normalization, truncation or network access. */
+        post: operations["qr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/prototype/storage": {
         parameters: {
             query?: never;
@@ -50,6 +67,14 @@ export interface components {
         };
         EchoResponse: {
             text: string;
+        };
+        /** @enum {string} */
+        QrError: "too_long";
+        QrRequest: {
+            text: string;
+        };
+        QrResponse: {
+            modules: boolean[][];
         };
         Snapshot: {
             cards: components["schemas"]["Card"][];
@@ -133,6 +158,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EchoResponse"];
+                };
+            };
+        };
+    };
+    qr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrRequest"];
+            };
+        };
+        responses: {
+            /** @description QR modules without quiet zone */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrResponse"];
+                };
+            };
+            /** @description Entire text cannot fit in a QR */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrError"];
                 };
             };
         };

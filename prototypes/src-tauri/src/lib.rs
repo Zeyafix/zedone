@@ -4,6 +4,14 @@
 
 #[cfg(target_os = "android")]
 #[tauri::command]
+fn qr(
+    request: zedone_prototype_core::qr::QrRequest,
+) -> Result<zedone_prototype_core::qr::QrResponse, zedone_prototype_core::qr::QrError> {
+    zedone_prototype_core::qr::qr(request)
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
 fn echo(request: zedone_prototype_core::EchoRequest) -> zedone_prototype_core::EchoResponse {
     zedone_prototype_core::echo(request)
 }
@@ -40,7 +48,11 @@ mod entry_point {
                 app.manage(zedone_prototype_core::storage::Storage::new(directory));
                 Ok(())
             })
-            .invoke_handler(tauri::generate_handler![super::echo, super::storage])
+            .invoke_handler(tauri::generate_handler![
+                super::echo,
+                super::storage,
+                super::qr
+            ])
             .run(tauri::generate_context!())
             // Startup cannot continue without its platform event loop/WebView.
             .expect("Android prototype failed to start");

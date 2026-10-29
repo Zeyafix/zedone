@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
+use zedone_prototype_core::qr::{QrRequest, qr};
 use zedone_prototype_core::storage::{Storage, StorageRequest};
 use zedone_prototype_core::{EchoRequest, echo};
 
@@ -17,6 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await?;
     let app = Router::new()
+        .route(
+            "/prototype/qr",
+            post(async |Json(request): Json<QrRequest>| {
+                qr(request)
+                    .map(Json)
+                    .map_err(|error| (StatusCode::UNPROCESSABLE_ENTITY, Json(error)))
+            }),
+        )
         .route(
             "/prototype/echo",
             post(async |Json(request): Json<EchoRequest>| Json(echo(request))),

@@ -5,6 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
 import { checkMarkdown } from "./markdown-scenarios.mjs";
+import { checkQr } from "./qr-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -108,9 +109,9 @@ try {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   }
-  const send = () => tap('button[type="submit"]');
+  const send = () => tap('#echo-form button[type="submit"]');
   const clear = async () => {
-    await tap('button[type="button"]');
+    await tap('#echo-form button[type="button"]');
     await until(async () => await input() === "" && await count("status") === 0 && await count("alert") === 0, "clear form");
   };
   const invoke = args => page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), { command, args });
@@ -216,6 +217,7 @@ try {
     assert.equal(await page.locator("#markdown-link-error").count(), 0);
   } });
   await page.context().setOffline(true);
+  await checkQr(page, { baseUrl: address.trim(), tap });
   const storageCommand = api.paths["/prototype/storage"].post.operationId;
   const storage = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command: storageCommand, request });
   const expected = await checkStorage(storage);

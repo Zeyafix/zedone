@@ -27,6 +27,8 @@ Rust `StorageRequest` определяет общий POST `/prototype/storage`,
 | snapshot | space | Полное согласованное состояние только выбранного пространства |
 | restore | snapshot | Атомарно заменить указанное в снимке пространство; другое сохранить |
 | delete | space | Удалить выбранный набор; повтор безопасен |
+| move_card | expected, card, column, position | Переместить карточку с проверкой исходного снимка; [P01.06](board-prototype.md) |
+| move_column | expected, column, position | Переместить колонку вместе с карточками; [P01.06](board-prototype.md) |
 
 Ответ содержит `snapshot` либо `null` для отсутствующего/удалённого пространства.
 Снимок JSON содержит только синтетические колонки и карточки, без истории,

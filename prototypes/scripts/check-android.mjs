@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
+import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
@@ -198,6 +199,52 @@ try {
   });
   assert.deepEqual(expected, hostExpected, "IPC and HTTP must return identical persisted state");
   await checkStorageUI(page, tap);
+  await checkBoard(storage);
+  const boardDriver = await checkBoardUI(page, storage, tap, cdp);
+  await checkBoardRejection(page, storage, tap);
+  await tap("#card-move-1");
+  device("shell", "input", "keyevent", "KEYCODE_BACK");
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  assert.equal(await page.evaluate(() => document.activeElement.id), "card-move-1");
+  // Real IPC write first, then lose only its reply. A read must recover the committed order.
+  assert.equal(await page.evaluate(() => {
+    const original = window.ipc;
+    window.ipc = { postMessage(message) {
+      const data = JSON.parse(message);
+      if (data.payload?.request?.action?.startsWith("move_")) {
+        window.ipc = original;
+        const internals = window.__TAURI_INTERNALS__;
+        internals.callbacks.set(data.callback, () => {
+          internals.unregisterCallback(data.callback);
+          internals.runCallback(data.error, { message: "Injected lost IPC reply after commit" });
+        });
+      }
+      original.postMessage(message);
+    } };
+    return window.ipc !== original;
+  }), true);
+  await attemptMove(page, tap);
+  await reconciled(page);
+  const moved = (await storage({ action: "snapshot", space: "A" })).snapshot;
+  assert.equal(moved.cards.find(card => card.id === 1).column, 1);
+  assert.equal(new Set(moved.cards.map(card => card.id)).size, 30);
+  await storage({ action: "restore", snapshot: expected.a });
+  await tap("#board-read");
+  await page.waitForFunction(() => !document.querySelector("#board-busy"));
+  const boardSql = sql => {
+    const result = Bun.spawnSync([adb, "-s", serial, "shell", "run-as", app, "sqlite3", "p01-05-synthetic/synthetic.sqlite3"], {
+      stdin: Buffer.from(sql), timeout: 5000,
+    });
+    assert.equal(result.exitCode, 0, result.stderr.toString());
+  };
+  boardSql("CREATE TRIGGER board_fail BEFORE INSERT ON prototype_cards WHEN NEW.id = 2 BEGIN SELECT RAISE(ABORT, 'board failure'); END;");
+  try {
+    await boardDriver.reorder();
+    await reconciled(page);
+    assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, expected.a);
+    assert.equal(await page.evaluate(() => document.querySelector('.card-list[data-column="0"] .board-card').dataset.card), "1");
+  } finally { boardSql("DROP TRIGGER IF EXISTS board_fail;"); }
+  console.log("Android board: system Back, real SQL rollback and lost committed IPC reply reconciled without duplicates.");
   // Test-only sqlite3 holds a real lock; all data changes still go through Rust.
   lock = Bun.spawn([adb, "-s", serial, "shell", "run-as", app, "sqlite3", "p01-05-synthetic/synthetic.sqlite3"], {
     stdin: "pipe", stdout: "pipe", stderr: "inherit",
@@ -239,13 +286,14 @@ try {
   await page.waitForFunction(() => !document.querySelector("#storage-busy"));
   assert.equal(await page.locator("#storage-error").count(), 0);
   console.log("Real Android SQLite lock: UI/IPC responsive, failed write unchanged, explicit read recovered.");
+  const persisted = (await storage({ action: "move_card", expected: expected.a, card: 1, column: 2, position: 0 })).snapshot;
   await disconnect();
   device("shell", "am", "force-stop", app);
   launch();
   page = await connect();
   assert.equal(await input(), "", "Synthetic session is not persisted");
   assert.equal(await count("status"), 0);
-  assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, expected.a);
+  assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, persisted);
   assert.deepEqual((await storage({ action: "snapshot", space: "B" })).snapshot, expected.b);
   await storage({ action: "delete", space: "A" });
   await storage({ action: "delete", space: "B" });

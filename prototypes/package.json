@@ -17,14 +17,22 @@
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
     "openapi-fetch": "0.17.0",
-    "vue": "3.5.44"
+    "reka-ui": "2.11.0",
+    "vue": "3.5.44",
+    "vue-draggable-plus": "0.6.1"
   },
   "devDependencies": {
+    "@types/sortablejs": "1.15.9",
+    "@types/web-bluetooth": "0.0.22",
     "@vitejs/plugin-vue": "6.0.10",
     "openapi-typescript": "7.13.0",
     "playwright": "1.64.1",
     "typescript": "5.9.3",
     "vite": "8.3.5",
+    "vue-component-type-helpers": "3.3.13",
     "vue-tsc": "3.3.13"
+  },
+  "patchedDependencies": {
+    "vue-draggable-plus@0.6.1": "patches/vue-draggable-plus@0.6.1.patch"
   }
 }

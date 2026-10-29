@@ -5,3 +5,4 @@
 /prototypes/client/api.d.ts text eol=lf
 /prototypes/client/ipc-command.ts text eol=lf
 /prototypes/bun.lock text eol=lf
+/prototypes/patches/*.patch text eol=lf

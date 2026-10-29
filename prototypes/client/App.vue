@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { echo } from "./echo";
 import Storage from "./Storage.vue";
+import Board from "./Board.vue";
 
 const text = ref("");
 const result = ref<string>();
@@ -42,6 +43,7 @@ function clear() {
     <p v-if="error" role="alert">{{ error }}</p>
     <pre v-if="result !== undefined" role="status" aria-label="Ответ">{{ result }}</pre>
     <Storage />
+    <Board />
   </main>
 </template>
 

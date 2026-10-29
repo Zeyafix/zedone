@@ -1,0 +1,13 @@
+diff --git a/dist/useDraggable.d.ts b/dist/useDraggable.d.ts
+index f4394e08c0c733795bb47ad055b7666b576a18ce..1ba462feff3a1d8e1ecf28f5a4db16946b675ecf 100644
+--- a/dist/useDraggable.d.ts
++++ b/dist/useDraggable.d.ts
+@@ -20,7 +20,7 @@ export interface UseDraggableReturn extends Pick<Sortable, SortableMethod> {
+     pause: () => void;
+     resume: () => void;
+ }
+-export interface UseDraggableOptions<T> extends Options {
++export interface UseDraggableOptions<T> extends Omit<Options, 'onStart' | 'onEnd' | 'onAdd' | 'onClone' | 'onChoose' | 'onUnchoose' | 'onUpdate' | 'onSort' | 'onRemove' | 'onFilter' | 'onChange'> {
+     clone?: (element: T) => T;
+     immediate?: boolean;
+     customUpdate?: (event: DraggableEvent<T>) => void;

@@ -30,6 +30,11 @@ mod entry_point {
     pub fn run() {
         use tauri::Manager;
         tauri::Builder::default()
+            .plugin(
+                tauri_plugin_opener::Builder::new()
+                    .open_js_links_on_click(false)
+                    .build(),
+            )
             .setup(|app| {
                 let directory = app.path().app_local_data_dir()?.join("p01-05-synthetic");
                 app.manage(zedone_prototype_core::storage::Storage::new(directory));

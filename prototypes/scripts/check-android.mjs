@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
+import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -45,8 +46,7 @@ async function connect() {
   }, "WebView debugging socket");
   // WebView does not implement desktop browser context/download management.
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000, noDefaults: true });
-  const page = browser.contexts()[0].pages()[0];
-  assert.ok(page, "APK must have a WebView");
+  const page = await until(() => browser.contexts()[0]?.pages()[0], "APK WebView page target");
   page.setDefaultTimeout(10000);
   page.on("pageerror", error => errors.push(error.message));
   await page.waitForFunction(() => document.querySelector("h1"));
@@ -187,6 +187,35 @@ try {
   launch();
   await page.waitForFunction(() => document.querySelector("h1"));
   assert.equal(await input(), "Русский ввод: ёж", "Returning to the same activity keeps its form");
+  await page.context().setOffline(false);
+  await checkMarkdown(page, { tap, external: async (url, click) => {
+    for (const url of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
+      await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), url), "Opener capability must reject non-HTTP URLs");
+    }
+    await page.evaluate(() => {
+      const original = window.ipc;
+      window.ipc = { postMessage(message) {
+        if (JSON.parse(message).cmd === "plugin:opener|open_url") {
+          window.ipc = original;
+          throw new Error("Injected opener bridge failure");
+        }
+        original.postMessage(message);
+      } };
+    });
+    await click();
+    await page.waitForFunction(() => document.querySelector("#markdown-link-error"));
+    const component = device("shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.VIEW", "-d", url).split("\n").at(-1).trim();
+    assert.ok(component.includes("/") && !component.startsWith(app), "A separate browser must handle HTTP URLs");
+    await click();
+    await until(() => {
+      const activity = device("shell", "dumpsys", "activity", "activities");
+      return activity.includes(url) && activity.split("\n").some(line => /topResumedActivity=|ResumedActivity:/.test(line) && line.includes(component));
+    }, "external browser receives the exact HTTP URL");
+    launch();
+    await page.waitForFunction(() => document.querySelector("#markdown-content"));
+    assert.equal(await page.locator("#markdown-link-error").count(), 0);
+  } });
+  await page.context().setOffline(true);
   const storageCommand = api.paths["/prototype/storage"].post.operationId;
   const storage = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command: storageCommand, request });
   const expected = await checkStorage(storage);

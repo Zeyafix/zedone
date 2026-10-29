@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { echo } from "./echo";
 import Storage from "./Storage.vue";
 import Board from "./Board.vue";
+import MarkdownView from "./MarkdownView";
 
 const text = ref("");
 const result = ref<string>();
@@ -42,6 +43,7 @@ function clear() {
     </form>
     <p v-if="error" role="alert">{{ error }}</p>
     <pre v-if="result !== undefined" role="status" aria-label="Ответ">{{ result }}</pre>
+    <MarkdownView v-if="result !== undefined" :key="result" :source="result" />
     <Storage />
     <Board />
   </main>
@@ -52,4 +54,6 @@ main { max-width: 36rem; margin: 2rem auto; padding: 0 1rem; font-family: sans-s
 textarea { display: block; box-sizing: border-box; width: 100%; margin: 0.5rem 0; font: inherit; }
 button { padding: 0.5rem 1rem; margin-right: 0.5rem; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+:deep(.markdown-view) { overflow-wrap: anywhere; }
+:deep(.markdown-view pre) { max-width: 100%; overflow-x: auto; }
 </style>

@@ -6,6 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { Database } from "bun:sqlite";
 import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
+import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -112,6 +113,7 @@ async function check() {
   assert.deepEqual(errors, []);
   console.log("HTTP validation, browser typed echo, clear, failure and retry passed.");
   await page.unroute("**/prototype/echo");
+  await checkMarkdown(page);
   await checkStorageUI(page);
   const boardDriver = await checkBoardUI(page, call);
   await checkBoardRejection(page, call);

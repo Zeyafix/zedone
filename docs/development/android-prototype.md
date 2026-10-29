@@ -71,6 +71,9 @@ Rust берётся из кеша; при первой сборке Gradle за�
 адаптера с `deny(unsafe_code)`; [ADR-0024](../architecture/decisions/0024-android-prototype-entry-point.md).
 HTTP-сервер внутри APK не запускается; внешний агентский доступ относится к P01.10.
 CSP ограничивает содержимое и IPC, удалённые capabilities не выдаются.
+P01.07 добавляет [Markdown-просмотр](markdown-prototype.md): HTTP/HTTPS в
+`img-src` только для явной загрузки и локальную capability Tauri Opener
+для открытия HTTP/HTTPS во внешнем браузере; файловых полномочий нет.
 Android backup отключён; SQLite содержит только изолированные синтетические данные.
 
 ## Проверка в Android 13
@@ -111,5 +114,6 @@ host echo и prototype-процесс. APK остаётся установлен
 включая оба APK и Android-сценарии; PR #11 интегрирован.
 Результаты и ограничения: [EV-016](../agent/verification/EV-016-android-ipc.md).
 Проверка хранения P01.05 описана в [отдельной инструкции](sqlite-prototype.md).
-Проверка на Galaxy A32, HTTP внутри APK, жесты доски и итоговая
-приёмка T02/T04 относятся к следующим шагам.
+Жесты доски проверены в [P01.06](board-prototype.md), Markdown и внешние ссылки —
+в [P01.07](markdown-prototype.md). Проверка на Galaxy A32, HTTP внутри APK
+и итоговая приёмка T02/T04 остаются за пределами этих срезов.

@@ -14,6 +14,7 @@ tauri-build = { version = "=2.7.4", features = [] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 tauri = { version = "=2.12.5", default-features = false, features = ["wry", "compression"] }
+tauri-plugin-opener = "=2.7.2"
 zedone-prototype-core = { path = "../core" }
 
 [features]

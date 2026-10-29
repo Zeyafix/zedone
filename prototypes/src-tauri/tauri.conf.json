@@ -10,8 +10,15 @@
   "app": {
     "windows": [{ "title": "ZeDone Prototype", "label": "main" }],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'",
-      "capabilities": []
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "capabilities": [{
+        "identifier": "markdown-http-links",
+        "windows": ["main"],
+        "permissions": [{
+          "identifier": "opener:allow-open-url",
+          "allow": [{ "url": "http://*" }, { "url": "https://*" }]
+        }]
+      }]
     }
   },
   "bundle": {

@@ -6,6 +6,7 @@ P01 проверяет техническую пригодность выбра�
 использует openapi-fetch в браузере и Tauri IPC в [Android APK](android-prototype.md).
 P01.05 добавляет [изолированное SQLite-хранилище](sqlite-prototype.md).
 P01.06 добавляет [доску и общее API перемещений](board-prototype.md).
+P01.07 добавляет [безопасный просмотр Markdown](markdown-prototype.md).
 Объём следующих шагов задаёт
 [очередь](../agent/work-queue.md#p01--ограниченные-прототипы-платформ), состояние
 приёмки — [план-журнал](../agent/plan-journal.md).

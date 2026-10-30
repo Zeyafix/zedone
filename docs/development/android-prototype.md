@@ -69,7 +69,7 @@ Rust берётся из кеша; при первой сборке Gradle за�
 в Git. JNI entry point генерирует Tauri; собственного unsafe в ядре нет.
 Исключение для генерируемого bootstrap ограничено отдельным модулем
 адаптера с `deny(unsafe_code)`; [ADR-0024](../architecture/decisions/0024-android-prototype-entry-point.md).
-HTTP-сервер внутри APK не запускается; внешний агентский доступ относится к P01.10.
+P01.10 добавляет выключенный по умолчанию [ограниченный HTTP-сервер внутри APK](android-http-prototype.md).
 CSP ограничивает содержимое и IPC, удалённые capabilities не выдаются.
 P01.07 добавляет [Markdown-просмотр](markdown-prototype.md): HTTP/HTTPS в
 `img-src` только для явной загрузки и локальную capability Tauri Opener
@@ -119,5 +119,5 @@ host echo и prototype-процесс. APK остаётся установлен
 Результаты и ограничения: [EV-016](../agent/verification/EV-016-android-ipc.md).
 Проверка хранения P01.05 описана в [отдельной инструкции](sqlite-prototype.md).
 Жесты доски проверены в [P01.06](board-prototype.md), Markdown и внешние ссылки —
-в [P01.07](markdown-prototype.md). Проверка на Galaxy A32, HTTP внутри APK
-и итоговая приёмка T02/T04 остаются за пределами этих срезов.
+в [P01.07](markdown-prototype.md). HTTP внутри APK проверяется отдельно
+в [P01.10](android-http-prototype.md); итоговая приёмка T02/T04 остаётся за пределами прежних срезов.

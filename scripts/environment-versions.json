@@ -9,6 +9,8 @@
     "cli": "1.1.16717390",
     "linux_archive": "commandlinetools-linux-16111833_latest.zip",
     "linux_sha256": "0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8",
+    "linux_emulator_archive": "emulator-linux_x64-16428233.zip",
+    "linux_emulator_sha256": "b08fc43d8608d2955f607f1b287beb525041e730086bdca3af152accac3af9c1",
     "ndk": "30.0.16248370",
     "image": "system-images/android-33/default/x86_64",
     "packages": [

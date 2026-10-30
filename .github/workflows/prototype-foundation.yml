@@ -29,7 +29,8 @@ jobs:
       matrix:
         os: [windows-2025, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Cold Windows setup plus debug/release builds can exhaust 10 minutes before UI checks.
+    timeout-minutes: ${{ matrix.os == 'windows-2025' && 20 || 10 }}
     defaults:
       run:
         shell: pwsh

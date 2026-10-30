@@ -4779,10 +4779,12 @@ name = "zedone-prototype-core"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "getrandom 0.4.3",
  "qrcodegen",
  "rusqlite",
  "serde",
  "serde_json",
+ "socket2",
  "tempfile",
  "tokio",
  "utoipa",

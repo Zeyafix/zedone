@@ -88,6 +88,27 @@ export interface components {
         EchoResponse: {
             text: string;
         };
+        HttpSessionRequest: {
+            access?: components["schemas"]["TestAccess"];
+            /** @enum {string} */
+            action: "start";
+            address: string;
+            /** Format: int32 */
+            port: number;
+        } | {
+            /** @enum {string} */
+            action: "status";
+        } | {
+            /** @enum {string} */
+            action: "stop";
+        };
+        HttpSessionStatus: {
+            access?: components["schemas"]["TestAccess"] | null;
+            endpoint?: string | null;
+            /** @description The existing session is waiting to rebind its original endpoint. */
+            recovering: boolean;
+            token?: string | null;
+        };
         Invitation: {
             address: string;
             code: string;
@@ -165,6 +186,8 @@ export interface components {
         StorageResponse: {
             snapshot?: components["schemas"]["Snapshot"] | null;
         };
+        /** @enum {string} */
+        TestAccess: "read" | "write";
     };
     responses: never;
     parameters: never;

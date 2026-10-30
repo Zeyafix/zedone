@@ -6,6 +6,7 @@ import Board from "./Board.vue";
 import MarkdownView from "./MarkdownView";
 import Qr from "./Qr.vue";
 import InvitationInput from "./InvitationInput.vue";
+import HttpSession from "./HttpSession.vue";
 
 const text = ref("");
 const result = ref<string>();
@@ -48,6 +49,7 @@ function clear() {
     <MarkdownView v-if="result !== undefined" :key="result" :source="result" />
     <Qr />
     <InvitationInput />
+    <HttpSession />
     <Storage />
     <Board />
   </main>

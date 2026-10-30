@@ -11,8 +11,8 @@ dependencies_evidence: [P01.05, EV-018, 6a0a9001bde0eff24a547aeafa2af41098a7397f
 scope: [prototypes, docs/user, docs/agent, docs/development, docs/architecture]
 checks: ["bun run check", "bun run android:build", "bun run android:build aarch64", "bun run check:android", "реальный HTTP через Tailscale при наличии настроенной сети"]
 reverse_and_failure: "Остановка/отзыв, новый ключ после запуска, отказ без ключа/изменениям/пространству B, ошибка bind, фон/возврат/перезапуск."
-result: "P01.10 verified локально: BUG-002 исправлен и перепроверен настоящим Android VPN restart на новых x86_64/arm64 APK в эмуляторе и физическом Galaxy A32, прежний endpoint/ключ/права сохранены, stop/Home отменяют восстановление. GAP-003 resolved; новых CI/интеграции нет."
-next: "Публикация/CI и интеграция по поручению разработчика; P01.11 не начинался."
+result: "P01.10 blocked/GAP-004: локальные и физические проверки исправления BUG-002 пройдены; PR #17 Windows/Linux CI passed, Android CI отказал до приложения из-за подмены закреплённого Emulator новой версией. Установка архива/SHA-256 исправлена, повтор CI ожидается."
+next: "Полный Android CI ожидаемого head PR #17, затем merge и удаление ветки по поручению разработчика; P01.11 не начинался."
 ```
 
 Один проверяемый срез: HTTP в APK и IPC используют один экземпляр Storage;
@@ -365,12 +365,45 @@ page target, без изменения приложения. Попытка со
 APK; прежние физические результаты из LOG-145 не заменяли эту перепроверку.
 CI/Linux/PR/интеграция по-прежнему не выполнялись.
 
+## PR #17 и установка Emulator в CI — LOG-154
+
+Опубликован c53cbae и [PR #17](https://github.com/Zeyafix/zedone/pull/17) всего
+P01.10. Before/after основной и окончательной Android APK загружены вложениями
+GitHub вне Git: одна PNG-пара и два H.264 видео с фактическим encoded 1920×1080.
+Проверены читаемость и точное совпадение опубликованных байтов с просмотренными
+файлами; временный ключ в записи замаскирован, сессии отозваны.
+
+[Foundation CI 41033165838](https://github.com/Zeyafix/zedone/actions/runs/41033165838)
+пройден на Windows/Linux, включая 19/21 Rust-тест и обе новые Unix-регрессии.
+[Android CI 41033165850](https://github.com/Zeyafix/zedone/actions/runs/41033165850)
+собрал обе ABI, но до запуска приложения checker обнаружил Emulator **37.2.13**
+вместо `emulator@37.2.12`. Android CLI выбрал более новый payload; повтор
+старого прогона без изменения установки не устраняет причину. Это GAP-004,
+не повтор BUG-002. Слияние ожидает полноценного успешного Android CI.
+
+Workflow сохраняет исходную принятую версию и строгую проверку. В JSON добавлены
+Linux-архив Emulator build 16428233 и опубликованный Google SHA-256
+([официальный архив](https://developer.android.com/studio/emulator_archive)).
+До распаковки проверяется hash, затем Pkg.Revision архивного payload сверяется
+с `android.packages`. По официальной инструкции сохраняются SDK license/namespace
+метаданные `package.xml`, а revision приводится к фактически проверенному payload;
+прежняя установка переносится в принадлежащий CI RUNNER_TEMP. Личный SDK не меняется.
+
+Локально пройдены actionlint/ShellCheck, diff check, сверка реального 349654171-byte
+архива с опубликованным SHA-256 и source.properties (37.2.12/build 16428233).
+Точный Python-фрагмент workflow исполнен на XML SDK с другой ревизией:
+проверены целевая ревизия, прежний license и namespace declarations.
+Код приложения/медиа/проверенные APK не менялись. Новое исполнение Linux Emulator
+на Windows не заявляется; повтор CI ожидается. Доказательства находятся только
+в `docs/reports/p01-10/ci-emulator-pin/`, логи CI/вложения — рядом в локальном отчёте.
+
 ## Границы и передача
 
-GAP-003 и BUG-002 resolved; P01.10 verified локально. Прежние успешные физические
+GAP-003 и BUG-002 resolved; локальные результаты P01.10 verified, интеграция
+blocked по GAP-004 до повторного Android CI. Прежние успешные физические
 результаты не отменены: отключение Android VPN тогда не проверялось.
-Нет новых CI/Linux/интеграции
-для этого среза; workflows выполнят общие/Android-сценарии после публикации.
+Windows/Linux CI среза пройден; Android CI остановился до приложения из-за
+Emulator revision, установка исправлена. Интеграция ещё не выполнена.
 T04/A26 остаются partial до соответствующей итоговой приёмки:
 продуктовые права, выбор транспорта P01.11, обмен, фоновая доступность,
 IPv6-сеть и производительность этим прогоном не принимаются.

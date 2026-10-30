@@ -6,11 +6,24 @@
 
 Авторитетный набор версий — [environment-versions.json](../../scripts/environment-versions.json): Rust/Bun, JDK, Command-line Tools, Android CLI, NDK, SDK Platform/Build-Tools, Platform-Tools, Emulator и AOSP-образ API 33. Android-пакеты соответствуют базе [Windows Quick Start](quick-start-windows.md#3-подготовьте-android-p0003). В Linux используется Temurin той же версии Java, в Windows — JBR Android Studio; совпадение дистрибутивов не предполагается.
 
-Для повторения на подготовленной Linux x64 машине нужны Bash, Git, jq, curl, unzip, iproute2 (`ss`), coreutils (`timeout`, `tail`), util-linux (`setsid`), shellcheck, rustup, Bun, JDK, `libpulse0` (динамическая зависимость эмулятора даже с `-no-audio`) и доступ к `/dev/kvm`. [Требования ускорения Android](https://developer.android.com/studio/run/emulator-acceleration) и [поддержка KVM hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) проверяются до старта. Без KVM скрипт завершается ошибкой.
+Для повторения на подготовленной Linux x64 машине нужны Bash, Git, jq, curl, unzip, Python 3.10+ (стандартная библиотека для SDK XML), iproute2 (`ss`), coreutils (`timeout`, `tail`), util-linux (`setsid`), shellcheck, rustup, Bun, JDK, `libpulse0` (динамическая зависимость эмулятора даже с `-no-audio`) и доступ к `/dev/kvm`. [Требования ускорения Android](https://developer.android.com/studio/run/emulator-acceleration) и [поддержка KVM hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) проверяются до старта. Без KVM скрипт завершается ошибкой.
 
 1. Установите Rust, Bun и JDK указанных версий. Rust-цели: `aarch64-linux-android`, `armv7-linux-androideabi`, `i686-linux-android`, `x86_64-linux-android`. Команды установки находятся в workflow; глобальный Rust toolchain не переключается.
 2. Повторите блок **Install pinned Android tools in an isolated SDK** из workflow, подставив каталог checkout вместо `GITHUB_WORKSPACE` и собственный пустой рабочий каталог вместо `RUNNER_TEMP`. Архив Google загружается по закреплённому имени и сверяется по SHA256 перед распаковкой. [Официальный каталог SDK](https://dl.google.com/android/repository/repository2-3.xml) задаёт исходный архив Tools 23; SHA256 вычислена после сверки архива с checksum каталога.
 3. Через Android CLI выполните `sdk install <package>@<version>` для каждой строки `android.packages` из JSON. Tools 23 используют `/` в ID пакета; `avdmanager` использует `;`. При установке прочитайте [лицензию Android SDK](https://developer.android.com/studio#terms-and-conditions). В одноразовом CI ответы передаются из отдельного файла; эта настройка не меняет локальные лицензии разработчика. Google-аккаунт и пользовательские секреты не нужны.
+   Для Emulator одного `@version` недостаточно: в PR #17 CLI установил 37.2.13
+   вместо закреплённого 37.2.12. Поэтому продолжите блок workflow: загрузите
+   `android.linux_emulator_archive`, проверьте `android.linux_emulator_sha256`
+   до распаковки, затем сверьте `Pkg.Revision` с записью `emulator@…`.
+   По [официальной инструкции архивной установки](https://developer.android.com/studio/emulator_archive)
+   сохраните `package.xml` установленного SDK и укажите в нём фактическую
+   проверенную ревизию архивного payload. Скрипт сохраняет XML namespaces и
+   сведения о лицензии, переносит прежнюю установку в одноразовый каталог
+   `RUNNER_TEMP`, затем помещает проверенный Emulator в отдельный SDK.
+   Закреплённый SHA-256 опубликован Google на той же архивной странице.
+   Общая строгая проверка пакетов не ослабляется; обновление зеркала SDK
+   не меняет принятую версию. Этот блок относится к пустому изолированному SDK,
+   а не к замене личной установки разработчика.
 4. Задайте `ANDROID_HOME` на этот SDK, а `ANDROID_SDK_ROOT`, если он установлен, на тот же путь. Обеспечьте права чтения/записи `/dev/kvm` штатными средствами своего дистрибутива. Для одноразовой VM workflow создаёт правило udev: владелец `/dev/kvm` — текущий пользователь, режим `0600`. Оно сохраняет доступ при пересоздании узла, тогда как разовая ACL после остановки эмулятора сбрасывалась. На общей Linux-машине используйте принятую администратором настройку группы `kvm`; правило владельца предназначено только для одноразовой CI VM. Повторять `sudo` на Windows не требуется.
 
 ## Одинаковая проверка для человека и агента

@@ -62,6 +62,30 @@ jobs:
           while IFS= read -r package; do
             "$tools/bin/android" --no-metrics "--sdk=$sdk" sdk install "$package" < "$RUNNER_TEMP/android-license-answers"
           done < <(jq -r '.android.packages[]' "$versions")
+          # CLI installation can silently pick the newest emulator even with @version.
+          # Follow Google's archive-install procedure, retaining SDK license metadata.
+          curl --fail --location --retry 3 "https://dl.google.com/android/repository/$(jq -r .android.linux_emulator_archive "$versions")" -o "$RUNNER_TEMP/android-emulator.zip"
+          echo "$(jq -r .android.linux_emulator_sha256 "$versions")  $RUNNER_TEMP/android-emulator.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/android-emulator.zip" -d "$RUNNER_TEMP/zedone-pinned-emulator"
+          pinned_emulator="$RUNNER_TEMP/zedone-pinned-emulator/emulator"
+          emulator_revision=$(jq -r '.android.packages[] | select(startswith("emulator@")) | split("@")[1]' "$versions")
+          actual=$(sed -n 's/^Pkg.Revision *= *//p' "$pinned_emulator/source.properties" | tr -d '\r')
+          test "$actual" = "$emulator_revision"
+          python3 - "$sdk/emulator/package.xml" "$pinned_emulator/package.xml" "$emulator_revision" <<'PY'
+          import sys
+          from xml.dom import minidom
+
+          document = minidom.parse(sys.argv[1])
+          package = next(node for node in document.getElementsByTagName("localPackage")
+                         if node.getAttribute("path") == "emulator")
+          revision = package.getElementsByTagName("revision")[0]
+          for name, value in zip(("major", "minor", "micro"), sys.argv[3].split("."), strict=True):
+              revision.getElementsByTagName(name)[0].firstChild.nodeValue = value
+          with open(sys.argv[2], "wb") as output:
+              output.write(document.toxml(encoding="utf-8"))
+          PY
+          mv "$sdk/emulator" "$RUNNER_TEMP/zedone-unpinned-emulator"
+          mv "$pinned_emulator" "$sdk/emulator"
           {
             echo "ANDROID_HOME=$sdk"
             echo "ANDROID_SDK_ROOT=$sdk"

@@ -276,6 +276,9 @@
       },
       "HttpSessionStatus": {
         "type": "object",
+        "required": [
+          "recovering"
+        ],
         "properties": {
           "access": {
             "oneOf": [
@@ -292,6 +295,10 @@
               "string",
               "null"
             ]
+          },
+          "recovering": {
+            "type": "boolean",
+            "description": "The existing session is waiting to rebind its original endpoint."
           },
           "token": {
             "type": [

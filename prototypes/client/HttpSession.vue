@@ -13,6 +13,20 @@ const status = ref<Status>();
 const error = ref("");
 const busy = ref(false);
 let version = 0;
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+let refreshing = false;
+
+async function refreshStatus() {
+  if (busy.value || refreshing || !status.value?.endpoint || document.visibilityState !== "visible") return;
+  const current = version;
+  refreshing = true;
+  try {
+    const result = await invoke<Status>("http_session", { request: { action: "status" } });
+    if (current === version) status.value = result;
+  }
+  catch { /* Explicit controls report IPC failures; polling must not hide their errors. */ }
+  finally { refreshing = false; }
+}
 
 async function control(request: Request) {
   const current = ++version;
@@ -33,10 +47,12 @@ function foreground() { if (document.visibilityState === "visible") void control
 onMounted(() => {
   if (!android) return;
   void control({ action: "status" });
+  refreshTimer = setInterval(() => void refreshStatus(), 1000);
   window.addEventListener("prototype-background", background);
   document.addEventListener("visibilitychange", foreground);
 });
 onUnmounted(() => {
+  clearInterval(refreshTimer);
   window.removeEventListener("prototype-background", background);
   document.removeEventListener("visibilitychange", foreground);
 });
@@ -57,6 +73,7 @@ onUnmounted(() => {
     </form>
     <p v-if="error" id="http-error" role="alert">{{ error }}</p>
     <div v-if="status?.endpoint" id="http-active">
+      <p v-if="status.recovering" id="http-recovering" role="status">Соединение восстанавливается. Ожидается прежний IP и порт; ключ и права сохранены.</p>
       <p>Адрес: <code id="http-endpoint">{{ status.endpoint }}</code></p>
       <p>Права: {{ status.access === 'write' ? 'Чтение и изменение A' : 'Только чтение A' }}</p>
       <label>Временный ключ <input id="http-token" :value="status.token ?? ''" readonly /></label>

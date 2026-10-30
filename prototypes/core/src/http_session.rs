@@ -13,6 +13,8 @@ use std::{
 use tokio::{sync::oneshot, task::JoinHandle};
 use utoipa::ToSchema;
 
+mod listener;
+
 #[derive(Clone, Copy, Default, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TestAccess {
@@ -39,6 +41,8 @@ pub struct HttpSessionStatus {
     pub endpoint: Option<String>,
     pub token: Option<String>,
     pub access: Option<TestAccess>,
+    /// The existing session is waiting to rebind its original endpoint.
+    pub recovering: bool,
 }
 
 #[derive(Clone)]
@@ -78,6 +82,7 @@ struct Running {
     grant: TestGrant,
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
+    recovering: Arc<AtomicBool>,
 }
 
 #[derive(Default)]
@@ -134,16 +139,14 @@ impl HttpSession {
                                 .into(),
                         );
                     }
-                    let listener = std::net::TcpListener::bind(SocketAddr::new(ip, port))
+                    let listener = listener::bind(SocketAddr::new(ip, port))
                         .map_err(|_| "Cannot bind the selected local address and port")?;
-                    listener
-                        .set_nonblocking(true)
-                        .map_err(|_| "Cannot configure the listener")?;
                     let endpoint = format!(
                         "http://{}",
                         listener.local_addr().map_err(|_| "Listener unavailable")?
                     );
-                    let listener = tokio::net::TcpListener::from_std(listener)
+                    let recovering = Arc::new(AtomicBool::new(false));
+                    let listener = listener::RecoveringListener::new(listener, recovering.clone())
                         .map_err(|_| "Listener unavailable")?;
                     let mut bytes = [0u8; 32];
                     getrandom::fill(&mut bytes).map_err(|_| "Secure test key unavailable")?;
@@ -158,6 +161,7 @@ impl HttpSession {
                         endpoint: Some(endpoint),
                         token: Some(token),
                         access: Some(access),
+                        recovering: false,
                     };
                     let app = crate::http::limited_router(storage, grant.clone());
                     let (stop, stopped) = oneshot::channel();
@@ -175,6 +179,7 @@ impl HttpSession {
                         grant,
                         stop,
                         task,
+                        recovering,
                     });
                     return Ok(status);
                 }
@@ -183,7 +188,10 @@ impl HttpSession {
                         .running
                         .as_ref()
                         .filter(|running| running.grant.is_active() && !running.task.is_finished())
-                        .map(|running| running.status.clone())
+                        .map(|running| HttpSessionStatus {
+                            recovering: running.recovering.load(Ordering::SeqCst),
+                            ..running.status.clone()
+                        })
                         .unwrap_or_default());
                 }
                 HttpSessionRequest::Stop => Self::stop(&mut state),

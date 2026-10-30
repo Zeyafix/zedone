@@ -105,6 +105,8 @@ export interface components {
         HttpSessionStatus: {
             access?: components["schemas"]["TestAccess"] | null;
             endpoint?: string | null;
+            /** @description The existing session is waiting to rebind its original endpoint. */
+            recovering: boolean;
             token?: string | null;
         };
         Invitation: {

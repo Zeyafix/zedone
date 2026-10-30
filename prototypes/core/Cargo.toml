@@ -17,3 +17,6 @@ getrandom = "=0.4.3"
 
 [dev-dependencies]
 tempfile = "=3.27.0"
+
+[target.'cfg(unix)'.dev-dependencies]
+socket2 = "=0.6.5"

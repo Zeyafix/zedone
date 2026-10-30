@@ -11,8 +11,8 @@ dependencies_evidence: [P01.05, EV-018, 6a0a9001bde0eff24a547aeafa2af41098a7397f
 scope: [prototypes, docs/user, docs/agent, docs/development, docs/architecture]
 checks: ["bun run check", "bun run android:build", "bun run android:build aarch64", "bun run check:android", "реальный HTTP через Tailscale при наличии настроенной сети"]
 reverse_and_failure: "Остановка/отзыв, новый ключ после запуска, отказ без ключа/изменениям/пространству B, ошибка bind, фон/возврат/перезапуск."
-result: "P01.10 blocked/GAP-004/005: локальные/физические проверки BUG-002 пройдены. Исправлены установка Emulator в CI и общий бюджет Foundation Windows job; полный Windows/Android CI ожидаемого head ещё требуется, Linux CI passed."
-next: "Полный успешный Windows/Linux/Android CI ожидаемого head PR #17, затем merge и удаление ветки по поручению разработчика; P01.11 не начинался."
+result: "P01.10 done: Windows/Linux/Android CI head 862c43e passed, PR #17 интегрирован в 5dfa2c6; BUG-002 и GAP-003/004/005 resolved, локальная/удалённая ветка удалена. Физическая arm64 и x86_64 VPN restart приёмка сохранена."
+next: "P01.11 готов по зависимостям: свести результаты платформ/транспорта и измерить полный прототипный срез; реализация шага не начиналась."
 ```
 
 Один проверяемый срез: HTTP в APK и IPC используют один экземпляр Storage;
@@ -417,13 +417,38 @@ Linux остаётся 10 минут. Тайм-ауты внутри тесто�
 новые сборки/физические проверки не требуются для изменения бюджета CI.
 API annotations, timestamps и логи сохранены в локальном `docs/reports/p01-10/`.
 
+## Интеграция — 2026-10-30, LOG-156
+
+На окончательном head `862c43edee309e2eecc438e557c74e86ca8f5b9f`
+успешны все CI: [Foundation Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/41037584789),
+[Windows environment](https://github.com/Zeyafix/zedone/actions/runs/41037584748),
+[Android environment/prototype](https://github.com/Zeyafix/zedone/actions/runs/41037584866).
+Foundation проверил 19/21 Rust-тест, включая обе Unix-регрессии, release,
+контракт/strict/Vite и полный HTTP/Chromium. Android собрал обе ABI и реально
+запустил Emulator **37.2.12/build 16428233**; полный AOSP API 33/WebView/HTTP/IPC,
+права/жизненный цикл/recreate/force-stop, прежние сценарии и отрицательные
+проверки окружения/cleanup прошли. Повторный Windows завершил все сценарии
+с новым общим бюджетом, без изменения внутренних тайм-аутов или пропусков.
+Дублирующие push Foundation jobs также passed. GAP-004/005 resolved после
+этих результатов; прежние failed/cancelled попытки остаются в истории.
+
+Перед merge проверены точный head, MERGEABLE/CLEAN и отсутствие замечаний,
+отклоняющих ревью или дополнительных обязательных правил main. Внешнее ревью
+не требовалось/не проводилось. [PR #17](https://github.com/Zeyafix/zedone/pull/17)
+слит обычным merge с `--match-head-commit` в
+`5dfa2c62fdf3ef8dd27181b271503a6617f26e07`. Описание PR содержит окончательные
+проверки и реальные before/after attachments; медиа не добавлены в Git.
+Принадлежность проверенного head `origin/main` подтверждена, локальный main
+обновлён fast-forward; ветка удалена локально и на GitHub.
+Интеграционная запись меняет только документацию; приложение/проверенные APK
+сохранены. Логи, итоговое состояние PR и media receipts — только в `docs/reports/p01-10/`.
+
 ## Границы и передача
 
-GAP-003 и BUG-002 resolved; локальные результаты P01.10 verified, интеграция
-blocked по GAP-004/005 до успешных Android/Windows CI. Прежние успешные физические
-результаты не отменены: отключение Android VPN тогда не проверялось.
-Windows/Linux CI среза пройден; Android CI остановился до приложения из-за
-Emulator revision, установка исправлена. Интеграция ещё не выполнена.
+BUG-002 и GAP-003/004/005 resolved; P01.10 done, PR #17 интегрирован после
+успешных Windows/Linux/Android CI. Прежние физические результаты сохранены;
+дополнительная перепроверка новой arm64 APK с Android VPN restart описана
+в LOG-152 и не подменяется проверкой обрыва VPN ПК из LOG-145.
 T04/A26 остаются partial до соответствующей итоговой приёмки:
 продуктовые права, выбор транспорта P01.11, обмен, фоновая доступность,
 IPv6-сеть и производительность этим прогоном не принимаются.
@@ -443,7 +468,6 @@ Tailscale на ПК и Android сохранён подключённым по п
 выключен. Авторизация Tailscale в AVD сохранена для повторной проверки;
 ПК и физический телефон не менялись.
 
-Продолжение: публикация/CI и интеграция
-по поручению разработчика; P01.11 зависит от P01.10 done и не начинался.
+Продолжение: P01.11 готов по зависимостям после P01.10 done, но не начинался.
 Инструкции: [разработчик](../../development/android-http-prototype.md),
 [пользователь](../../user/prototype-http.md), [агент](../prototype-http.md).

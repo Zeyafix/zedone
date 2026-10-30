@@ -11,8 +11,8 @@ dependencies_evidence: [P01.05, EV-018, 6a0a9001bde0eff24a547aeafa2af41098a7397f
 scope: [prototypes, docs/user, docs/agent, docs/development, docs/architecture]
 checks: ["bun run check", "bun run android:build", "bun run android:build aarch64", "bun run check:android", "реальный HTTP через Tailscale при наличии настроенной сети"]
 reverse_and_failure: "Остановка/отзыв, новый ключ после запуска, отказ без ключа/изменениям/пространству B, ошибка bind, фон/возврат/перезапуск."
-result: "P01.10 blocked/GAP-004: локальные и физические проверки исправления BUG-002 пройдены; PR #17 Windows/Linux CI passed, Android CI отказал до приложения из-за подмены закреплённого Emulator новой версией. Установка архива/SHA-256 исправлена, повтор CI ожидается."
-next: "Полный Android CI ожидаемого head PR #17, затем merge и удаление ветки по поручению разработчика; P01.11 не начинался."
+result: "P01.10 blocked/GAP-004/005: локальные/физические проверки BUG-002 пройдены. Исправлены установка Emulator в CI и общий бюджет Foundation Windows job; полный Windows/Android CI ожидаемого head ещё требуется, Linux CI passed."
+next: "Полный успешный Windows/Linux/Android CI ожидаемого head PR #17, затем merge и удаление ветки по поручению разработчика; P01.11 не начинался."
 ```
 
 Один проверяемый срез: HTTP в APK и IPC используют один экземпляр Storage;
@@ -397,10 +397,30 @@ Linux-архив Emulator build 16428233 и опубликованный Google 
 на Windows не заявляется; повтор CI ожидается. Доказательства находятся только
 в `docs/reports/p01-10/ci-emulator-pin/`, логи CI/вложения — рядом в локальном отчёте.
 
+## Отмена Foundation Windows по общему лимиту — LOG-155
+
+На 793ff41 [push run 41035850570](https://github.com/Zeyafix/zedone/actions/runs/41035850570)
+и [PR run 41035856170](https://github.com/Zeyafix/zedone/actions/runs/41035856170)
+завершили Foundation Windows как cancelled. Аннотации обоих check runs
+подтверждают `The job has exceeded the maximum execution time of 10m0s`;
+общая длительность — 605/601 секунд. В push job уже прошли Rust, release,
+Vite и HTTP API, а отмена произошла после старта Chromium. Это не успешный
+UI-прогон и не ошибка проверяемого HTTP восстановления. Оба Linux job
+и отдельные Windows environment jobs на этом head passed; Android ещё выполнялся.
+
+GAP-005 фиксирует недостаточный общий бюджет Foundation Windows с холодной
+установкой toolchain и debug/release-сборками. Только этому job задано 20 минут;
+Linux остаётся 10 минут. Тайм-ауты внутри тестов, их набор и условия успеха
+сохранены. Нет continue-on-error, пропуска браузера или зачёта отмены.
+Пройден actionlint с ShellCheck для изменённого workflow; окончательный
+успешный Windows CI нового head ещё необходим. Код приложения не менялся,
+новые сборки/физические проверки не требуются для изменения бюджета CI.
+API annotations, timestamps и логи сохранены в локальном `docs/reports/p01-10/`.
+
 ## Границы и передача
 
 GAP-003 и BUG-002 resolved; локальные результаты P01.10 verified, интеграция
-blocked по GAP-004 до повторного Android CI. Прежние успешные физические
+blocked по GAP-004/005 до успешных Android/Windows CI. Прежние успешные физические
 результаты не отменены: отключение Android VPN тогда не проверялось.
 Windows/Linux CI среза пройден; Android CI остановился до приложения из-за
 Emulator revision, установка исправлена. Интеграция ещё не выполнена.

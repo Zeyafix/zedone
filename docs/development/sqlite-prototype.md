@@ -50,8 +50,8 @@ $request = @{ action = 'restore'; snapshot = $saved.snapshot } | ConvertTo-Json 
 Invoke-RestMethod $api -Method Post -ContentType 'application/json; charset=utf-8' -Body $request
 ```
 
-HTTP привязан к loopback. Доступ к API из APK извне не добавлен; P01.10 ещё
-предстоит. Тестовые операции не имеют продуктовых прав и не экспортируются
+В исходном P01.05 HTTP привязан к loopback. P01.10 добавляет отдельный
+[ограниченный listener APK](android-http-prototype.md). Тестовые операции не имеют продуктовых прав и не экспортируются
 как API работы с реальными пространствами.
 
 ## Транзакции, поиск и отказы

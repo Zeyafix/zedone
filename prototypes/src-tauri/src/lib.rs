@@ -40,6 +40,16 @@ async fn storage(
 }
 
 #[cfg(target_os = "android")]
+#[tauri::command]
+async fn http_session(
+    request: zedone_prototype_core::http_session::HttpSessionRequest,
+    session: tauri::State<'_, zedone_prototype_core::http_session::HttpSession>,
+    storage: tauri::State<'_, zedone_prototype_core::storage::Storage>,
+) -> Result<zedone_prototype_core::http_session::HttpSessionStatus, String> {
+    session.execute(request, storage.inner().clone()).await
+}
+
+#[cfg(target_os = "android")]
 #[allow(unsafe_code)]
 mod entry_point {
     // SAFETY: only Tauri's generated JNI/bootstrap uses this exception (ADR-0024).
@@ -58,13 +68,26 @@ mod entry_point {
             .setup(|app| {
                 let directory = app.path().app_local_data_dir()?.join("p01-05-synthetic");
                 app.manage(zedone_prototype_core::storage::Storage::new(directory));
+                app.manage(zedone_prototype_core::http_session::HttpSession::default());
                 Ok(())
+            })
+            .on_window_event(|window, event| {
+                use tauri::WindowEvent;
+                let session = window.state::<zedone_prototype_core::http_session::HttpSession>();
+                match event {
+                    WindowEvent::Suspended | WindowEvent::Destroyed => session.suspend(true),
+                    // Tao ignores the first onResume of a recreated Activity.
+                    // Native focus also enables explicit starts for that new owner.
+                    WindowEvent::Resumed | WindowEvent::Focused(true) => session.suspend(false),
+                    _ => {}
+                }
             })
             .invoke_handler(tauri::generate_handler![
                 super::echo,
                 super::storage,
                 super::qr,
-                super::invitation
+                super::invitation,
+                super::http_session
             ])
             .run(tauri::generate_context!())
             // Startup cannot continue without its platform event loop/WebView.

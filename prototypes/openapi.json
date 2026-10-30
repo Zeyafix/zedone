@@ -215,6 +215,92 @@
           }
         }
       },
+      "HttpSessionRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "address",
+              "port",
+              "action"
+            ],
+            "properties": {
+              "access": {
+                "$ref": "#/components/schemas/TestAccess"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "start"
+                ]
+              },
+              "address": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "status"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "stop"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "HttpSessionStatus": {
+        "type": "object",
+        "properties": {
+          "access": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TestAccess"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "Invitation": {
         "type": "object",
         "required": [
@@ -538,6 +624,13 @@
             ]
           }
         }
+      },
+      "TestAccess": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write"
+        ]
       }
     }
   }

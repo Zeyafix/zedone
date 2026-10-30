@@ -8,6 +8,8 @@ import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkQr } from "./qr-scenarios.mjs";
 import { checkInvitation } from "./invitation-scenarios.mjs";
 import { checkScanner } from "./scanner-scenarios.mjs";
+import { checkHttpSession } from "./http-session-scenarios.mjs";
+import { checkAndroidHttp } from "./android-http-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -24,6 +26,7 @@ const directory = await mkdtemp(resolve(tmpdir(), "zedone-android-storage-"));
 let browser, port, server, page;
 let lock;
 const errors = [];
+const httpPorts = new Set();
 
 function device(...args) {
   const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: args[0] === "install" || args.includes("instrument") ? 90000 : 15000 });
@@ -76,11 +79,15 @@ try {
   device("install", "-r", testApk);
   // Tauri exits when the final window closes. Let the runner publish the result
   // before Android tears down the process instead of finishing that window first.
-  const instrumentation = device("shell", "am", "instrument", "-w", "-r", "-e", "waitForActivitiesToComplete", "false",
-    "-e", "class", "app.zedone.prototype.PluginLifecycleTest",
-    `${app}.test/androidx.test.runner.AndroidJUnitRunner`);
-  assert.match(instrumentation, /OK \([1-9]\d* tests?\)/, instrumentation);
-  console.log("Real Activity recreation: native plugin owner/WebView, cleanup and config regression passed.");
+  for (const test of ["PluginLifecycleTest", "HttpLifecycleTest"]) {
+    // Each scenario owns Tauri's final window: use independent instrumentation
+    // processes rather than launching a second window in the previous scenario.
+    device("shell", "am", "force-stop", app);
+    const instrumentation = device("shell", "am", "instrument", "-w", "-r", "-e", "waitForActivitiesToComplete", "false",
+      "-e", "class", `${app}.${test}`, `${app}.test/androidx.test.runner.AndroidJUnitRunner`);
+    assert.match(instrumentation, /OK \([1-9]\d* tests?\)/, instrumentation);
+  }
+  console.log("Real Activity recreation: plugin owner/WebView regression and HTTP grant revocation/new explicit session passed.");
   device("shell", "am", "force-stop", app);
   device("shell", "pm", "revoke", app, "android.permission.CAMERA");
   device("shell", "pm", "clear-permission-flags", app, "android.permission.CAMERA", "user-set", "user-fixed");
@@ -236,6 +243,17 @@ try {
   const storageCommand = api.paths["/prototype/storage"].post.operationId;
   const storage = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command: storageCommand, request });
   const expected = await checkStorage(storage);
+  const sessionControl = request => page.evaluate(request => window.__TAURI_INTERNALS__.invoke("http_session", { request }), request);
+  const connectHttp = async status => {
+    const remotePort = new URL(status.endpoint).port;
+    const localPort = device("forward", "tcp:0", `tcp:${remotePort}`);
+    httpPorts.add(localPort);
+    return { endpoint: `http://127.0.0.1:${localPort}`, close() {
+      if (httpPorts.delete(localPort)) device("forward", "--remove", `tcp:${localPort}`);
+    } };
+  };
+  await checkHttpSession(sessionControl, storage, connectHttp);
+  await checkAndroidHttp(page, { control: sessionControl, connect: connectHttp, tap, device, until, launch, app });
   const hostExpected = await checkStorage(async request => {
     const response = await fetch(`${address.trim()}/prototype/storage`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
@@ -313,7 +331,13 @@ try {
     ]);
   } finally { clearTimeout(lockTimer); }
   lockReader.releaseLock();
+  const lockedSession = await sessionControl({ action: "start", address: "127.0.0.1", port: 0, access: "write" });
+  const lockedHttp = await connectHttp(lockedSession);
   try {
+    const pendingHttp = fetch(`${lockedHttp.endpoint}/prototype/storage`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${lockedSession.token}` },
+      body: JSON.stringify({ action: "delete", space: "A" }), signal: AbortSignal.timeout(5000),
+    });
     await tap("#storage-delete");
     await page.waitForFunction(() => document.querySelector("#storage-busy"));
     await fill("Android остаётся отзывчивым");
@@ -322,10 +346,13 @@ try {
     assert.equal(await result(), "Android остаётся отзывчивым");
     assert.equal(await page.locator("#storage-busy").count(), 1, "IPC echo completes while SQLite is locked");
     await page.waitForFunction(() => document.querySelector("#storage-error"));
+    assert.equal((await pendingHttp).status, 503, "HTTP in APK also reports real SQLITE_BUSY without a successful write");
   } finally {
     lock.stdin.end("ROLLBACK;\n.quit\n");
     await lock.exited;
     lock = undefined;
+    await sessionControl({ action: "stop" });
+    await lockedHttp.close();
   }
   assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, expected.a);
   await tap("#storage-read");
@@ -333,10 +360,22 @@ try {
   assert.equal(await page.locator("#storage-error").count(), 0);
   console.log("Real Android SQLite lock: UI/IPC responsive, failed write unchanged, explicit read recovered.");
   const persisted = (await storage({ action: "move_card", expected: expected.a, card: 1, column: 2, position: 0 })).snapshot;
+  const beforeRestart = await sessionControl({ action: "start", address: "127.0.0.1", port: 0 });
+  const restartHttp = await connectHttp(beforeRestart);
   await disconnect();
   device("shell", "am", "force-stop", app);
   launch();
   page = await connect();
+  assert.equal((await sessionControl({ action: "status" })).endpoint, null, "force-stop discards HTTP grants");
+  const afterRestart = await sessionControl({ action: "start", address: "127.0.0.1", port: Number(new URL(beforeRestart.endpoint).port) });
+  try {
+    const response = await fetch(`${restartHttp.endpoint}/prototype/echo`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${beforeRestart.token}` },
+      body: JSON.stringify({ text: "old key" }), signal: AbortSignal.timeout(3000),
+    });
+    assert.equal(response.status, 401, "old key cannot survive process restart even on the same port");
+    assert.ok(afterRestart.token !== beforeRestart.token);
+  } finally { await sessionControl({ action: "stop" }); await restartHttp.close(); }
   assert.equal(await input(), "", "Synthetic session is not persisted");
   assert.equal(await count("status"), 0);
   assert.deepEqual((await storage({ action: "snapshot", space: "A" })).snapshot, persisted);
@@ -352,6 +391,8 @@ try {
 } finally {
   if (lock) { lock.stdin.end("ROLLBACK;\n.quit\n"); await lock.exited; }
   await disconnect();
+  for (const localPort of httpPorts) device("forward", "--remove", `tcp:${localPort}`);
+  httpPorts.clear();
   server?.kill();
   if (server) await server.exited;
   await rm(directory, { recursive: true });

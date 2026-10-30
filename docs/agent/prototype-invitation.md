@@ -2,7 +2,8 @@
 
 P01.09 добавляет stateless `POST /prototype/invitation` на loopback HTTP
 прототипа и IPC `invitation` в APK. Камера не нужна; человек использует тот же
-Rust-контракт из формы. HTTP внутри APK и удалённый доступ ещё не реализованы.
+Rust-контракт из формы. P01.10 добавляет [ограниченный HTTP внутри APK](prototype-http.md);
+настоящий Tailscale-путь пока не проверен.
 
 Для ручного ввода передайте
 `{"source":"manual","address":"http://192.0.2.1:4317","code":"SYNTHETIC-ONLY"}`.

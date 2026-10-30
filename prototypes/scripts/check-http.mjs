@@ -9,6 +9,7 @@ import { checkStorage, checkStorageUI } from "./storage-scenarios.mjs";
 import { checkMarkdown } from "./markdown-scenarios.mjs";
 import { checkQr } from "./qr-scenarios.mjs";
 import { checkInvitation } from "./invitation-scenarios.mjs";
+import { checkHttpSession, desktopHttpControl } from "./http-session-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -62,6 +63,9 @@ async function check() {
     return response.json();
   };
   const { a, b } = await checkStorage(call);
+  const controller = desktopHttpControl(root, directory);
+  try { await checkHttpSession(controller.control, call); }
+  finally { await controller.close(); }
   await checkBoard(call);
   const persisted = (await call({ action: "move_card", expected: a, card: 1, column: 2, position: 0 })).snapshot;
   for (const request of [{ action: "seed", space: "C" }, { action: "read", space: "A" }, { action: "sql", space: "A" }]) {

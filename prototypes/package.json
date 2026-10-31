@@ -14,6 +14,7 @@
     "measure:desktop": "bun ./scripts/measure-desktop.mjs",
     "measure:desktop:pixels": "bun ./scripts/measure-desktop-pixels.mjs",
     "measure:android": "bun ./scripts/measure-android.mjs",
+    "measure:android:pixels": "bun ./scripts/measure-android.mjs --pixels",
     "dev": "bun --bun vite --host 127.0.0.1",
     "serve": "bun ./scripts/serve.mjs"
   },

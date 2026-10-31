@@ -173,20 +173,30 @@ async function measure() {
     window = await rpc({ action: 'expose', prefix: windowTitle });
     assert.ok(window.hwnd, window.error);
     report.window = window;
-    const nr = { x: window.x + 128, y: window.y + 140, width: 300, height: 160 };
+    // Browser chrome differs between Opera and Chrome. Search inside our test
+    // window instead of assuming a toolbar/sidebar offset. Rounded borders are excluded.
+    assert.equal(await page.evaluate(() => devicePixelRatio), 1, 'Pixel profile requires one OS pixel per CSS pixel');
+    const nr = { x: window.x + 32, y: window.y + 32, width: window.width - 64, height: Math.min(window.height - 64, 750) };
     const calibration = await capture(nr), bytes = Buffer.from(calibration.pixels, 'base64');
-    let minX = nr.width, minY = nr.height, count = 0;
+    let minX = nr.width, minY = nr.height, maxX = -1, maxY = -1, count = 0;
     for (let y = 0; y < nr.height; y++)
         for (let x = 0; x < nr.width; x++) {
             const i = (y * nr.width + x) * 4;
             if (bytes[i] === 203 && bytes[i + 1] === 91 && bytes[i + 2] === 17) {
                 minX = Math.min(minX, x);
                 minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
                 count++;
             }
         }
     assert.equal(count, 160 * 24, 'Calibration pixel area must exactly match the synthetic marker');
+    assert.equal(maxX - minX + 1, 160, 'Calibration marker must be a complete rectangle');
+    assert.equal(maxY - minY + 1, 24, 'Calibration marker must be a complete rectangle');
     origin = { x: nr.x + minX - 100, y: nr.y + minY - 100 };
+    const calibrationFile = `native-${stamp}-calibration.png`;
+    await Bun.write(resolve(reportDirectory, calibrationFile), Buffer.from(calibration.png, 'base64'));
+    report.calibration = { region: nr, marker: { x: minX, y: minY, width: 160, height: 24 }, file: calibrationFile, sha256: hash(Buffer.from(calibration.pixels, 'base64')) };
     report.viewport_origin = origin;
     await page.evaluate(() => document.querySelector('#native-calibration-marker').remove());
     await click('#board-read');

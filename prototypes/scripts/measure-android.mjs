@@ -6,6 +6,8 @@ import { chromium } from "playwright";
 import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize, uiMeasurementEvidence } from "./measure-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
+const pixels = Bun.argv[2] === "--pixels";
+assert.ok(Bun.argv.length === 2 || (Bun.argv.length === 3 && pixels), "Expected no arguments or --pixels");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun);
 const serial = process.env.ANDROID_SERIAL;
@@ -16,7 +18,7 @@ const app = "app.zedone.prototype";
 const apk = resolve(root, "src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk");
 const reportDirectory = resolve(root, "../docs/reports/p01-11");
 await mkdir(reportDirectory, { recursive: true });
-const reportPath = resolve(reportDirectory, `android-${Date.now()}.json`);
+const reportPath = resolve(reportDirectory, `android${pixels ? "-pixels" : ""}-${Date.now()}.json`);
 const report = { status: "running", revision: Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root }).stdout.toString().trim(),
   ui_measurement_evidence: uiMeasurementEvidence,
   apk_sha256: createHash("sha256").update(Buffer.from(await Bun.file(apk).arrayBuffer())).digest("hex"),
@@ -24,7 +26,10 @@ const report = { status: "running", revision: Bun.spawnSync(["git", "rev-parse",
   environment: { build: "existing debug APK; diagnostic only, not release or Galaxy A32 acceptance", serial, bun: Bun.version },
   startup: { stopped_processes: [], running_processes: [] } };
 let browser, page, port, original, originalKnown = false;
+let cancellation, cleaningUp = false;
+function ensureActive() { if (cancellation && !cleaningUp) throw cancellation; }
 function device(...args) {
+  ensureActive();
   const result = Bun.spawnSync([adb, "-s", serial, ...args], { timeout: args[0] === "install" ? 120000 : 15000 });
   assert.equal(result.exitCode, 0, `${args[0]}: ${result.stderr}`);
   return result.stdout.toString().trim();
@@ -32,6 +37,7 @@ function device(...args) {
 async function until(fn) {
   const end = performance.now() + 20000;
   while (performance.now() < end) {
+    ensureActive();
     const value = await fn();
     if (value) return value;
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -61,12 +67,12 @@ async function connect() {
 const launch = () => device("shell", "am", "start", "-W", "-n", `${app}/.MainActivity`);
 const schema = await Bun.file(resolve(root, "openapi.json")).json();
 const command = schema.paths["/prototype/storage"].post.operationId;
-const call = request => page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command, request });
+const call = request => { ensureActive(); return page.evaluate(({ command, request }) => window.__TAURI_INTERNALS__.invoke(command, { request }), { command, request }); };
 let watchdog;
 let interrupt;
 const deadline = new Promise((_, reject) => {
-  watchdog = setTimeout(() => reject(new Error("Android measurement deadline exceeded")), 300000);
-  interrupt = () => reject(new Error("Measurement interrupted"));
+  watchdog = setTimeout(() => { cancellation = new Error("Android measurement deadline exceeded"); reject(cancellation); }, 300000);
+  interrupt = () => { cancellation = new Error("Measurement interrupted"); reject(cancellation); };
 });
 process.once("SIGINT", interrupt);
 async function measure() {
@@ -81,6 +87,11 @@ async function measure() {
   originalKnown = true;
   await call({ action: "delete", space: "A" });
   report.fixture = fixtureInfo((await call({ action: "seed", space: "A" })).snapshot);
+  if (pixels) {
+    const { measureAndroidPixels } = await import("./measure-android-pixels.mjs");
+    await measureAndroidPixels({ getPage: () => page, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive });
+    return;
+  }
   for (let i = 0; i < 10; i++) {
     report.active_attempt = { series: "stopped_processes", repeat: i };
     await disconnect(); device("shell", "am", "force-stop", app);
@@ -102,11 +113,16 @@ async function measure() {
   await measureInteractions(page, call, report);
   report.status = "passed_available_slice_debug_emulator";
 }
+const measurement = measure();
 try {
-  await Promise.race([measure(), deadline]);
+  await Promise.race([measurement, deadline]);
 } catch (error) {
+  cancellation ||= error;
+  // Drain bounded operations before restoring A: no late command may race cleanup.
+  await measurement.catch(() => {});
   report.status = "failed"; report.error = String(error.stack || error); process.exitCode = 1;
 } finally {
+  cleaningUp = true;
   try {
     if (originalKnown) {
       if (!page || page.isClosed()) { await disconnect(); launch(); await connect(); }
@@ -119,5 +135,5 @@ try {
   clearTimeout(watchdog);
   process.removeListener("SIGINT", interrupt);
   await Bun.write(reportPath, JSON.stringify(report, null, 2) + "\n");
-  console.log(`Measurement ${report.status}; UI presentation not validated; local report: ${reportPath}`);
+  console.log(`Measurement ${report.status}; physical display not validated; local report: ${reportPath}`);
 }

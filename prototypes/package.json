@@ -12,6 +12,7 @@
     "check:types": "bun ./scripts/check.mjs --check-types",
     "check:http": "bun ./scripts/check-http.mjs",
     "measure:desktop": "bun ./scripts/measure-desktop.mjs",
+    "measure:desktop:pixels": "bun ./scripts/measure-desktop-pixels.mjs",
     "measure:android": "bun ./scripts/measure-android.mjs",
     "dev": "bun --bun vite --host 127.0.0.1",
     "serve": "bun ./scripts/serve.mjs"

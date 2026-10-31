@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
+export const uiMeasurementEvidence = {
+  level: "diagnostic",
+  endpoint: "DOM readiness followed by two requestAnimationFrame callbacks",
+  presentation_validation: "not_validated",
+  ui_acceptance_eligible: false,
+  limitation: "Frame callbacks do not independently observe desktop pixels or physical display presentation; budget comparisons are diagnostic only",
+};
+
 export async function measurementSources(root) {
   const paths = ["scripts/measure-scenarios.mjs", "scripts/measure-desktop.mjs", "scripts/measure-android.mjs", "openapi.json", "Cargo.lock", "bun.lock"];
   for await (const path of new Bun.Glob("client/*").scan(root)) paths.push(path);

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
-import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize } from "./measure-scenarios.mjs";
+import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize, uiMeasurementEvidence } from "./measure-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
@@ -18,6 +18,7 @@ const reportDirectory = resolve(root, "../docs/reports/p01-11");
 await mkdir(reportDirectory, { recursive: true });
 const reportPath = resolve(reportDirectory, `android-${Date.now()}.json`);
 const report = { status: "running", revision: Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root }).stdout.toString().trim(),
+  ui_measurement_evidence: uiMeasurementEvidence,
   apk_sha256: createHash("sha256").update(Buffer.from(await Bun.file(apk).arrayBuffer())).digest("hex"),
   sources: await measurementSources(root),
   environment: { build: "existing debug APK; diagnostic only, not release or Galaxy A32 acceptance", serial, bun: Bun.version },
@@ -118,5 +119,5 @@ try {
   clearTimeout(watchdog);
   process.removeListener("SIGINT", interrupt);
   await Bun.write(reportPath, JSON.stringify(report, null, 2) + "\n");
-  console.log(`Measurement ${report.status}; local report: ${reportPath}`);
+  console.log(`Measurement ${report.status}; UI presentation not validated; local report: ${reportPath}`);
 }

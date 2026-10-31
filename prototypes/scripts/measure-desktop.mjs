@@ -5,22 +5,28 @@ import { tmpdir, platform, release, cpus, totalmem } from "node:os";
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 import { preview } from "vite";
-import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize } from "./measure-scenarios.mjs";
+import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize, uiMeasurementEvidence } from "./measure-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun);
 const label = Bun.argv[2];
-assert.ok(Bun.argv.length === 3 && /^[a-z0-9-]+$/.test(label || ""), "Expected a report label, e.g. chrome");
+const headed = Bun.argv[3] === "--headed";
+assert.ok((Bun.argv.length === 3 || (Bun.argv.length === 4 && headed)) && /^[a-z0-9-]+$/.test(label || ""),
+  "Expected a report label and optional --headed, e.g. opera-headed --headed");
 const reportDirectory = resolve(root, "../docs/reports/p01-11");
 await mkdir(reportDirectory, { recursive: true });
 const reportPath = resolve(reportDirectory, `${label}-${Date.now()}.json`);
 const executable = resolve(root, `target/release/serve-echo${process.platform === "win32" ? ".exe" : ""}`);
 const report = { status: "running", label, revision: Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root }).stdout.toString().trim(),
+  ui_measurement_evidence: uiMeasurementEvidence,
   executable_sha256: createHash("sha256").update(Buffer.from(await Bun.file(executable).arrayBuffer())).digest("hex"),
   sources: await measurementSources(root),
   environment: { os: `${platform()} ${release()}`, cpu: cpus()[0]?.model, total_memory_bytes: totalmem(), bun: Bun.version,
-    build: "Rust release, Vite production; headless browser with fresh temporary profile" },
+    build: `Rust release, Vite production; ${headed ? "headed" : "headless"} browser with fresh temporary profile`,
+    browser_mode: headed ? "headed" : "headless",
+    browser_selection: process.env.PROTOTYPE_BROWSER_PATH ? "explicit_executable" : "playwright_default",
+    browser_executable: process.env.PROTOTYPE_BROWSER_PATH || chromium.executablePath() },
   startup: { browser: [], stopped_processes: [], running_processes: [] } };
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-p01-11-"));
 let server, web, browser, page, baseUrl;
@@ -64,7 +70,7 @@ async function measure() {
   for (let i = 0; i < 10; i++) {
     report.active_attempt = { series: "stopped_processes", repeat: i };
     const browserStart = performance.now();
-    browser = await chromium.launch({ executablePath: process.env.PROTOTYPE_BROWSER_PATH || undefined, headless: true, timeout: 30000 });
+    browser = await chromium.launch({ executablePath: process.env.PROTOTYPE_BROWSER_PATH || undefined, headless: !headed, timeout: 30000 });
     report.startup.browser.push({ ok: true, ms: performance.now() - browserStart });
     report.environment.browser = browser.version();
     const startTime = performance.now();
@@ -100,5 +106,5 @@ try {
   clearTimeout(watchdog);
   process.removeListener("SIGINT", interrupt);
   await Bun.write(reportPath, JSON.stringify(report, null, 2) + "\n");
-  console.log(`Measurement ${report.status}; local report: ${reportPath}`);
+  console.log(`Measurement ${report.status}; UI presentation not validated; local report: ${reportPath}`);
 }

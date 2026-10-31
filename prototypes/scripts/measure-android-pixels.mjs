@@ -11,6 +11,9 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive }) {
   const stamp = Date.now();
+  const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
+  const physical = report.environment.device_kind === "physical";
+  const label = physical ? "android-physical-release-pixels" : release ? "android-release-pixels" : "android-pixels";
   const initial = (await call({ action: "snapshot", space: "A" })).snapshot;
   const page = () => getPage();
   const click = selector => page().evaluate(selector => {
@@ -61,7 +64,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     return cropped;
   }
   async function saveImage(name, image) {
-    const file = `android-pixels-${stamp}-${name}.png`;
+    const file = `${label}-${stamp}-${name}.png`;
     await Bun.write(resolve(reportDirectory, file), PNG.sync.write(image));
     return file;
   }
@@ -135,10 +138,15 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   report.observations = [];
   report.templates = [];
   report.observer_sources = { "measure-android-pixels.mjs": hash(Buffer.from(await Bun.file(import.meta.filename).arrayBuffer())) };
+  if (release) {
+    for (const path of ["scripts/android-release-driver.mjs", "src-tauri/gen/android/app/src/androidTest/java/app/zedone/prototype/ReleaseMeasurementInstrumentation.java", "src-tauri/gen/android/app/build.gradle.kts", "scripts/build-android.mjs"])
+      report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
+  }
+  if (physical) report.observer_sources["scripts/android-physical-backup.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-physical-backup.mjs")).arrayBuffer()));
   report.clock = "driver performance.now (monotonic)";
-  report.boundary = "Clock armed before DOM command -> DOM preparation -> matching Android screencap; includes ADB/PNG/CDP/alignment overhead";
+  report.boundary = `Clock armed before DOM command -> DOM preparation -> matching Android screencap; includes ADB/PNG/${release ? "instrumentation" : "CDP"}/alignment overhead`;
   report.physical_panel_validation = false;
-  report.ui_measurement_evidence = { level: "OS_image_upper_bound", endpoint: "ADB screencap PNG; emulator debug APK", physical_panel_validation: false, ui_acceptance_eligible: false, limitation: "No physical-device, release, input-device or complete A62 acceptance" };
+  report.ui_measurement_evidence = { level: "OS_image_upper_bound", endpoint: `ADB screencap PNG; ${physical ? "physical device" : "emulator"} ${release ? "release" : "debug"} APK`, physical_panel_validation: false, ui_acceptance_eligible: false, limitation: `No ${physical ? "physical-panel, " : "physical-device, "}${release ? "distribution-signing, " : "release, "}input-device or complete A62 acceptance` };
   report.command = "DOM button: card 1 reordered to position 1 within column 0; both changed titles visible; not the Windows cross-column profile";
   async function template(name, region) {
     await pause(150);
@@ -197,7 +205,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   assert.match(report.controls.already_visible.error, /already visible/);
   assert.equal(staleCommandRan, false);
   await page().evaluate(() => {
-    // invoke is immutable. Delay only the debug callback carrying the saved move,
+    // invoke is immutable. Delay only the callback carrying the saved move,
     // and verify the hook ran; silent assignment failures must never pass a control.
     const callbacks = window.__TAURI_INTERNALS__.callbacks;
     if (Object.prototype.hasOwnProperty.call(callbacks, "set")) throw new Error("Callback map already instrumented");
@@ -268,6 +276,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
     });
   report.startup = { stopped_processes: [], running_processes: [] };
+  report.startup_method = release ? "Force-stop: am start plus new instrumentation process/Activity and driver connection, then persisted board; Home: am start using the existing instrumentation. All driver overhead included; no cold-cache or uninstrumented-startup claim." : "Force-stop: am start plus CDP reconnection, then persisted board; Home: am start using existing CDP. No cold-cache claim.";
   for (const kind of Object.keys(report.startup)) for (let i = 0; i < 10; i++) {
     report.active_attempt = { series: kind, repeat: i };
     if (kind === "stopped_processes") { await disconnect(); device("shell", "am", "force-stop", "app.zedone.prototype"); }
@@ -298,5 +307,5 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
   report.snapshot_restored = true;
   delete report.active_attempt;
-  report.status = "completed_android_emulator_pixel_upper_bounds";
+  report.status = physical ? "completed_android_release_physical_device_pixel_upper_bounds" : release ? "completed_android_release_emulator_pixel_upper_bounds" : "completed_android_emulator_pixel_upper_bounds";
 }

@@ -6,10 +6,14 @@ import { chromium } from "playwright";
 import { fixtureInfo, measurementSources, measureInteractions, workingScreen, summarize, uiMeasurementEvidence } from "./measure-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
-const pixels = Bun.argv[2] === "--pixels";
-const release = Bun.argv[3] === "--release";
-const physical = Bun.argv[4] === "--physical";
-assert.ok(Bun.argv.length === 2 || (pixels && (Bun.argv.length === 3 || (Bun.argv.length === 4 && release) || (Bun.argv.length === 5 && release && physical))), "Expected no arguments, --pixels, --pixels --release, or --pixels --release --physical");
+const args = Bun.argv.slice(2);
+const traceMoves = args.at(-1) === "--trace-moves";
+if (traceMoves) args.pop();
+const pixels = args[0] === "--pixels";
+const release = args[1] === "--release";
+const physical = args[2] === "--physical";
+assert.ok(args.length === 0 || (pixels && (args.length === 1 || (args.length === 2 && release) || (args.length === 3 && release && physical))), "Expected no arguments, --pixels, --pixels --release, or --pixels --release --physical");
+assert.ok(!traceMoves || (pixels && release), "--trace-moves requires --pixels --release");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun);
 const serial = process.env.ANDROID_SERIAL;
@@ -23,7 +27,7 @@ const apk = resolve(root, `src-tauri/gen/android/app/build/outputs/apk/${abi}/${
 const testApk = resolve(root, `src-tauri/gen/android/app/build/outputs/apk/androidTest/${abi}/release/app-${abi}-release-androidTest.apk`);
 const reportDirectory = resolve(root, "../docs/reports/p01-11");
 await mkdir(reportDirectory, { recursive: true });
-const reportPath = resolve(reportDirectory, `android${physical ? "-physical" : ""}${release ? "-release" : ""}${pixels ? "-pixels" : ""}-${Date.now()}.json`);
+const reportPath = resolve(reportDirectory, `android${physical ? "-physical" : ""}${release ? "-release" : ""}${pixels ? "-pixels" : ""}${traceMoves ? "-trace-moves" : ""}-${Date.now()}.json`);
 const report = { status: "running", revision: Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root }).stdout.toString().trim(),
   ui_measurement_evidence: uiMeasurementEvidence,
   apk_sha256: createHash("sha256").update(Buffer.from(await Bun.file(apk).arrayBuffer())).digest("hex"),
@@ -137,7 +141,7 @@ async function measure() {
   report.fixture = fixtureInfo((await call({ action: "seed", space: "A" })).snapshot);
   if (pixels) {
     const { measureAndroidPixels } = await import("./measure-android-pixels.mjs");
-    await measureAndroidPixels({ getPage: () => page, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive });
+    await measureAndroidPixels({ getPage: () => page, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves });
     return;
   }
   for (let i = 0; i < 10; i++) {

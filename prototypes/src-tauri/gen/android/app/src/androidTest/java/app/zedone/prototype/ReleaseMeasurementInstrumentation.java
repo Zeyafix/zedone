@@ -2,17 +2,22 @@ package app.zedone.prototype;
 
 import android.app.Activity;
 import android.app.Instrumentation;
+import android.app.UiAutomation;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.graphics.Bitmap;
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.Trace;
+import android.util.Base64;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -58,6 +63,42 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
     return result[0];
   }
 
+  // Capture the composed default display through the OS, never WebView.draw or
+  // a DOM screenshot. Crop only AFTER capture to avoid transferring a full PNG
+  // on every sample. The host still includes capture/encoding/USB/decoding time.
+  private JSONObject screenshot(JSONObject region, boolean tracing) throws Exception {
+    long start = SystemClock.elapsedRealtimeNanos();
+    Bitmap screen;
+    if (tracing) Trace.beginSection("zedone:OS-readback");
+    try {
+      screen = getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES).takeScreenshot();
+    } finally { if (tracing) Trace.endSection(); }
+    if (screen == null) throw new IllegalStateException("OS screenshot unavailable");
+    Bitmap cropped = null;
+    try {
+      int x = region == null ? 0 : region.getInt("x");
+      int y = region == null ? 0 : region.getInt("y");
+      int width = region == null ? screen.getWidth() : region.getInt("width");
+      int height = region == null ? screen.getHeight() : region.getInt("height");
+      if (x < 0 || y < 0 || width <= 0 || height <= 0 ||
+          (long) x + width > screen.getWidth() || (long) y + height > screen.getHeight())
+        throw new IllegalArgumentException("Capture region outside Android image");
+      if (tracing) Trace.beginSection("zedone:crop-PNG-base64");
+      try {
+      cropped = Bitmap.createBitmap(screen, x, y, width, height);
+      ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+      if (!cropped.compress(Bitmap.CompressFormat.PNG, 100, bytes))
+        throw new IllegalStateException("OS screenshot encoding failed");
+      return new JSONObject().put("png", Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP))
+        .put("screen", new JSONObject().put("width", screen.getWidth()).put("height", screen.getHeight()))
+        .put("capture_and_encode_ms", (SystemClock.elapsedRealtimeNanos() - start) / 1000000.0);
+      } finally { if (tracing) Trace.endSection(); }
+    } finally {
+      if (cropped != null && cropped != screen) cropped.recycle();
+      screen.recycle();
+    }
+  }
+
   @Override public void onStart() {
     Bundle result = new Bundle();
     try {
@@ -94,6 +135,17 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
       while ((line = reader.readLine()) != null) {
         JSONObject request = new JSONObject(line);
         if (request.optBoolean("close")) break;
+        String label = request.optString("trace_label", "");
+        if (!label.isEmpty() && !label.matches("zedone:[a-z0-9-]{1,80}"))
+          throw new IllegalArgumentException("Invalid trace label");
+        boolean tracing = !label.isEmpty();
+        if (tracing) Trace.beginSection(label + (request.optBoolean("screenshot") ? ":capture" : ":evaluate"));
+        try {
+        if (request.optBoolean("screenshot")) {
+          writer.write(new JSONObject().put("ok", true).put("value", screenshot(request.optJSONObject("region"), tracing)).toString());
+          writer.newLine(); writer.flush();
+          continue;
+        }
         String script = request.getString("script");
         if (script.length() > 1000000) throw new IllegalArgumentException("Command too large");
         evaluate("window.__releaseMeasurementResult = null; (async () => { try { window.__releaseMeasurementResult = {ok:true,value:await (" + script + ")}; } catch(e) { window.__releaseMeasurementResult = {ok:false,error:String(e.stack || e)}; } })(); true");
@@ -108,6 +160,7 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
         } while (true);
         writer.write(response); writer.newLine(); writer.flush();
         evaluate("delete window.__releaseMeasurementResult; true");
+        } finally { if (tracing) Trace.endSection(); }
       }
     }
   }

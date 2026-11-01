@@ -1,5 +1,5 @@
-// ADB screencap observes Android's composed image, independently of WebView/CDP.
-// Driver-clock upper bounds include ADB, PNG decoding, commands and alignment.
+// OS screenshots observe Android's composed image, independently of WebView/CDP.
+// Driver-clock upper bounds include USB, PNG decoding, commands and alignment.
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -9,7 +9,7 @@ import { summarize } from "./measure-scenarios.mjs";
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive }) {
+export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false }) {
   const stamp = Date.now();
   const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
   const physical = report.environment.device_kind === "physical";
@@ -46,16 +46,31 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     await page().waitForFunction(count => !document.querySelector("#storage-busy") &&
       JSON.parse(document.querySelector("#storage-result")?.textContent || "null")?.snapshot.cards.length === count, count, { polling: 10 });
   }
-  async function screenshot() {
+  async function screenshot(viaAdb = false) {
     ensureActive();
+    if (!viaAdb && release && page() && !page().isClosed()) return (await nativeCapture()).image;
     const process = Bun.spawn([adb, "-s", serial, "exec-out", "screencap", "-p"], { stdout: "pipe", stderr: "pipe", timeout: 10000 });
     const [bytes, stderr, code] = await Promise.all([new Response(process.stdout).arrayBuffer(), new Response(process.stderr).text(), process.exited]);
     assert.equal(code, 0, `ADB screencap failed: ${stderr}`);
     return PNG.sync.read(Buffer.from(bytes), { checkCRC: true });
   }
   let geometry;
-  async function capture(region) {
-    const screen = await screenshot();
+  async function nativeCapture(region) {
+    const start = performance.now();
+    const result = await page().captureScreen(region);
+    const image = PNG.sync.read(Buffer.from(result.png, "base64"), { checkCRC: true });
+    assert.deepEqual({ width: image.width, height: image.height }, region ? { width: region.width, height: region.height } : result.screen, "Unexpected OS screenshot dimensions");
+    assert.ok(Number.isFinite(result.capture_and_encode_ms) && result.capture_and_encode_ms >= 0);
+    (report.capture_diagnostics ||= []).push({ method: "UiAutomation.takeScreenshot", region, ms: performance.now() - start, capture_and_encode_ms: result.capture_and_encode_ms });
+    return { image, screen: result.screen };
+  }
+  async function capture(region, viaAdb = false) {
+    if (!viaAdb && release && page() && !page().isClosed()) {
+      const result = await nativeCapture(region);
+      assert.deepEqual(result.screen, geometry.screen, "Display geometry changed during observation");
+      return result.image;
+    }
+    const screen = await screenshot(true);
     assert.deepEqual({ width: screen.width, height: screen.height }, geometry.screen, "Display geometry changed during observation");
     const { x, y, width, height } = region;
     assert.ok(x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= screen.width && y + height <= screen.height, "Capture region outside Android image");
@@ -103,8 +118,30 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     report.calibration = { ...report.calibration, ...geometry, status: "validated" };
     await page().evaluate(() => document.querySelector("#pixel-calibration-marker").remove());
   }
-  async function align(kind) {
-    const rect = await page().evaluate(kind => {
+  async function align(kind, command = {}) {
+    const rect = await page().evaluate(async ({ kind, selector, order, query, count }) => {
+      if (query !== undefined) {
+        const input = document.querySelector("#storage-query");
+        input.value = query;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        selector = "#storage-read";
+      }
+      if (selector) {
+        const button = document.querySelector(selector);
+        if (!button || button.disabled) throw new Error(`Unavailable command: ${selector}`);
+        button.click();
+        // Keep preparation in one native evaluation, without host round trips
+        // between click, persisted-result predicate and viewport alignment.
+        const deadline = performance.now() + 5000;
+        while (true) {
+          const ready = order ? !document.querySelector("#board-busy") && order.every((id, i) =>
+            Number(document.querySelectorAll('.board-column[data-column="0"] .board-card')[i]?.dataset.card) === id) :
+            !document.querySelector("#storage-busy") && JSON.parse(document.querySelector("#storage-result")?.textContent || "null")?.snapshot.cards.length === count;
+          if (ready) break;
+          if (performance.now() >= deadline) throw new Error("Saved result did not reach DOM");
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      }
       let ranges;
       if (kind === "board") {
         document.querySelector(".board").scrollLeft = 0;
@@ -130,7 +167,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       if (left < Math.max(0, clip.left) || top < Math.max(0, clip.top) || right > Math.min(innerWidth, clip.right) || bottom > Math.min(innerHeight, clip.bottom))
         throw new Error("Full result titles are clipped; unsupported viewport geometry");
       return { left, top, right, bottom };
-    }, kind);
+    }, { kind, ...command });
     const { scale } = geometry.css;
     const x = geometry.x + Math.floor(rect.left * scale), y = geometry.y + Math.floor(rect.top * scale);
     return { x, y, width: geometry.x + Math.ceil(rect.right * scale) - x, height: geometry.y + Math.ceil(rect.bottom * scale) - y };
@@ -143,15 +180,34 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
   }
   if (physical) report.observer_sources["scripts/android-physical-backup.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-physical-backup.mjs")).arrayBuffer()));
+  if (traceMoves) report.observer_sources["scripts/android-move-trace.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-move-trace.mjs")).arrayBuffer()));
   report.clock = "driver performance.now (monotonic)";
-  report.boundary = `Clock armed before DOM command -> DOM preparation -> matching Android screencap; includes ADB/PNG/${release ? "instrumentation" : "CDP"}/alignment overhead`;
+  const imageSource = release ? "UiAutomation.takeScreenshot OS display PNG (crop after capture, persistent ADB socket)" : "ADB screencap PNG";
+  report.boundary = `Clock armed before DOM command -> DOM preparation -> matching Android OS image; includes USB/PNG/${release ? "instrumentation" : "CDP"}/alignment overhead`;
+  report.image_source = imageSource;
+  report.startup_baseline_source = "ADB screencap when instrumentation is disconnected; outside timed interval";
+  report.first_capture_delay_ms = release ? 50 : 0;
   report.physical_panel_validation = false;
-  report.ui_measurement_evidence = { level: "OS_image_upper_bound", endpoint: `ADB screencap PNG; ${physical ? "physical device" : "emulator"} ${release ? "release" : "debug"} APK`, physical_panel_validation: false, ui_acceptance_eligible: false, limitation: `No ${physical ? "physical-panel, " : "physical-device, "}${release ? "distribution-signing, " : "release, "}input-device or complete A62 acceptance` };
+  report.ui_measurement_evidence = { level: "OS_image_upper_bound", endpoint: `${imageSource}; ${physical ? "physical device" : "emulator"} ${release ? "release" : "debug"} APK`, physical_panel_validation: false, ui_acceptance_eligible: false, limitation: `No ${physical ? "physical-panel, " : "physical-device, "}${release ? "distribution-signing, " : "release, "}input-device or complete A62 acceptance` };
   report.command = "DOM button: card 1 reordered to position 1 within column 0; both changed titles visible; not the Windows cross-column profile";
   async function template(name, region) {
     await pause(150);
-    const image = await capture(region);
-    report.templates.push({ name, region, sha256: hash(image.data), file: await saveImage(name, image) });
+    let image;
+    const attempts = [];
+    const deadline = performance.now() + 10000;
+    do {
+      // Templates are outside measured intervals. DOM readiness does not prove
+      // that the pending scroll/paint reached the OS. Require two independent
+      // ADB captures to agree, then cross-check the faster native observer.
+      const first = await capture(region, true);
+      image = await capture(region, true);
+      const native = release ? await capture(region) : image;
+      const stable = first.data.equals(image.data) && native.data.equals(image.data);
+      attempts.push({ first_sha256: hash(first.data), second_sha256: hash(image.data), native_sha256: hash(native.data), stable });
+      if (stable) break;
+      assert.ok(performance.now() < deadline, `OS template did not settle: ${name}`);
+    } while (true);
+    report.templates.push({ name, region, preparation: attempts, sha256: hash(image.data), file: await saveImage(name, image) });
     return image.data;
   }
   async function observe(name, region, expected, command, timeout = 5000, allowFailure = false) {
@@ -163,18 +219,35 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       return result;
     }
     const start = performance.now();
+    const traceLabel = traceMoves && report.active_attempt ? `zedone:${name}-${report.active_attempt.repeat < 0 ? "warmup" + -report.active_attempt.repeat : report.active_attempt.repeat}` : undefined;
+    if (traceLabel) page().setTraceLabel(traceLabel);
+    const stages = traceLabel ? { trace_label: traceLabel, captures: [] } : undefined;
+    const diagnosticImages = [];
     let commandError, captures = 0, matched, result;
     // Start the clock before dispatch, then capture after DOM preparation. Avoid
     // spending a full PNG transfer on the known old frame. DOM readiness cannot
     // finish the interval: independently captured OS pixels must still match.
     const execution = Promise.resolve().then(command).catch(error => { commandError = String(error.stack || error); });
     await execution;
+    if (stages) stages.command_end_ms = performance.now() - start;
     try {
+      // A screenshot taken before the pending paint can spend a full readback
+      // encoding the known old frame. Pace the first capture, inside the clock;
+      // this never forces a renderer frame or substitutes for matching pixels.
+      if (report.first_capture_delay_ms) await pause(report.first_capture_delay_ms);
+      if (stages) stages.first_capture_start_ms = performance.now() - start;
       while (!commandError && performance.now() - start < timeout) {
+        const captureStart = performance.now() - start;
         const image = await capture(region);
+        const captureEnd = performance.now() - start;
+        const matches = image.data.equals(expected);
         captures++;
-        const elapsed = performance.now() - start;
-        if (image.data.equals(expected)) {
+        if (stages) {
+          stages.captures.push({ start_ms: captureStart, end_ms: captureEnd, matched: matches });
+          diagnosticImages.push(image);
+        }
+        if (matches) {
+          const elapsed = performance.now() - start;
           matched = image;
           result = elapsed <= timeout ? { ok: true, ms: elapsed, upper_bound_ms: elapsed } : { ok: false, error: "Android capture completed after timeout", elapsed_ms: elapsed };
           break;
@@ -183,8 +256,13 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       result ||= { ok: false, error: "Expected Android pixels not observed before timeout", elapsed_ms: performance.now() - start };
     } catch (error) { result = { ok: false, error: String(error.stack || error) }; }
     await execution;
+    if (traceLabel) page().setTraceLabel(undefined);
+    for (const [i, image] of diagnosticImages.entries()) {
+      stages.captures[i].sha256 = hash(image.data);
+      stages.captures[i].file = await saveImage(`${traceLabel.replaceAll(":", "-")}-capture-${i + 1}`, image);
+    }
     if (commandError) result = { ...result, ok: false, command_error: commandError };
-    const observation = { name, attempt: report.active_attempt, region, expected_sha256: hash(expected), captures, ...result };
+    const observation = { name, attempt: report.active_attempt, region, expected_sha256: hash(expected), captures, ...(stages ? { diagnostic_stages: stages } : {}), ...result };
     report.observations.push(observation);
     if (matched && result.ok && !(report.match_images ||= {})[name]) report.match_images[name] = await saveImage(`${name}-matched`, matched);
     if (!result.ok && !allowFailure) throw new Error(JSON.stringify(observation));
@@ -200,6 +278,14 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   await click("#board-undo"); await waitOrder([1, 2]); await align("board");
   await pause(150);
   report.controls = {};
+  if (release) {
+    const adbImage = await capture(normalRegion, true);
+    const nativeImage = await capture(normalRegion);
+    report.controls.os_capture_agreement = { region: normalRegion, adb_sha256: hash(adbImage.data), native_sha256: hash(nativeImage.data),
+      adb_file: await saveImage("adb-cross-check", adbImage), native_file: await saveImage("native-cross-check", nativeImage) };
+    assert.deepEqual(nativeImage.data, adbImage.data, "UiAutomation crop must match independent ADB OS capture");
+    assert.deepEqual(nativeImage.data, normal, "OS cross-check must show the full original titles");
+  }
   let staleCommandRan = false;
   report.controls.already_visible = await observe("control-already-visible", normalRegion, normal, () => { staleCommandRan = true; }, 500, true);
   assert.match(report.controls.already_visible.error, /already visible/);
@@ -223,7 +309,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   });
   try {
     await openMove();
-    report.controls.delayed_completion = await observe("control-delayed-completion", movedRegion, moved, async () => { await click("#move-save"); await waitOrder([2, 1]); await align("board"); });
+    report.controls.delayed_completion = await observe("control-delayed-completion", movedRegion, moved, () => align("board", { selector: "#move-save", order: [2, 1] }));
     assert.ok(report.controls.delayed_completion.upper_bound_ms >= 450);
     report.controls.delayed_completion.callback_delays_ms = await page().evaluate(() => window.__pixelDelayedResponses);
     assert.equal(report.controls.delayed_completion.callback_delays_ms.length, 1);
@@ -258,21 +344,37 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     }
     console.log(`Android pixels: ${name}/${reverseName} full series recorded.`);
   }
+  let stopTrace;
+  try {
+  if (traceMoves) {
+    const { startMoveTrace } = await import("./android-move-trace.mjs");
+    stopTrace = await startMoveTrace({ adb, serial, device, report, reportDirectory });
+  }
   await series("move", "inverse_move", async () => {
     await openMove();
-    return observe("move", movedRegion, moved, async () => { await click("#move-save"); await waitOrder([2, 1]); assert.deepEqual(await align("board"), movedRegion); });
-  }, () => observe("inverse", normalRegion, normal, async () => { await click("#board-undo"); await waitOrder([1, 2]); assert.deepEqual(await align("board"), normalRegion); }), async reverse => {
+    return observe("move", movedRegion, moved, async () => { assert.deepEqual(await align("board", { selector: "#move-save", order: [2, 1] }), movedRegion); });
+  }, () => observe("inverse", normalRegion, normal, async () => { assert.deepEqual(await align("board", { selector: "#board-undo", order: [1, 2] }), normalRegion); }), async reverse => {
     const snapshot = (await call({ action: "snapshot", space: "A" })).snapshot;
     if (reverse) assert.deepEqual(snapshot, initial);
     else assert.deepEqual(snapshot.cards.filter(c => c.column === 0).slice(0, 2).map(c => c.id), [2, 1]);
   });
+  } finally { if (stopTrace) await stopTrace(); }
+  if (traceMoves) {
+    assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
+    report.snapshot_restored = true;
+    report.ui_measurement_evidence.level = "diagnostic_system_trace_with_OS_images";
+    report.ui_measurement_evidence.limitation += "; Perfetto and per-capture PNG storage add diagnostic overhead; no search/startup series in this profile";
+    delete report.active_attempt;
+    report.status = "completed_diagnostic_move_trace";
+    return;
+  }
   await search("", 30);
   const allRegion = await align("search"), all = await template("search-all", allRegion);
   await search("Карточка 0030", 1);
   const oneRegion = await align("search"), one = await template("search-one", oneRegion);
   await search("", 30); await align("search");
-  await series("search", "clear_search", () => observe("search", oneRegion, one, async () => { await search("Карточка 0030", 1); assert.deepEqual(await align("search"), oneRegion); }),
-    () => observe("clear-search", allRegion, all, async () => { await search("", 30); assert.deepEqual(await align("search"), allRegion); }), async () => {
+  await series("search", "clear_search", () => observe("search", oneRegion, one, async () => { assert.deepEqual(await align("search", { query: "Карточка 0030", count: 1 }), oneRegion); }),
+    () => observe("clear-search", allRegion, all, async () => { assert.deepEqual(await align("search", { query: "", count: 30 }), allRegion); }), async () => {
       assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
     });
   report.startup = { stopped_processes: [], running_processes: [] };

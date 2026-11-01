@@ -8,20 +8,26 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
   let socket, port, instrumentation, pending, buffered = "";
   let connected = false, currentLog;
   let failed;
+  let traceLabel;
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const app = "app.zedone.prototype";
+  function request(command) {
+    ensureActive();
+    assert.ok(socket && !socket.destroyed && !pending, "Release driver unavailable or concurrent request");
+    if (failed) throw failed;
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => { pending = undefined; socket.destroy(); reject(new Error("Release request timeout")); }, 15000);
+      pending = { resolve: value => { clearTimeout(timeout); resolve(value); }, reject: error => { clearTimeout(timeout); reject(error); } };
+      socket.write(JSON.stringify({ ...command, ...(traceLabel ? { trace_label: traceLabel } : {}) }) + "\n");
+    });
+  }
   const page = {
     isClosed: () => !socket || socket.destroyed,
+    setTraceLabel: label => { traceLabel = label; },
+    captureScreen: region => request({ screenshot: true, region }),
     async evaluate(fn, arg) {
-      ensureActive();
-      assert.ok(socket && !socket.destroyed && !pending, "Release driver unavailable or concurrent evaluation");
-      if (failed) throw failed;
       const script = `(${fn.toString()})(${JSON.stringify(arg) ?? "undefined"})`;
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => { pending = undefined; socket.destroy(); reject(new Error("Release evaluation timeout")); }, 15000);
-        pending = { resolve: value => { clearTimeout(timeout); resolve(value); }, reject: error => { clearTimeout(timeout); reject(error); } };
-        socket.write(JSON.stringify({ script }) + "\n");
-      });
+      return request({ script });
     },
     async waitForFunction(fn, arg) {
       const deadline = performance.now() + 10000;

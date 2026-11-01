@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { connect as openSocket } from "node:net";
 import { randomUUID } from "node:crypto";
+import { responseDecoder } from "./android-release-protocol.mjs";
 
 // Minimal evaluate/wait adapter for the same pixel scenario used with debug CDP.
 // Only the separately installed instrumentation APK exposes this local transport.
 export function releaseDriver({ adb, serial, device, ensureActive, report, reportDirectory }) {
-  let socket, port, instrumentation, pending, buffered = "";
+  let socket, port, instrumentation, pending;
   let connected = false, currentLog;
   let failed;
   let traceLabel;
@@ -24,7 +25,7 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
   const page = {
     isClosed: () => !socket || socket.destroyed,
     setTraceLabel: label => { traceLabel = label; },
-    captureScreen: region => request({ screenshot: true, region }),
+    captureScreen: (region, format = "png", verifyPng = false) => request({ screenshot: true, region, format, verify_png: verifyPng }),
     async evaluate(fn, arg) {
       const script = `(${fn.toString()})(${JSON.stringify(arg) ?? "undefined"})`;
       return request({ script });
@@ -60,7 +61,7 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
     connected = false;
   }
   async function connect() {
-    failed = undefined; buffered = "";
+    failed = undefined;
     const name = `zedone-measure-${randomUUID().replaceAll("-", "")}`;
     const log = `${reportDirectory}/release-instrumentation-${Date.now()}.log`;
     currentLog = log;
@@ -83,19 +84,15 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
         timer = setTimeout(() => { connection.destroy(); finish(undefined); }, 1000);
       });
       if (socket) {
-        socket.setEncoding("utf8");
         const current = socket;
         const lost = error => { if (current !== socket) return; failed = error; pending?.reject(error); pending = undefined; };
-        socket.on("data", chunk => {
-          try {
-            buffered += chunk;
-            const end = buffered.indexOf("\n");
-            if (end < 0) return;
-            const response = JSON.parse(buffered.slice(0, end)); buffered = buffered.slice(end + 1);
+        const decode = responseDecoder(response => {
             const active = pending; pending = undefined;
-            if (!active) return;
+            assert.ok(active, "Unsolicited release response");
             if (response.ok) active.resolve(response.value); else active.reject(new Error(response.error));
-          } catch (error) { lost(error); current.destroy(); }
+        });
+        socket.on("data", chunk => {
+          try { decode(chunk); } catch (error) { lost(error); current.destroy(); }
         });
         socket.on("error", lost);
         socket.on("close", () => lost(new Error("Release instrumentation socket closed")));

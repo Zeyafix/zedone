@@ -9,11 +9,12 @@ import { summarize } from "./measure-scenarios.mjs";
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false }) {
+export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, rawPixels = false, deflatePixels = false }) {
   const stamp = Date.now();
   const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
   const physical = report.environment.device_kind === "physical";
-  const label = physical ? "android-physical-release-pixels" : release ? "android-release-pixels" : "android-pixels";
+  const format = deflatePixels ? "rgba8-zlib" : rawPixels ? "rgba8" : "png";
+  const label = (physical ? "android-physical-release-pixels" : release ? "android-release-pixels" : "android-pixels") + (deflatePixels ? "-rgba-zlib" : rawPixels ? "-rgba" : "");
   const initial = (await call({ action: "snapshot", space: "A" })).snapshot;
   const page = () => getPage();
   const click = selector => page().evaluate(selector => {
@@ -55,13 +56,32 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     return PNG.sync.read(Buffer.from(bytes), { checkCRC: true });
   }
   let geometry;
-  async function nativeCapture(region) {
+  async function nativeCapture(region, verifyPng = false) {
     const start = performance.now();
-    const result = await page().captureScreen(region);
-    const image = PNG.sync.read(Buffer.from(result.png, "base64"), { checkCRC: true });
+    const result = await page().captureScreen(region, format, verifyPng);
+    const image = rawPixels ? { width: result.width, height: result.height, data: result.rgba } : PNG.sync.read(Buffer.from(result.png, "base64"), { checkCRC: true });
+    if (rawPixels) {
+      assert.equal(result.format, format);
+      assert.equal(image.data.length, image.width * image.height * 4);
+      if (verifyPng) {
+        const png = PNG.sync.read(Buffer.from(result.png, "base64"), { checkCRC: true });
+        assert.equal(png.width, image.width); assert.equal(png.height, image.height);
+        assert.ok(png.data.equals(image.data), "RGBA differs from PNG of the same OS bitmap");
+        const checks = report.same_bitmap_checks ||= [];
+        const prefix = `${label}-${stamp}-same-bitmap-${checks.length}`;
+        await Bun.write(resolve(reportDirectory, `${prefix}.rgba`), image.data);
+        await Bun.write(resolve(reportDirectory, `${prefix}.png`), Buffer.from(result.png, "base64"));
+        if (deflatePixels) await Bun.write(resolve(reportDirectory, `${prefix}.zlib`), result.compressed);
+        checks.push({ region, sha256: hash(image.data), png_sha256: hash(png.data), byte_length: image.data.length, rgba_file: `${prefix}.rgba`, png_file: `${prefix}.png`, ...(deflatePixels ? { compressed_file: `${prefix}.zlib`, compressed_sha256: hash(result.compressed), wire_byte_length: result.wire_byte_length } : {}) });
+      } else assert.equal(result.png, undefined, "Timed RGBA captures must not encode PNG");
+    }
     assert.deepEqual({ width: image.width, height: image.height }, region ? { width: region.width, height: region.height } : result.screen, "Unexpected OS screenshot dimensions");
     assert.ok(Number.isFinite(result.capture_and_encode_ms) && result.capture_and_encode_ms >= 0);
-    (report.capture_diagnostics ||= []).push({ method: "UiAutomation.takeScreenshot", region, ms: performance.now() - start, capture_and_encode_ms: result.capture_and_encode_ms });
+    if (deflatePixels) {
+      assert.equal(result.compressed.length, result.wire_byte_length);
+      assert.ok(Number.isFinite(result.compression_ms) && result.compression_ms >= 0);
+    }
+    (report.capture_diagnostics ||= []).push({ method: "UiAutomation.takeScreenshot", format, verify_png: verifyPng, byte_length: rawPixels ? image.data.length : Buffer.from(result.png, "base64").length, ...(deflatePixels ? { wire_byte_length: result.wire_byte_length, compression_ms: result.compression_ms } : {}), region, ms: performance.now() - start, capture_and_encode_ms: result.capture_and_encode_ms });
     return { image, screen: result.screen };
   }
   async function capture(region, viaAdb = false) {
@@ -176,14 +196,15 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   report.templates = [];
   report.observer_sources = { "measure-android-pixels.mjs": hash(Buffer.from(await Bun.file(import.meta.filename).arrayBuffer())) };
   if (release) {
-    for (const path of ["scripts/android-release-driver.mjs", "src-tauri/gen/android/app/src/androidTest/java/app/zedone/prototype/ReleaseMeasurementInstrumentation.java", "src-tauri/gen/android/app/build.gradle.kts", "scripts/build-android.mjs"])
+    for (const path of ["scripts/android-release-driver.mjs", "scripts/android-release-protocol.mjs", "src-tauri/gen/android/app/src/androidTest/java/app/zedone/prototype/ReleaseMeasurementInstrumentation.java", "src-tauri/gen/android/app/build.gradle.kts", "scripts/build-android.mjs"])
       report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
   }
   if (physical) report.observer_sources["scripts/android-physical-backup.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-physical-backup.mjs")).arrayBuffer()));
   if (traceMoves) report.observer_sources["scripts/android-move-trace.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-move-trace.mjs")).arrayBuffer()));
   report.clock = "driver performance.now (monotonic)";
-  const imageSource = release ? "UiAutomation.takeScreenshot OS display PNG (crop after capture, persistent ADB socket)" : "ADB screencap PNG";
-  report.boundary = `Clock armed before DOM command -> DOM preparation -> matching Android OS image; includes USB/PNG/${release ? "instrumentation" : "CDP"}/alignment overhead`;
+  const imageSource = release ? `UiAutomation.takeScreenshot OS display ${rawPixels ? `${format} (extract region after capture, binary` : "PNG (crop after capture,"} persistent ADB socket)` : "ADB screencap PNG";
+  report.pixel_transport = format;
+  report.boundary = `Clock armed before DOM command -> DOM preparation -> matching Android OS image; includes USB/${deflatePixels ? "RGBA extraction/zlib compression/framing/inflation" : rawPixels ? "RGBA extraction/framing" : "PNG"}/${release ? "instrumentation" : "CDP"}/alignment overhead`;
   report.image_source = imageSource;
   report.startup_baseline_source = "ADB screencap when instrumentation is disconnected; outside timed interval";
   report.first_capture_delay_ms = release ? 50 : 0;
@@ -202,8 +223,9 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       const first = await capture(region, true);
       image = await capture(region, true);
       const native = release ? await capture(region) : image;
-      const stable = first.data.equals(image.data) && native.data.equals(image.data);
-      attempts.push({ first_sha256: hash(first.data), second_sha256: hash(image.data), native_sha256: hash(native.data), stable });
+      const sameBitmap = rawPixels ? (await nativeCapture(region, true)).image : native;
+      const stable = first.data.equals(image.data) && native.data.equals(image.data) && sameBitmap.data.equals(image.data);
+      attempts.push({ first_sha256: hash(first.data), second_sha256: hash(image.data), native_sha256: hash(native.data), ...(rawPixels ? { same_bitmap_sha256: hash(sameBitmap.data) } : {}), stable });
       if (stable) break;
       assert.ok(performance.now() < deadline, `OS template did not settle: ${name}`);
     } while (true);
@@ -221,7 +243,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     const start = performance.now();
     const traceLabel = traceMoves && report.active_attempt ? `zedone:${name}-${report.active_attempt.repeat < 0 ? "warmup" + -report.active_attempt.repeat : report.active_attempt.repeat}` : undefined;
     if (traceLabel) page().setTraceLabel(traceLabel);
-    const stages = traceLabel ? { trace_label: traceLabel, captures: [] } : undefined;
+    const stages = traceLabel || (rawPixels && report.active_attempt) ? { ...(traceLabel ? { trace_label: traceLabel } : {}), captures: [] } : undefined;
     const diagnosticImages = [];
     let commandError, captures = 0, matched, result;
     // Start the clock before dispatch, then capture after DOM preparation. Avoid
@@ -259,7 +281,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     if (traceLabel) page().setTraceLabel(undefined);
     for (const [i, image] of diagnosticImages.entries()) {
       stages.captures[i].sha256 = hash(image.data);
-      stages.captures[i].file = await saveImage(`${traceLabel.replaceAll(":", "-")}-capture-${i + 1}`, image);
+      stages.captures[i].file = await saveImage(`${(traceLabel || `${name}-${report.observations.length}`).replaceAll(":", "-")}-capture-${i + 1}`, image);
     }
     if (commandError) result = { ...result, ok: false, command_error: commandError };
     const observation = { name, attempt: report.active_attempt, region, expected_sha256: hash(expected), captures, ...(stages ? { diagnostic_stages: stages } : {}), ...result };

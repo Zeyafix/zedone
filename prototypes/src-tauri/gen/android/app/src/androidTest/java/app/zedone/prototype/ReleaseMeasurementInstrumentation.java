@@ -23,6 +23,7 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.Deflater;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
@@ -63,10 +64,20 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
     return result[0];
   }
 
-  // Capture the composed default display through the OS, never WebView.draw or
-  // a DOM screenshot. Crop only AFTER capture to avoid transferring a full PNG
-  // on every sample. The host still includes capture/encoding/USB/decoding time.
-  private JSONObject screenshot(JSONObject region, boolean tracing) throws Exception {
+  private static class Capture {
+    final JSONObject metadata;
+    final byte[] rgba;
+    Capture(JSONObject metadata, byte[] rgba) { this.metadata = metadata; this.rgba = rgba; }
+  }
+
+  // Both transports read the same OS display bitmap. No renderer screenshot,
+  // downsampling or tolerance; the host clock includes extraction and transfer.
+  private Capture screenshot(JSONObject request, boolean tracing) throws Exception {
+    JSONObject region = request.optJSONObject("region");
+    String format = request.optString("format", "png");
+    if (!format.equals("png") && !format.equals("rgba8") && !format.equals("rgba8-zlib"))
+      throw new IllegalArgumentException("Unknown screenshot format");
+    boolean raw = !format.equals("png");
     long start = SystemClock.elapsedRealtimeNanos();
     Bitmap screen;
     if (tracing) Trace.beginSection("zedone:OS-readback");
@@ -83,15 +94,64 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
       if (x < 0 || y < 0 || width <= 0 || height <= 0 ||
           (long) x + width > screen.getWidth() || (long) y + height > screen.getHeight())
         throw new IllegalArgumentException("Capture region outside Android image");
-      if (tracing) Trace.beginSection("zedone:crop-PNG-base64");
+      if (tracing) Trace.beginSection(raw ? "zedone:extract-RGBA" : "zedone:crop-PNG-base64");
       try {
+      JSONObject metadata = new JSONObject().put("format", format)
+        .put("screen", new JSONObject().put("width", screen.getWidth()).put("height", screen.getHeight()));
+      byte[] rgba = null;
+      if (raw) {
+        long length = (long) width * height * 4;
+        if (length > 64 * 1024 * 1024) throw new IllegalArgumentException("RGBA image too large");
+        int[] colors = new int[width * height];
+        // getPixels returns non-premultiplied sRGB ARGB ints, independent of
+        // native bitmap stride/byte order. Send explicit packed RGBA rows.
+        screen.getPixels(colors, 0, width, x, y, width, height);
+        rgba = new byte[(int) length];
+        for (int i = 0, j = 0; i < colors.length; i++) {
+          int color = colors[i];
+          rgba[j++] = (byte) (color >>> 16);
+          rgba[j++] = (byte) (color >>> 8);
+          rgba[j++] = (byte) color;
+          rgba[j++] = (byte) (color >>> 24);
+        }
+        metadata.put("width", width).put("height", height).put("byte_length", rgba.length);
+        if (format.equals("rgba8-zlib")) {
+          long compressionStart = SystemClock.elapsedRealtimeNanos();
+          if (tracing) Trace.beginSection("zedone:deflate-RGBA");
+          // A complete zlib stream per bitmap; no inter-frame dictionary.
+          Deflater compressor = new Deflater(Deflater.BEST_SPEED);
+          try {
+            compressor.setInput(rgba);
+            compressor.finish();
+            ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+            byte[] chunk = new byte[16384];
+            while (!compressor.finished()) {
+              int count = compressor.deflate(chunk);
+              if (count <= 0) throw new IllegalStateException("RGBA deflater stalled");
+              compressed.write(chunk, 0, count);
+              if (compressed.size() > 65 * 1024 * 1024)
+                throw new IllegalStateException("Compressed RGBA image too large");
+            }
+            rgba = compressed.toByteArray();
+          } finally {
+            compressor.end();
+            if (tracing) Trace.endSection();
+          }
+          metadata.put("wire_byte_length", rgba.length)
+            .put("compression_ms", (SystemClock.elapsedRealtimeNanos() - compressionStart) / 1000000.0);
+        }
+      }
+      // verify_png is only used outside intervals: compare both encodings of
+      // this exact bitmap as well as independent, stable ADB PNG captures.
+      if (!raw || request.optBoolean("verify_png")) {
       cropped = Bitmap.createBitmap(screen, x, y, width, height);
       ByteArrayOutputStream bytes = new ByteArrayOutputStream();
       if (!cropped.compress(Bitmap.CompressFormat.PNG, 100, bytes))
         throw new IllegalStateException("OS screenshot encoding failed");
-      return new JSONObject().put("png", Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP))
-        .put("screen", new JSONObject().put("width", screen.getWidth()).put("height", screen.getHeight()))
-        .put("capture_and_encode_ms", (SystemClock.elapsedRealtimeNanos() - start) / 1000000.0);
+      metadata.put("png", Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP));
+      }
+      metadata.put("capture_and_encode_ms", (SystemClock.elapsedRealtimeNanos() - start) / 1000000.0);
+      return new Capture(metadata, rgba);
       } finally { if (tracing) Trace.endSection(); }
     } finally {
       if (cropped != null && cropped != screen) cropped.recycle();
@@ -142,8 +202,13 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
         if (tracing) Trace.beginSection(label + (request.optBoolean("screenshot") ? ":capture" : ":evaluate"));
         try {
         if (request.optBoolean("screenshot")) {
-          writer.write(new JSONObject().put("ok", true).put("value", screenshot(request.optJSONObject("region"), tracing)).toString());
+          Capture capture = screenshot(request, tracing);
+          writer.write(new JSONObject().put("ok", true).put("value", capture.metadata).toString());
           writer.newLine(); writer.flush();
+          if (capture.rgba != null) {
+            socket.getOutputStream().write(capture.rgba);
+            socket.getOutputStream().flush();
+          }
           continue;
         }
         String script = request.getString("script");

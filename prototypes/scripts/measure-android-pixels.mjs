@@ -9,7 +9,39 @@ import { summarize } from "./measure-scenarios.mjs";
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, rawPixels = false, deflatePixels = false }) {
+// Preparation only: stable stale pixels must never become a new baseline.
+export async function waitForAndroidPixelBaseline({ capture, expected, evidence, name = "search-all", timeout = 10000, now = () => performance.now(), wait = pause }) {
+  const start = now();
+  evidence.status = "waiting";
+  evidence.expected_sha256 = hash(expected);
+  evidence.timeout_ms = timeout;
+  evidence.attempts = [];
+  try {
+    while (now() - start < timeout) {
+      const attempt = { captures: [] };
+      evidence.attempts.push(attempt);
+      // Same independent sources as template preparation, but every capture
+      // must match the existing search-all template, not merely each other.
+      for (const viaAdb of [true, true, false]) {
+        const image = await capture(viaAdb);
+        attempt.captures.push({ source: viaAdb ? "ADB" : "observer", sha256: hash(image.data), matches: image.data.equals(expected), elapsed_ms: now() - start });
+      }
+      if (now() - start >= timeout) break;
+      if (attempt.captures.every(capture => capture.matches)) {
+        evidence.status = "ready";
+        return;
+      }
+      await wait(50);
+    }
+    throw new Error(`OS ${name} baseline did not settle before arming`);
+  } catch (error) {
+    evidence.status = "failed";
+    evidence.error = String(error);
+    throw error;
+  } finally { evidence.elapsed_ms = now() - start; }
+}
+
+export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, staticPixels = false, noopEvaluation = false, rawPixels = false, deflatePixels = false }) {
   const stamp = Date.now();
   const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
   const physical = report.environment.device_kind === "physical";
@@ -200,7 +232,9 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
   }
   if (physical) report.observer_sources["scripts/android-physical-backup.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-physical-backup.mjs")).arrayBuffer()));
-  if (traceMoves) report.observer_sources["scripts/android-move-trace.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-move-trace.mjs")).arrayBuffer()));
+  if (traceMoves || staticPixels || noopEvaluation) report.observer_sources["scripts/android-move-trace.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-move-trace.mjs")).arrayBuffer()));
+  if (staticPixels) report.observer_sources["scripts/android-static-pixels.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-static-pixels.mjs")).arrayBuffer()));
+  if (noopEvaluation) report.observer_sources["scripts/android-noop-evaluation.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-noop-evaluation.mjs")).arrayBuffer()));
   report.clock = "driver performance.now (monotonic)";
   const imageSource = release ? `UiAutomation.takeScreenshot OS display ${rawPixels ? `${format} (extract region after capture, binary` : "PNG (crop after capture,"} persistent ADB socket)` : "ADB screencap PNG";
   report.pixel_transport = format;
@@ -352,6 +386,68 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
   report.controls.snapshot_restored = true;
   report.series = {};
+  if (staticPixels || noopEvaluation) {
+    const { startPixelTrace } = await import("./android-move-trace.mjs");
+    const profile = noopEvaluation ? "noop" : "static";
+    report.boundary = noopEvaluation ? "No-op evaluation request -> decoded constant reply; native span includes later WebView cleanup; no application-action or presentation latency" : "Static capture request -> decoded Android OS image; no application command, no action budget or overhead subtraction";
+    report.command = `No application command during ${profile} samples; controls and restoration outside the series`;
+    report.ui_measurement_evidence.level = noopEvaluation ? "diagnostic_noop_evaluation" : "diagnostic_static_OS_capture";
+    report.ui_measurement_evidence.limitation += `; ${profile} observer control with Perfetto, no application-action latency measurement`;
+    const evidence = report[noopEvaluation ? "noop_evaluation" : "static_observer"] = { region: normalRegion, expected_sha256: hash(normal), metric: noopEvaluation ? "host evaluation request through decoded constant reply; excludes pacing and native post-reply cleanup" : "host capture request through decoded OS image; excludes pacing and file output", ui_acceptance_eligible: false, preparation: {} };
+    assert.deepEqual(await align("board"), normalRegion);
+    await waitForAndroidPixelBaseline({ capture: viaAdb => capture(normalRegion, viaAdb), expected: normal, evidence: evidence.preparation, name: "board-normal" });
+    const before = {};
+    for (const space of ["A", "B"]) before[space] = (await call({ action: "snapshot", space })).snapshot;
+    await page().evaluate(() => {
+      if (window.__pixelStaticObserver) throw new Error("Static DOM observer already installed");
+      const state = { mutations: 0, html: document.documentElement.outerHTML };
+      state.observer = new MutationObserver(records => { state.mutations += records.length; });
+      state.observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+      window.__pixelStaticObserver = state;
+    });
+    let stop;
+    try {
+      stop = await startPixelTrace({ adb, serial, report, reportDirectory, profile });
+      evidence.capture_diagnostics_start_index = report.capture_diagnostics.length;
+      if (noopEvaluation) {
+        const { measureNoopEvaluation } = await import("./android-noop-evaluation.mjs");
+        await measureNoopEvaluation({ evaluate: fn => page().evaluate(fn), setTraceLabel: label => page().setTraceLabel(label), evidence });
+        // Replies precede the driver's WebView cleanup. An unlabelled request
+        // drains the last labelled section before stopping/flushing Perfetto.
+        assert.equal(await page().evaluate(() => null), null);
+        evidence.driver_drained = true;
+        evidence.captures_in_series = report.capture_diagnostics.length - evidence.capture_diagnostics_start_index;
+        assert.equal(evidence.captures_in_series, 0);
+      } else {
+        const { measureStaticPixels } = await import("./android-static-pixels.mjs");
+        await measureStaticPixels({ capture: () => capture(normalRegion), expected: normal, setTraceLabel: label => page().setTraceLabel(label), saveImage, evidence });
+      }
+    } finally {
+      try { if (stop) await stop(); }
+      finally {
+        evidence.dom = await page().evaluate(() => {
+          const state = window.__pixelStaticObserver;
+          state.mutations += state.observer.takeRecords().length;
+          state.observer.disconnect();
+          const result = { mutations: state.mutations, html_unchanged: state.html === document.documentElement.outerHTML };
+          delete window.__pixelStaticObserver;
+          return result;
+        });
+      }
+    }
+    assert.deepEqual(evidence.dom, { mutations: 0, html_unchanged: true }, "Static DOM changed");
+    if (noopEvaluation) {
+      const image = await capture(normalRegion);
+      evidence.post_image = { sha256: hash(image.data), file: await saveImage("noop-after", image) };
+      assert.deepEqual(image.data, normal, "No-op control changed OS pixels");
+    }
+    for (const space of ["A", "B"]) assert.deepEqual((await call({ action: "snapshot", space })).snapshot, before[space]);
+    evidence.snapshots_unchanged = true;
+    assert.deepEqual(before.A, initial);
+    report.snapshot_restored = true;
+    report.status = noopEvaluation ? "completed_diagnostic_noop_evaluation" : "completed_diagnostic_static_capture";
+    return;
+  }
   async function series(name, reverseName, forward, reverse, verify) {
     const a = { warmups: [], samples: [] }, b = { warmups: [], samples: [] };
     report.series[name] = a; report.series[reverseName] = b;
@@ -369,8 +465,8 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   let stopTrace;
   try {
   if (traceMoves) {
-    const { startMoveTrace } = await import("./android-move-trace.mjs");
-    stopTrace = await startMoveTrace({ adb, serial, device, report, reportDirectory });
+    const { startPixelTrace } = await import("./android-move-trace.mjs");
+    stopTrace = await startPixelTrace({ adb, serial, report, reportDirectory });
   }
   await series("move", "inverse_move", async () => {
     await openMove();
@@ -394,7 +490,9 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   const allRegion = await align("search"), all = await template("search-all", allRegion);
   await search("Карточка 0030", 1);
   const oneRegion = await align("search"), one = await template("search-one", oneRegion);
-  await search("", 30); await align("search");
+  await search("", 30); assert.deepEqual(await align("search"), allRegion);
+  report.search_preparation = { name: "search-all-after-template-reset", region: allRegion, outside_measured_intervals: true };
+  await waitForAndroidPixelBaseline({ capture: viaAdb => capture(allRegion, viaAdb), expected: all, evidence: report.search_preparation });
   await series("search", "clear_search", () => observe("search", oneRegion, one, async () => { assert.deepEqual(await align("search", { query: "Карточка 0030", count: 1 }), oneRegion); }),
     () => observe("clear-search", allRegion, all, async () => { assert.deepEqual(await align("search", { query: "", count: 30 }), allRegion); }), async () => {
       assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);

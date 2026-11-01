@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 
-export async function startMoveTrace({ adb, serial, report, reportDirectory }) {
-  const stem = `zedone-moves-${Date.now()}`;
+export async function startPixelTrace({ adb, serial, report, reportDirectory, profile = "moves" }) {
+  assert.ok(["moves", "static", "noop"].includes(profile));
+  const stem = `zedone-${profile}-${Date.now()}`;
   const remote = `/data/misc/perfetto-traces/${stem}.perfetto-trace`;
   const local = resolve(reportDirectory, `${stem}.perfetto-trace`);
   const config = `buffers { size_kb: 65536 fill_policy: RING_BUFFER }
@@ -27,7 +28,7 @@ data_sources { config { name: "linux.process_stats" process_stats_config { scan_
 data_sources { config { name: "android.surfaceflinger.frametimeline" } }
 `;
   const evidence = report.system_trace = { status: "starting", file: local, remote_file: remote, config_file: resolve(reportDirectory, `${stem}.pbtxt`),
-    scope: "move/inverse only, with Perfetto and test-APK sections; separate diagnostic profile, no physical-panel or budget acceptance" };
+    scope: `${profile === "noop" ? "no-op evaluation only, no application command or capture" : profile === "static" ? "static captures only, no application command" : "move/inverse only"}, with Perfetto and test-APK sections; separate diagnostic profile, no physical-panel or budget acceptance` };
   await Bun.write(evidence.config_file, config);
   // -D acknowledges data-source startup, so no fixed sleep substitutes for it.
   const child = Bun.spawn([adb, "-s", serial, "shell", "perfetto", "--background-wait", "--txt", "-c", "-", "-o", remote],

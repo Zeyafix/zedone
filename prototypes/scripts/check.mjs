@@ -97,4 +97,11 @@ if (!mode) {
   // Explicit Bun entry point bypasses Vite's Node shebang.
   run([process.execPath, "node_modules/vite/bin/vite.js", "build"]);
   run([process.execPath, "scripts/check-http.mjs"]);
+  run([process.execPath, "scripts/check-android-release-protocol.mjs"]);
+  run([process.execPath, "scripts/check-android-pixel-baseline.mjs"]);
+  run([process.execPath, "scripts/check-android-static-pixels.mjs"]);
+  run([process.execPath, "scripts/check-android-noop-evaluation.mjs"]);
+  run([process.execPath, "scripts/check-android-webview-phases.mjs"]);
+  run([process.execPath, "scripts/check-android-ipc-phases.mjs"]);
+  run([process.execPath, "scripts/check-android-ipc-send.mjs"]);
 }

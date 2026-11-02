@@ -14,7 +14,12 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// Local P01 measurement only. The application remains non-debuggable; all driver
+// code lives in androidTest and is absent from the measured application APK.
+val releaseMeasurement = providers.gradleProperty("prototypeReleaseMeasurement").orNull == "true"
+
 android {
+    testBuildType = if (releaseMeasurement) "release" else "debug"
     compileSdk = 37
     namespace = "app.zedone.prototype"
     defaultConfig {
@@ -22,7 +27,7 @@ android {
         applicationId = "app.zedone.prototype"
         minSdk = 24
         targetSdk = 37
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = if (releaseMeasurement) "app.zedone.prototype.ReleaseMeasurementInstrumentation" else "androidx.test.runner.AndroidJUnitRunner"
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
@@ -40,6 +45,7 @@ android {
             }
         }
         getByName("release") {
+            if (releaseMeasurement) signingConfig = signingConfigs.getByName("debug")
             optimization {
                enable = true
             }

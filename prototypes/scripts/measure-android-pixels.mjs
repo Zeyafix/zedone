@@ -42,7 +42,7 @@ export async function waitForAndroidPixelBaseline({ capture, expected, evidence,
   } finally { evidence.elapsed_ms = now() - start; }
 }
 
-export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, webviewPhases = false, ipcPhases = false, staticPixels = false, noopEvaluation = false, rawPixels = false, deflatePixels = false }) {
+export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, webviewPhases = false, ipcPhases = false, ipcSends = false, staticPixels = false, noopEvaluation = false, rawPixels = false, deflatePixels = false }) {
   const stamp = Date.now();
   const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
   const physical = report.environment.device_kind === "physical";
@@ -174,7 +174,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   async function align(kind, command = {}) {
     const evidence = webviewPhases && command.order && report.active_attempt ? { attempt: { ...report.active_attempt }, selector: command.selector, order: command.order } : undefined;
     if (evidence) report.webview_phases.entries.push(evidence);
-    const rect = await evaluatePixelAlignment((fn, args) => page().evaluate(fn, args), { kind, ...command, ...(ipcPhases && evidence ? { ipcDiagnostic: true } : {}) }, evidence);
+    const rect = await evaluatePixelAlignment((fn, args) => page().evaluate(fn, args), { kind, ...command, ...(ipcPhases && evidence ? { ipcDiagnostic: true, ipcSendDiagnostic: ipcSends } : {}) }, evidence);
     const { scale } = geometry.css;
     const x = geometry.x + Math.floor(rect.left * scale), y = geometry.y + Math.floor(rect.top * scale);
     return { x, y, width: geometry.x + Math.ceil(rect.right * scale) - x, height: geometry.y + Math.ceil(rect.bottom * scale) - y };
@@ -185,6 +185,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   report.observer_sources["scripts/android-webview-phases.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-webview-phases.mjs")).arrayBuffer()));
   if (webviewPhases) report.webview_phases = { clock: "WebView performance.now; one evaluation per command", scope: "click, observed saved DOM (includes 10 ms polling), viewport alignment; not Rust/SQLite latency or OS presentation", ui_acceptance_eligible: false, entries: [] };
   if (ipcPhases) report.webview_phases.ipc_delivery_observed = true;
+  if (ipcSends) report.webview_phases.ipc_send_observed = true;
   if (release) {
     for (const path of ["scripts/android-release-driver.mjs", "scripts/android-release-protocol.mjs", "src-tauri/gen/android/app/src/androidTest/java/app/zedone/prototype/ReleaseMeasurementInstrumentation.java", "src-tauri/gen/android/app/build.gradle.kts", "scripts/build-android.mjs"])
       report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
@@ -424,7 +425,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   try {
   if (traceMoves) {
     const { startPixelTrace } = await import("./android-move-trace.mjs");
-    stopTrace = await startPixelTrace({ adb, serial, report, reportDirectory, profile: ipcPhases ? "ipc" : webviewPhases ? "webview" : "moves" });
+    stopTrace = await startPixelTrace({ adb, serial, report, reportDirectory, profile: ipcSends ? "ipc-send" : ipcPhases ? "ipc" : webviewPhases ? "webview" : "moves" });
   }
   await series("move", "inverse_move", async () => {
     await openMove();
@@ -449,7 +450,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     report.ui_measurement_evidence.level = "diagnostic_system_trace_with_OS_images";
     report.ui_measurement_evidence.limitation += "; Perfetto and per-capture PNG storage add diagnostic overhead; no search/startup series in this profile";
     delete report.active_attempt;
-    report.status = ipcPhases ? "completed_diagnostic_ipc_phases" : webviewPhases ? "completed_diagnostic_webview_phases" : "completed_diagnostic_move_trace";
+    report.status = ipcSends ? "completed_diagnostic_ipc_send" : ipcPhases ? "completed_diagnostic_ipc_phases" : webviewPhases ? "completed_diagnostic_webview_phases" : "completed_diagnostic_move_trace";
     return;
   }
   await search("", 30);

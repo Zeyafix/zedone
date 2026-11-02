@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 
 export async function startPixelTrace({ adb, serial, report, reportDirectory, profile = "moves" }) {
-  assert.ok(["moves", "webview", "ipc", "static", "noop"].includes(profile));
+  assert.ok(["moves", "webview", "ipc", "ipc-send", "static", "noop"].includes(profile));
   const stem = `zedone-${profile}-${Date.now()}`;
   const remote = `/data/misc/perfetto-traces/${stem}.perfetto-trace`;
   const local = resolve(reportDirectory, `${stem}.perfetto-trace`);

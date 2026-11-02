@@ -103,4 +103,5 @@ if (!mode) {
   run([process.execPath, "scripts/check-android-noop-evaluation.mjs"]);
   run([process.execPath, "scripts/check-android-webview-phases.mjs"]);
   run([process.execPath, "scripts/check-android-ipc-phases.mjs"]);
+  run([process.execPath, "scripts/check-android-ipc-send.mjs"]);
 }

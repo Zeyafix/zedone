@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 
 // Serialized into the existing WebView evaluation. Keep it self-contained and
 // use the same command, polling predicate and layout work in both profiles.
-export async function alignAndroidPixelResult({ kind, selector, order, query, count, diagnostic = false, ipcDiagnostic = false }) {
+export async function alignAndroidPixelResult({ kind, selector, order, query, count, diagnostic = false, ipcDiagnostic = false, ipcSendDiagnostic = false }) {
   const phases = diagnostic ? { clock: "WebView performance.now", time_origin_ms: performance.timeOrigin, marks: [], polls: 0, polling_ms: 10 } : undefined;
   const mark = name => { if (phases) phases.marks.push({ name, ms: performance.now() }); };
   let callbacks, hook, outcome, duringClick = false;
   const registrations = [];
+  const sendHooks = [];
   mark("start");
   try {
+    if (ipcSendDiagnostic && !ipcDiagnostic) throw new Error("IPC send observation requires IPC reply observation");
     if (ipcDiagnostic && (!diagnostic || kind !== "board" || query !== undefined || !Array.isArray(order) || order.length !== 2 || !["#move-save", "#board-undo"].includes(selector)))
       throw new Error("IPC observation requires a diagnostic board move or inverse");
     if (query !== undefined) {
@@ -44,6 +46,52 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
         };
         Object.defineProperty(callbacks, "set", { value: hook, writable: true, configurable: true });
         ipc.cleanup.installed = true;
+        if (ipcSendDiagnostic) {
+          const sends = ipc.sends = { calls: [], cleanup: { installed: false, complete: false } };
+          const install = (owner, key, transport) => {
+            const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+            const bridge = transport === "postMessage" ? descriptor?.value : undefined;
+            const original = bridge ? bridge.postMessage : descriptor?.value;
+            if (!descriptor || typeof original !== "function" || !descriptor.configurable || !descriptor.writable)
+              throw new Error(`IPC send method unavailable: ${transport}`);
+            let observed;
+            const wrapped = function(...args) {
+              const record = { transport, entered_ms: performance.now(), during_click: duringClick, argument_count: args.length };
+              sends.calls.push(record);
+              try {
+                if (transport === "postMessage") {
+                  const message = JSON.parse(args[0]);
+                  record.command = message.cmd; record.callback_id = message.callback; record.error_id = message.error;
+                  record.action = message.payload?.request?.action;
+                } else {
+                  record.channel_fetch = args[0] === window.__TAURI_INTERNALS__.convertFileSrc("plugin:__TAURI_CHANNEL__|fetch", "ipc");
+                  const headers = args[1]?.headers;
+                  const callback = headers?.get("Tauri-Callback"), error = headers?.get("Tauri-Error");
+                  record.callback_id = callback === null || callback === undefined ? null : Number(callback);
+                  record.error_id = error === null || error === undefined ? null : Number(error);
+                }
+              } catch (error) { record.observation_error = String(error); }
+              record.forwarded_ms = performance.now();
+              // A normal window.ipc.postMessage call must still receive the
+              // original Java bridge as its receiver, not our temporary Proxy.
+              try { return Reflect.apply(original, bridge && this === observed ? bridge : this, args); }
+              catch (error) { record.call_error = String(error); throw error; }
+              finally { record.returned_ms = performance.now(); }
+            };
+            observed = bridge ? new Proxy(bridge, { get(target, name) {
+              return name === "postMessage" ? wrapped : Reflect.get(target, name, target);
+            } }) : wrapped;
+            Object.defineProperty(owner, key, { ...descriptor, value: observed });
+            sendHooks.push({ owner, key, descriptor, wrapped: observed });
+            sends.cleanup.installed = true;
+            if (Object.getOwnPropertyDescriptor(owner, key)?.value !== observed)
+              throw new Error(`IPC send hook installation was ignored: ${key}`);
+          };
+          // Tauri's internals are non-configurable. Observe the existing native
+          // bridge and channel fetch without replacing IPC or chaining promises.
+          install(window, "ipc", "postMessage");
+          install(window, "fetch", "fetch");
+        }
       }
       mark("click_start");
       duringClick = true;
@@ -97,6 +145,23 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
     outcome = { ok: false, error: String(error.stack || error), phases };
     return outcome;
   } finally {
+    if (phases?.ipc?.sends) {
+      const cleanup = phases.ipc.sends.cleanup;
+      cleanup.restored = 0; cleanup.errors = [];
+      for (const entry of sendHooks.toReversed()) {
+        try {
+          if (Object.getOwnPropertyDescriptor(entry.owner, entry.key)?.value !== entry.wrapped)
+            throw new Error(`IPC send method hook changed: ${entry.key}`);
+          Object.defineProperty(entry.owner, entry.key, entry.descriptor);
+          cleanup.restored++;
+        } catch (error) { cleanup.errors.push(String(error)); }
+      }
+      cleanup.complete = cleanup.errors.length === 0 && cleanup.restored === sendHooks.length;
+      if (!cleanup.complete) {
+        outcome.ok = false;
+        outcome.error = [outcome.error, ...cleanup.errors].filter(Boolean).join("\n");
+      }
+    }
     if (phases?.ipc?.cleanup.installed) {
       const cleanup = phases.ipc.cleanup;
       try {
@@ -170,6 +235,7 @@ export async function evaluatePixelAlignment(evaluate, args, evidence) {
         reply_callback: reply.callback_end_ms - reply.received_ms,
         reply_to_saved_dom: marks.saved_dom - reply.received_ms,
         callback_end_to_saved_dom: marks.saved_dom - reply.callback_end_ms };
+      if (args.ipcSendDiagnostic) validateIpcSends(evidence, marks);
     }
     evidence.status = "completed";
     return result.rect;
@@ -178,4 +244,53 @@ export async function evaluatePixelAlignment(evaluate, args, evidence) {
     evidence.error = String(error.stack || error);
     throw error;
   }
+}
+
+export function validateIpcSends(evidence, marks) {
+  const ipc = evidence.result.phases.ipc, sends = ipc.sends;
+  assert.equal(sends?.cleanup.installed, true);
+  assert.equal(sends.cleanup.complete, true);
+  assert.equal(sends.cleanup.restored, 2);
+  assert.deepEqual(sends.cleanup.errors, []);
+  const reply = evidence.ipc_reply;
+  for (const call of sends.calls) {
+    assert.equal(call.observation_error, undefined, "IPC send metadata could not be observed");
+    assert.equal(call.call_error, undefined, "Original IPC send failed");
+    assert.ok([call.entered_ms, call.forwarded_ms, call.returned_ms].every(Number.isFinite));
+    assert.ok(call.entered_ms >= marks.click_start && call.forwarded_ms >= call.entered_ms && call.returned_ms >= call.forwarded_ms && call.returned_ms <= marks.saved_dom);
+    assert.equal(typeof call.during_click, "boolean");
+    assert.ok(call.during_click ? call.returned_ms <= marks.click_end : call.entered_ms >= marks.click_end);
+    assert.ok(Number.isInteger(call.callback_id) && Number.isInteger(call.error_id) && call.callback_id !== call.error_id);
+    for (const id of [call.callback_id, call.error_id]) {
+      const registration = ipc.registrations.find(r => r.id === id);
+      assert.ok(registration && registration.registered_ms <= call.entered_ms, "Send must follow observed callback registration");
+    }
+  }
+  const commands = sends.calls.filter(c => c.transport === "postMessage" && c.during_click);
+  assert.equal(commands.length, 1, "Expected exactly one native IPC send during click");
+  const command = commands[0];
+  assert.equal(command.command, "storage"); assert.equal(command.action, "move_card");
+  assert.equal(command.callback_id, reply.callback_id, "Native IPC must target the click's saved reply");
+  assert.ok(command.returned_ms <= reply.received_ms);
+  const fetches = sends.calls.filter(c => c.transport === "fetch" && c.channel_fetch && !c.during_click);
+  assert.equal(fetches.length, 1, "Expected exactly one large-response channel fetch");
+  const fetch = fetches[0], registration = ipc.registrations.find(r => r.id === fetch.callback_id);
+  assert.ok(fetch.entered_ms >= command.returned_ms && fetch.returned_ms <= reply.received_ms);
+  assert.equal(registration.during_click, false);
+  assert.equal(registration.deliveries.length, 1);
+  const delivery = registration.deliveries[0];
+  assert.equal(delivery.expected_snapshot, true);
+  assert.ok(delivery.received_ms >= fetch.returned_ms && delivery.callback_end_ms <= reply.received_ms);
+  assert.equal(sends.calls.length, 2, "Unexpected IPC send; do not silently accept fallback or extra operations");
+  evidence.ipc_send_durations_ms = {
+    click_to_native_send: command.entered_ms - marks.click_start,
+    native_send_observation: command.forwarded_ms - command.entered_ms,
+    native_send_call: command.returned_ms - command.forwarded_ms,
+    native_return_to_channel_fetch: fetch.entered_ms - command.returned_ms,
+    channel_fetch_observation: fetch.forwarded_ms - fetch.entered_ms,
+    channel_fetch_call: fetch.returned_ms - fetch.forwarded_ms,
+    channel_fetch_return_to_delivery: delivery.received_ms - fetch.returned_ms,
+    channel_callback: delivery.callback_end_ms - delivery.received_ms,
+    channel_end_to_reply: reply.received_ms - delivery.callback_end_ms,
+  };
 }

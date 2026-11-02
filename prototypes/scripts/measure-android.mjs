@@ -10,8 +10,11 @@ const args = Bun.argv.slice(2);
 const deflatePixels = args.at(-1) === "--deflate-pixels";
 const rawPixels = deflatePixels || args.at(-1) === "--raw-pixels";
 if (rawPixels) args.pop();
-const ipcPhases = args.at(-1) === "--trace-ipc";
-if (ipcPhases) args.pop();
+const ipcSends = args.at(-1) === "--trace-ipc-send";
+if (ipcSends) args.pop();
+const ipcPhasesArgument = args.at(-1) === "--trace-ipc";
+if (ipcPhasesArgument) args.pop();
+const ipcPhases = ipcPhasesArgument || ipcSends;
 const webviewPhasesArgument = args.at(-1) === "--trace-webview";
 if (webviewPhasesArgument) args.pop();
 const webviewPhases = webviewPhasesArgument || ipcPhases;
@@ -26,6 +29,7 @@ const pixels = args[0] === "--pixels";
 const release = args[1] === "--release";
 const physical = args[2] === "--physical";
 assert.ok(args.length === 0 || (pixels && (args.length === 1 || (args.length === 2 && release) || (args.length === 3 && release && physical))), "Expected no arguments, --pixels, --pixels --release, or --pixels --release --physical");
+assert.ok(!ipcSends || (pixels && release && deflatePixels && !ipcPhasesArgument && !webviewPhasesArgument && !traceMovesArgument && !staticPixels && !noopEvaluation), "--trace-ipc-send requires --pixels --release --deflate-pixels and excludes other trace profiles");
 assert.ok(!ipcPhases || (pixels && release && deflatePixels && !webviewPhasesArgument && !traceMovesArgument && !staticPixels && !noopEvaluation), "--trace-ipc requires --pixels --release --deflate-pixels and excludes other trace profiles");
 assert.ok(!webviewPhases || (pixels && release && deflatePixels && !traceMovesArgument && !staticPixels && !noopEvaluation), "--trace-webview requires --pixels --release --deflate-pixels and excludes other trace profiles");
 assert.ok(!traceMoves || (pixels && release), "--trace-moves requires --pixels --release");
@@ -45,7 +49,7 @@ const apk = resolve(root, `src-tauri/gen/android/app/build/outputs/apk/${abi}/${
 const testApk = resolve(root, `src-tauri/gen/android/app/build/outputs/apk/androidTest/${abi}/release/app-${abi}-release-androidTest.apk`);
 const reportDirectory = resolve(root, "../docs/reports/p01-11");
 await mkdir(reportDirectory, { recursive: true });
-const reportPath = resolve(reportDirectory, `android${physical ? "-physical" : ""}${release ? "-release" : ""}${pixels ? "-pixels" : ""}${ipcPhases ? "-trace-ipc" : webviewPhases ? "-trace-webview" : traceMoves ? "-trace-moves" : staticPixels ? "-trace-static" : noopEvaluation ? "-trace-noop" : ""}${deflatePixels ? "-rgba-zlib" : rawPixels ? "-rgba" : ""}-${Date.now()}.json`);
+const reportPath = resolve(reportDirectory, `android${physical ? "-physical" : ""}${release ? "-release" : ""}${pixels ? "-pixels" : ""}${ipcSends ? "-trace-ipc-send" : ipcPhases ? "-trace-ipc" : webviewPhases ? "-trace-webview" : traceMoves ? "-trace-moves" : staticPixels ? "-trace-static" : noopEvaluation ? "-trace-noop" : ""}${deflatePixels ? "-rgba-zlib" : rawPixels ? "-rgba" : ""}-${Date.now()}.json`);
 const report = { status: "running", revision: Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root }).stdout.toString().trim(),
   ui_measurement_evidence: uiMeasurementEvidence,
   apk_sha256: createHash("sha256").update(Buffer.from(await Bun.file(apk).arrayBuffer())).digest("hex"),
@@ -159,7 +163,7 @@ async function measure() {
   report.fixture = fixtureInfo((await call({ action: "seed", space: "A" })).snapshot);
   if (pixels) {
     const { measureAndroidPixels } = await import("./measure-android-pixels.mjs");
-    await measureAndroidPixels({ getPage: () => page, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves, webviewPhases, ipcPhases, staticPixels, noopEvaluation, rawPixels, deflatePixels });
+    await measureAndroidPixels({ getPage: () => page, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves, webviewPhases, ipcPhases, ipcSends, staticPixels, noopEvaluation, rawPixels, deflatePixels });
     return;
   }
   for (let i = 0; i < 10; i++) {

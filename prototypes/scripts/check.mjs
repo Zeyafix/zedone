@@ -101,4 +101,6 @@ if (!mode) {
   run([process.execPath, "scripts/check-android-pixel-baseline.mjs"]);
   run([process.execPath, "scripts/check-android-static-pixels.mjs"]);
   run([process.execPath, "scripts/check-android-noop-evaluation.mjs"]);
+  run([process.execPath, "scripts/check-android-webview-phases.mjs"]);
+  run([process.execPath, "scripts/check-android-ipc-phases.mjs"]);
 }

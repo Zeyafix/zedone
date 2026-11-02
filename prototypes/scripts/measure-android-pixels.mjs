@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { PNG } from "pngjs";
 import { summarize } from "./measure-scenarios.mjs";
+import { evaluatePixelAlignment } from "./android-webview-phases.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -41,7 +42,7 @@ export async function waitForAndroidPixelBaseline({ capture, expected, evidence,
   } finally { evidence.elapsed_ms = now() - start; }
 }
 
-export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, staticPixels = false, noopEvaluation = false, rawPixels = false, deflatePixels = false }) {
+export async function measureAndroidPixels({ getPage, call, device, adb, serial, report, reportDirectory, disconnect, launch, connect, ensureActive, traceMoves = false, webviewPhases = false, ipcPhases = false, staticPixels = false, noopEvaluation = false, rawPixels = false, deflatePixels = false }) {
   const stamp = Date.now();
   const release = report.environment.command_driver === "test-APK WebView.evaluateJavascript";
   const physical = report.environment.device_kind === "physical";
@@ -171,55 +172,9 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     await page().evaluate(() => document.querySelector("#pixel-calibration-marker").remove());
   }
   async function align(kind, command = {}) {
-    const rect = await page().evaluate(async ({ kind, selector, order, query, count }) => {
-      if (query !== undefined) {
-        const input = document.querySelector("#storage-query");
-        input.value = query;
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        selector = "#storage-read";
-      }
-      if (selector) {
-        const button = document.querySelector(selector);
-        if (!button || button.disabled) throw new Error(`Unavailable command: ${selector}`);
-        button.click();
-        // Keep preparation in one native evaluation, without host round trips
-        // between click, persisted-result predicate and viewport alignment.
-        const deadline = performance.now() + 5000;
-        while (true) {
-          const ready = order ? !document.querySelector("#board-busy") && order.every((id, i) =>
-            Number(document.querySelectorAll('.board-column[data-column="0"] .board-card')[i]?.dataset.card) === id) :
-            !document.querySelector("#storage-busy") && JSON.parse(document.querySelector("#storage-result")?.textContent || "null")?.snapshot.cards.length === count;
-          if (ready) break;
-          if (performance.now() >= deadline) throw new Error("Saved result did not reach DOM");
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-      }
-      let ranges;
-      if (kind === "board") {
-        document.querySelector(".board").scrollLeft = 0;
-        document.querySelector('.board-column[data-column="0"] .card-list').scrollTop = 0;
-        ranges = [...document.querySelectorAll('.board-column[data-column="0"] .board-card h4')].slice(0, 2);
-      } else {
-        const pre = document.querySelector("#storage-result"), text = pre.firstChild;
-        pre.scrollTop = 0; pre.scrollLeft = 0;
-        const start = text.textContent.indexOf("Карточка ");
-        if (start < 0) throw new Error("Missing search result title");
-        const range = document.createRange();
-        range.setStart(text, start); range.setEnd(text, start + 13);
-        const r = range.getBoundingClientRect(), clip = pre.getBoundingClientRect();
-        pre.scrollTop += Math.max(0, r.top - clip.top - 24);
-        ranges = [range];
-      }
-      const before = ranges[0].getBoundingClientRect();
-      scrollBy(0, before.top - 100);
-      const boxes = ranges.map(range => range.getBoundingClientRect());
-      const left = Math.min(...boxes.map(r => r.left)), top = Math.min(...boxes.map(r => r.top));
-      const right = Math.max(...boxes.map(r => r.right)), bottom = Math.max(...boxes.map(r => r.bottom));
-      const clip = document.querySelector(kind === "board" ? '.board-column[data-column="0"] .card-list' : "#storage-result").getBoundingClientRect();
-      if (left < Math.max(0, clip.left) || top < Math.max(0, clip.top) || right > Math.min(innerWidth, clip.right) || bottom > Math.min(innerHeight, clip.bottom))
-        throw new Error("Full result titles are clipped; unsupported viewport geometry");
-      return { left, top, right, bottom };
-    }, { kind, ...command });
+    const evidence = webviewPhases && command.order && report.active_attempt ? { attempt: { ...report.active_attempt }, selector: command.selector, order: command.order } : undefined;
+    if (evidence) report.webview_phases.entries.push(evidence);
+    const rect = await evaluatePixelAlignment((fn, args) => page().evaluate(fn, args), { kind, ...command, ...(ipcPhases && evidence ? { ipcDiagnostic: true } : {}) }, evidence);
     const { scale } = geometry.css;
     const x = geometry.x + Math.floor(rect.left * scale), y = geometry.y + Math.floor(rect.top * scale);
     return { x, y, width: geometry.x + Math.ceil(rect.right * scale) - x, height: geometry.y + Math.ceil(rect.bottom * scale) - y };
@@ -227,6 +182,9 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   report.observations = [];
   report.templates = [];
   report.observer_sources = { "measure-android-pixels.mjs": hash(Buffer.from(await Bun.file(import.meta.filename).arrayBuffer())) };
+  report.observer_sources["scripts/android-webview-phases.mjs"] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "android-webview-phases.mjs")).arrayBuffer()));
+  if (webviewPhases) report.webview_phases = { clock: "WebView performance.now; one evaluation per command", scope: "click, observed saved DOM (includes 10 ms polling), viewport alignment; not Rust/SQLite latency or OS presentation", ui_acceptance_eligible: false, entries: [] };
+  if (ipcPhases) report.webview_phases.ipc_delivery_observed = true;
   if (release) {
     for (const path of ["scripts/android-release-driver.mjs", "scripts/android-release-protocol.mjs", "src-tauri/gen/android/app/src/androidTest/java/app/zedone/prototype/ReleaseMeasurementInstrumentation.java", "src-tauri/gen/android/app/build.gradle.kts", "scripts/build-android.mjs"])
       report.observer_sources[path] = hash(Buffer.from(await Bun.file(resolve(import.meta.dir, "..", path)).arrayBuffer()));
@@ -466,7 +424,7 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   try {
   if (traceMoves) {
     const { startPixelTrace } = await import("./android-move-trace.mjs");
-    stopTrace = await startPixelTrace({ adb, serial, report, reportDirectory });
+    stopTrace = await startPixelTrace({ adb, serial, report, reportDirectory, profile: ipcPhases ? "ipc" : webviewPhases ? "webview" : "moves" });
   }
   await series("move", "inverse_move", async () => {
     await openMove();
@@ -478,12 +436,20 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   });
   } finally { if (stopTrace) await stopTrace(); }
   if (traceMoves) {
+    if (webviewPhases) {
+      assert.equal(report.webview_phases.entries.length, 70);
+      assert.ok(report.webview_phases.entries.every(entry => entry.status === "completed"));
+      for (const series of ["move", "inverse_move"]) {
+        const entries = report.webview_phases.entries.filter(entry => entry.attempt.series === "move" && entry.selector === (series === "move" ? "#move-save" : "#board-undo"));
+        assert.deepEqual(entries.map(entry => entry.attempt.repeat), Array.from({ length: 35 }, (_, i) => i - 5));
+      }
+    }
     assert.deepEqual((await call({ action: "snapshot", space: "A" })).snapshot, initial);
     report.snapshot_restored = true;
     report.ui_measurement_evidence.level = "diagnostic_system_trace_with_OS_images";
     report.ui_measurement_evidence.limitation += "; Perfetto and per-capture PNG storage add diagnostic overhead; no search/startup series in this profile";
     delete report.active_attempt;
-    report.status = "completed_diagnostic_move_trace";
+    report.status = ipcPhases ? "completed_diagnostic_ipc_phases" : webviewPhases ? "completed_diagnostic_webview_phases" : "completed_diagnostic_move_trace";
     return;
   }
   await search("", 30);

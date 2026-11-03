@@ -107,6 +107,7 @@ jobs:
           CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
           bun run android:build
           bun run android:build aarch64
+          bun run check:automerge
       - name: Prepare emulator runtime and KVM
         run: |
           sudo apt-get update
@@ -120,7 +121,7 @@ jobs:
       - name: Check Android environment
         run: |
           shellcheck scripts/check-android-environment.sh
-          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android.mjs
+          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs
       - name: Check rejection and cleanup on compiler failure
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")

@@ -44,6 +44,7 @@ const cargo = (args, capture = false) => run(["cargo", `+${versions.rust}`, ...a
 
 if (!mode) {
   for (const args of checks) cargo(args);
+  run([process.execPath, "scripts/check-automerge.mjs"]);
 }
 
 // Capture first: compilation or generation failure must leave the artifact intact.

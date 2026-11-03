@@ -11,9 +11,9 @@ dependencies_evidence: [P02.02, EV-026, "PR #20, merge d066991"]
 scope: [prototypes/core/src/automerge_probe, prototypes/core/src/automerge_probe.rs, prototypes/core/src/bin/check-automerge.rs, prototypes/scripts/check-automerge.mjs, docs/agent, docs/development, docs/architecture/decisions/0002-automerge-sync.md]
 checks: ["bun run check на Windows", "bun run check:automerge --android: процессы/тесты x86_64 и сборка arm64", "git diff --check"]
 reverse_and_failure: "Назначение/снятие одним методом, оба решения конфликта; неверный/устаревший выбор и ошибка SQLite не меняют сохранённые реплики."
-result: "verified локально: Windows/Android x86_64 пройдены, arm64 собран; коммита/PR/CI/интеграции нет."
+result: "PR #25 head 9cc7339 прошёл Windows/Linux/Android и интегрирован в f173064; P02.04.1 done. Последующий main Android push: отказ WebView, EV-031."
 evidence: ["Windows: bun run check, 56 Rust-тестов и 14 фаз CLI", "Android: 14 фаз CLI и 37/37 тестов пробника x86_64, arm64 собран"]
-next: "Зафиксировать/опубликовать срез и проверить CI/интеграцию; затем P02.04.2."
+next: "CI.02/GAP-007: отдельный отказ main WebView; затем P02.04.2."
 ```
 
 P02.04 разделён до реализации: назначения (P02.04.1), идентичность/создание/
@@ -40,7 +40,7 @@ P02.04 разделён до реализации: назначения (P02.04.
 | Отказы | Неверный/устаревший выбор не меняет fingerprint; ID операций проверяются даже при совпадении значений. SQLite AFTER UPDATE ABORT сохраняет обе реплики после повторного открытия |
 | Доставка/перезапуск | Все циклические сдвиги прямого/обратного порядка полного набора изменений с двукратной доставкой сохраняют heads, число изменений, все ID/варианты; проверено повторное чтение SQLite |
 | Статика | Полный diff просмотрен, Markdown-ссылки/ограждения, статусы, отпечаток ADR-0002, синтаксис драйвера и `git diff --check` проверены |
-| CI/интеграция | Не выполнялись; ветка feat/p02-04-1-tag-assignments, база 41dc9f1, изменения не закоммичены |
+| CI/интеграция | [PR #25](https://github.com/Zeyafix/zedone/pull/25) head 9cc7339: Windows/Linux 41639517431, Android 41639517408 — SUCCESS; merge f173064. В последующем main Android 41641087962 пробник тегов/37 тестов прошёл, позже упало подключение WebView после перезапуска: EV-031 |
 
 ## Ограничения и передача
 
@@ -56,6 +56,6 @@ T05/A39/S05 partial: продуктовые UI/HTTP/IPC/права, положе
 схема остаются будущими шагами; ссылки на Object ID в этом временном формате
 не определяют будущую модель алиасов объединённых тегов. DEC-002/DEC-005 открыты.
 
-P02.04.1 verified локально, P02.04 in_progress. Следующее действие — фиксация/
-публикация и CI; P02.04.2 начинается после интеграции P02.04.1, с повторной
-оценкой размера по очереди. P02.04.2/.3 и P02.05–P02.06 не начинались.
+P02.04.1 done после успешных PR checks и интеграции PR #25; P02.04 in_progress.
+CI.02/GAP-007 отдельно учитывает отказ main push после merge. P02.04.2/.3
+и P02.05–P02.06 не начинались; перед P02.04.2 повторно оценить размер по очереди.

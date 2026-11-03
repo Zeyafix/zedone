@@ -87,6 +87,19 @@ bash scripts/check-ci-tauri.sh
 изменившийся runner image отмечать как ограничение сравнения. Фактические
 результаты и ещё не проверенный охват — в [EV-028](../agent/verification/EV-028-pr-checks.md).
 
+## Подключение к Android WebView
+
+Драйвер `check-android.mjs` до CDP-подключения ждёт `/json/list` с page target
+и непустым WebSocket URL. Готовность `/json/version` сама по себе не подтверждает
+готовность страницы. Проверка `check-android-webview-target.mjs` входит в host
+и Android CI: сокет без страницы, ошибки/неполный discovery и истечение срока
+не превращаются в успешное подключение. Тайм-аут ожидания остаётся 20 секунд.
+
+При отказе подключения до cleanup выводятся ограниченные списки CDP/Playwright,
+процесс APK и lifecycle logcat. Исходная ошибка сохраняется, перезапуск и
+проверки SQLite/отзыва ключа не повторяются автоматически. Пример исходного
+отказа и ограничения выводов — [EV-031](../agent/verification/EV-031-android-webview-target.md).
+
 ## Отмена
 
 Остановить текущий запуск — **Cancel workflow**, отключить — **Disable workflow**.

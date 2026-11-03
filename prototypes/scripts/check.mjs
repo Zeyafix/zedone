@@ -99,6 +99,7 @@ if (!mode) {
   run([process.execPath, "node_modules/vite/bin/vite.js", "build"]);
   run([process.execPath, "scripts/check-http.mjs"]);
   run([process.execPath, "scripts/check-android-release-protocol.mjs"]);
+  run([process.execPath, "scripts/check-android-webview-target.mjs"]);
   run([process.execPath, "scripts/check-android-pixel-baseline.mjs"]);
   run([process.execPath, "scripts/check-android-static-pixels.mjs"]);
   run([process.execPath, "scripts/check-android-noop-evaluation.mjs"]);

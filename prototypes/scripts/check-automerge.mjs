@@ -12,7 +12,8 @@ const android = Bun.argv[2] === "--android";
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "conflicts-resume",
-  "containers-prepare", "containers-resolve", "containers-resume"];
+  "containers-prepare", "containers-resolve", "containers-resume",
+  "order-prepare", "order-resolve", "order-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);

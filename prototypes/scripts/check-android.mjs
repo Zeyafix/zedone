@@ -11,6 +11,7 @@ import { checkScanner } from "./scanner-scenarios.mjs";
 import { checkHttpSession } from "./http-session-scenarios.mjs";
 import { checkAndroidHttp } from "./android-http-scenarios.mjs";
 import { checkBoard, checkBoardUI, checkBoardRejection, attemptMove, reconciled } from "./board-scenarios.mjs";
+import { waitForWebViewTarget } from "./android-webview-target.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
@@ -47,17 +48,30 @@ async function until(fn, description) {
 async function connect() {
   const pid = device("shell", "pidof", app);
   port = device("forward", "tcp:0", `localabstract:webview_devtools_remote_${pid}`);
-  await until(async () => {
-    try { return (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(1000) })).ok; }
-    catch { return false; }
-  }, "WebView debugging socket");
-  // WebView does not implement desktop browser context/download management.
-  browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000, noDefaults: true });
-  const page = await until(() => browser.contexts()[0]?.pages()[0], "APK WebView page target");
-  page.setDefaultTimeout(10000);
-  page.on("pageerror", error => errors.push(error.message));
-  await page.waitForFunction(() => document.querySelector("h1"));
-  return page;
+  const endpoint = `http://127.0.0.1:${port}`;
+  try {
+    // Socket readiness does not guarantee that the new WebView has a page yet.
+    await waitForWebViewTarget(endpoint, until);
+    // WebView does not implement desktop browser context/download management.
+    browser = await chromium.connectOverCDP(endpoint, { timeout: 10000, noDefaults: true });
+    const page = await until(() => browser.contexts().flatMap(context => context.pages()).find(p => !p.isClosed()), "APK WebView page target");
+    page.setDefaultTimeout(10000);
+    page.on("pageerror", error => errors.push(error.message));
+    await page.waitForFunction(() => document.querySelector("h1"));
+    return page;
+  } catch (error) {
+    // Collect evidence before force-stop/cleanup; retain the original failure.
+    for (const [label, collect] of [
+      ["WebView targets", async () => (await fetch(`${endpoint}/json/list`, { signal: AbortSignal.timeout(1000) })).text()],
+      ["Playwright pages", () => JSON.stringify(browser?.contexts().map(context => context.pages().map(p => ({ url: p.url(), closed: p.isClosed() }))))],
+      ["APK process", () => device("shell", "pidof", app)],
+      ["Android lifecycle log", () => device("logcat", "-d", "-t", "80", "-v", "brief", "chromium:W", "AndroidRuntime:E", "ActivityManager:I", "*:S")],
+    ]) {
+      try { console.error(`${label}: ${String(await collect()).slice(0, 8000)}`); }
+      catch { console.error(`${label}: unavailable`); }
+    }
+    throw error;
+  }
 }
 
 function launch() {

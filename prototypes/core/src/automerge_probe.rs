@@ -1,4 +1,4 @@
-//! Isolated P02.01 probe, not a product API or storage format.
+//! Isolated P02 probes, not a product API or storage format.
 
 use std::{error::Error, path::Path, time::Duration};
 
@@ -28,24 +28,21 @@ impl Replica {
     }
 
     fn title(&self) -> Result<String> {
-        let values = self.doc.get_all(ROOT, "title")?;
+        let values = self.variants(conflicts::Field::Title)?;
         if values.len() != 1 {
-            return Err("Expected one synthetic title; conflict rules belong to P02.02".into());
+            return Err("Expected one synthetic title in the persistence scenario".into());
         }
-        Ok(values[0]
-            .0
-            .as_str()
-            .ok_or("Expected scalar string")?
-            .to_owned())
+        Ok(values[0].value.clone())
     }
 
     fn set_title(&mut self, title: &str) -> Result<()> {
-        let mut tx = self.doc.transaction();
-        tx.put(ROOT, "title", title)?;
-        // Markdown is a scalar field, not a character-wise merged Text object.
-        tx.put(ROOT, "text", "# Заметка\nСинтетический **Markdown**")?;
-        tx.commit();
-        Ok(())
+        if self.doc.get(ROOT, "text")?.is_none() {
+            self.put_field(
+                conflicts::Field::Text,
+                "# Заметка\nСинтетический **Markdown**",
+            )?;
+        }
+        self.put_field(conflicts::Field::Title, title)
     }
 
     fn fingerprint(&self) -> Result<Value> {
@@ -54,8 +51,8 @@ impl Replica {
             "heads": self.doc.get_heads().iter().map(ToString::to_string).collect::<Vec<_>>(),
             "changes": self.doc.get_changes(&[]).len(),
             "peer": self.peer.encode(),
-            "title": self.title()?,
-            "text": self.doc.get(ROOT, "text")?.ok_or("Missing text")?.0.as_str(),
+            "title": self.variants(conflicts::Field::Title)?,
+            "text": self.variants(conflicts::Field::Text)?,
         }))
     }
 }
@@ -149,6 +146,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("conflicts-") {
+        return conflicts::run(directory, phase);
+    }
     let mut store = Store::open(&directory.join("automerge-probe.sqlite3"))?;
     let expected_path = directory.join("expected.json");
     match phase {
@@ -205,3 +205,5 @@ pub fn run(directory: &Path, phase: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+mod conflicts;

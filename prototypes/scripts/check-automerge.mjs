@@ -14,7 +14,8 @@ const suffix = process.platform === "win32" ? ".exe" : "";
 const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "conflicts-resume",
   "containers-prepare", "containers-resolve", "containers-resume",
   "order-prepare", "order-resolve", "order-resume",
-  "tags-prepare", "tags-resolve", "tags-resume"];
+  "tags-prepare", "tags-resolve", "tags-resume",
+  "identity-prepare", "identity-rename", "identity-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);

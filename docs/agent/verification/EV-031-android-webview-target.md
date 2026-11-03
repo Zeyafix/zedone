@@ -11,9 +11,9 @@ dependencies_evidence: [CI.01, P01.04, EV-016, EV-028]
 scope: [prototypes/scripts/check-android.mjs, prototypes/scripts/android-webview-target.mjs, prototypes/scripts/check-android-webview-target.mjs, prototypes/scripts/check.mjs, prototypes/scripts/check-android-ci.mjs, docs/agent, docs/development/ci-checks.md]
 checks: ["bun run check", "bun run android:build и bun run check:android на API 33/x86_64", "git diff --check", "реальные Actions после публикации"]
 reverse_and_failure: "Обратный коммит возвращает драйвер; отсутствие страницы сохраняет отказ, диагностика не подменяет исходную ошибку; перезапуск и его проверки не пропускаются."
-result: "verified локально: полная Windows-проверка и Android APK/UI/restart пройдены; Actions изменённого драйвера/интеграция ожидаются. Причина исходного сбоя не установлена."
+result: "Интегрирован PR #26 в d141d92; три PR checks и main Windows/Linux/Android Actions passed. Первопричина исходного отказа не доказана; GAP-007 in_progress."
 evidence: ["main push 41641087962 attempt 1: APK WebView page target timeout", "PR #25 Android 41639517408: success"]
-next: "Опубликовать отдельный PR CI.02, проверить Actions и результат повтора исходного job; не объявлять первопричину доказанной без новых данных."
+next: "При новом отказе использовать добавленную диагностику; P02.04.2 не блокируется, первопричину не объявлять доказанной."
 ```
 
 ## Исходный отказ
@@ -58,3 +58,7 @@ Android x86_64. Нового физического/arm64-прогона лок�
 Actions ожидаются. Собственный read-only эмулятор остановлен, временные каталоги
 очищены драйвером. GAP-007 остаётся in_progress: первопричина и устранение всех
 периодических отказов не подтверждены. CI.02 verified локально, не done.
+
+## Интеграция (LOG-211)
+
+[PR #26](https://github.com/Zeyafix/zedone/pull/26), head 695d573, прошёл три PR checks и интегрирован в d141d92. [Windows/Linux main](https://github.com/Zeyafix/zedone/actions/runs/41645947107) и [Android main](https://github.com/Zeyafix/zedone/actions/runs/41645947211) прошли на merge SHA: 37 нативных тестов, настоящий restart, сохранность SQLite A/B и отказ прежнему HTTP-ключу подтверждены. Исходный job на f173064 attempt 2 снова упал с тайм-аутом page. Исторические ожидания выше заменены этими результатами, но первопричина и устранение всех периодических отказов не доказаны; GAP-007 остаётся in_progress. Исходные ветки удалены.

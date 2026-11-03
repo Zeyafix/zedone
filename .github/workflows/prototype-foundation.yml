@@ -2,6 +2,7 @@ name: Prototype foundation
 
 on:
   push:
+    branches: [main]
     paths:
       - 'prototypes/**'
       - '.gitattributes'
@@ -44,8 +45,19 @@ jobs:
           $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
           rustup toolchain install $versions.rust --profile minimal --component rustfmt --component clippy
           if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+          "rust=$($versions.rust)" >> $env:GITHUB_OUTPUT
           "bun=$($versions.bun)" >> $env:GITHUB_OUTPUT
           "node=$($versions.node)" >> $env:GITHUB_OUTPUT
+      - name: Restore Rust dependencies and build cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-host
+          workspaces: prototypes -> target
+          cache-bin: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ steps.versions.outputs.bun }}

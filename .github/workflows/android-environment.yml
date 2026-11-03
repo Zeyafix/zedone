@@ -2,11 +2,14 @@ name: Android environment and prototype
 
 on:
   push:
+    branches: [main]
     paths:
       - '.gitattributes'
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
+      - 'scripts/install-ci-tauri.sh'
+      - 'scripts/check-ci-tauri.sh'
       - 'prototypes/**'
   pull_request:
     paths:
@@ -14,6 +17,8 @@ on:
       - '.github/workflows/android-environment.yml'
       - 'scripts/environment-versions.json'
       - 'scripts/check-android-environment.sh'
+      - 'scripts/install-ci-tauri.sh'
+      - 'scripts/check-ci-tauri.sh'
       - 'prototypes/**'
   workflow_dispatch:
 
@@ -38,16 +43,36 @@ jobs:
       - name: Read pinned versions
         id: versions
         run: |
-          echo "bun=$(jq -r .bun scripts/environment-versions.json)" >> "$GITHUB_OUTPUT"
-          echo "jdk=$(jq -r .android.jdk scripts/environment-versions.json)" >> "$GITHUB_OUTPUT"
+          {
+            echo "rust=$(jq -r .rust scripts/environment-versions.json)"
+            echo "bun=$(jq -r .bun scripts/environment-versions.json)"
+            echo "jdk=$(jq -r .android.jdk scripts/environment-versions.json)"
+            echo "ndk=$(jq -r .android.ndk scripts/environment-versions.json)"
+            echo "tauri=$(jq -r .android.tauri_cli scripts/environment-versions.json)"
+          } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
+          cache: gradle
+          cache-jdk: false
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-dependency-path: |
+            scripts/environment-versions.json
+            prototypes/Cargo.lock
+            prototypes/src-tauri/gen/android/**/*.gradle*
+            prototypes/src-tauri/gen/android/gradle.properties
+            prototypes/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.properties
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ steps.versions.outputs.bun }}
           no-cache: true
+      - name: Report disk before Android setup
+        run: df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+      - name: Check Tauri CLI cache fallback and cleanup
+        run: |
+          shellcheck scripts/install-ci-tauri.sh scripts/check-ci-tauri.sh
+          bash scripts/check-ci-tauri.sh
       - name: Install pinned Android tools in an isolated SDK
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
@@ -86,6 +111,9 @@ jobs:
           PY
           mv "$sdk/emulator" "$RUNNER_TEMP/zedone-unpinned-emulator"
           mv "$pinned_emulator" "$sdk/emulator"
+          # These downloads/unpacked copies belong to this one-off setup only.
+          rm -- "$RUNNER_TEMP/android-tools.zip" "$RUNNER_TEMP/android-emulator.zip"
+          rm -r -- "$RUNNER_TEMP/zedone-unpinned-emulator"
           {
             echo "ANDROID_HOME=$sdk"
             echo "ANDROID_SDK_ROOT=$sdk"
@@ -94,20 +122,51 @@ jobs:
           rustup toolchain install "$(jq -r .rust "$versions")" --profile minimal \
             --target aarch64-linux-android --target armv7-linux-androideabi \
             --target i686-linux-android --target x86_64-linux-android
-      - name: Build Android prototype and host comparison endpoint
+      - name: Restore Rust dependencies and Android build cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-android-ndk-${{ steps.versions.outputs.ndk }}
+          workspaces: prototypes -> target
+          cache-bin: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Restore pinned Tauri CLI
+        id: tauri-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/zedone-tauri-cli/bin/cargo-tauri
+          key: zedone-tauri-v1-${{ runner.os }}-${{ runner.arch }}-rust-${{ steps.versions.outputs.rust }}-cli-${{ steps.versions.outputs.tauri }}
+      - name: Install or verify pinned Tauri CLI
+        run: |
+          shellcheck scripts/install-ci-tauri.sh
+          df -h "$RUNNER_TEMP"
+          bash scripts/install-ci-tauri.sh
+          echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
+      - name: Prepare locked prototype dependencies and contracts
         working-directory: prototypes
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
           rust=$(jq -r .rust "$versions")
-          cargo "+$rust" install tauri-cli --version "$(jq -r .android.tauri_cli "$versions")" --locked
           cargo "+$rust" fetch --locked
           bun install --frozen-lockfile
           bun run check:types
           chmod +x src-tauri/gen/android/gradlew
+      - name: Build host comparison endpoint
+        working-directory: prototypes
+        run: |
+          rust=$(jq -r .rust "$GITHUB_WORKSPACE/scripts/environment-versions.json")
           CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
-          bun run android:build
-          bun run android:build aarch64
-          bun run check:automerge
+      - name: Build Android x86_64 APK and instrumentation
+        working-directory: prototypes
+        run: bun run android:build
+      - name: Build Android arm64 APK and instrumentation
+        working-directory: prototypes
+        run: bun run android:build aarch64
+      - name: Check host Automerge probe
+        working-directory: prototypes
+        run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
         run: |
           sudo apt-get update
@@ -148,3 +207,18 @@ jobs:
           cmp "$test_dir/before" "$test_dir/after"
           test "$(cat "$test_dir/existing-avd/sentinel")" = preserve
           echo 'Wrong version rejected; compiler exit 23 preserved; probe cleaned; existing AVD preserved.'
+      - name: Report Android disk usage
+        if: always()
+        run: |
+          df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          for directory in "$ANDROID_HOME" "$HOME/.cargo" "$HOME/.gradle" \
+            "$GITHUB_WORKSPACE/prototypes/target" "$GITHUB_WORKSPACE/temp" \
+            "$RUNNER_TEMP/zedone-tauri-cli"; do
+            if [[ -d $directory ]]; then du -sh -- "$directory"; fi
+          done
+      - name: Save pinned Tauri CLI from successful main checks
+        if: success() && github.ref == 'refs/heads/main' && steps.tauri-cache.outputs.cache-hit != 'true' && steps.tauri-cache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/zedone-tauri-cli/bin/cargo-tauri
+          key: ${{ steps.tauri-cache.outputs.cache-primary-key }}

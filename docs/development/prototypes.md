@@ -84,6 +84,9 @@ peer `^5.x`; более новый major не подставляется авт�
 Workflow [Prototype foundation](../../.github/workflows/prototype-foundation.yml)
 вызывает ту же команду на Windows и Linux. Наличие workflow не означает успешный
 запуск Actions и не проверяет APK или Android WebView.
+Автозапуск — PR и push в `main` с подходящими paths; ручной запуск доступен
+для выбранной ветки. Раздельные кэши Rust host/Android и подготовка инструментов
+описаны в [проверках CI](ci-checks.md); все части `bun run check` сохраняются.
 Полный job ограничен 20 минутами на Windows и 10 на Linux. Бюджет Windows
 учитывает установку закреплённого toolchain и холодные debug/release-сборки:
 в PR #17 прежние 10 минут прервали два прогона перед завершением UI-проверок

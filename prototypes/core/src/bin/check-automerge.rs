@@ -4,7 +4,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.len() != 2 {
-        return Err("Usage: check-automerge EMPTY_PROBE_DIRECTORY prepare|resume".into());
+        return Err("Usage: check-automerge EMPTY_PROBE_DIRECTORY prepare|resume|conflicts-prepare|conflicts-resolve|conflicts-resume".into());
     }
     zedone_prototype_core::automerge_probe::run(
         std::path::Path::new(&args[0]),

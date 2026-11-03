@@ -11,6 +11,7 @@ assert.ok(Bun.argv.length <= 3 && (!Bun.argv[2] || Bun.argv[2] === "--android"))
 const android = Bun.argv[2] === "--android";
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
+const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "conflicts-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);
@@ -27,7 +28,7 @@ if (!android) {
   run(cargo(["build", "--bin", "check-automerge"]));
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-automerge-"));
   try {
-    for (const phase of ["prepare", "resume"]) {
+    for (const phase of phases) {
       run([resolve(root, `target/debug/check-automerge${suffix}`), directory, phase]);
     }
   } finally {
@@ -68,7 +69,7 @@ if (!android) {
     device("push", testBinary, `${remote}/tests`);
     device("shell", "chmod", "700", `${remote}/probe`, `${remote}/tests`);
     // Distinct native processes, no shared in-memory document between phases.
-    for (const phase of ["prepare", "resume"]) device("shell", `${remote}/probe`, remote, phase);
+    for (const phase of phases) device("shell", `${remote}/probe`, remote, phase);
     device("shell", "env", `TMPDIR=${remote}`, `${remote}/tests`, "automerge_probe::", "--test-threads=1");
   } finally {
     assert.match(remote, /^\/data\/local\/tmp\/zedone-automerge-[0-9a-f-]+$/);

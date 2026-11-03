@@ -29,36 +29,13 @@ struct CardView {
     text: Vec<Variant>,
 }
 
-fn conflicting(variants: &[Variant]) -> bool {
+pub(super) fn conflicting(variants: &[Variant]) -> bool {
     variants.iter().any(|v| v.value != variants[0].value)
 }
 
 impl Replica {
     pub(super) fn variants(&self, field: Field) -> Result<Vec<Variant>> {
-        let mut variants = self
-            .doc
-            .get_all(ROOT, field.key())?
-            .into_iter()
-            .map(|(kind, operation)| {
-                if kind != automerge::Value::Object(automerge::ObjType::Map) {
-                    return Err("Expected immutable field assignment map".into());
-                }
-                let value = self
-                    .doc
-                    .get(&operation, "value")?
-                    .ok_or("Missing field value")?
-                    .0;
-                Ok(Variant {
-                    operation: operation.to_string(),
-                    value: value.as_str().ok_or("Expected scalar string")?.to_owned(),
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        if variants.is_empty() {
-            return Err("Missing synthetic card field".into());
-        }
-        variants.sort_by(|a, b| a.operation.cmp(&b.operation));
-        Ok(variants)
+        read_assignments(&self.doc, &ROOT, field.key())
     }
 
     fn view(&self) -> Result<CardView> {
@@ -95,15 +72,53 @@ impl Replica {
     }
 
     pub(super) fn put_field(&mut self, field: Field, value: &str) -> Result<()> {
-        let mut tx = self.doc.transaction();
-        // Scalar put(existing winner) may only delete competing values in 0.12.0.
-        // A fresh immutable map gives *every* decision a distinct assignment ID,
-        // including a choice of an existing text. Never mutate this map later.
-        let assignment = tx.put_object(ROOT, field.key(), automerge::ObjType::Map)?;
-        tx.put(assignment, "value", value)?;
-        tx.commit();
-        Ok(())
+        write_assignment(&mut self.doc, &ROOT, field.key(), value)
     }
+}
+
+pub(super) fn read_assignments(
+    doc: &Automerge,
+    object: &automerge::ObjId,
+    key: &str,
+) -> Result<Vec<Variant>> {
+    let mut variants = doc
+        .get_all(object, key)?
+        .into_iter()
+        .map(|(kind, operation)| {
+            if kind != automerge::Value::Object(automerge::ObjType::Map) {
+                return Err("Expected immutable field assignment map".into());
+            }
+            let value = doc
+                .get(&operation, "value")?
+                .ok_or("Missing field value")?
+                .0;
+            Ok(Variant {
+                operation: operation.to_string(),
+                value: value.as_str().ok_or("Expected scalar string")?.to_owned(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if variants.is_empty() {
+        return Err("Missing synthetic field".into());
+    }
+    variants.sort_by(|a, b| a.operation.cmp(&b.operation));
+    Ok(variants)
+}
+
+pub(super) fn write_assignment(
+    doc: &mut Automerge,
+    object: &automerge::ObjId,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let mut tx = doc.transaction();
+    // Scalar put(existing winner) may only delete competing values in 0.12.0.
+    // A fresh immutable map gives *every* decision a distinct assignment ID,
+    // including a choice of an existing text. Never mutate this map later.
+    let assignment = tx.put_object(object, key, automerge::ObjType::Map)?;
+    tx.put(assignment, "value", value)?;
+    tx.commit();
+    Ok(())
 }
 
 const LEFT: &str = "# Версия A\nПривет, ёж 😀\n**Первый** абзац";

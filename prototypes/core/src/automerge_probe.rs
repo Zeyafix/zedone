@@ -52,7 +52,9 @@ impl Replica {
             "changes": self.doc.get_changes(&[]).len(),
             "peer": self.peer.encode(),
         });
-        if self.doc.get(ROOT, "order_fixture")?.is_some() {
+        if self.doc.get(ROOT, "tag_fixture")?.is_some() {
+            result["tags"] = tags::snapshot(&self.doc)?;
+        } else if self.doc.get(ROOT, "order_fixture")?.is_some() {
             result["order"] = ordering::snapshot(&self.doc)?;
         } else if self.doc.get(ROOT, "space")?.is_some() {
             result["containers"] = containers::snapshot(&self.doc)?;
@@ -153,6 +155,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("tags-") {
+        return tags::run(directory, phase);
+    }
     if phase.starts_with("order-") {
         return ordering::run(directory, phase);
     }
@@ -222,3 +227,4 @@ mod tests;
 mod conflicts;
 mod containers;
 mod ordering;
+mod tags;

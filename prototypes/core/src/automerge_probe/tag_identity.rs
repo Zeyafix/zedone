@@ -1,4 +1,4 @@
-//! P02.04.2.1: isolated creation identities and causal registers across aliases.
+//! P02.04.2: isolated creation identities, aliases and explicit name decisions.
 use super::{conflicts::*, *};
 use automerge::{ChangeHash, ObjId, ObjType, Value as AmValue, transaction::Transaction};
 
@@ -99,6 +99,7 @@ struct Tag {
     home: String,
     names: Vec<Candidate>,
     blocked: bool,
+    identity_ambiguous: bool,
 }
 
 impl Tag {
@@ -164,6 +165,7 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
                 home: creations[i].home.clone(),
                 names: candidates(doc, &creations[i].id, "name")?,
                 blocked: true,
+                identity_ambiguous: true,
             });
             continue;
         }
@@ -183,9 +185,10 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             home: creations[i].home.clone(),
             names: frontier(doc, names)?,
             blocked: false,
+            identity_ambiguous: false,
         });
     }
-    // Detect but do not resolve rename/name collisions before P02.04.2.2.
+    // A collision marks every affected tag, including all its original aliases.
     for i in 0..result.len() {
         for j in i + 1..result.len() {
             if result[i].home == result[j].home
@@ -276,17 +279,9 @@ fn assign(doc: &mut Automerge, card: &str, id: &ObjId, present: bool) -> Result<
     let card = object(doc, card)?;
     let tag = tag(doc, id)?;
     let values = links(doc, &card, &tag)?;
-    let mut own_conflict = false;
-    for other in tags(doc)?.iter().filter(|v| v.home == tag.home) {
-        let other_values = links(doc, &card, other)?;
-        own_conflict |= other_values
-            .iter()
-            .any(|v| v.value != other_values[0].value);
-    }
     if tag.home != scalar(doc, &card, "home")?
         || tag.conflicting()
-        || own_conflict
-        || conflicting(&read_assignments(doc, &card, "text")?)
+        || resolution::card_conflicting(doc, &card)?
     {
         return Err("Foreign tag or own membership/text/name conflict".into());
     }
@@ -311,8 +306,11 @@ pub(super) fn snapshot(doc: &Automerge) -> Result<Value> {
         for tag in tags.iter().filter(|v| v.home == home) {
             memberships.push(json!({"tag": tag.ids[0], "values": links(doc, &id, tag)?}));
         }
-        cards.push(json!({"id": id, "home": home, "links": memberships,
-            "text": read_assignments(doc, &id, "text")?}));
+        let mut card = json!({"id": id, "home": home, "links": memberships});
+        for field in resolution::CARD_FIELDS {
+            card[field] = serde_json::to_value(read_assignments(doc, &id, field)?)?;
+        }
+        cards.push(card);
     }
     Ok(json!({"tags": tags, "cards": cards}))
 }
@@ -326,11 +324,24 @@ fn seed(store: &mut Store) -> Result<()> {
         tx.put_object(ROOT, "s0", ObjType::Map)?,
         tx.put_object(ROOT, "s1", ObjType::Map)?,
     ];
+    let mut columns = Vec::new();
+    for (key, home) in [("c0", 0), ("c1", 0), ("c2", 1)] {
+        let column = tx.put_object(ROOT, key, ObjType::Map)?;
+        tx.put(&column, "home", homes[home].to_string())?;
+        columns.push(column);
+    }
     for (key, home) in [("k0", 0), ("k1", 0), ("k2", 1)] {
         let card = tx.put_object(ROOT, key, ObjType::Map)?;
         tx.put(&card, "home", homes[home].to_string())?;
-        let text = tx.put_object(&card, "text", ObjType::Map)?;
-        tx.put(text, "value", "Исходный текст")?;
+        for (field, value) in [
+            ("title", "Карточка — ёж 😀".to_owned()),
+            ("text", "Исходный текст".to_owned()),
+            ("completed", "false".to_owned()),
+            ("column", columns[if home == 0 { 0 } else { 2 }].to_string()),
+        ] {
+            let assignment = tx.put_object(&card, field, ObjType::Map)?;
+            tx.put(assignment, "value", value)?;
+        }
     }
     tx.commit();
     store.write("A", &a)?;
@@ -340,6 +351,8 @@ fn seed(store: &mut Store) -> Result<()> {
 
 mod scenario;
 pub(super) use scenario::run;
+mod resolution;
+pub(super) use resolution::run as run_resolution;
 
 #[cfg(test)]
 mod tests;

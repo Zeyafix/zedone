@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 
+pub mod automerge_probe;
 pub mod http;
 pub mod http_session;
 pub mod invitation;

@@ -5,6 +5,7 @@
   "scripts": {
     "android:build": "bun ./scripts/build-android.mjs",
     "check:android": "bun ./scripts/check-android.mjs",
+    "check:automerge": "bun ./scripts/check-automerge.mjs",
     "check": "bun ./scripts/check.mjs",
     "check:openapi": "bun ./scripts/check.mjs --check-openapi",
     "generate:openapi": "bun ./scripts/check.mjs --write-openapi",

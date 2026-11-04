@@ -51,12 +51,13 @@ fn view(doc: &Automerge, anchor: &ObjId) -> Result<Vec<Tag>> {
 }
 
 fn overlaps(left: &Tag, right: &Tag) -> bool {
-    left.names.iter().any(|a| {
-        right
-            .names
-            .iter()
-            .any(|b| name_key(&a.value) == name_key(&b.value))
-    })
+    left.creation_conflict.contains(&right.ids[0])
+        || left.names.iter().any(|a| {
+            right
+                .names
+                .iter()
+                .any(|b| name_key(&a.value) == name_key(&b.value))
+        })
 }
 
 fn resolve(
@@ -87,9 +88,6 @@ fn resolve(
         if group.len() == before {
             break;
         }
-    }
-    if group.iter().any(|i| current[*i].identity_ambiguous) {
-        return Err("Ambiguous creation identities need a separate decision".into());
     }
     if group.len() != choices.len() {
         return Err("Choose one name for every tag in the collision".into());
@@ -127,6 +125,8 @@ fn resolve(
 
 mod scenario;
 pub(in super::super) use scenario::run;
+mod bridge;
+pub(in super::super) use bridge::run as run_bridge;
 
 #[cfg(test)]
 mod tests;

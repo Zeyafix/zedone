@@ -99,7 +99,7 @@ struct Tag {
     home: String,
     names: Vec<Candidate>,
     blocked: bool,
-    identity_ambiguous: bool,
+    creation_conflict: Vec<ObjId>,
 }
 
 impl Tag {
@@ -147,8 +147,8 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
         }
     }
     // A late creation must not bridge two tags that were already known distinct.
-    // Preserve each raw identity and refuse ordinary actions in that unsupported
-    // cohort; the next slice owns explicit collision resolution, not this probe.
+    // Preserve raw identities permanently. Explicit name choices must observe
+    // every creation in the cohort before its temporary block can be lifted.
     let mut ambiguous = vec![false; creations.len()];
     for (i, left) in creations.iter().enumerate() {
         for (j, right) in creations.iter().enumerate().skip(i + 1) {
@@ -157,15 +157,38 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             }
         }
     }
+    let mut creation_conflicts = vec![Vec::new(); creations.len()];
+    for (group, ambiguous) in ambiguous.iter().enumerate() {
+        if *ambiguous {
+            let cohort: Vec<_> = creations
+                .iter()
+                .enumerate()
+                .filter(|(j, _)| groups[*j] == group)
+                .map(|(_, creation)| creation.id.clone())
+                .collect();
+            let mut pending = false;
+            for id in &cohort {
+                for name in candidates(doc, id, "name")? {
+                    for member in &cohort {
+                        pending |= doc.get_at(member, "home", &name.context)?.is_none();
+                    }
+                }
+            }
+            if pending {
+                creation_conflicts[group] = cohort;
+            }
+        }
+    }
     let mut result = Vec::new();
     for i in 0..creations.len() {
         if ambiguous[groups[i]] {
+            let conflict = creation_conflicts[groups[i]].clone();
             result.push(Tag {
                 ids: vec![creations[i].id.clone()],
                 home: creations[i].home.clone(),
                 names: candidates(doc, &creations[i].id, "name")?,
-                blocked: true,
-                identity_ambiguous: true,
+                blocked: !conflict.is_empty(),
+                creation_conflict: conflict,
             });
             continue;
         }
@@ -185,7 +208,7 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             home: creations[i].home.clone(),
             names: frontier(doc, names)?,
             blocked: false,
-            identity_ambiguous: false,
+            creation_conflict: Vec::new(),
         });
     }
     // A collision marks every affected tag, including all its original aliases.
@@ -353,6 +376,7 @@ mod scenario;
 pub(super) use scenario::run;
 mod resolution;
 pub(super) use resolution::run as run_resolution;
+pub(super) use resolution::run_bridge;
 
 #[cfg(test)]
 mod tests;

@@ -434,7 +434,7 @@ fn merged_tag_aliases_address_one_choice_and_cannot_be_chosen_twice() {
 }
 
 #[test]
-fn name_choice_does_not_silently_decide_ambiguous_creation_identities() {
+fn incomplete_name_choice_cannot_skip_the_renamed_member_of_a_creation_conflict() {
     let directory = tempfile::tempdir().unwrap();
     let mut store = Store::open(&directory.path().join("bridge.sqlite3")).unwrap();
     seed(&mut store).unwrap();
@@ -458,5 +458,5 @@ fn name_choice_does_not_silently_decide_ambiguous_creation_identities() {
         .is_err()
     );
     assert_eq!(a.fingerprint().unwrap(), before);
-    assert!(tag(&a.doc, &left).unwrap().identity_ambiguous);
+    assert_eq!(tag(&a.doc, &left).unwrap().creation_conflict.len(), 3);
 }

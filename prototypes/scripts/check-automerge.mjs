@@ -20,7 +20,8 @@ const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "
   "bridge-prepare", "bridge-resolve", "bridge-resume",
   "deletion-prepare", "deletion-resolve", "deletion-resume",
   "trash-prepare", "trash-resolve", "trash-resume",
-  "column-trash-prepare", "column-trash-resolve", "column-trash-resume"];
+  "column-trash-prepare", "column-trash-resolve", "column-trash-resume",
+  "space-trash-prepare", "space-trash-resolve", "space-trash-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);

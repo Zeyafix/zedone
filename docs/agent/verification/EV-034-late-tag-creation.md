@@ -11,9 +11,9 @@ dependencies_evidence: ["P02.04.2.2.1: PR #28/b6233ed/EV-033; три финал�
 scope: [prototypes/core/src/automerge_probe, prototypes/core/src/automerge_probe.rs, prototypes/core/src/bin/check-automerge.rs, prototypes/scripts/check-automerge.mjs, docs/agent, docs/development/automerge-prototype.md, docs/architecture/decisions/0002-automerge-sync.md, docs/architecture/decisions/0012-tag-rename-conflicts.md]
 checks: ["bun run check", "bun run check:automerge --android", "git diff --check"]
 reverse_and_failure: "Обратные переименования/назначения, неполный/устаревший/недопустимый выбор без мутации, SQLite AFTER UPDATE ABORT."
-result: "verified локально: Windows bun run check/84 Rust-теста/23 фазы; Android API 33/x86_64 65 тестов/23 фазы, x86_64/arm64 собраны; новых коммита/PR/CI нет."
+result: "done: PR #29/head 6b61042 интегрирован в 1e97509 после трёх успешных Windows/Linux/Android PR checks; локальные результаты ниже."
 evidence: [LOG-218, LOG-219, "docs/reports/p02-04-2-2-2/verification.json"]
-next: "Фиксация/публикация и CI; после интеграции P02.04.3 с оценкой размера до кода."
+next: "P02.04.3 — удаление тега против независимого назначения, EV-035."
 ```
 
 Один наблюдаемый результат: принятый в LOG-215/ADR-0012 поздний мост
@@ -51,8 +51,10 @@ Node 24 только в PATH процесса; инструменты/завис
 
 ## Ограничения и передача
 
-Это локально проверенный синтетический пробник; новых коммита/PR/CI/интеграции
-нет. Проверка нативного Android выполнена на API 33/x86_64; arm64 только собран.
+Это синтетический пробник, интегрированный через [PR #29](https://github.com/Zeyafix/zedone/pull/29)
+в 1e97509 после трёх успешных Windows/Linux/Android PR checks. Android attempt 1
+остановлен из-за исчерпания диска runner до сборки/тестов; attempt 2 passed.
+Исходная ветка удалена, main чиста при передаче; LOG-221. Проверка нативного Android выполнена на API 33/x86_64; arm64 только собран.
 Новые APK/WebView, продуктовые UI/HTTP/IPC/права, физический arm64, полный
 Unicode-договор, удаление тега и масштаб/память не проверены. Исторические чтения
 и квадратичное построение причинных групп остаются ограничением пробника,

@@ -12,6 +12,9 @@ pub(super) fn card_conflicting(doc: &Automerge, card: &ObjId) -> Result<bool> {
     let home = scalar(doc, card, "home")?;
     for tag in tags(doc)?.iter().filter(|v| v.home == home) {
         let values = links(doc, card, tag)?;
+        if tag.deletion_conflict() && values.iter().any(|v| v.value == "present") {
+            return Ok(true);
+        }
         if values.iter().any(|v| v.value != values[0].value) {
             return Ok(true);
         }
@@ -19,7 +22,7 @@ pub(super) fn card_conflicting(doc: &Automerge, card: &ObjId) -> Result<bool> {
     Ok(false)
 }
 
-fn edit(doc: &mut Automerge, card: &str, field: &str, value: &str) -> Result<()> {
+pub(super) fn edit(doc: &mut Automerge, card: &str, field: &str, value: &str) -> Result<()> {
     if !["k0", "k1", "k2"].contains(&card) || !CARD_FIELDS.contains(&field) {
         return Err("Unknown fixture card or field".into());
     }
@@ -45,9 +48,12 @@ fn edit(doc: &mut Automerge, card: &str, field: &str, value: &str) -> Result<()>
     write_assignment(doc, &card, field, value)
 }
 
-fn view(doc: &Automerge, anchor: &ObjId) -> Result<Vec<Tag>> {
+pub(super) fn view(doc: &Automerge, anchor: &ObjId) -> Result<Vec<Tag>> {
     let home = tag(doc, anchor)?.home;
-    Ok(tags(doc)?.into_iter().filter(|v| v.home == home).collect())
+    Ok(tags(doc)?
+        .into_iter()
+        .filter(|v| v.home == home && !v.deleted())
+        .collect())
 }
 
 fn overlaps(left: &Tag, right: &Tag) -> bool {
@@ -60,7 +66,7 @@ fn overlaps(left: &Tag, right: &Tag) -> bool {
         })
 }
 
-fn resolve(
+pub(super) fn resolve(
     doc: &mut Automerge,
     anchor: &ObjId,
     observed: &[Tag],
@@ -101,6 +107,7 @@ fn resolve(
             .ok_or("Unknown choice ID")?;
         let key = name_key(name);
         if !group.contains(&index)
+            || current[index].deletion_conflict()
             || selected.contains(&index)
             || key.is_empty()
             || keys.contains(&key)

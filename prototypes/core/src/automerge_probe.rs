@@ -52,7 +52,9 @@ impl Replica {
             "changes": self.doc.get_changes(&[]).len(),
             "peer": self.peer.encode(),
         });
-        if self.doc.get(ROOT, "column_trash_fixture")?.is_some() {
+        if self.doc.get(ROOT, "space_trash_fixture")?.is_some() {
+            result["space_trash"] = space_trash::snapshot(&self.doc)?;
+        } else if self.doc.get(ROOT, "column_trash_fixture")?.is_some() {
             result["column_trash"] = column_trash::snapshot(&self.doc)?;
         } else if self.doc.get(ROOT, "trash_fixture")?.is_some() {
             result["trash"] = trash::snapshot(&self.doc)?;
@@ -161,6 +163,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("space-trash-") {
+        return space_trash::run(directory, phase);
+    }
     if phase.starts_with("column-trash-") {
         return column_trash::run(directory, phase);
     }
@@ -252,6 +257,7 @@ mod column_trash;
 mod conflicts;
 mod containers;
 mod ordering;
+mod space_trash;
 mod tag_identity;
 mod tags;
 mod trash;

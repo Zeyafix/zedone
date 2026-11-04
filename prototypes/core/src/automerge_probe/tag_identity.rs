@@ -100,9 +100,18 @@ struct Tag {
     names: Vec<Candidate>,
     blocked: bool,
     creation_conflict: Vec<ObjId>,
+    life: Vec<Candidate>,
 }
 
 impl Tag {
+    fn deleted(&self) -> bool {
+        !self.life.is_empty() && self.life.iter().all(|v| v.value == "deleted")
+    }
+
+    fn deletion_conflict(&self) -> bool {
+        self.life.iter().any(|v| v.value == "deleted") && !self.deleted()
+    }
+
     fn conflicting(&self) -> bool {
         self.blocked
             || self
@@ -160,35 +169,24 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
     let mut creation_conflicts = vec![Vec::new(); creations.len()];
     for (group, ambiguous) in ambiguous.iter().enumerate() {
         if *ambiguous {
-            let cohort: Vec<_> = creations
+            creation_conflicts[group] = creations
                 .iter()
                 .enumerate()
                 .filter(|(j, _)| groups[*j] == group)
                 .map(|(_, creation)| creation.id.clone())
                 .collect();
-            let mut pending = false;
-            for id in &cohort {
-                for name in candidates(doc, id, "name")? {
-                    for member in &cohort {
-                        pending |= doc.get_at(member, "home", &name.context)?.is_none();
-                    }
-                }
-            }
-            if pending {
-                creation_conflicts[group] = cohort;
-            }
         }
     }
     let mut result = Vec::new();
     for i in 0..creations.len() {
         if ambiguous[groups[i]] {
-            let conflict = creation_conflicts[groups[i]].clone();
             result.push(Tag {
                 ids: vec![creations[i].id.clone()],
                 home: creations[i].home.clone(),
                 names: candidates(doc, &creations[i].id, "name")?,
-                blocked: !conflict.is_empty(),
-                creation_conflict: conflict,
+                blocked: false,
+                creation_conflict: Vec::new(),
+                life: Vec::new(),
             });
             continue;
         }
@@ -209,12 +207,48 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             names: frontier(doc, names)?,
             blocked: false,
             creation_conflict: Vec::new(),
+            life: Vec::new(),
         });
+    }
+    for tag in &mut result {
+        tag.life = deletion::lifecycle(doc, tag)?;
+    }
+    let deleted: Vec<_> = result
+        .iter()
+        .filter(|v| v.deleted())
+        .flat_map(|v| v.ids.iter().cloned())
+        .collect();
+    for cohort in &mut creation_conflicts {
+        // A tombstone keeps its identity but must never require a name choice.
+        cohort.retain(|id| !deleted.contains(id));
+        let mut pending = false;
+        if cohort.len() > 1 {
+            for id in cohort.iter() {
+                for name in candidates(doc, id, "name")? {
+                    for member in cohort.iter() {
+                        pending |= doc.get_at(member, "home", &name.context)?.is_none();
+                    }
+                }
+            }
+        }
+        if !pending {
+            cohort.clear();
+        }
+    }
+    for tag in &mut result {
+        tag.creation_conflict = creation_conflicts
+            .iter()
+            .find(|cohort| cohort.contains(&tag.ids[0]))
+            .cloned()
+            .unwrap_or_default();
+        tag.blocked = !tag.creation_conflict.is_empty();
     }
     // A collision marks every affected tag, including all its original aliases.
     for i in 0..result.len() {
         for j in i + 1..result.len() {
-            if result[i].home == result[j].home
+            if !result[i].deleted()
+                && !result[j].deleted()
+                && result[i].home == result[j].home
                 && result[i].names.iter().any(|left| {
                     result[j]
                         .names
@@ -242,7 +276,8 @@ fn validate_name(tags: &[Tag], home: &str, name: &str, except: Option<&ObjId>) -
     let key = name_key(name);
     if key.is_empty()
         || tags.iter().any(|tag| {
-            tag.home == home
+            !tag.deleted()
+                && tag.home == home
                 && !except.is_some_and(|id| tag.ids.contains(id))
                 && tag.names.iter().any(|v| name_key(&v.value) == key)
         })
@@ -270,14 +305,15 @@ fn create(doc: &mut Automerge, home: &str, name: &str) -> Result<ObjId> {
     tx.put(&id, "birth", name)?;
     tx.put(&id, "context", serde_json::to_string(&context)?)?;
     put(&mut tx, &id, "name", name, &context)?;
+    put(&mut tx, &id, "life", "alive", &context)?;
     tx.commit();
     Ok(id)
 }
 
 fn rename(doc: &mut Automerge, id: &ObjId, name: &str) -> Result<()> {
     let current = tag(doc, id)?;
-    if current.conflicting() {
-        return Err("Resolve conflicting names before ordinary rename".into());
+    if current.conflicting() || current.deleted() || current.deletion_conflict() {
+        return Err("Deleted tag or unresolved name/deletion conflict".into());
     }
     validate_name(&tags(doc)?, &current.home, name, Some(id))?;
     let context = doc.get_heads();
@@ -287,12 +323,19 @@ fn rename(doc: &mut Automerge, id: &ObjId, name: &str) -> Result<()> {
     Ok(())
 }
 
-fn links(doc: &Automerge, card: &ObjId, tag: &Tag) -> Result<Vec<Candidate>> {
+fn raw_links(doc: &Automerge, card: &ObjId, tag: &Tag) -> Result<Vec<Candidate>> {
     let mut values = Vec::new();
     for id in &tag.ids {
         values.extend(candidates(doc, card, &format!("tag:{id}"))?);
     }
     frontier(doc, values)
+}
+
+fn links(doc: &Automerge, card: &ObjId, tag: &Tag) -> Result<Vec<Candidate>> {
+    if tag.deleted() {
+        return Ok(Vec::new());
+    }
+    raw_links(doc, card, tag)
 }
 
 fn assign(doc: &mut Automerge, card: &str, id: &ObjId, present: bool) -> Result<()> {
@@ -304,6 +347,8 @@ fn assign(doc: &mut Automerge, card: &str, id: &ObjId, present: bool) -> Result<
     let values = links(doc, &card, &tag)?;
     if tag.home != scalar(doc, &card, "home")?
         || tag.conflicting()
+        || tag.deleted()
+        || tag.deletion_conflict()
         || resolution::card_conflicting(doc, &card)?
     {
         return Err("Foreign tag or own membership/text/name conflict".into());
@@ -329,7 +374,8 @@ pub(super) fn snapshot(doc: &Automerge) -> Result<Value> {
         for tag in tags.iter().filter(|v| v.home == home) {
             memberships.push(json!({"tag": tag.ids[0], "values": links(doc, &id, tag)?}));
         }
-        let mut card = json!({"id": id, "home": home, "links": memberships});
+        let mut card = json!({"id": id, "home": home, "links": memberships,
+            "conflicting": resolution::card_conflicting(doc, &id)?});
         for field in resolution::CARD_FIELDS {
             card[field] = serde_json::to_value(read_assignments(doc, &id, field)?)?;
         }
@@ -374,7 +420,9 @@ fn seed(store: &mut Store) -> Result<()> {
 
 mod scenario;
 pub(super) use scenario::run;
+mod deletion;
 mod resolution;
+pub(super) use deletion::run as run_deletion;
 pub(super) use resolution::run as run_resolution;
 pub(super) use resolution::run_bridge;
 

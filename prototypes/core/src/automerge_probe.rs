@@ -157,6 +157,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("deletion-") {
+        return tag_identity::run_deletion(directory, phase);
+    }
     if phase.starts_with("bridge-") {
         return tag_identity::run_bridge(directory, phase);
     }

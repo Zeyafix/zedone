@@ -52,7 +52,9 @@ impl Replica {
             "changes": self.doc.get_changes(&[]).len(),
             "peer": self.peer.encode(),
         });
-        if self.doc.get(ROOT, "identity_fixture")?.is_some() {
+        if self.doc.get(ROOT, "trash_fixture")?.is_some() {
+            result["trash"] = trash::snapshot(&self.doc)?;
+        } else if self.doc.get(ROOT, "identity_fixture")?.is_some() {
             result["tag_identity"] = tag_identity::snapshot(&self.doc)?;
         } else if self.doc.get(ROOT, "tag_fixture")?.is_some() {
             result["tags"] = tags::snapshot(&self.doc)?;
@@ -157,6 +159,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("trash-") {
+        return trash::run(directory, phase);
+    }
     if phase.starts_with("deletion-") {
         return tag_identity::run_deletion(directory, phase);
     }
@@ -243,3 +248,4 @@ mod containers;
 mod ordering;
 mod tag_identity;
 mod tags;
+mod trash;

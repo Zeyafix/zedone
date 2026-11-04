@@ -18,7 +18,7 @@ impl Field {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct Variant {
-    operation: String,
+    pub(super) operation: String,
     pub(super) value: String,
 }
 

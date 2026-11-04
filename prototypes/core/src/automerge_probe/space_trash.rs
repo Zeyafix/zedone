@@ -1,4 +1,4 @@
-//! P02.05.2.2: isolated hierarchy, not a product format, permissions API or purge.
+//! P02.05: isolated hierarchy, not a product format or permissions API.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, transaction::Transaction};
 use std::collections::BTreeMap;
@@ -27,6 +27,8 @@ struct Node {
     cycles: Vec<Variant>,
     space_group: Vec<Variant>,
     column_group: Vec<Variant>,
+    barriers: BTreeMap<String, Vec<String>>,
+    acknowledged: Vec<String>,
 }
 
 impl Node {
@@ -69,6 +71,23 @@ fn view(doc: &Automerge) -> Result<View> {
                 .into())
         };
         let kind = scalar("kind")?;
+        let barriers = doc.get(&id, "barriers")?.ok_or("Missing barriers")?.1;
+        let mut boundaries = BTreeMap::new();
+        for index in 0..doc.length(&barriers) {
+            let event = doc.get(&barriers, index)?.ok_or("Missing boundary")?.1;
+            let known = doc
+                .get(&event, "known")?
+                .ok_or("Missing boundary members")?
+                .0;
+            boundaries.insert(
+                event.to_string(),
+                serde_json::from_str(known.as_str().ok_or("Invalid members")?)?,
+            );
+        }
+        let ack = doc
+            .get(&id, "acknowledged")?
+            .ok_or("Missing acknowledgments")?
+            .1;
         let names: Vec<_> = match kind.as_str() {
             "space" | "tag" => vec!["name"],
             "column" => vec!["name", "order"],
@@ -89,6 +108,8 @@ fn view(doc: &Automerge) -> Result<View> {
                 space_group: read_assignments(doc, &id, "space_group")?,
                 column_group: read_assignments(doc, &id, "column_group")?,
                 id,
+                barriers: boundaries,
+                acknowledged: doc.keys(&ack).collect(),
             },
         );
     }
@@ -128,10 +149,16 @@ fn deletion_scope(mut observed: View, key: &str) -> View {
 
 fn location(nodes: &View, key: &str) -> &'static str {
     let n = &nodes[key];
+    if !conflicting(&n.life) && n.life[0].value == "purged" {
+        return "purged";
+    }
     if n.kind == "card" && conflicting(&n.fields["place"]) {
         return "conflicts";
     }
     if conflicting(&n.life) {
+        return "conflicts";
+    }
+    if unseen_boundary(nodes, key) {
         return "conflicts";
     }
     if n.life[0].value == "trash" {
@@ -140,11 +167,39 @@ fn location(nodes: &View, key: &str) -> &'static str {
     // Earlier independent trash wins over an ancestor's later deletion conflict.
     for parent in n.parents() {
         let state = location(nodes, parent);
+        if state == "purged" {
+            // An unseen child is a late creation, never an automatic resurrection.
+            return "conflicts";
+        }
         if state != "board" {
             return state;
         }
     }
     "board"
+}
+
+fn unseen_boundary(nodes: &View, key: &str) -> bool {
+    fn missing(nodes: &View, key: &str, ancestor: &str) -> bool {
+        let n = &nodes[key];
+        nodes[ancestor].barriers.iter().any(|(event, known)| {
+            !known.contains(&n.id.to_string()) && !n.acknowledged.contains(event)
+        }) || nodes[ancestor]
+            .parents()
+            .iter()
+            .any(|p| missing(nodes, key, p))
+    }
+    nodes[key].parents().iter().any(|p| missing(nodes, key, p))
+}
+
+fn acknowledge(tx: &mut Transaction<'_>, id: &ObjId, nodes: &View) -> Result<()> {
+    let ack = tx
+        .get(id, "acknowledged")?
+        .ok_or("Missing acknowledgments")?
+        .1;
+    for event in nodes.values().flat_map(|n| n.barriers.keys()) {
+        tx.put(&ack, event, true)?;
+    }
+    Ok(())
 }
 
 fn joins_group(nodes: &View, key: &str, container: &str) -> bool {
@@ -235,10 +290,12 @@ fn add(
     kind: &str,
     parent: &str,
     state: &str,
-) -> Result<()> {
+) -> Result<ObjId> {
     let id = tx.put_object(root, key, ObjType::Map)?;
     tx.put(&id, "kind", kind)?;
     tx.put(&id, "parent", parent)?;
+    tx.put_object(&id, "barriers", ObjType::List)?;
+    tx.put_object(&id, "acknowledged", ObjType::Map)?;
     for (field, value) in [
         ("life", state),
         ("cycles", ""),
@@ -263,7 +320,7 @@ fn add(
             put(tx, &id, "order", "100")?;
         }
     }
-    Ok(())
+    Ok(id)
 }
 
 fn create(doc: &mut Automerge, key: &str, parent: &str) -> Result<()> {
@@ -281,7 +338,8 @@ fn create(doc: &mut Automerge, key: &str, parent: &str) -> Result<()> {
     ids.push(target.id.clone());
     let root = doc.get(ROOT, "nodes")?.ok_or("Missing nodes")?.1;
     let mut tx = doc.transaction();
-    add(&mut tx, &root, key, kind, parent, "active")?;
+    let id = add(&mut tx, &root, key, kind, parent, "active")?;
+    acknowledge(&mut tx, &id, &nodes)?;
     endorse(&mut tx, &ids)?;
     tx.commit();
     Ok(())
@@ -298,6 +356,8 @@ fn set_container(doc: &mut Automerge, key: &str, observed: &View, state: &str) -
         scope(&nodes, key) == *observed
     };
     if !["space", "column"].contains(&current.kind.as_str())
+        || current.life.iter().any(|v| v.value == "purged")
+        || unseen_boundary(&nodes, key)
         || !["active", "trash"].contains(&state)
         || !fresh
     {
@@ -417,6 +477,7 @@ fn seed(store: &mut Store) -> Result<()> {
     let mut tx = a.doc.transaction();
     tx.put(ROOT, "space_trash_fixture", true)?;
     let root = tx.put_object(ROOT, "nodes", ObjType::Map)?;
+    tx.put_object(ROOT, "history", ObjType::List)?;
     for (key, kind, parent) in [
         ("s0", "space", ""),
         ("s1", "space", ""),
@@ -447,5 +508,7 @@ fn seed(store: &mut Store) -> Result<()> {
 
 mod scenario;
 pub(super) use scenario::run;
+pub(super) mod history;
+pub(super) mod purge;
 #[cfg(test)]
 mod tests;

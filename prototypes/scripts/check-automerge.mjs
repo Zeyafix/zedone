@@ -21,7 +21,9 @@ const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "
   "deletion-prepare", "deletion-resolve", "deletion-resume",
   "trash-prepare", "trash-resolve", "trash-resume",
   "column-trash-prepare", "column-trash-resolve", "column-trash-resume",
-  "space-trash-prepare", "space-trash-resolve", "space-trash-resume"];
+  "space-trash-prepare", "space-trash-resolve", "space-trash-resume",
+  "purge-prepare", "purge-resolve", "purge-resume",
+  "history-prepare", "history-clear", "history-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);

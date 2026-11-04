@@ -52,6 +52,9 @@ impl Replica {
             "changes": self.doc.get_changes(&[]).len(),
             "peer": self.peer.encode(),
         });
+        if self.doc.get(ROOT, "history")?.is_some() {
+            result["history"] = space_trash::history::snapshot(&self.doc)?;
+        }
         if self.doc.get(ROOT, "space_trash_fixture")?.is_some() {
             result["space_trash"] = space_trash::snapshot(&self.doc)?;
         } else if self.doc.get(ROOT, "column_trash_fixture")?.is_some() {
@@ -163,6 +166,12 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("history-") {
+        return space_trash::history::run(directory, phase);
+    }
+    if phase.starts_with("purge-") {
+        return space_trash::purge::run(directory, phase);
+    }
     if phase.starts_with("space-trash-") {
         return space_trash::run(directory, phase);
     }

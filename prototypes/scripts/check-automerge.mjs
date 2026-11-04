@@ -18,7 +18,8 @@ const phases = ["prepare", "resume", "conflicts-prepare", "conflicts-resolve", "
   "identity-prepare", "identity-rename", "identity-resume",
   "names-prepare", "names-resolve", "names-resume",
   "bridge-prepare", "bridge-resolve", "bridge-resume",
-  "deletion-prepare", "deletion-resolve", "deletion-resume"];
+  "deletion-prepare", "deletion-resolve", "deletion-resume",
+  "trash-prepare", "trash-resolve", "trash-resume"];
 
 function run(command, capture = false, extraEnv = {}) {
   console.log(`> ${command.join(" ")}`);

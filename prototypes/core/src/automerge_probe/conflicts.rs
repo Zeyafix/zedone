@@ -147,7 +147,7 @@ fn expect(replica: &Replica, field: Field, expected: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn checkpoint(store: &Store, path: &Path, verify: bool) -> Result<()> {
+pub(super) fn checkpoint(store: &Store, path: &Path, verify: bool) -> Result<()> {
     let current = json!({
         "A": store.read("A")?.fingerprint()?,
         "B": store.read("B")?.fingerprint()?,

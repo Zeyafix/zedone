@@ -9,9 +9,145 @@
     },
     "version": "0.0.0"
   },
-  "paths": {},
+  "paths": {
+    "/v1/commands/access.inspect": {
+      "post": {
+        "tags": [
+          "access_commands"
+        ],
+        "operationId": "inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_AccessSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/access.revoke": {
+      "post": {
+        "tags": [
+          "access_commands"
+        ],
+        "operationId": "revoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RevokeAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_AccessSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    }
+  },
   "components": {
     "schemas": {
+      "AccessMode": {
+        "type": "string",
+        "enum": [
+          "read",
+          "read_write"
+        ]
+      },
+      "AccessScope": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AdministrationScope"
+          },
+          {
+            "$ref": "#/components/schemas/SpacesScope"
+          }
+        ]
+      },
+      "AccessSnapshot": {
+        "type": "object",
+        "description": "No keys or verifiers leave storage. Version includes retired/current key\nidentities internally so a regrant cannot revive a stale revocation request.",
+        "required": [
+          "subject",
+          "scope",
+          "revoked",
+          "version"
+        ],
+        "properties": {
+          "expires_at_unix_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AccessScope"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdministrationKind": {
+        "type": "string",
+        "enum": [
+          "administration"
+        ]
+      },
+      "AdministrationScope": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AdministrationKind"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandError": {
         "type": "object",
         "required": [
@@ -36,6 +172,84 @@
           },
           "status": {
             "$ref": "#/components/schemas/ErrorStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectAccess": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "subject"
+            ],
+            "properties": {
+              "subject": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_RevokeAccess": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "subject",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "subject": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -66,6 +280,17 @@
         },
         "additionalProperties": false
       },
+      "CommandResponse_AccessSnapshot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_AccessSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_Value": {
         "oneOf": [
           {
@@ -76,6 +301,55 @@
           }
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandSuccess_AccessSnapshot": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "description": "No keys or verifiers leave storage. Version includes retired/current key\nidentities internally so a regrant cannot revive a stale revocation request.",
+            "required": [
+              "subject",
+              "scope",
+              "revoked",
+              "version"
+            ],
+            "properties": {
+              "expires_at_unix_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "revoked": {
+                "type": "boolean"
+              },
+              "scope": {
+                "$ref": "#/components/schemas/AccessScope"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
       },
       "CommandSuccess_Value": {
         "type": "object",
@@ -114,6 +388,79 @@
           "error"
         ]
       },
+      "InspectAccess": {
+        "type": "object",
+        "required": [
+          "subject"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IpcInvocation": {
+        "type": "object",
+        "description": "Tauri framing preserves the original JSON string, including duplicate\nfields for the concrete decoder to reject. Credentials are a separate IPC\nargument, never part of the command or a saved client intention.",
+        "required": [
+          "operation",
+          "request"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string"
+          },
+          "request": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RevokeAccess": {
+        "type": "object",
+        "required": [
+          "subject",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpacesKind": {
+        "type": "string",
+        "enum": [
+          "spaces"
+        ]
+      },
+      "SpacesScope": {
+        "type": "object",
+        "required": [
+          "kind",
+          "spaces"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SpacesKind"
+          },
+          "spaces": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AccessMode"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "StateVersion": {
         "type": "array",
         "items": {
@@ -129,6 +476,12 @@
         "enum": [
           "ok"
         ]
+      }
+    },
+    "securitySchemes": {
+      "access_key": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

@@ -53,7 +53,7 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
         const selector = target.kind.includes("lib") ? ["--lib"] : [target.kind.includes("bin") ? "--bin" : "--test", target.name];
         try {
           await Bun.write(file, `${original}\n#[allow(unsafe_code)]\nunsafe fn p03_01_forbidden() {}\n`);
-          const result = run(cargo(["check", "-p", pkg.name, ...selector, ...targetArgs, ...locked, "--message-format=json"]), { cwd: temporary, extraEnv, failure: true });
+          const result = run(cargo(["check", "-p", pkg.name, ...selector, "--all-features", ...targetArgs, ...locked, "--message-format=json"]), { cwd: temporary, extraEnv, failure: true });
           const messages = result.stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line));
           assert.notEqual(result.exitCode, 0, `Unsafe compiled in ${target.name}`);
           assert.ok(messages.some(item => item.reason === "compiler-message" && item.message.level === "error" && item.message.code?.code === "unsafe_code"), `Expected unsafe_code diagnostic in ${target.name}`);
@@ -95,15 +95,32 @@ if (mode !== "--write-openapi") {
   const { default: openapiTS, astToString } = await import("openapi-typescript");
   const types = astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true }));
   const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
+  // Compile the Rust-derived response schema ahead of time: browser/IPC code
+  // needs neither Ajv nor dynamic code evaluation, and has no hand-copied DTO.
+  const { default: Ajv } = await import("ajv/dist/2020.js");
+  const { default: standalone } = await import("ajv/dist/standalone/index.js");
+  const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
+    .replaceAll("#/components/schemas/", "#/$defs/"));
+  const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
+  const validator = standalone(ajv, ajv.compile({ $defs: schemas, $ref: "#/$defs/CommandResponse_AccessSnapshot" }));
+  assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
+  const validatorTypes = 'import type { components } from "./schema";\nexport default function validate(value: unknown): value is components["schemas"]["CommandResponse_AccessSnapshot"];\n';
   if (mode === "--write-types") {
     await Bun.write(typesFile, types);
+    await Bun.write(resolve(root, "api/validate-response.js"), validator);
+    await Bun.write(resolve(root, "api/validate-response.d.ts"), validatorTypes);
     console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
   } else {
     assert.ok(await typesFile.exists() && await typesFile.text() === types,
       "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
     console.log("Product TypeScript matches Rust/OpenAPI.");
+    assert.equal(await Bun.file(resolve(root, "api/validate-response.js")).text(), validator,
+      "Response validator is stale; run --write-types");
+    assert.equal(await Bun.file(resolve(root, "api/validate-response.d.ts")).text(), validatorTypes,
+      "Response validator types are stale; run --write-types");
   }
   run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
+  if (!mode || mode === "--android") run([process.execPath, "test", resolve(root, "tests/commands.test.ts")]);
 }
 
 if (mode === "--android") {
@@ -139,12 +156,14 @@ if (mode === "--android") {
     const remote = `/data/local/tmp/zedone-product-${randomUUID()}`;
     device("shell", "mkdir", remote);
     try {
+      device("push", resolve(root, `target/${target}/release/zedone`), `${remote}/zedone`);
+      device("shell", "chmod", "700", `${remote}/zedone`);
       for (const [index, test] of tests.entries()) {
         const executable = `${remote}/test-${index}`;
         device("push", test.executable, executable);
         device("shell", "chmod", "700", executable);
         // tempfile and crash-child fixtures must stay in our removable sandbox.
-        const output = device("shell", `TMPDIR=${remote}`, executable);
+        const output = device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, executable);
         console.log(output);
         assert.ok(output.includes("test result: ok."));
       }

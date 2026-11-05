@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "crates/storage"]
+members = ["crates/core", "crates/storage", "crates/adapters"]
 exclude = ["prototypes"]
 resolver = "3"
 
@@ -19,6 +19,7 @@ tokio = { version = "=1.54.1", features = ["sync"] }
 tempfile = "=3.27.0"
 sha2 = "=0.11.1"
 getrandom = "=0.4.3"
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

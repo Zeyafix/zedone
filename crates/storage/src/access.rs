@@ -209,29 +209,7 @@ impl WriteContext<'_> {
             credential,
             &[RequiredAccess::ManageAccess],
             clock,
-            |ctx, _| {
-                if ctx
-                    .connection()
-                    .execute(
-                        "UPDATE access_principals SET revoked = 1 WHERE subject = ?1",
-                        [subject],
-                    )
-                    .map_err(StorageError::from)?
-                    == 0
-                {
-                    return Err(CommandError {
-                        code: ErrorCode::NotFound,
-                    });
-                }
-                ctx.connection()
-                    .execute(
-                        "UPDATE access_keys SET active = 0 WHERE subject = ?1",
-                        [subject],
-                    )
-                    .map_err(StorageError::from)?;
-                ctx.ensure_administrator()?;
-                Ok(())
-            },
+            |ctx, _| zedone_core::access_commands::AccessStore::revoke_subject(ctx, subject),
         );
         self.checked(result.map_err(StorageError::from))
     }
@@ -401,6 +379,77 @@ impl ReplayTransaction for WriteContext<'_> {
 
     fn record(&mut self, key: &[u8], command: &RecordedCommand) -> CommandResult<()> {
         Ok(WriteContext::record(self, key, command)?)
+    }
+}
+
+impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
+    fn access_snapshot(
+        &mut self,
+        subject: &str,
+    ) -> CommandResult<Option<zedone_core::access_commands::AccessSnapshot>> {
+        use zedone_core::access_commands::{AccessMode, AccessScope, AccessSnapshot};
+        let Some(grant) = self.load_access(subject)? else {
+            return Ok(None);
+        };
+        let scope = match grant.scope {
+            GrantScope::Administration => AccessScope::administration(),
+            GrantScope::Spaces(spaces) => AccessScope::spaces(
+                spaces
+                    .into_iter()
+                    .map(|(id, permission)| {
+                        (
+                            id,
+                            match permission {
+                                SpacePermission::Read => AccessMode::Read,
+                                SpacePermission::ReadWrite => AccessMode::ReadWrite,
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
+        };
+        let keys = self
+            .connection()
+            .prepare(
+                "SELECT verifier, active FROM access_keys WHERE subject = ?1 ORDER BY verifier",
+            )
+            .map_err(StorageError::from)?
+            .query_map([subject], |r| {
+                Ok((r.get::<_, Vec<u8>>(0)?, r.get::<_, bool>(1)?))
+            })
+            .map_err(StorageError::from)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+        let expires_at_unix_ms = expiry(grant.expires_at)?;
+        let version = crate::state_version(
+            &("access.v1", subject),
+            &(&scope, expires_at_unix_ms, grant.revoked, keys),
+        )?;
+        Ok(Some(AccessSnapshot {
+            subject: subject.into(),
+            scope,
+            expires_at_unix_ms,
+            revoked: grant.revoked,
+            version,
+        }))
+    }
+
+    fn revoke_subject(&mut self, subject: &str) -> CommandResult<()> {
+        let result = (|| -> StorageResult<()> {
+            if self.connection().execute(
+                "UPDATE access_principals SET revoked = 1 WHERE subject = ?1",
+                [subject],
+            )? == 0
+            {
+                return Err(error(ErrorCode::NotFound));
+            }
+            self.connection().execute(
+                "UPDATE access_keys SET active = 0 WHERE subject = ?1",
+                [subject],
+            )?;
+            self.ensure_administrator()
+        })();
+        Ok(self.checked(result)?)
     }
 }
 

@@ -1,4 +1,4 @@
-//! Shared JSON contract for future HTTP, CLI and IPC adapters, not an endpoint.
+//! Shared JSON contract for HTTP, CLI and IPC adapters.
 //! Credentials travel separately; decoding never authenticates or runs a command.
 
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,16 @@ use crate::{
     error::{CommandError, ErrorCode},
     replay::{CommandId, Execution},
 };
+
+/// Tauri framing preserves the original JSON string, including duplicate
+/// fields for the concrete decoder to reject. Credentials are a separate IPC
+/// argument, never part of the command or a saved client intention.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IpcInvocation {
+    pub operation: String,
+    pub request: String,
+}
 
 /// Preserve this entire request, including the ID, for every delivery of an
 /// intention. New intentions require new client-generated cryptographic IDs.

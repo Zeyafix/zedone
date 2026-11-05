@@ -1,0 +1,36 @@
+# EV-056 — P03.05.3: доверенное время доступа
+
+```yaml
+step: P03.05.3
+date: 2026-11-05
+base_revision: 5c42224fe306ddfc78aa5ffda056dc92381b3d59
+branch: feat/p03-05-complete-access
+goal: "Откат наблюдённого времени и истечение перед фиксацией не разрешают операцию или повтор."
+requirements: [T06, A08]
+dependencies_evidence: ["P03.05.2: PR #46 merged 5c42224, три успешных CI, EV-055"]
+scope: ["транзакционные часы storage", "схема v3 через защищённую миграцию", "проверка срока core", "тесты и документация"]
+checks: ["Windows product-check", "Android native x86_64 product-check и обе release ABI", "откат/restart/ошибка/истечение/rollback/миграция"]
+reverse_and_failure: "Ошибка времени отменяет данные и receipt; новая явная выдача после истечения, часы восстанавливают работоспособность при достижении watermark."
+result: verified_local_uncommitted
+next: "Ревью/публикация/CI/интеграция полного P03.05 по отдельному поручению; реализация и локальная проверка завершены."
+```
+
+Граница проверки этого шага сохраняется отдельно от адаптеров. Общий запрос
+разработчика разрешает последовательную реализацию оставшихся частей в одной
+отдельной ветке без промежуточной публикации. Изменение превышает ориентир
+300 строк из-за неделимой проверки времени, отката транзакции и миграции.
+
+## Финальные результаты
+
+Windows `bun scripts/check-product.mjs` и Android
+`bun scripts/check-product.mjs --android` — **passed**: по 144 Rust-теста
+(11 core access, 7 contract, 119 storage, 7 adapters), 11 клиентских тестов
+с 70 assertions, release всех targets/features, обе Android ABI с Tauri bridge,
+21 независимый отказ unsafe (7 host + 14 Android), Rust/OpenAPI/TS/standalone
+validator и compile-only consumers. Четыре отрицательные проверки stale/missing
+новых validator-артефактов и точное восстановление — passed.
+
+Итоговая матрица и границы — [EV-058](EV-058-p03-05-acceptance.md).
+Runtime/тесты после финальных прогонов не менялись; локальные SHA-256/логи —
+`docs/reports/p03-05/verification.json`. Собственный read-only AVD остановлен,
+native sandbox удалён. Коммита/PR/новых CI/слияния нет; очередь сохраняет verified.

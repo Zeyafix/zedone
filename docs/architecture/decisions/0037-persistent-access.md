@@ -95,3 +95,14 @@ Actor, журналы/история, peers и прежние результат
 
 Источники технической проверки: [getrandom fill](https://docs.rs/getrandom/0.4.3/getrandom/fn.fill.html),
 [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+
+## Продолжение P03.05
+
+Доверенные часы/откат/restart/граница commit реализованы в
+[ADR-0038](0038-trusted-access-time.md), общий HTTP/CLI/Tauri IPC и клиентские
+намерения — в [ADR-0039](0039-command-adapters-and-delivery.md).
+Схема 3 дополняет неизменённые 1/2; paths включают только access.inspect и
+access.revoke. Общий локальный результат — [EV-058](../../agent/verification/EV-058-p03-05-acceptance.md).
+Прежние формулировки сохраняют границу исходного среза. Формы/подтверждение,
+защищённое хранение/доставка ключа и устройства остаются P05/P06; служебное
+восстановление/откат всей базы — P07.09. Полная приёмка T06/A08/A26 не закрыта.

@@ -101,6 +101,7 @@ impl Startup {
         Ok(Storage {
             sender: opening.sender,
             registry: self.registry,
+            clock_anchor: Default::default(),
         })
     }
 }

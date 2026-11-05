@@ -650,7 +650,7 @@ async fn product_v1_migration_preserves_history_and_archives_without_inventing_a
         connection
             .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        2
+        3
     );
 }
 

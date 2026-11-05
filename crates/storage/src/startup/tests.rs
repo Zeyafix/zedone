@@ -37,6 +37,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
+        seed: None,
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -44,6 +45,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
+        seed: None,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -51,6 +53,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 3,
         sql: V3,
+        seed: None,
         upgrade: Some(third),
         archive: V1_ARCHIVE,
         validate: None,
@@ -60,6 +63,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
+        seed: None,
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -67,6 +71,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
+        seed: None,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -74,6 +79,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 3,
         sql: V3,
+        seed: None,
         upgrade: Some(failing_third),
         archive: V1_ARCHIVE,
         validate: None,
@@ -595,6 +601,7 @@ const THROUGH_V2: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
+        seed: None,
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -602,6 +609,7 @@ const THROUGH_V2: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
+        seed: None,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -680,6 +688,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 1,
             sql: V1,
+            seed: None,
             upgrade: None,
             archive: V1_ARCHIVE,
             validate: None,
@@ -687,6 +696,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 2,
             sql: V2,
+            seed: None,
             upgrade: Some(second),
             archive: V2_ARCHIVE,
             validate: None,
@@ -694,6 +704,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 3,
             sql: V3,
+            seed: None,
             upgrade: Some(|tx| {
                 // Claims success after a partial service mutation, without creating b.
                 tx.execute("DELETE FROM command_results", [])?;

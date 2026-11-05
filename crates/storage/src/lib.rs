@@ -5,6 +5,7 @@
 //! may be sent to a client. Domain history belongs in the same document as data.
 
 pub mod access;
+mod clock;
 mod document;
 pub mod migration_backup;
 mod schema;
@@ -90,6 +91,7 @@ enum Message {
 pub struct Storage {
     sender: mpsc::Sender<Message>,
     registry: schema::Registry,
+    clock_anchor: std::sync::Arc<std::sync::Mutex<Option<(std::time::Instant, i64)>>>,
 }
 
 struct Opening {

@@ -1,6 +1,17 @@
 // Compile-only consumers of the generated product contract; no test operation
 // or transport is registered by these fixtures.
 import type { components } from "../api/schema";
+import { prepare, type IntentionStore } from "../client/commands";
+
+function typedCommands(store: IntentionStore) {
+  void prepare("2".repeat(32), "access.inspect", { subject: "1".repeat(32) }, store);
+  void prepare("2".repeat(32), "access.revoke", { subject: "1".repeat(32), expected: Array(32).fill(1) }, store);
+  // @ts-expect-error Revocation must retain its original state version.
+  void prepare("2".repeat(32), "access.revoke", { subject: "1".repeat(32) }, store);
+  // @ts-expect-error No bootstrap is exposed to HTTP/CLI/IPC clients.
+  void prepare("2".repeat(32), "access.bootstrap", {}, store);
+}
+void typedCommands;
 
 type Request = components["schemas"]["CommandRequest_Value"];
 type Response = components["schemas"]["CommandResponse_Value"];

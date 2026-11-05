@@ -46,7 +46,15 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"], json!({}));
+    assert_eq!(document["paths"].as_object().unwrap().len(), 2);
+    assert!(document["paths"]["/v1/commands/access.inspect"]["post"].is_object());
+    assert!(document["paths"]["/v1/commands/access.revoke"]["post"].is_object());
+    for name in ["AdministrationScope", "SpacesScope"] {
+        assert_eq!(
+            document["components"]["schemas"][name]["additionalProperties"],
+            false
+        );
+    }
     let schema = &document["components"]["schemas"]["CommandError"];
     assert_eq!(schema["required"], json!(["code"]));
     assert_eq!(schema["additionalProperties"], false);
@@ -260,5 +268,5 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
     ] {
         assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
     }
-    assert_eq!(doc["paths"], json!({}));
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 2);
 }

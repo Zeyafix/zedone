@@ -6,7 +6,7 @@ use crate::error::CommandError;
 /// One Rust definition connects a request, its operation name and its output.
 ///
 /// HTTP, CLI and IPC use these same types. Implementations and authorization live
-/// in the core, never in this trait or in an adapter. No product commands exist yet.
+/// in the core, never in this trait or in an adapter. Bounded access commands are implemented in access_commands.
 pub trait Command: DeserializeOwned + Serialize + ToSchema {
     const NAME: &'static str;
     type Output: Serialize + ToSchema;

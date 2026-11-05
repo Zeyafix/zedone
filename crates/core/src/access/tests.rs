@@ -22,6 +22,24 @@ impl Clock for TestClock {
     }
 }
 
+#[test]
+fn expiry_during_handler_is_rejected_before_its_result_can_escape() {
+    let mut session = Session::new(GrantScope::Administration);
+    session.access.as_mut().unwrap().grant.expires_at = Some(UNIX_EPOCH + Duration::from_secs(20));
+    let clock = TestClock(Cell::new(10));
+    let result = with_authorized(
+        &mut session,
+        &TOKEN,
+        &[RequiredAccess::ManageAccess],
+        &clock,
+        |_, _| {
+            clock.0.set(20);
+            Ok(())
+        },
+    );
+    assert_eq!(result, Err(denied()));
+}
+
 // Only a fixture: no in-memory authority or test credential enters the product.
 struct Session {
     access: Option<ResolvedAccess>,

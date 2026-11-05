@@ -10,6 +10,7 @@ const APPLICATION_ID: i64 = 0x5a45444e;
 pub(crate) struct Schema {
     pub version: i64,
     pub sql: &'static str,
+    pub seed: Option<fn(&Transaction<'_>) -> StorageResult<()>>,
     pub upgrade: Option<fn(&Transaction<'_>) -> StorageResult<()>>,
     pub archive: ArchiveAdapter,
     pub validate: Option<fn(&Connection) -> StorageResult<()>>,
@@ -32,6 +33,7 @@ const SCHEMAS: &[Schema] = &[
     Schema {
         version: 1,
         sql: include_str!("schema/v1.sql"),
+        seed: None,
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -42,6 +44,7 @@ const SCHEMAS: &[Schema] = &[
             include_str!("schema/v1.sql"),
             include_str!("schema/access-v2.sql")
         ),
+        seed: None,
         upgrade: Some(|tx| {
             tx.execute_batch(include_str!("schema/access-v2.sql"))?;
             Ok(())
@@ -50,6 +53,22 @@ const SCHEMAS: &[Schema] = &[
         // from every space snapshot and included only in the full SQLite copy.
         archive: V1_ARCHIVE,
         validate: Some(crate::access::validate),
+    },
+    Schema {
+        version: 3,
+        sql: concat!(
+            include_str!("schema/v1.sql"),
+            include_str!("schema/access-v2.sql"),
+            include_str!("schema/clock-v3.sql")
+        ),
+        seed: Some(crate::clock::seed),
+        upgrade: Some(|tx| {
+            tx.execute_batch(include_str!("schema/clock-v3.sql"))?;
+            crate::clock::seed(tx)?;
+            Ok(())
+        }),
+        archive: V1_ARCHIVE,
+        validate: Some(crate::clock::validate),
     },
 ];
 #[derive(Clone, Copy)]
@@ -157,6 +176,9 @@ pub(crate) fn initialize(connection: &mut Connection) -> StorageResult<()> {
 
 pub(crate) fn create(tx: &Transaction<'_>, registry: Registry) -> StorageResult<()> {
     tx.execute_batch(registry.current().sql)?;
+    if let Some(seed) = registry.current().seed {
+        seed(tx)?;
+    }
     tx.pragma_update(None, "application_id", APPLICATION_ID)?;
     tx.pragma_update(None, "user_version", registry.current().version)?;
     Ok(())

@@ -77,6 +77,16 @@ pub trait AccessTransaction {
 /// if time cannot be established, return an error instead of granting access.
 pub trait Clock {
     fn now(&self) -> CommandResult<SystemTime>;
+
+    /// Infrastructure also retains the earliest deadline for the final commit
+    /// check. A custom clock is trusted infrastructure, never client input.
+    fn check_expiry(&self, end: Option<SystemTime>) -> CommandResult<()> {
+        let now = self.now()?;
+        if end.is_some_and(|end| now >= end) {
+            return Err(denied());
+        }
+        Ok(())
+    }
 }
 
 fn denied() -> CommandError {
@@ -89,9 +99,9 @@ fn denied() -> CommandError {
 /// up a saved command result or running a mutation. No reusable permit escapes.
 ///
 /// Call inside the working transaction, after any queue wait. Grant expiry is
-/// checked at this boundary; this does not define cancellation/commit semantics
-/// for future long-running operations. The callback must not publish effects
-/// before commit. As with other core handlers, adapters cannot supply it.
+/// checked before and after the callback. Infrastructure checks registered
+/// deadlines after flush immediately before commit (ADR-0038). The callback
+/// must not publish effects before commit; adapters cannot supply it.
 pub fn with_authorized<T: AccessTransaction, R>(
     transaction: &mut T,
     credential: &Credential<'_>,
@@ -104,11 +114,10 @@ pub fn with_authorized<T: AccessTransaction, R>(
     }
     let access = transaction.resolve_access(credential)?.ok_or_else(denied)?;
     let grant = &access.grant;
-    let now = clock.now()?;
+    clock.check_expiry(grant.expires_at)?;
     if access.subject.is_empty()
         || access.subject != grant.subject
         || grant.revoked
-        || grant.expires_at.is_some_and(|end| now >= end)
         || !required
             .iter()
             .all(|requirement| match (&grant.scope, requirement) {
@@ -128,5 +137,7 @@ pub fn with_authorized<T: AccessTransaction, R>(
     {
         return Err(denied());
     }
-    operation(transaction, &access.subject)
+    let result = operation(transaction, &access.subject)?;
+    clock.check_expiry(grant.expires_at)?;
+    Ok(result)
 }

@@ -2,7 +2,11 @@
   "name": "zedone-contract",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
   "devDependencies": {
+    "ajv": "8.20.0",
     "openapi-typescript": "7.13.0",
     "typescript": "5.9.3"
   }

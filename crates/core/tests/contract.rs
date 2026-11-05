@@ -5,6 +5,8 @@ use zedone_core::{
     ApiDoc,
     command::{Command, CommandResult},
     error::{CommandError, ErrorCode},
+    replay::{Execution, StateVersion, canonical_json},
+    wire::{CommandRequest, CommandResponse, decode_request},
 };
 
 const ERRORS: [(ErrorCode, &str); 7] = [
@@ -87,4 +89,176 @@ fn typed_command_contract_preserves_text_and_its_associated_output() {
     let output: String = handle(request).unwrap();
     assert_eq!(Value::String(output), wire["title"]);
     assert!(serde_json::from_value::<ReadFixture>(json!({"title": "x", "admin": true})).is_err());
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct WireFixture {
+    title: String,
+    expected: StateVersion,
+}
+
+impl Command for WireFixture {
+    const NAME: &'static str = "fixture.change.v1";
+    type Output = String;
+}
+
+fn wire_request() -> Value {
+    json!({
+        "id": vec![255; 16], "operation": WireFixture::NAME,
+        "parameters": {"title": "Ёж, cafe\u{301}, 😀\n\"текст\"", "expected": vec![255; 32]}
+    })
+}
+
+#[test]
+fn wire_roundtrip_preserves_intention_and_original_conditions() {
+    let wire = wire_request();
+    let request: CommandRequest<WireFixture> =
+        decode_request(&serde_json::to_vec(&wire).unwrap()).unwrap();
+    assert_eq!(request.id, [255; 16]);
+    assert_eq!(request.parameters.expected, StateVersion([255; 32]));
+    assert_eq!(request.parameters.title, wire["parameters"]["title"]);
+    assert_eq!(serde_json::to_value(&request).unwrap(), wire);
+    let delivered: CommandRequest<WireFixture> =
+        decode_request(&serde_json::to_vec(&request).unwrap()).unwrap();
+    assert_eq!(delivered.id, request.id);
+    assert_eq!(
+        canonical_json(&delivered.parameters),
+        canonical_json(&request.parameters)
+    );
+}
+
+#[test]
+fn malformed_requests_and_attempts_to_supply_trusted_context_are_rejected() {
+    let wire = wire_request();
+    let mut cases = vec![json!(null), json!([]), json!({})];
+    for field in ["id", "operation", "parameters"] {
+        let mut changed = wire.clone();
+        changed.as_object_mut().unwrap().remove(field);
+        cases.push(changed);
+    }
+    for field in ["subject", "credential", "grants", "admin", "replayed"] {
+        let mut changed = wire.clone();
+        changed[field] = json!(true);
+        cases.push(changed);
+    }
+    for id in [
+        json!(vec![0; 16]),
+        json!(vec![1; 15]),
+        json!(vec![1; 17]),
+        json!(vec![256; 16]),
+        json!(vec![-1; 16]),
+        json!(vec![1.5; 16]),
+        json!("00112233445566778899aabbccddeeff"),
+        json!(null),
+    ] {
+        let mut changed = wire.clone();
+        changed["id"] = id;
+        cases.push(changed);
+    }
+    for version in [
+        json!(vec![0; 31]),
+        json!(vec![0; 33]),
+        json!(vec![256; 32]),
+        json!(vec![-1; 32]),
+        json!(null),
+    ] {
+        let mut changed = wire.clone();
+        changed["parameters"]["expected"] = version;
+        cases.push(changed);
+    }
+    for operation in [json!(""), json!("other.operation"), json!(42), json!(null)] {
+        let mut changed = wire.clone();
+        changed["operation"] = operation;
+        cases.push(changed);
+    }
+    let mut changed = wire.clone();
+    changed["parameters"]["admin"] = json!(true);
+    cases.push(changed);
+    for input in cases {
+        assert_eq!(
+            decode_request::<WireFixture>(&serde_json::to_vec(&input).unwrap())
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidRequest,
+            "{input}"
+        );
+    }
+    let raw = wire.to_string();
+    for input in [
+        format!("{raw} trailing"),
+        format!("{raw}{raw}"),
+        raw.replacen("{", "{\"operation\":\"fixture.change.v1\",", 1),
+        raw.replace("\"title\":", "\"title\":\"duplicate\",\"title\":"),
+        "{".into(),
+    ] {
+        assert_eq!(
+            decode_request::<WireFixture>(input.as_bytes())
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidRequest
+        );
+    }
+}
+
+#[test]
+fn wire_responses_distinguish_original_completion_replay_and_unknown_outcome() {
+    for replayed in [false, true] {
+        let response = CommandResponse::from(Ok(Execution {
+            result: json!(null),
+            replayed,
+        }));
+        let wire = json!({"status": "ok", "result": null, "replayed": replayed});
+        assert_eq!(serde_json::to_value(&response).unwrap(), wire);
+        assert_eq!(
+            serde_json::from_value::<CommandResponse<Value>>(wire).unwrap(),
+            response
+        );
+    }
+    for (code, name) in ERRORS {
+        let response = CommandResponse::<Value>::from(Err(CommandError { code }));
+        let wire = json!({"status": "error", "error": {"code": name}});
+        assert_eq!(serde_json::to_value(&response).unwrap(), wire);
+        assert_eq!(
+            serde_json::from_value::<CommandResponse<Value>>(wire).unwrap(),
+            response
+        );
+    }
+    for wire in [
+        json!({"Ok": "old rust representation"}),
+        json!({"status": "ok", "replayed": false}),
+        json!({"status": "ok", "result": null}),
+        json!({"status": "ok", "result": null, "replayed": false, "error": {"code":"outcome_unknown"}}),
+        json!({"status": "error", "error": {"code": "unavailable"}, "result": null}),
+        json!({"status": "error", "error": {"code": "unavailable", "details": "secret"}}),
+    ] {
+        assert!(
+            serde_json::from_value::<CommandResponse<Value>>(wire.clone()).is_err(),
+            "{wire}"
+        );
+    }
+}
+
+#[test]
+fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = &doc["components"]["schemas"];
+    for (schema, length) in [
+        (&schemas["CommandRequest_Value"]["properties"]["id"], 16),
+        (&schemas["StateVersion"], 32),
+    ] {
+        assert_eq!(schema["minItems"], length);
+        assert_eq!(schema["maxItems"], length);
+        assert_eq!(schema["items"]["type"], "integer");
+        assert_eq!(schema["items"]["minimum"], 0);
+        assert_eq!(schema["items"]["maximum"], 255);
+    }
+    for name in [
+        "CommandRequest_Value",
+        "CommandSuccess_Value",
+        "CommandFailure",
+    ] {
+        assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
+    }
+    assert_eq!(doc["paths"], json!({}));
 }

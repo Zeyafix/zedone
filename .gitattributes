@@ -7,3 +7,5 @@
 /prototypes/bun.lock text eol=lf
 /prototypes/patches/*.patch text eol=lf
 /api/openapi.json text eol=lf
+/api/schema.d.ts text eol=lf
+/bun.lock text eol=lf

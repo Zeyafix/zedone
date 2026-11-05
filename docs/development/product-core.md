@@ -10,6 +10,7 @@
 ```powershell
 $productVersions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
 cargo "+$($productVersions.rust)" fetch --locked
+bun install --frozen-lockfile --ignore-scripts
 bun scripts/check-product.mjs
 ```
 
@@ -95,9 +96,33 @@ bun scripts/check-product.mjs
 
 `api/openapi.json` не редактируется вручную. Ошибка компиляции или проверки
 не перезаписывает артефакт; явная генерация восстанавливает удалённый файл.
-Сейчас в нём только схемы ошибок, `paths` пуст. Это не сервер и не агентский
-интерфейс. Генерация TypeScript и подключение HTTP/CLI/IPC выполняются P03.05.
-Для отдельной сверки контракта без общего прогона доступен `--check-openapi`.
+Он содержит ошибки, общий конверт запроса/ответа и `StateVersion`; `paths` пуст.
+Это не сервер и не агентский интерфейс. Подключение HTTP/CLI/IPC — P03.05.4,
+после персистентных прав и доверенного времени P03.05.2/.3.
+
+После изменения Rust/OpenAPI сгенерировать TypeScript:
+
+```powershell
+bun scripts/check-product.mjs --write-types
+bun scripts/check-product.mjs
+```
+
+Root `package.json`/`bun.lock` закрепляют openapi-typescript и TypeScript отдельно
+от прототипов. `api/schema.d.ts` генерируется из того же вывода Rust, а не из
+вручную исправленного JSON. Обычный прогон и `--android` проверяют дрейф обоих
+артефактов и компилируют `tests/contract-types.ts`. `--check-types` и
+`--check-openapi` выполняют эти проверки без полного Rust-прогона. Генерация
+OpenAPI выполняется отдельно; затем `--write-types` обновляет только TS.
+Отсутствующий/устаревший артефакт даёт отказ, обычная проверка его не исправляет.
+Сначала формируется полный новый вывод; ошибки генератора не перезаписывают файл.
+
+`wire::decode_request<C>` принимает только точное имя конкретной команды,
+ненулевой 16-байтовый ID и строгие параметры. JSON не содержит учётных данных,
+субъекта или разрешений. Ответ `CommandResponse` строится после commit;
+`replayed` относится к прежнему результату, а не к актуальности объекта.
+Типизация TS не заменяет runtime-валидацию Rust: диапазон байтов/ненулевой ID
+и 32-байтовая длина версии не выражены полностью в производных TS-типах.
+Полный договор — [ADR-0031](../architecture/decisions/0031-shared-command-wire-contract.md).
 
 ## Android
 

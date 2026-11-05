@@ -18,6 +18,7 @@ use zedone_core::{
     command::{Command, CommandResult},
     error::{CommandError, ErrorCode},
     replay::{self, CommandId, Execution, RecordedCommand, ReplayTransaction, StateVersion},
+    wire::{CommandRequest, CommandResponse, decode_request},
 };
 
 use super::*;
@@ -243,6 +244,63 @@ async fn effects(storage: &Storage) -> u64 {
         })
         .await
         .unwrap()
+}
+
+// Exercise the wire boundary around the same test-only core/storage handler.
+// This is not an HTTP/CLI/IPC adapter or a product authentication backend.
+async fn deliver(storage: &Storage, bytes: &[u8]) -> serde_json::Value {
+    let completed = match decode_request::<SetCompleted>(bytes) {
+        Ok(request) => call(storage, request.parameters, request.id)
+            .await
+            .map_err(CommandError::from),
+        Err(error) => Err(error),
+    };
+    serde_json::to_value(CommandResponse::from(completed)).unwrap()
+}
+
+#[tokio::test]
+async fn wire_delivery_keeps_original_receipt_after_reverse_and_rejects_changed_intentions() {
+    let (dir, storage, command) = setup().await;
+    let request = CommandRequest {
+        id: [1; 16],
+        operation: SetCompleted::NAME.into(),
+        parameters: command.clone(),
+    };
+    let original = serde_json::to_vec(&request).unwrap();
+    let first = deliver(&storage, &original).await;
+    assert_eq!(first["status"], "ok");
+    assert_eq!(first["replayed"], false);
+    let mut reverse = command;
+    reverse.expected = serde_json::from_value(first["result"]["version"].clone()).unwrap();
+    reverse.completed = false;
+    call(&storage, reverse, [2; 16]).await.unwrap();
+    storage.shutdown().await.unwrap();
+    let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
+    let repeated = deliver(&storage, &original).await;
+    assert_eq!(repeated["result"], first["result"]);
+    assert_eq!(repeated["replayed"], true);
+    let mut changed = serde_json::to_value(&request).unwrap();
+    changed["parameters"]["completed"] = false.into();
+    let mismatch = deliver(&storage, &serde_json::to_vec(&changed).unwrap()).await;
+    assert_eq!(
+        mismatch,
+        serde_json::json!({"status":"error", "error":{"code":"command_mismatch"}})
+    );
+    changed["id"] = serde_json::json!([3; 16].to_vec());
+    let stale = deliver(&storage, &serde_json::to_vec(&changed).unwrap()).await;
+    assert_eq!(
+        stale,
+        serde_json::json!({"status":"error", "error":{"code":"stale_state"}})
+    );
+    assert_eq!(effects(&storage).await, 2);
+    storage
+        .read(|ctx| {
+            assert!(!load(ctx, "a")?.completed);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    storage.shutdown().await.unwrap();
 }
 
 fn assert_code<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {

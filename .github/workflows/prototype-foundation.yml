@@ -9,6 +9,10 @@ on:
       - 'Cargo.lock'
       - 'crates/**'
       - 'api/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.contract.json'
+      - 'tests/contract-types.ts'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -20,6 +24,10 @@ on:
       - 'Cargo.lock'
       - 'crates/**'
       - 'api/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.contract.json'
+      - 'tests/contract-types.ts'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -86,7 +94,10 @@ jobs:
           cargo "+$($versions.rust)" fetch --locked
           if ($LASTEXITCODE -ne 0) { throw 'Product dependency fetch failed.' }
       - name: Check product boundaries, contract and unsafe rejection
-        run: bun scripts/check-product.mjs
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Product JavaScript dependency installation failed.' }
+          bun scripts/check-product.mjs
       - name: Install locked JavaScript dependencies and test browser
         working-directory: prototypes
         run: |

@@ -5,12 +5,22 @@ on:
     branches: [main]
     paths:
       - 'prototypes/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'api/**'
+      - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
   pull_request:
     paths:
       - 'prototypes/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'api/**'
+      - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
@@ -55,7 +65,9 @@ jobs:
         with:
           prefix-key: zedone-rust-v1
           shared-key: prototype-host
-          workspaces: prototypes -> target
+          workspaces: |
+            . -> target
+            prototypes -> target
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -71,6 +83,10 @@ jobs:
           $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
           cargo "+$($versions.rust)" fetch --locked --manifest-path prototypes/Cargo.toml
           if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
+          cargo "+$($versions.rust)" fetch --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Product dependency fetch failed.' }
+      - name: Check product boundaries, contract and unsafe rejection
+        run: bun scripts/check-product.mjs
       - name: Install locked JavaScript dependencies and test browser
         working-directory: prototypes
         run: |

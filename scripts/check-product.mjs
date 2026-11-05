@@ -102,10 +102,18 @@ if (mode === "--android") {
     assert.equal(device("shell", "getprop", property).trim(), expected);
   }
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
-  const linker = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin/clang${suffix}`);
+  const tools = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin`);
+  const linker = resolve(tools, `clang${suffix}`);
   for (const target of ["x86_64-linux-android", "aarch64-linux-android"]) {
     const prefix = `CARGO_TARGET_${target.replaceAll("-", "_").toUpperCase()}`;
-    const extraEnv = { [`${prefix}_LINKER`]: linker, [`${prefix}_RUSTFLAGS`]: `-C link-arg=--target=${target}33` };
+    const lower = target.replaceAll("-", "_");
+    const extraEnv = {
+      [`CC_${lower}`]: linker,
+      [`AR_${lower}`]: resolve(tools, `llvm-ar${suffix}`),
+      [`CFLAGS_${lower}`]: `--target=${target}33`,
+      [`${prefix}_LINKER`]: linker,
+      [`${prefix}_RUSTFLAGS`]: `-C link-arg=--target=${target}33`,
+    };
     run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
     await checkUnsafe(["--target", target], extraEnv);
     if (target !== "x86_64-linux-android") continue;
@@ -120,7 +128,8 @@ if (mode === "--android") {
         const executable = `${remote}/test-${index}`;
         device("push", test.executable, executable);
         device("shell", "chmod", "700", executable);
-        const output = device("shell", executable);
+        // tempfile and crash-child fixtures must stay in our removable sandbox.
+        const output = device("shell", `TMPDIR=${remote}`, executable);
         console.log(output);
         assert.ok(output.includes("test result: ok."));
       }

@@ -473,9 +473,19 @@ pub(super) fn snapshot(doc: &Automerge) -> Result<Value> {
 }
 
 fn seed(store: &mut Store) -> Result<()> {
+    let a = fixture(true)?;
+    store.write("A", &a)?;
+    store.write("B", &Replica::new())?;
+    exchange(store)
+}
+
+fn fixture(include_foreign: bool) -> Result<Replica> {
     let mut a = Replica::new();
     let mut tx = a.doc.transaction();
     tx.put(ROOT, "space_trash_fixture", true)?;
+    if !include_foreign {
+        tx.put(ROOT, "single_space_fixture", true)?;
+    }
     let root = tx.put_object(ROOT, "nodes", ObjType::Map)?;
     tx.put_object(ROOT, "history", ObjType::List)?;
     for (key, kind, parent) in [
@@ -493,6 +503,9 @@ fn seed(store: &mut Store) -> Result<()> {
         ("other", "card", "c1"),
         ("foreign", "card", "foreign-col"),
     ] {
+        if !include_foreign && ["s1", "foreign-col", "foreign"].contains(&key) {
+            continue;
+        }
         add(&mut tx, &root, key, kind, parent, "active")?;
     }
     tx.commit();
@@ -501,14 +514,13 @@ fn seed(store: &mut Store) -> Result<()> {
     set_card(&mut a.doc, "old", &nodes["old"], "trash", "")?;
     let nodes = view(&a.doc)?;
     set_container(&mut a.doc, "old-col", &scope(&nodes, "old-col"), "trash")?;
-    store.write("A", &a)?;
-    store.write("B", &Replica::new())?;
-    exchange(store)
+    Ok(a)
 }
 
 mod scenario;
 pub(super) use scenario::run;
 pub(super) mod history;
+pub(super) mod lifecycle;
 pub(super) mod purge;
 #[cfg(test)]
 mod tests;

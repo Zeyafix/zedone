@@ -111,6 +111,12 @@ impl Store {
         let tx = self
             .0
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        Self::write_in(&tx, id, replica)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    fn write_in(tx: &rusqlite::Transaction<'_>, id: &str, replica: &Replica) -> Result<()> {
         tx.execute(
             "INSERT INTO replicas(id, document, actor, peer) VALUES (?1, ?2, ?3, ?4)
             ON CONFLICT(id) DO UPDATE SET document=excluded.document,
@@ -122,7 +128,6 @@ impl Store {
                 replica.peer.encode()
             ],
         )?;
-        tx.commit()?;
         Ok(())
     }
 
@@ -166,6 +171,9 @@ fn exchange(store: &mut Store) -> Result<()> {
 /// Both humans and agents run this same probe; no direct SQLite editing is required.
 /// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
+    if phase.starts_with("lifecycle-") {
+        return space_trash::lifecycle::run(directory, phase);
+    }
     if phase.starts_with("history-") {
         return space_trash::history::run(directory, phase);
     }

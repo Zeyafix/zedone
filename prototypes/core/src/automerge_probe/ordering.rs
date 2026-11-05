@@ -359,3 +359,32 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+pub(super) fn measure(directory: &Path) -> Result<Value> {
+    use super::space_trash::lifecycle::measurements::{stats, timed};
+    let mut doc = Automerge::new();
+    let mut right = Rank::initial(u32::MAX / 2, "fixed-right");
+    let mut stages = vec![];
+    let mut samples = vec![];
+    for i in 0..4096 {
+        let mut tx = doc.transaction();
+        let id = tx.put_object(ROOT, format!("rank-{i}"), ObjType::Map)?;
+        let (rank, ms) = timed(|| ranks::between(None, Some(&right), &id.to_string()))?;
+        let encoded = serde_json::to_string(&rank)?;
+        tx.put(&id, "value", encoded.as_str())?;
+        tx.commit();
+        samples.push(ms);
+        right = rank;
+        if [1024, 4096].contains(&(i + 1)) {
+            stages.push(json!({"insertions": i+1, "rank_components": serde_json::to_value(&right)?.as_array().unwrap().len(),
+                "last_rank_utf8_bytes": encoded.len(), "packed_bytes": doc.save().len(), "allocation": stats(&samples)}));
+        }
+    }
+    std::fs::write(
+        directory.join("rank-graph.automerge"),
+        doc.save_and_verify()?,
+    )?;
+    Ok(
+        json!({"scope": "rank allocator with durable object-ID tie breaks; repeated insertion before same right neighbour", "stages": stages}),
+    )
+}

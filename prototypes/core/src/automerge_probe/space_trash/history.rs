@@ -2,16 +2,16 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-struct Version {
-    id: ObjId,
-    card: String,
-    title: String,
-    text: String,
-    title_op: String,
-    text_op: String,
+pub(super) struct Version {
+    pub(super) id: ObjId,
+    pub(super) card: String,
+    pub(super) title: String,
+    pub(super) text: String,
+    pub(super) title_op: String,
+    pub(super) text_op: String,
 }
 
-fn versions(doc: &Automerge) -> Result<Vec<Version>> {
+pub(super) fn versions(doc: &Automerge) -> Result<Vec<Version>> {
     let Some((_, root)) = doc.get(ROOT, "history")? else {
         return Ok(vec![]);
     };
@@ -87,7 +87,7 @@ fn protected(nodes: &View, version: &Version) -> bool {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-struct ClearPlan {
+pub(super) struct ClearPlan {
     space: String,
     card: Option<String>,
     observed: View,
@@ -96,7 +96,7 @@ struct ClearPlan {
     retained_conflicts: Vec<ObjId>,
 }
 
-fn preview(doc: &Automerge, space: &str, card: Option<&str>) -> Result<ClearPlan> {
+pub(super) fn preview(doc: &Automerge, space: &str, card: Option<&str>) -> Result<ClearPlan> {
     let nodes = view(doc)?;
     if node(&nodes, space)?.kind != "space" {
         return Err("Expected a space".into());
@@ -134,7 +134,7 @@ fn preview(doc: &Automerge, space: &str, card: Option<&str>) -> Result<ClearPlan
     })
 }
 
-fn clear(doc: &mut Automerge, plan: &ClearPlan) -> Result<()> {
+pub(super) fn clear(doc: &mut Automerge, plan: &ClearPlan) -> Result<()> {
     if preview(doc, &plan.space, plan.card.as_deref())? != *plan {
         return Err("Stale history scope: inspect again".into());
     }
@@ -187,7 +187,7 @@ pub(in super::super) fn snapshot(doc: &Automerge) -> Result<Value> {
     Ok(serde_json::to_value(versions(doc)?)?)
 }
 
-fn save_pair(doc: &mut Automerge, key: &str, title: &str, text: &str) -> Result<()> {
+pub(super) fn save_pair(doc: &mut Automerge, key: &str, title: &str, text: &str) -> Result<()> {
     record(doc, key, &view(doc)?[key], title, text)
 }
 

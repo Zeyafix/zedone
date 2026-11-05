@@ -426,5 +426,45 @@ pub(super) use deletion::run as run_deletion;
 pub(super) use resolution::run as run_resolution;
 pub(super) use resolution::run_bridge;
 
+pub(super) fn measure(directory: &Path) -> Result<Value> {
+    use super::space_trash::lifecycle::measurements::{stats, timed};
+    let mut store = Store::open(&directory.join("measure-tags.sqlite3"))?;
+    seed(&mut store)?;
+    let mut a = store.read("A")?;
+    let home = object(&a.doc, "s0")?.to_string();
+    let mut stages = vec![];
+    for size in [8, 16, 32] {
+        // All creations start at the same base and know none of the others.
+        let base = a.doc.fork();
+        for _ in 0..size {
+            let mut branch = base.fork();
+            create(&mut branch, &home, &format!("Когорта {size}"))?;
+            a.doc.merge(&mut branch)?;
+        }
+        let mut reads = vec![];
+        for _ in 0..3 {
+            reads.push(timed(|| snapshot(&a.doc))?.1);
+        }
+        let observed = tags(&a.doc)?;
+        let merged = observed
+            .iter()
+            .find(|t| t.ids.len() == size)
+            .ok_or("Expected merged cohort")?;
+        let id = merged.ids[0].clone();
+        let mut writes = vec![];
+        for i in 0..16 {
+            writes.push(timed(|| assign(&mut a.doc, "k0", &id, i % 2 == 0))?.1);
+        }
+        let catalog = a.doc.get(ROOT, "catalog")?.ok_or("Missing catalog")?.1;
+        stages.push(json!({"cohort": size, "total_raw_identities": a.doc.length(&catalog),
+            "projection": stats(&reads), "assignment": stats(&writes), "packed_bytes": a.doc.save().len(),
+            "changes": a.doc.get_changes(&[]).len()}));
+    }
+    store.write("A", &a)?;
+    Ok(
+        json!({"scope": "causally independent equal-name creations and reassignment, prior tag model", "stages": stages}),
+    )
+}
+
 #[cfg(test)]
 mod tests;

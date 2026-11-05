@@ -24,6 +24,77 @@
         },
         "additionalProperties": false
       },
+      "CommandFailure": {
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/CommandError"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ErrorStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_Value": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {}
+        },
+        "additionalProperties": false
+      },
+      "CommandResponse_Value": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_Value"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandSuccess_Value": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {},
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "ErrorCode": {
         "type": "string",
         "description": "Shared machine-readable errors, without credentials, SQL or platform details.\n\nCodes describe semantics, not HTTP statuses or retry policy. A stale request\nrequires a fresh read and a new explicit action. An unknown outcome requires\nchecking/replaying the original command, never inventing a new command ID.",
@@ -35,6 +106,28 @@
           "command_mismatch",
           "unavailable",
           "outcome_unknown"
+        ]
+      },
+      "ErrorStatus": {
+        "type": "string",
+        "enum": [
+          "error"
+        ]
+      },
+      "StateVersion": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "maxItems": 32,
+        "minItems": 32
+      },
+      "SuccessStatus": {
+        "type": "string",
+        "enum": [
+          "ok"
         ]
       }
     }

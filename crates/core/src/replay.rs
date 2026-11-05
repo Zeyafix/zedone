@@ -17,9 +17,32 @@ pub type CommandId = [u8; 16];
 /// Opaque digest of the authoritative, scoped semantic state, not CRDT heads.
 /// Its projection includes identity, all relevant data/variants and their causal
 /// identities, so changing and restoring a value cannot revive an old version.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct StateVersion(pub [u8; 32]);
+
+impl utoipa::PartialSchema for StateVersion {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        byte_array_schema::<32>().into()
+    }
+}
+impl ToSchema for StateVersion {}
+
+/// JSON byte arrays have exact lengths and integer elements in the u8 range.
+/// Explicit bounds keep the schema as strict as Serde's fixed-size arrays.
+pub(crate) fn byte_array_schema<const N: usize>() -> utoipa::openapi::schema::Array {
+    use utoipa::openapi::schema::{ArrayBuilder, ObjectBuilder, Type};
+    ArrayBuilder::new()
+        .items(
+            ObjectBuilder::new()
+                .schema_type(Type::Integer)
+                .minimum(Some(0))
+                .maximum(Some(255)),
+        )
+        .min_items(Some(N))
+        .max_items(Some(N))
+        .build()
+}
 
 pub fn require_current(expected: StateVersion, current: StateVersion) -> CommandResult<()> {
     if expected == current {

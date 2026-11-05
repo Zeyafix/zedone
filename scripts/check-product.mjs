@@ -8,7 +8,7 @@ const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun, "Use pinned Bun");
 const mode = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--android"].includes(mode));
+assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android"].includes(mode));
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 
@@ -89,6 +89,21 @@ if (mode === "--write-openapi") {
   assert.ok(await artifact.exists(), "Generate api/openapi.json first");
   assert.ok(generated.equals(Buffer.from(await artifact.arrayBuffer())), "api/openapi.json is stale; run bun scripts/check-product.mjs --write-openapi");
   console.log("Product OpenAPI matches Rust.");
+}
+
+if (mode !== "--write-openapi") {
+  const { default: openapiTS, astToString } = await import("openapi-typescript");
+  const types = astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true }));
+  const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
+  if (mode === "--write-types") {
+    await Bun.write(typesFile, types);
+    console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
+  } else {
+    assert.ok(await typesFile.exists() && await typesFile.text() === types,
+      "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
+    console.log("Product TypeScript matches Rust/OpenAPI.");
+  }
+  run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
 }
 
 if (mode === "--android") {

@@ -1,6 +1,7 @@
 /temp/
 /docs/reports/
 /target/
+/node_modules/
 /prototypes/target/
 /prototypes/node_modules/
 /prototypes/dist/

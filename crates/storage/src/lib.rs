@@ -6,6 +6,7 @@
 
 mod document;
 mod schema;
+pub mod snapshot;
 mod version;
 
 #[cfg(test)]

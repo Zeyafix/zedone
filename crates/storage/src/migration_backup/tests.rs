@@ -5,7 +5,7 @@ use rusqlite::types::Value;
 
 use super::*;
 
-const LIMITS: BackupLimits = BackupLimits {
+pub(super) const LIMITS: BackupLimits = BackupLimits {
     max_database_bytes: 2 * 1024 * 1024,
     max_spaces: 10,
     max_total_snapshot_bytes: 1024 * 1024,
@@ -14,9 +14,9 @@ const LIMITS: BackupLimits = BackupLimits {
         max_changes: 100,
     },
 };
-const SPACE: &str = "../пространство/ё🙂";
+pub(super) const SPACE: &str = "../пространство/ё🙂";
 
-async fn fixture() -> (TempDir, Storage, PathBuf) {
+pub(super) async fn fixture() -> (TempDir, Storage, PathBuf) {
     let root = TempDir::new().unwrap();
     let folder = root.path().join("backups");
     fs::create_dir(&folder).unwrap();
@@ -61,7 +61,7 @@ fn rows(connection: &Connection, table: &str) -> Vec<Vec<Value>> {
         .unwrap()
 }
 
-fn files(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+pub(super) fn files(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     let mut result = Vec::new();
     for entry in fs::read_dir(folder).unwrap() {
         let path = entry.unwrap().path();

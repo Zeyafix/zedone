@@ -1,5 +1,4 @@
-//! Trusted preparation only: a candidate never authorizes migration or restore.
-//! No replacement of the last successful backup occurs in this module.
+//! Trusted backup infrastructure; never an authenticated migration/restore API.
 
 use std::{
     fs::{self, File, OpenOptions},
@@ -14,6 +13,8 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
+
+pub mod publication;
 
 use crate::{
     Storage, StorageError, StorageResult, schema,
@@ -52,7 +53,7 @@ impl PreparedBackup {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileDigest {
     bytes: u64,
@@ -264,9 +265,22 @@ fn prepare(
 ) -> StorageResult<PreparedBackup> {
     // A second read-only connection is necessary: Backup::step on a source
     // connection with an active write transaction returns SQLITE_LOCKED.
-    let path = PathBuf::from(connection.path().ok_or(StorageError::Unavailable)?);
     let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     schema::check_layout(&tx)?;
+    let candidate = capture(&tx, folder, date, limits, checkpoint)?;
+    tx.rollback()?;
+    Ok(candidate)
+}
+
+// Caller owns the uninterrupted writer transaction, including eventual commit.
+fn capture(
+    locked: &rusqlite::Transaction<'_>,
+    folder: &Path,
+    date: u64,
+    limits: BackupLimits,
+    checkpoint: impl Fn(Checkpoint) -> StorageResult<()>,
+) -> StorageResult<PreparedBackup> {
+    let path = PathBuf::from(locked.path().ok_or(StorageError::Unavailable)?);
     let source = readonly(&path)?;
     let pages: u64 =
         source.pragma_query_value(None, "page_count", |r| r.get::<_, u32>(0).map(u64::from))?;
@@ -326,7 +340,6 @@ fn prepare(
     checkpoint(Checkpoint::BeforeVerify)?;
     verify(directory.path(), limits)?;
     checkpoint(Checkpoint::AfterVerify)?;
-    tx.rollback()?;
     // Successful candidates survive dropped futures/handles. Only explicit
     // discard deletes one. Crash remnants are never promoted by this module.
     directory.disable_cleanup(true);

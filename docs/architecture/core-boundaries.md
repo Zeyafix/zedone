@@ -1,5 +1,11 @@
 # Продуктовое Rust-ядро
 
+Допуск SQLite до writable-открытия и реестр неизменяемых SQL-layout описаны
+в [ADR-0035](decisions/0035-schema-admission.md). Обычные команды принимают
+текущую версию, архивный validator — известную; факты остаются в одной базе.
+Начальный реестр содержит только схему 1. Цепочка миграций/startup gating
+и повторы остаются P07.08.2/.3.
+
 Решения: [ADR-0027](decisions/0027-product-core-boundaries.md),
 [ADR-0028](decisions/0028-atomic-storage.md).
 [ADR-0029](decisions/0029-core-authorization.md) определяет проверку доступа.

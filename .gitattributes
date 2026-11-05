@@ -10,3 +10,6 @@
 /api/schema.d.ts text eol=lf
 /bun.lock text eol=lf
 /crates/storage/tests/fixtures/*.bin binary
+# SQLite stores the SQL text; checkout line endings must not change its layout.
+/crates/storage/src/schema/*.sql text eol=lf
+/crates/storage/tests/fixtures/*.sqlite binary

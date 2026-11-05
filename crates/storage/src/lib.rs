@@ -95,13 +95,12 @@ impl Storage {
         thread::Builder::new()
             .name("zedone-storage".into())
             .spawn(move || {
-                let initialized =
-                    Connection::open(path)
-                        .map_err(StorageError::from)
-                        .and_then(|mut c| {
-                            schema::initialize(&mut c)?;
-                            Ok(c)
-                        });
+                let initialized: StorageResult<Connection> = (|| {
+                    schema::preflight(&path)?;
+                    let mut connection = Connection::open(path)?;
+                    schema::initialize(&mut connection)?;
+                    Ok(connection)
+                })();
                 let mut connection = match initialized {
                     Ok(c) => c,
                     Err(error) => {

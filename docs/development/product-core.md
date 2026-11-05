@@ -1,5 +1,15 @@
 # Разработка продуктового Rust-ядра
 
+`storage/schema/v1.sql` — неизменяемое описание схемы 1; новая схема добавляется
+отдельным SQL и записью реестра, вместе с защищённым переходом. Переписывать
+исторический layout или сбрасывать базу ради изменения схемы нельзя.
+`tests/fixtures/schema-v1.sqlite` — синтетический эталон SQL ревизии 1fd2de7,
+SHA-256 `08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044`.
+Не регенерировать его по текущему runtime при изменении схемы: тесты открывают
+копию. Источник эталона и допуск описаны в
+[ADR-0035](../architecture/decisions/0035-schema-admission.md) и
+[EV-052](../agent/verification/EV-052-schema-admission.md).
+
 Архитектура — [границы ядра](../architecture/core-boundaries.md).
 Продукт находится в корневом Cargo workspace; `prototypes/` проверяется отдельно.
 Версии Rust/Bun берутся из `scripts/environment-versions.json`, зависимости —

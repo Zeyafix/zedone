@@ -111,7 +111,7 @@ fn spaces(connection: &Connection, limits: BackupLimits) -> StorageResult<Vec<St
 }
 
 fn validate_database(connection: &Connection) -> StorageResult<()> {
-    schema::check_layout(connection)?;
+    schema::check_known_layout(connection)?;
     let mut statement = connection.prepare("PRAGMA integrity_check")?;
     let result = statement
         .query_map([], |r| r.get::<_, String>(0))?

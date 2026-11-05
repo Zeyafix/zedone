@@ -8,6 +8,7 @@ mod document;
 pub mod migration_backup;
 mod schema;
 pub mod snapshot;
+pub mod startup;
 mod version;
 
 #[cfg(test)]
@@ -34,6 +35,8 @@ pub enum StorageError {
     OutcomeUnknown,
     UnsupportedSchema,
     InvalidDatabase,
+    /// This run already consumed its automatic attempt; an explicit retry is required.
+    RetryRequired,
     /// Persistence collision only; replay and access policy belong to core.
     AlreadyRecorded,
     Rejected(CommandError),
@@ -85,20 +88,33 @@ enum Message {
 #[derive(Clone)]
 pub struct Storage {
     sender: mpsc::Sender<Message>,
+    registry: schema::Registry,
+}
+
+struct Opening {
+    sender: mpsc::Sender<Message>,
+    ready: oneshot::Receiver<StorageResult<()>>,
 }
 
 impl Storage {
     pub async fn open(path: impl Into<PathBuf>) -> StorageResult<Self> {
-        let path = path.into();
+        startup::Startup::new(path).automatic(None).await
+    }
+
+    fn begin_open(
+        path: PathBuf,
+        options: Option<startup::MigrationOptions>,
+        registry: schema::Registry,
+    ) -> StorageResult<Opening> {
         let (sender, mut receiver) = mpsc::channel(32);
         let (ready, opened) = oneshot::channel();
         thread::Builder::new()
             .name("zedone-storage".into())
             .spawn(move || {
                 let initialized: StorageResult<Connection> = (|| {
-                    schema::preflight(&path)?;
+                    schema::preflight_with(&path, registry)?;
                     let mut connection = Connection::open(path)?;
-                    schema::initialize(&mut connection)?;
+                    startup::initialize(&mut connection, options.as_ref(), registry, |_| Ok(()))?;
                     Ok(connection)
                 })();
                 let mut connection = match initialized {
@@ -123,8 +139,10 @@ impl Storage {
                 }
             })
             .map_err(|_| StorageError::Unavailable)?;
-        opened.await.map_err(|_| StorageError::Unavailable)??;
-        Ok(Self { sender })
+        Ok(Opening {
+            sender,
+            ready: opened,
+        })
     }
 
     async fn run<R: Send + 'static>(
@@ -148,9 +166,10 @@ impl Storage {
         &self,
         work: impl FnOnce(&mut ReadContext<'_>) -> StorageResult<R> + Send + 'static,
     ) -> StorageResult<R> {
+        let registry = self.registry;
         self.run(move |connection| {
             let tx = connection.transaction()?;
-            schema::check_version(&tx)?;
+            registry.check_version(&tx)?;
             let result = work(&mut ReadContext::new(&tx))?;
             tx.commit()?;
             Ok(result)
@@ -177,12 +196,13 @@ impl Storage {
         work: impl FnOnce(&mut WriteContext<'_>) -> StorageResult<R> + Send + 'static,
         checkpoint: impl Fn(Stage) -> StorageResult<()> + Send + 'static,
     ) -> StorageResult<R> {
+        let registry = self.registry;
         self.run(move |connection| {
             if key.is_empty() {
                 return Err(StorageError::Unavailable);
             }
             let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            schema::check_version(&tx)?;
+            registry.check_version(&tx)?;
             let mut context = WriteContext::new(&tx);
             if context.read().recorded(&key)?.is_some() {
                 return Err(StorageError::AlreadyRecorded);
@@ -223,9 +243,10 @@ impl Storage {
         work: impl FnOnce(&mut WriteContext<'_>) -> StorageResult<R> + Send + 'static,
         checkpoint: impl Fn(Stage) -> StorageResult<()> + Send + 'static,
     ) -> StorageResult<R> {
+        let registry = self.registry;
         self.run(move |connection| {
             let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            schema::check_version(&tx)?;
+            registry.check_version(&tx)?;
             let mut context = WriteContext::new(&tx);
             let result = work(&mut context)?;
             checkpoint(Stage::AfterWork)?;

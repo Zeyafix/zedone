@@ -5,7 +5,7 @@ use rusqlite::types::Value;
 
 use super::*;
 
-pub(super) const LIMITS: BackupLimits = BackupLimits {
+pub(crate) const LIMITS: BackupLimits = BackupLimits {
     max_database_bytes: 2 * 1024 * 1024,
     max_spaces: 10,
     max_total_snapshot_bytes: 1024 * 1024,
@@ -14,9 +14,9 @@ pub(super) const LIMITS: BackupLimits = BackupLimits {
         max_changes: 100,
     },
 };
-pub(super) const SPACE: &str = "../пространство/ё🙂";
+pub(crate) const SPACE: &str = "../пространство/ё🙂";
 
-pub(super) async fn fixture() -> (TempDir, Storage, PathBuf) {
+pub(crate) async fn fixture() -> (TempDir, Storage, PathBuf) {
     let root = TempDir::new().unwrap();
     let folder = root.path().join("backups");
     fs::create_dir(&folder).unwrap();
@@ -61,7 +61,7 @@ fn rows(connection: &Connection, table: &str) -> Vec<Vec<Value>> {
         .unwrap()
 }
 
-pub(super) fn files(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+pub(crate) fn files(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     let mut result = Vec::new();
     for entry in fs::read_dir(folder).unwrap() {
         let path = entry.unwrap().path();
@@ -104,7 +104,7 @@ async fn full_wal_database_and_all_archives_are_one_state_without_touching_sourc
         assert_eq!(rows(&source, table), rows(&copied, table), "{table}");
     }
     assert!(!candidate.path().join("database.sqlite-wal").exists());
-    let names = spaces(&copied, LIMITS).unwrap();
+    let names = spaces_v1(&copied, LIMITS).unwrap();
     assert_eq!(names.len(), 3);
     for (i, name) in names.into_iter().enumerate() {
         let bytes = fs::read(candidate.path().join(format!("space-{i}.bin"))).unwrap();

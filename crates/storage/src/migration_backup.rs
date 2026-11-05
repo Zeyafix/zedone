@@ -18,7 +18,7 @@ pub mod publication;
 
 use crate::{
     Storage, StorageError, StorageResult, schema,
-    snapshot::{self, SnapshotLimits, SnapshotMetadata, SpaceSnapshot},
+    snapshot::{SnapshotLimits, SnapshotMetadata, SpaceSnapshot},
 };
 
 /// Admission budgets selected by trusted infrastructure, not product limits.
@@ -92,14 +92,17 @@ fn io<T>(result: std::io::Result<T>) -> StorageResult<T> {
     result.map_err(|_| StorageError::Unavailable)
 }
 
-fn readonly(path: &Path) -> StorageResult<Connection> {
+pub(crate) fn readonly(path: &Path) -> StorageResult<Connection> {
     Ok(Connection::open_with_flags(
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?)
 }
 
-fn spaces(connection: &Connection, limits: BackupLimits) -> StorageResult<Vec<String>> {
+pub(crate) fn spaces_v1(
+    connection: &Connection,
+    limits: BackupLimits,
+) -> StorageResult<Vec<String>> {
     let count: i64 = connection.query_row("SELECT count(*) FROM documents", [], |r| r.get(0))?;
     if !usize::try_from(count).is_ok_and(|count| count <= limits.max_spaces) {
         return Err(StorageError::Unavailable);
@@ -110,8 +113,16 @@ fn spaces(connection: &Connection, limits: BackupLimits) -> StorageResult<Vec<St
         .collect::<Result<_, _>>()?)
 }
 
+#[cfg(test)]
 fn validate_database(connection: &Connection) -> StorageResult<()> {
-    schema::check_known_layout(connection)?;
+    validate_database_with(connection, schema::REGISTRY)
+}
+
+fn validate_database_with(
+    connection: &Connection,
+    registry: schema::Registry,
+) -> StorageResult<()> {
+    schema::check_schema_layout(connection, registry.known(connection)?)?;
     let mut statement = connection.prepare("PRAGMA integrity_check")?;
     let result = statement
         .query_map([], |r| r.get::<_, String>(0))?
@@ -181,8 +192,9 @@ fn archive(
     space: String,
     date: u64,
     limits: BackupLimits,
+    registry: schema::Registry,
 ) -> StorageResult<Vec<u8>> {
-    snapshot::capture(
+    (registry.known(connection)?.archive.capture)(
         connection,
         SnapshotMetadata {
             space,
@@ -203,6 +215,14 @@ fn manifest_limit(limits: BackupLimits) -> u64 {
 }
 
 fn verify(folder: &Path, limits: BackupLimits) -> StorageResult<()> {
+    verify_with(folder, limits, schema::REGISTRY)
+}
+
+pub(crate) fn verify_with(
+    folder: &Path,
+    limits: BackupLimits,
+    registry: schema::Registry,
+) -> StorageResult<()> {
     let manifest: Manifest = serde_json::from_slice(&read_bounded(
         &folder.join("manifest.json"),
         manifest_limit(limits),
@@ -229,8 +249,8 @@ fn verify(folder: &Path, limits: BackupLimits) -> StorageResult<()> {
         return Err(StorageError::InvalidDatabase);
     }
     let connection = readonly(&database)?;
-    validate_database(&connection)?;
-    let names = spaces(&connection, limits)?;
+    validate_database_with(&connection, registry)?;
+    let names = (registry.known(&connection)?.archive.spaces)(&connection, limits)?;
     if names.len() != manifest.spaces.len() {
         return Err(StorageError::InvalidDatabase);
     }
@@ -249,7 +269,15 @@ fn verify(folder: &Path, limits: BackupLimits) -> StorageResult<()> {
         let bytes = read_bounded(&path, limits.snapshot.max_bytes as u64)?;
         SpaceSnapshot::decode(&bytes, limits.snapshot)
             .map_err(|_| StorageError::InvalidDatabase)?;
-        if bytes != archive(&connection, space, manifest.created_at_unix_ms, limits)? {
+        if bytes
+            != archive(
+                &connection,
+                space,
+                manifest.created_at_unix_ms,
+                limits,
+                registry,
+            )?
+        {
             return Err(StorageError::InvalidDatabase);
         }
     }
@@ -280,6 +308,18 @@ fn capture(
     limits: BackupLimits,
     checkpoint: impl Fn(Checkpoint) -> StorageResult<()>,
 ) -> StorageResult<PreparedBackup> {
+    capture_with(locked, folder, date, limits, schema::REGISTRY, checkpoint)
+}
+
+fn capture_with(
+    locked: &rusqlite::Transaction<'_>,
+    folder: &Path,
+    date: u64,
+    limits: BackupLimits,
+    registry: schema::Registry,
+    checkpoint: impl Fn(Checkpoint) -> StorageResult<()>,
+) -> StorageResult<PreparedBackup> {
+    registry.validate(locked)?;
     let path = PathBuf::from(locked.path().ok_or(StorageError::Unavailable)?);
     let source = readonly(&path)?;
     let pages: u64 =
@@ -292,7 +332,7 @@ fn capture(
     {
         return Err(StorageError::Unavailable);
     }
-    spaces(&source, limits)?;
+    (registry.known(&source)?.archive.spaces)(&source, limits)?;
     let mut directory = io(tempfile::Builder::new()
         .prefix("zedone-migration-candidate-")
         .tempdir_in(folder))?;
@@ -311,7 +351,7 @@ fn capture(
     io(io(OpenOptions::new().read(true).write(true).open(&database))?.sync_all())?;
     checkpoint(Checkpoint::AfterCopy)?;
     let copied = readonly(&database)?;
-    validate_database(&copied)?;
+    validate_database_with(&copied, registry)?;
     let mut manifest = Manifest {
         version: 1,
         created_at_unix_ms: date,
@@ -319,8 +359,11 @@ fn capture(
         spaces: Vec::new(),
     };
     let mut total = 0u64;
-    for (index, space) in spaces(&copied, limits)?.into_iter().enumerate() {
-        let bytes = archive(&copied, space, date, limits)?;
+    for (index, space) in (registry.known(&copied)?.archive.spaces)(&copied, limits)?
+        .into_iter()
+        .enumerate()
+    {
+        let bytes = archive(&copied, space, date, limits, registry)?;
         total = total
             .checked_add(bytes.len() as u64)
             .ok_or(StorageError::Unavailable)?;
@@ -338,7 +381,7 @@ fn capture(
     let bytes = serde_json::to_vec(&manifest).map_err(|_| StorageError::Unavailable)?;
     write_new(&directory.path().join("manifest.json"), &bytes)?;
     checkpoint(Checkpoint::BeforeVerify)?;
-    verify(directory.path(), limits)?;
+    verify_with(directory.path(), limits, registry)?;
     checkpoint(Checkpoint::AfterVerify)?;
     // Successful candidates survive dropped futures/handles. Only explicit
     // discard deletes one. Crash remnants are never promoted by this module.
@@ -356,4 +399,4 @@ enum Checkpoint {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -16,5 +16,5 @@ pub trait Command: DeserializeOwned + Serialize + ToSchema {
 ///
 /// A successful mutation must mean that its local transaction is committed.
 /// `OutcomeUnknown` must never be presented as a rejection or a saved result.
-/// Command IDs, preconditions and durable replay are implemented in P03.04.
+/// `replay` implements IDs/preconditions/replay inside a trusted transaction.
 pub type CommandResult<T> = Result<T, CommandError>;

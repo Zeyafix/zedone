@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use automerge::{ActorId, Automerge, Change, ReadDoc, sync::State, transaction::Transaction};
 use rusqlite::{Connection, OptionalExtension};
+use zedone_core::replay::RecordedCommand;
 
 use crate::{StorageError, StorageResult};
 
@@ -11,11 +12,7 @@ struct Document {
 }
 
 /// Stored evidence, not authorization and not the current object state.
-#[derive(Debug, PartialEq, Eq)]
-pub struct RecordedResult {
-    pub request: Vec<u8>,
-    pub result: Vec<u8>,
-}
+pub type RecordedResult = RecordedCommand;
 
 pub struct ReadContext<'a> {
     connection: &'a Connection,
@@ -122,6 +119,19 @@ impl<'a> WriteContext<'a> {
 
     pub fn read(&mut self) -> &mut ReadContext<'a> {
         &mut self.read
+    }
+
+    /// Trusted infrastructure only. Never replace a receipt or prune it by age.
+    pub fn record(&mut self, key: &[u8], command: &RecordedCommand) -> StorageResult<()> {
+        let result = self
+            .read
+            .connection
+            .execute(
+                "INSERT INTO command_results(key, request, result) VALUES (?1, ?2, ?3)",
+                (key, &command.request, &command.result),
+            )
+            .map(|_| ());
+        self.checked(result.map_err(StorageError::from))
     }
 
     // Even if a callback catches a mutator's error, partial work cannot commit.

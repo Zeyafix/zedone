@@ -6,7 +6,10 @@
 
 mod document;
 mod schema;
+mod version;
 
+#[cfg(test)]
+mod replay_tests;
 #[cfg(test)]
 mod tests;
 
@@ -18,6 +21,7 @@ use tokio::sync::{mpsc, oneshot};
 use zedone_core::error::{CommandError, ErrorCode};
 
 pub use document::{ReadContext, RecordedResult, WriteContext};
+pub use version::state_version;
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
@@ -195,6 +199,39 @@ impl Storage {
             checkpoint(Stage::BeforeCommit)?;
             // SQLite failure at this boundary is conservatively unknown. The
             // transaction guard rolls back if possible; never report success.
+            tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
+            checkpoint(Stage::AfterCommit).map_err(|_| StorageError::OutcomeUnknown)?;
+            Ok(result)
+        })
+        .await
+    }
+
+    /// Compose a core command with trusted access/domain ports on this worker.
+    /// The callback is infrastructure, never a user-supplied operation. It must
+    /// use core's replay policy and atomically record every successful command.
+    /// A response may leave this boundary only after the future returns success.
+    pub async fn transact<R: Send + 'static>(
+        &self,
+        work: impl FnOnce(&mut WriteContext<'_>) -> StorageResult<R> + Send + 'static,
+    ) -> StorageResult<R> {
+        self.transact_checked(work, |_| Ok(())).await
+    }
+
+    async fn transact_checked<R: Send + 'static>(
+        &self,
+        work: impl FnOnce(&mut WriteContext<'_>) -> StorageResult<R> + Send + 'static,
+        checkpoint: impl Fn(Stage) -> StorageResult<()> + Send + 'static,
+    ) -> StorageResult<R> {
+        self.run(move |connection| {
+            let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            schema::check_version(&tx)?;
+            let mut context = WriteContext::new(&tx);
+            let result = work(&mut context)?;
+            checkpoint(Stage::AfterWork)?;
+            context.flush()?;
+            checkpoint(Stage::AfterChanges)?;
+            checkpoint(Stage::AfterResult)?;
+            checkpoint(Stage::BeforeCommit)?;
             tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
             checkpoint(Stage::AfterCommit).map_err(|_| StorageError::OutcomeUnknown)?;
             Ok(result)

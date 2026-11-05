@@ -4,6 +4,7 @@
 pub mod access;
 pub mod command;
 pub mod error;
+pub mod replay;
 
 use utoipa::OpenApi;
 

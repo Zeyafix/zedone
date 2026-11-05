@@ -74,3 +74,9 @@ T06/A08 остаются partial. UI с начальными чтением/«Д
 
 Принципы отказа по умолчанию и проверки каждого обращения сверены с
 [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
+
+Продолжение P03.05.2: постоянный источник AccessTransaction на том же
+`WriteContext`, выдача/замена/отзыв и однократный bootstrap реализованы в
+[ADR-0037](0037-persistent-access.md)/EV-055. Прежнее описание отсутствующей
+реализации выше сохраняет границу P03.03. Доверенный Clock и реальные входы
+ещё не реализованы; T06/A08 и DEC-003 остаются partial/open.

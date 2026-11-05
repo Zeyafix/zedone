@@ -680,6 +680,7 @@ name = "zedone-storage"
 version = "0.0.0"
 dependencies = [
  "automerge",
+ "getrandom",
  "rusqlite",
  "serde",
  "serde_json",

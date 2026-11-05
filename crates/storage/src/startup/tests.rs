@@ -39,18 +39,21 @@ const GOOD: Registry = Registry(&[
         sql: V1,
         upgrade: None,
         archive: V1_ARCHIVE,
+        validate: None,
     },
     Schema {
         version: 2,
         sql: V2,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
+        validate: None,
     },
     Schema {
         version: 3,
         sql: V3,
         upgrade: Some(third),
         archive: V1_ARCHIVE,
+        validate: None,
     },
 ]);
 const FAIL: Registry = Registry(&[
@@ -59,18 +62,21 @@ const FAIL: Registry = Registry(&[
         sql: V1,
         upgrade: None,
         archive: V1_ARCHIVE,
+        validate: None,
     },
     Schema {
         version: 2,
         sql: V2,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
+        validate: None,
     },
     Schema {
         version: 3,
         sql: V3,
         upgrade: Some(failing_third),
         archive: V1_ARCHIVE,
+        validate: None,
     },
 ]);
 
@@ -437,7 +443,10 @@ async fn committed_migration_with_missing_or_corrupt_backup_blocks_every_storage
 #[tokio::test]
 async fn legacy_open_cannot_bypass_commit_witness_reconciliation() {
     let (_root, path, options) = fixture();
-    let storage = Storage::open(&path).await.unwrap();
+    let storage = Startup::new(&path)
+        .automatic(Some(options.clone()))
+        .await
+        .unwrap();
     storage
         .with_migration_backup(
             &options.folder,
@@ -588,12 +597,14 @@ const THROUGH_V2: Registry = Registry(&[
         sql: V1,
         upgrade: None,
         archive: V1_ARCHIVE,
+        validate: None,
     },
     Schema {
         version: 2,
         sql: V2,
         upgrade: Some(second),
         archive: V2_ARCHIVE,
+        validate: None,
     },
 ]);
 
@@ -671,12 +682,14 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
             sql: V1,
             upgrade: None,
             archive: V1_ARCHIVE,
+            validate: None,
         },
         Schema {
             version: 2,
             sql: V2,
             upgrade: Some(second),
             archive: V2_ARCHIVE,
+            validate: None,
         },
         Schema {
             version: 3,
@@ -687,6 +700,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
                 Ok(())
             }),
             archive: V1_ARCHIVE,
+            validate: None,
         },
     ]);
     let (_root, path, options) = fixture();

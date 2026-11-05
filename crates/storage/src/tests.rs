@@ -555,7 +555,7 @@ async fn orphan_changes_and_conflicting_values_survive_reopen_and_late_delivery(
 #[tokio::test]
 async fn incompatible_or_foreign_schema_is_rejected_without_modifying_file() {
     for sql in [
-        "PRAGMA user_version = 2",
+        "PRAGMA user_version = 99",
         "PRAGMA user_version = 0",
         "PRAGMA application_id = 7",
         "DROP TABLE peers",

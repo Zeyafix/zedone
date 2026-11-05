@@ -9,3 +9,4 @@
 /api/openapi.json text eol=lf
 /api/schema.d.ts text eol=lf
 /bun.lock text eol=lf
+/crates/storage/tests/fixtures/*.bin binary

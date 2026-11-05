@@ -11,6 +11,11 @@ on:
       - 'scripts/install-ci-tauri.sh'
       - 'scripts/check-ci-tauri.sh'
       - 'prototypes/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'api/**'
+      - 'scripts/check-product.mjs'
   pull_request:
     paths:
       - '.gitattributes'
@@ -20,6 +25,11 @@ on:
       - 'scripts/install-ci-tauri.sh'
       - 'scripts/check-ci-tauri.sh'
       - 'prototypes/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'api/**'
+      - 'scripts/check-product.mjs'
   workflow_dispatch:
 
 permissions:
@@ -129,7 +139,9 @@ jobs:
         with:
           prefix-key: zedone-rust-v1
           shared-key: prototype-android-ndk-${{ steps.versions.outputs.ndk }}
-          workspaces: prototypes -> target
+          workspaces: |
+            . -> target
+            prototypes -> target
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Restore pinned Tauri CLI
@@ -150,6 +162,7 @@ jobs:
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
           rust=$(jq -r .rust "$versions")
           cargo "+$rust" fetch --locked
+          cargo "+$rust" fetch --locked --manifest-path ../Cargo.toml
           bun install --frozen-lockfile
           bun run check:types
           chmod +x src-tauri/gen/android/gradlew

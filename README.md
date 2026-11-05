@@ -4,6 +4,9 @@
 
 Технические прототипы: [подготовка и проверки P01](docs/development/prototypes.md).
 
+Продуктовое Rust-ядро: [архитектура](docs/architecture/core-boundaries.md),
+[разработка и проверки](docs/development/product-core.md).
+
 ## License
 
 This software is licensed under [CC BY-NC-SA 4.0](LICENSE) — free for non-commercial use,

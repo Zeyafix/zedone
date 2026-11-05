@@ -15,6 +15,14 @@ feature-ветки не запускает второй набор jobs; до о
 Человек и агент используют общий набор команд из [прототипов](prototypes.md)
 и [Android CI](android-environment-ci.md).
 
+Для продукта добавлен отдельный [product-check](product-core.md) из корня:
+Windows/Linux выполняют `bun scripts/check-product.mjs`; существующий Android
+emulator callback — ту же команду с `--android`. Проверяются контракт и отказ
+unsafe во всех собственных Cargo-targets, обе Android ABI и нативные x86_64-тесты.
+Корневые Cargo/crates/api/драйвер добавлены в paths; root workspace → `target`
+кэшируется рядом с независимым `prototypes` → `target`. Готовность прототипов
+не подменяет эти проверки продукта.
+
 ## Что переиспользуется
 
 | Кэш | Состав и ключ | Владелец |

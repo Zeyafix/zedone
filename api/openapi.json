@@ -1,0 +1,42 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ZeDone API",
+    "description": "",
+    "license": {
+      "name": "CC-BY-NC-SA-4.0",
+      "identifier": "CC-BY-NC-SA-4.0"
+    },
+    "version": "0.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "CommandError": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ErrorCode": {
+        "type": "string",
+        "description": "Shared machine-readable errors, without credentials, SQL or platform details.\n\nCodes describe semantics, not HTTP statuses or retry policy. A stale request\nrequires a fresh read and a new explicit action. An unknown outcome requires\nchecking/replaying the original command, never inventing a new command ID.",
+        "enum": [
+          "invalid_request",
+          "access_denied",
+          "not_found",
+          "stale_state",
+          "command_mismatch",
+          "unavailable",
+          "outcome_unknown"
+        ]
+      }
+    }
+  }
+}

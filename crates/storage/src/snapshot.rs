@@ -212,7 +212,7 @@ impl Storage {
     }
 }
 
-fn capture(
+pub(crate) fn capture(
     connection: &Connection,
     metadata: SnapshotMetadata,
     limits: SnapshotLimits,

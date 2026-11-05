@@ -5,6 +5,7 @@
 //! may be sent to a client. Domain history belongs in the same document as data.
 
 mod document;
+pub mod migration_backup;
 mod schema;
 pub mod snapshot;
 mod version;

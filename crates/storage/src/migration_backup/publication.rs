@@ -1,5 +1,5 @@
 //! A SQLite commit witness is authoritative; the file index is repairable.
-//! Trusted startup infrastructure only. P07.08 supplies the actual migration.
+//! Trusted startup infrastructure only; no authenticated restore command.
 
 use rusqlite::{OptionalExtension, Transaction};
 use tempfile::NamedTempFile;
@@ -161,6 +161,10 @@ fn checked(reference: &BackupRef) -> StorageResult<()> {
     Ok(())
 }
 
+pub(crate) fn has_commit_witness(connection: &Connection) -> StorageResult<bool> {
+    Ok(committed(connection)?.is_some())
+}
+
 fn committed(connection: &Connection) -> StorageResult<Option<CommitRecord>> {
     let row: Option<(Vec<u8>, Vec<u8>)> = connection
         .query_row(
@@ -209,6 +213,7 @@ fn verify_reference(
     folder: &Path,
     reference: &BackupRef,
     limits: BackupLimits,
+    registry: schema::Registry,
 ) -> StorageResult<()> {
     checked(reference)?;
     let path = folder.join(&reference.name);
@@ -216,7 +221,7 @@ fn verify_reference(
     if digest(&path.join("manifest.json"), manifest_limit(limits))? != reference.manifest {
         return Err(StorageError::InvalidDatabase);
     }
-    verify(&path, limits)
+    verify_with(&path, limits, registry)
 }
 
 fn publish(folder: &Path, reference: &BackupRef) -> StorageResult<()> {
@@ -253,6 +258,47 @@ fn reconcile(
     validate: &impl Fn(&Connection) -> StorageResult<()>,
     checkpoint: &impl Fn(Point) -> StorageResult<()>,
 ) -> StorageResult<Option<PublishedBackup>> {
+    reconcile_with(
+        connection,
+        folder,
+        limits,
+        validate,
+        checkpoint,
+        schema::REGISTRY,
+    )
+}
+
+/// Startup reconciles or migrates while retaining the folder lock. It rechecks
+/// the version under the writer lock, so competing starts cannot rotate a backup
+/// by executing an already completed migration a second time.
+pub(crate) fn migrate_startup(
+    connection: &mut Connection,
+    options: &crate::startup::MigrationOptions,
+    registry: schema::Registry,
+    checkpoint: impl Fn(Point) -> StorageResult<()>,
+) -> StorageResult<()> {
+    execute_with(
+        connection,
+        &options.folder,
+        options.created_at_unix_ms,
+        options.limits,
+        registry,
+        true,
+        |tx| registry.migrate(tx),
+        |c| registry.target(c),
+        checkpoint,
+    )?;
+    Ok(())
+}
+
+fn reconcile_with(
+    connection: &Connection,
+    folder: &Path,
+    limits: BackupLimits,
+    validate: &impl Fn(&Connection) -> StorageResult<()>,
+    checkpoint: &impl Fn(Point) -> StorageResult<()>,
+    registry: schema::Registry,
+) -> StorageResult<Option<PublishedBackup>> {
     let indexed = index(folder)?;
     let Some(record) = committed(connection)? else {
         return if indexed.is_none() {
@@ -266,13 +312,13 @@ fn reconcile(
         return Err(StorageError::InvalidDatabase);
     }
     validate(connection)?;
-    verify_reference(folder, &record.current, limits)?;
+    verify_reference(folder, &record.current, limits, registry)?;
     sync_directory(&folder.join(&record.current.name))?;
     sync_directory(folder)?;
     checkpoint(Point::BeforePublish)?;
     publish(folder, &record.current)?;
     checkpoint(Point::AfterPublish)?;
-    verify_reference(folder, &record.current, limits)?;
+    verify_reference(folder, &record.current, limits, registry)?;
     if index(folder)?.as_ref() != Some(&record.current) {
         return Err(StorageError::InvalidDatabase);
     }
@@ -298,23 +344,60 @@ fn execute(
     validate: impl Fn(&Connection) -> StorageResult<()>,
     checkpoint: impl Fn(Point) -> StorageResult<()>,
 ) -> StorageResult<PublishedBackup> {
+    execute_with(
+        connection,
+        folder,
+        date,
+        limits,
+        schema::REGISTRY,
+        false,
+        apply,
+        validate,
+        checkpoint,
+    )?
+    .ok_or(StorageError::Unavailable)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn execute_with(
+    connection: &mut Connection,
+    folder: &Path,
+    date: u64,
+    limits: BackupLimits,
+    registry: schema::Registry,
+    migration: bool,
+    apply: impl FnOnce(&Transaction<'_>) -> StorageResult<()>,
+    validate: impl Fn(&Connection) -> StorageResult<()>,
+    checkpoint: impl Fn(Point) -> StorageResult<()>,
+) -> StorageResult<Option<PublishedBackup>> {
     let _lock = lock(folder)?;
     let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    schema::check_layout(&tx)?;
+    registry.validate(&tx)?;
     if let Some(record) = committed(&tx)?
+        && !migration
         && index(folder)?.as_ref() != Some(&record.current)
     {
         return Err(StorageError::OutcomeUnknown);
     }
     // An unfinished publication must be reconciled before any new attempt.
-    // The source layout is still v1 in this infrastructure slice.
-    if reconcile(&tx, folder, limits, &validate_database, &|_| Ok(()))?
-        .is_some_and(|result| result.cleanup_pending)
-    {
+    let prior = reconcile_with(
+        &tx,
+        folder,
+        limits,
+        &|c| validate_database_with(c, registry),
+        &|_| Ok(()),
+        registry,
+    )?;
+    if migration && registry.known(&tx)?.version == registry.current().version {
+        registry.target(&tx)?;
+        tx.rollback()?;
+        return Ok(prior);
+    }
+    if prior.is_some_and(|result| result.cleanup_pending) {
         return Err(StorageError::Unavailable);
     }
     let previous = index(folder)?;
-    let candidate = capture(&tx, folder, date, limits, |point| {
+    let candidate = capture_with(&tx, folder, date, limits, registry, |point| {
         if point == Checkpoint::AfterCopy {
             checkpoint(Point::CopyWritten)?;
         }
@@ -349,7 +432,7 @@ fn execute(
         rusqlite::params![KEY, REQUEST, encode(&record)?],
     )?;
     validate(&tx)?;
-    verify_reference(folder, &record.current, limits)?;
+    verify_reference(folder, &record.current, limits, registry)?;
     checkpoint(Point::BeforeCommit)?;
     tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
     // From here a failure must not be presented as a rollback of the operation.
@@ -360,16 +443,16 @@ fn execute(
         if committed(&tx)?.as_ref().map(|r| &r.current) != Some(&record.current) {
             return Err(StorageError::InvalidDatabase);
         }
-        let result = reconcile(&tx, folder, limits, &validate, &checkpoint)?
+        let result = reconcile_with(&tx, folder, limits, &validate, &checkpoint, registry)?
             .ok_or(StorageError::InvalidDatabase)?;
         tx.rollback()?;
-        Ok(result)
+        Ok(Some(result))
     })()
     .map_err(|_| StorageError::OutcomeUnknown)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Point {
+pub(crate) enum Point {
     CopyWritten,
     AfterCapture,
     BeforeCommit,

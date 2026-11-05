@@ -53,3 +53,9 @@ ADR-0030/0034 сохраняются; power-loss/Windows directory durability н
 Основания: [SQLite read-only open](https://www.sqlite.org/c3ref/open.html),
 [quick_check](https://www.sqlite.org/pragma.html#pragma_quick_check),
 [foreign_key_check](https://www.sqlite.org/pragma.html#pragma_foreign_key_check).
+
+
+Продолжение P07.08.2/.3: цепочка, исторические archive adapters и общий startup
+реализованы в [ADR-0036](0036-atomic-migration-startup.md)/EV-053/054. Схема 1 и
+описанный безопасный hot-journal отказ сохраняются; это не служебное
+восстановление. Старое описание будущих шагов выше сохраняет охват P07.08.1.

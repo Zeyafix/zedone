@@ -6,7 +6,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Storage, StorageError, StorageResult, schema};
+use crate::{Storage, StorageError, StorageResult};
 
 const MAGIC: &[u8; 8] = b"ZEDSPACE";
 const VERSION: u32 = 1;
@@ -194,9 +194,10 @@ impl Storage {
         created_at_unix_ms: u64,
         limits: SnapshotLimits,
     ) -> StorageResult<SpaceSnapshot> {
+        let registry = self.registry;
         self.run(move |connection| {
             let tx = connection.transaction()?;
-            schema::check_version(&tx)?;
+            registry.check_version(&tx)?;
             let snapshot = capture(
                 &tx,
                 SnapshotMetadata {

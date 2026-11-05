@@ -42,6 +42,18 @@ fn mutated(connection: &Connection) -> bool {
         == 1
 }
 
+async fn open(path: impl Into<PathBuf>) -> StorageResult<Storage> {
+    let path = path.into();
+    let folder = path.parent().unwrap().join("backups");
+    crate::startup::Startup::new(path)
+        .automatic(Some(crate::startup::MigrationOptions {
+            folder,
+            created_at_unix_ms: 0,
+            limits: LIMITS,
+        }))
+        .await
+}
+
 async fn initial(storage: &Storage, folder: &Path) -> PublishedBackup {
     storage
         .with_migration_backup(folder, 1, LIMITS, |_| Ok(()), validate_database)
@@ -77,9 +89,7 @@ async fn successful_replacement_is_complete_and_reverse_edit_keeps_backup() {
         .await
         .unwrap();
     storage.shutdown().await.unwrap();
-    let reopened = Storage::open(root.path().join("device.sqlite"))
-        .await
-        .unwrap();
+    let reopened = open(root.path().join("device.sqlite")).await.unwrap();
     let recovered = reopened
         .recover_migration_backup(&folder, LIMITS, validate_database)
         .await
@@ -444,7 +454,7 @@ async fn crash_child() {
     };
     let root = PathBuf::from(root);
     let point = std::env::var("ZEDONE_BACKUP_CRASH_POINT").unwrap();
-    let storage = Storage::open(root.join("device.sqlite")).await.unwrap();
+    let storage = open(root.join("device.sqlite")).await.unwrap();
     storage
         .run(move |c| {
             execute(
@@ -470,9 +480,7 @@ async fn crash_child() {
 #[tokio::test]
 async fn two_workers_cannot_publish_over_each_other_or_repeat_the_pending_operation() {
     let (root, storage, folder) = fixture().await;
-    let other = Storage::open(root.path().join("device.sqlite"))
-        .await
-        .unwrap();
+    let other = open(root.path().join("device.sqlite")).await.unwrap();
     let (entered, waiting) = tokio::sync::oneshot::channel();
     let (release, blocked) = mpsc::channel();
     let writer = storage.clone();
@@ -626,9 +634,7 @@ async fn process_termination_restart_never_promotes_an_uncommitted_candidate() {
             .unwrap();
         assert_eq!(status.code(), Some(73), "{point:?}");
         assert_eq!(before, files(&old.path), "old files survive {point:?}");
-        let reopened = Storage::open(root.path().join("device.sqlite"))
-            .await
-            .unwrap();
+        let reopened = open(root.path().join("device.sqlite")).await.unwrap();
         let after_commit = matches!(
             point,
             Point::AfterCommit | Point::BeforePublish | Point::AfterPublish | Point::BeforeCleanup

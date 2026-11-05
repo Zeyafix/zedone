@@ -59,20 +59,7 @@ pub(crate) fn initialize(connection: &mut Connection) -> StorageResult<()> {
         } else {
             check_version(&tx)?;
         }
-        let mut actual = tx
-            .prepare("SELECT sql FROM sqlite_schema WHERE sql IS NOT NULL")?
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut expected: Vec<_> = SCHEMA
-            .split(';')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .collect();
-        actual.sort();
-        expected.sort();
-        if actual != expected {
-            return Err(StorageError::InvalidDatabase);
-        }
+        check_layout(&tx)?;
         tx.commit()?;
     }
     // No persistent PRAGMA changes until identity/version/layout are accepted.
@@ -83,6 +70,25 @@ pub(crate) fn initialize(connection: &mut Connection) -> StorageResult<()> {
     connection.pragma_update(None, "synchronous", "FULL")?;
     let integrity: String = connection.query_row("PRAGMA quick_check", [], |r| r.get(0))?;
     if integrity != "ok" {
+        return Err(StorageError::InvalidDatabase);
+    }
+    Ok(())
+}
+
+pub(crate) fn check_layout(connection: &Connection) -> StorageResult<()> {
+    check_version(connection)?;
+    let mut actual = connection
+        .prepare("SELECT sql FROM sqlite_schema WHERE sql IS NOT NULL")?
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut expected: Vec<_> = SCHEMA
+        .split(';')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    actual.sort();
+    expected.sort();
+    if actual != expected {
         return Err(StorageError::InvalidDatabase);
     }
     Ok(())

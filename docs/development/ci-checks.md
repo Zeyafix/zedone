@@ -19,6 +19,9 @@ feature-ветки не запускает второй набор jobs; до о
 Windows/Linux выполняют `bun scripts/check-product.mjs`; существующий Android
 emulator callback — ту же команду с `--android`. Проверяются контракт и отказ
 unsafe во всех собственных Cargo-targets, обе Android ABI и нативные x86_64-тесты.
+P03.02 добавляет те же тесты атомарного хранения и crash/reopen на обеих
+платформах; bundled SQLite собирается NDK C-компилятором, тестовые базы
+живут только в удаляемом sandbox. APK/WebView этим не заменяются.
 Корневые Cargo/crates/api/драйвер добавлены в paths; root workspace → `target`
 кэшируется рядом с независимым `prototypes` → `target`. Готовность прототипов
 не подменяет эти проверки продукта.

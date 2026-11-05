@@ -1,5 +1,7 @@
-//! Transport-independent product contract. Storage and adapters follow in P03.02–05.
+//! Transport-independent product contract and authorization policy.
+//! Storage implements persistence separately; public adapters follow in P03.05.
 
+pub mod access;
 pub mod command;
 pub mod error;
 

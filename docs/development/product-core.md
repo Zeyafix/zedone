@@ -334,3 +334,8 @@ Ajv 8.20.0 генерирует standalone ESM `api/validate-response.js` и е�
 конверт или вложенный результат не удаляет pending и не подтверждает успех.
 Ajv — только dev-зависимость; в клиент не включаются библиотека или runtime eval.
 Источник: [Ajv standalone](https://ajv.js.org/standalone.html).
+
+Сгенерированные `api/validate-response.js` и `api/validate-response.d.ts`, как
+OpenAPI и schema.d.ts, имеют явное `text eol=lf` в .gitattributes. Это сохраняет
+строгую побайтовую проверку при Windows checkout с core.autocrlf=true; не
+нормализовать сравнение и не перегенерировать артефакты для сокрытия drift в CI.

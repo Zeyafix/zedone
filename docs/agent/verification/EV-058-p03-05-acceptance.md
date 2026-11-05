@@ -74,3 +74,15 @@ validator и compile-only consumers. Четыре отрицательные п�
 Runtime/тесты после финальных прогонов не менялись; локальные SHA-256/логи —
 `docs/reports/p03-05/verification.json`. Собственный read-only AVD остановлен,
 native sandbox удалён. Коммита/PR/новых CI/слияния нет; очередь сохраняет verified.
+
+## Продолжение публикации: BUG-004
+
+PR #47 head `ac0a8c0`: Windows CI failed при сравнении standalone validator,
+Linux CI passed. Причина — Git checkout преобразовал LF в CRLF в новых JS/d.ts,
+для которых не было явных attributes. Runtime-проверки не выявили отказа.
+Оба checkout-сценария воспроизведены отдельно: `--check-types` отклоняет CRLF.
+Два явных LF-правила сохраняют точные артефакты для Windows и Linux;
+`--check-types` и 11 клиентских тестов/70 assertions после исправления passed.
+Runtime/генератор/производные не менялись. Финальные CI нового head и merge
+проверяются по Git/PR и `docs/reports/p03-05/publication.json`; прежний failed CI
+не засчитывается как passed и не обходится. LOG-279.

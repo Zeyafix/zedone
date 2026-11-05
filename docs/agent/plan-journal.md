@@ -10,16 +10,16 @@ current_stage_state: in_progress
 current_step: P03.05
 last_completed_stage: P02
 last_completed_step: P03.05.2
-active_work: ""
+active_work: "BUG-004: Windows checkout generated validator LF; финальные CI PR #47 после исправления"
 next_action: "Опубликовать полный P03.05; после успешных финальных CI и проверки head/ревью/конфликтов выполнить merge и удалить ветку локально/на GitHub. Факты — Git/PR и docs/reports/p03-05/publication.json. Другой шаг не начинается."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
-open_bugs: []
+open_bugs: [BUG-004]
 open_gaps: [GAP-007]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
-blocking_current_step: []
-last_event: LOG-278
+blocking_current_step: [BUG-004]
+last_event: LOG-279
 ```
 
 P03.05.1 done: PR #40 head 5559f86 интегрирован в 50fe374 после трёх успешных Windows/Linux/Android PR checks; исходная ветка удалена. P03 остаётся in_progress. Для подготовки персистентных прав выбран P07.01: формат полного scoped журнала с orphans, версия/метаданные/SHA-256 и эталон v1 проверены локально, 68 тестов Windows/нативного Android и обе ABI release/unsafe passed (EV-049/LOG-257). P07.01 done: PR #41 head 61abac9 интегрирован в 5c2cf33 после успешных Windows/Linux/Android PR checks; исходная ветка удалена. P07.07.1/EV-050: согласованный кандидат полной SQLite-копии и снимков всех пространств, повторное чтение/проверка/явное удаление; 79 тестов Windows/нативного Android и обе ABI release/unsafe passed. P07.07.1 done: PR #42 head 33967c3 интегрирован в cf0fe77 после успешных Windows/Linux/Android PR checks; исходная ветка удалена. P07.07.2 done: PR #43 head 4ecbb5d интегрирован в 1fd2de7 после успешных Windows/Linux/Android PR checks; ветка удалена. P07.07 завершён в инфраструктурном охвате. P07.08.1 done: PR #44 head 244bb6c интегрирован в 9041216 после трёх успешных PR checks; ветка удалена. P07.08.2/.3 и родитель done в инфраструктурном охвате: PR #45 head 931cce2 интегрирован в eb05e1a после трёх успешных Windows/Linux/Android checks, ветка удалена локально/на GitHub. EV-053/054: атомарная цепочка, исторические архивы, общий startup gate и повторы; по 117 тестов Windows/нативного Android и обе ABI release/unsafe passed. Весь P07 не завершён. P03.05.2 done: PR #46 head 6b5475b интегрирован в 5c42224 после трёх SUCCESS, ветка удалена. В feat/p03-05-complete-access реализованы P03.05.3 (доверенное время, схема v3, rollback/commit gate, EV-056) и P03.05.4 (общий HTTP/CLI/IPC, access.inspect/access.revoke, клиентские намерения/повторы, EV-057); итоговая проверка EV-058 passed локально: 144 Rust-теста Windows и нативного Android x86_64, 11 клиентских тестов, release обеих ABI/Tauri bridge, 21 отказ unsafe, Rust/OpenAPI/TS/standalone validator. P03.05/.3/.4 verified; новых PR/CI/интеграции нет; P03 целиком не завершён.
@@ -426,6 +426,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| BUG-004 | bug | in_progress | P03.05 | PR #47 head ac0a8c0: Windows CI отклонил standalone validator из-за преобразования LF→CRLF при Git checkout; правила новых generated JS/d.ts отсутствовали. Runtime-тесты прошли, Linux CI success. Воспроизведены оба отказа при core.autocrlf=true/core.eol=crlf; явные LF attributes сохраняют оба артефакта побайтово на Windows/Linux, check-types и 11 клиентских тестов passed. Runtime/генератор/артефакты не меняются; закрыть после успешных финальных CI/интеграции. EV-058/LOG-279 |
 | GAP-007 | gap | in_progress | — | Исходный Android main 41641087962 на f173064 упал при подключении WebView после restart; повтор attempt 2 тоже упал. CI.02 (ожидание page/диагностика) интегрирован PR #26 в d141d92, PR и main Windows/Linux/Android Actions passed, реальный restart/SQLite/отзыв ключа подтверждены. Первопричина и устранение всех периодических сбоев не доказаны; наблюдать новые отказы с диагностикой. Не блокирует P02.04.2; EV-031/LOG-211 |
 | BUG-003 | bug | resolved | — | EV-026: прямой scalar put выбранного победившего текста в Automerge 0.12.0 может только удалить конкурентов, сохранив старую идентичность значения. При двух независимых выборах/поздней правке решение теряется. Исправлено: неизменяемое присваивание Map с новым ID при каждой правке/решении. Оба исходных варианта, конкурирующие решения и поздняя правка проверены на Windows/Android; интегрировано в d066991 через PR #20 после Actions. T05/A04/A23/S04; не регрессия P02.01, в котором конфликтов нет. |
 | GAP-006 | gap | accepted | — | [EV-024](verification/EV-024-prototype-review.md), LOG-187: разработчик завершил P01/P01.11 и прекратил дальнейшую диагностику на синтетике. Результаты/ограничения LOG-183–185 и прежние evidence сохранены; GAP-006 accepted. Неполный охват временных ориентиров, полный UI/IME, системный ввод, отсутствующие продуктовые операции, масштаб/память и физическая матрица не объявляются проверенными. A62 остаётся partial; завершение прототипирования с этими ограничениями не блокирует P02. Протокол дополнительного коллектора — справочный, реализация не поручена. |
@@ -2574,3 +2575,11 @@ limitations: "Непроверенные части и связанные BUG/GA
 - После fetch база 5c42224 совпадает с origin/main; существующего PR ветки нет. Все 53 SHA-256 проверенного состава, 37 runtime/config/test/derived артефактов и оба финальных лога совпали с verification.json. Публикация меняет только передачу журнала; runtime/тесты/производные после финальных прогонов не меняются.
 - EV-056/057/058 и ADR-0038/0039: реальное время/права, общий HTTP/CLI/IPC, актуальность и исходные receipts, клиентские сохранённые намерения/субъект/повторы, Rust/OpenAPI/TS/standalone validator. По 144 Rust-теста Windows/нативного Android x86_64, 11 клиентских/70 assertions, обе ABI/Tauri bridge и 21 отказ unsafe passed локально. Пять правил подтверждены в охвате; полный T06/A08/A26, формы/устройства/продуктовый APK, защищённая доставка/хранение ключа, служебное восстановление/откат всей базы и budgets приложения не приняты.
 - Обе Git-идентичности noreply, отслеживаемых игнорируемых файлов нет, pre-push совпадает с исходником. Полный staged diff проверяется перед коммитом; hooks/CI не обходятся. URL/head/CI/merge и удаление ветки сохраняются в docs/reports/p03-05/publication.json. После интеграции согласовать очередь/журнал/EV с Git/PR при следующем шаге; P03 и P07 целиком не завершены.
+
+
+### LOG-279 — 2026-11-05 — агент Codex, Windows CI и переносы generated validator
+
+- PR #47 head ac0a8c0: Windows foundation job 127392834615 failed на строгой побайтовой сверке validator, Linux job success; Actions runtime-тесты прошли. Причина BUG-004 — отсутствующие LF attributes для новых api/validate-response.js и api/validate-response.d.ts, Git checkout Windows добавляет CRLF.
+- Оба отказа воспроизведены отдельно через Git checkout filters core.autocrlf=true/core.eol=crlf с последующим реальным check-types. Добавлены только два явных LF-правила в .gitattributes. После исправления оба файла при Windows и Linux checkout побайтово совпадают с Git blob; bun scripts/check-product.mjs --check-types и 11 клиентских тестов/70 assertions passed.
+- Runtime, тесты, генератор, содержимое производных и схемы не менялись. Проверенный набор сравнен с хешами EV-058; менять формат сверки или регенерировать файлы в CI не требуется. Полные локальные Rust/Android прогоны не повторяются для изменения Git attributes; финальные Windows/Linux/Android CI нового head обязательны.
+- Журнал/EV/инструкция дополнены, исходный отказ и воспроизведение остаются в игнорируемых docs/reports/p03-05/ci-*. Разрешение разработчика merge/удаления сохраняется; до успеха CI merge не выполняется. BUG-004 закрывается по фактам финального CI/интеграции, сохранённым в publication.json, при следующем согласовании журнала.

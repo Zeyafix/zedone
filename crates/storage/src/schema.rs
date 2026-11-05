@@ -12,6 +12,7 @@ pub(crate) struct Schema {
     pub sql: &'static str,
     pub upgrade: Option<fn(&Transaction<'_>) -> StorageResult<()>>,
     pub archive: ArchiveAdapter,
+    pub validate: Option<fn(&Connection) -> StorageResult<()>>,
 }
 #[derive(Clone, Copy)]
 pub(crate) struct ArchiveAdapter {
@@ -27,12 +28,30 @@ pub(crate) const V1_ARCHIVE: ArchiveAdapter = ArchiveAdapter {
     spaces: crate::migration_backup::spaces_v1,
     capture: crate::snapshot::capture,
 };
-const SCHEMAS: &[Schema] = &[Schema {
-    version: 1,
-    sql: include_str!("schema/v1.sql"),
-    upgrade: None,
-    archive: V1_ARCHIVE,
-}];
+const SCHEMAS: &[Schema] = &[
+    Schema {
+        version: 1,
+        sql: include_str!("schema/v1.sql"),
+        upgrade: None,
+        archive: V1_ARCHIVE,
+        validate: None,
+    },
+    Schema {
+        version: 2,
+        sql: concat!(
+            include_str!("schema/v1.sql"),
+            include_str!("schema/access-v2.sql")
+        ),
+        upgrade: Some(|tx| {
+            tx.execute_batch(include_str!("schema/access-v2.sql"))?;
+            Ok(())
+        }),
+        // The space journal format is unchanged; installation access is absent
+        // from every space snapshot and included only in the full SQLite copy.
+        archive: V1_ARCHIVE,
+        validate: Some(crate::access::validate),
+    },
+];
 #[derive(Clone, Copy)]
 pub(crate) struct Registry(pub &'static [Schema]);
 pub(crate) const REGISTRY: Registry = Registry(SCHEMAS);
@@ -200,6 +219,9 @@ pub(crate) fn check_schema_layout(connection: &Connection, schema: &Schema) -> S
     expected.sort();
     if actual != expected {
         return Err(StorageError::InvalidDatabase);
+    }
+    if let Some(validate) = schema.validate {
+        validate(connection)?;
     }
     Ok(())
 }

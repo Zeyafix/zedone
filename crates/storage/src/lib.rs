@@ -4,6 +4,7 @@
 //! for this worker, or publish side effects. Only the durable result of `write`
 //! may be sent to a client. Domain history belongs in the same document as data.
 
+pub mod access;
 mod document;
 pub mod migration_backup;
 mod schema;

@@ -18,6 +18,7 @@ rusqlite = { version = "=0.41.1", features = ["bundled", "backup"] }
 tokio = { version = "=1.54.1", features = ["sync"] }
 tempfile = "=3.27.0"
 sha2 = "=0.11.1"
+getrandom = "=0.4.3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

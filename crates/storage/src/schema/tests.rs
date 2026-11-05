@@ -17,6 +17,16 @@ fn fixture() -> (TempDir, PathBuf) {
     (root, path)
 }
 
+async fn open_with_backup(path: &Path) -> StorageResult<Storage> {
+    crate::startup::Startup::new(path)
+        .automatic(Some(crate::startup::MigrationOptions {
+            folder: path.parent().unwrap().to_owned(),
+            created_at_unix_ms: 10,
+            limits: crate::migration_backup::tests::LIMITS,
+        }))
+        .await
+}
+
 // SHM contains SQLite's transient reader locks, not authoritative DB/WAL data.
 fn durable_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
     ["", "-wal", "-journal"]
@@ -42,7 +52,7 @@ async fn historical_v1_opens_keeps_receipts_and_supports_reverse_after_restart()
         "08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044"
     );
     let (_root, path) = fixture();
-    let storage = Storage::open(&path).await.unwrap();
+    let storage = open_with_backup(&path).await.unwrap();
     storage
         .write(b"edit".to_vec(), vec![], |ctx| {
             assert_eq!(ctx.read().document(SPACE)?.get_actor().to_bytes(), &[0x31]);
@@ -57,7 +67,7 @@ async fn historical_v1_opens_keeps_receipts_and_supports_reverse_after_restart()
         .await
         .unwrap();
     storage.shutdown().await.unwrap();
-    let storage = Storage::open(&path).await.unwrap();
+    let storage = open_with_backup(&path).await.unwrap();
     storage
         .write(b"reverse".to_vec(), vec![], |ctx| {
             assert_eq!(ctx.read().document(SPACE)?.get_actor().to_bytes(), &[0x31]);
@@ -137,7 +147,7 @@ async fn foreign_keys_are_checked_before_enabling_wal_and_retry_can_succeed() {
         .execute("DELETE FROM changes WHERE space = 'missing'", [])
         .unwrap();
     connection.close().unwrap();
-    Storage::open(&path)
+    open_with_backup(&path)
         .await
         .unwrap()
         .shutdown()

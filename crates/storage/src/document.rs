@@ -110,6 +110,10 @@ pub struct WriteContext<'a> {
 }
 
 impl<'a> WriteContext<'a> {
+    pub(crate) fn connection(&self) -> &'a Connection {
+        self.read.connection
+    }
+
     pub(crate) fn new(connection: &'a Connection) -> Self {
         Self {
             read: ReadContext::new(connection),
@@ -135,7 +139,7 @@ impl<'a> WriteContext<'a> {
     }
 
     // Even if a callback catches a mutator's error, partial work cannot commit.
-    fn checked<T>(&mut self, result: StorageResult<T>) -> StorageResult<T> {
+    pub(crate) fn checked<T>(&mut self, result: StorageResult<T>) -> StorageResult<T> {
         self.failed |= result.is_err();
         result
     }

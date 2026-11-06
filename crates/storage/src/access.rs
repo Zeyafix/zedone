@@ -21,6 +21,8 @@ use zedone_core::{
 use crate::{StorageError, StorageResult, WriteContext};
 
 #[cfg(test)]
+mod combined_tests;
+#[cfg(test)]
 mod tests;
 
 /// Generated before starting an issuance/replacement transaction. Keep it until
@@ -237,8 +239,13 @@ impl WriteContext<'_> {
         expires_at: Option<SystemTime>,
     ) -> StorageResult<()> {
         let expires_ms = expiry(expires_at)?;
-        if let GrantScope::Spaces(spaces) = scope
+        if let Some(spaces) = scope.spaces()
             && (spaces.is_empty() || spaces.keys().any(|id| id.is_empty()))
+        {
+            return Err(error(ErrorCode::InvalidRequest));
+        }
+        if matches!(scope, GrantScope::AdministrationAndSpaces(_))
+            && crate::schema::REGISTRY.known(self.connection())?.version < 4
         {
             return Err(error(ErrorCode::InvalidRequest));
         }
@@ -256,11 +263,7 @@ impl WriteContext<'_> {
              ON CONFLICT(subject) DO UPDATE SET
              administration = excluded.administration, expires_ms = excluded.expires_ms,
              revoked = 0",
-            rusqlite::params![
-                subject,
-                matches!(scope, GrantScope::Administration),
-                expires_ms
-            ],
+            rusqlite::params![subject, scope.administration(), expires_ms],
         )?;
         self.connection().execute(
             "UPDATE access_keys SET active = 0 WHERE subject = ?1",
@@ -272,7 +275,7 @@ impl WriteContext<'_> {
         )?;
         self.connection()
             .execute("DELETE FROM access_spaces WHERE subject = ?1", [subject])?;
-        if let GrantScope::Spaces(spaces) = scope {
+        if let Some(spaces) = scope.spaces() {
             for (space, permission) in spaces {
                 self.connection().execute(
                     "INSERT INTO access_spaces VALUES (?1, ?2, ?3)",
@@ -321,12 +324,17 @@ impl WriteContext<'_> {
                 ))
             })?
             .collect::<Result<BTreeMap<_, _>, _>>()?;
-        if administration != spaces.is_empty() {
+        let legacy = crate::schema::REGISTRY.known(self.connection())?.version < 4;
+        if (!administration && spaces.is_empty())
+            || (legacy && administration && !spaces.is_empty())
+        {
             return Err(StorageError::InvalidDatabase);
         }
         Ok(Some(Grant {
             subject: subject.into(),
-            scope: if administration {
+            scope: if administration && !spaces.is_empty() {
+                GrantScope::AdministrationAndSpaces(spaces)
+            } else if administration {
                 GrantScope::Administration
             } else {
                 GrantScope::Spaces(spaces)
@@ -391,22 +399,26 @@ impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
         let Some(grant) = self.load_access(subject)? else {
             return Ok(None);
         };
+        let spaces = grant.scope.spaces().map(|spaces| {
+            spaces
+                .iter()
+                .map(|(id, permission)| {
+                    (
+                        id.clone(),
+                        match permission {
+                            SpacePermission::Read => AccessMode::Read,
+                            SpacePermission::ReadWrite => AccessMode::ReadWrite,
+                        },
+                    )
+                })
+                .collect()
+        });
         let scope = match grant.scope {
             GrantScope::Administration => AccessScope::administration(),
-            GrantScope::Spaces(spaces) => AccessScope::spaces(
-                spaces
-                    .into_iter()
-                    .map(|(id, permission)| {
-                        (
-                            id,
-                            match permission {
-                                SpacePermission::Read => AccessMode::Read,
-                                SpacePermission::ReadWrite => AccessMode::ReadWrite,
-                            },
-                        )
-                    })
-                    .collect(),
-            ),
+            GrantScope::AdministrationAndSpaces(_) => {
+                AccessScope::administration_and_spaces(spaces.expect("combined scope"))
+            }
+            GrantScope::Spaces(_) => AccessScope::spaces(spaces.expect("space scope")),
         };
         let keys = self
             .connection()
@@ -456,10 +468,19 @@ impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
 /// In addition to DDL/FK checks, reject incomplete bootstrap/key/grant state.
 /// No missing or damaged authorization state is treated as a new installation.
 pub(crate) fn validate(connection: &rusqlite::Connection) -> StorageResult<()> {
+    validate_with(connection, false)
+}
+
+pub(crate) fn validate_v4(connection: &rusqlite::Connection) -> StorageResult<()> {
+    validate_with(connection, true)
+}
+
+fn validate_with(connection: &rusqlite::Connection, combined: bool) -> StorageResult<()> {
     let invalid: bool = connection.query_row(
         "SELECT EXISTS(
             SELECT 1 FROM access_principals p WHERE
-              p.administration = EXISTS(SELECT 1 FROM access_spaces s WHERE s.subject = p.subject)
+              (p.administration = 0 AND NOT EXISTS(SELECT 1 FROM access_spaces s WHERE s.subject = p.subject))
+              OR (?1 = 0 AND p.administration = 1 AND EXISTS(SELECT 1 FROM access_spaces s WHERE s.subject = p.subject))
               OR (SELECT count(*) FROM access_keys k WHERE k.subject = p.subject AND k.active = 1)
                  != 1 - p.revoked
         ) OR ((SELECT count(*) FROM access_principals) > 0
@@ -468,7 +489,7 @@ pub(crate) fn validate(connection: &rusqlite::Connection) -> StorageResult<()> {
                        WHERE administration = 1 AND revoked = 0 AND expires_ms IS NULL)))
           OR ((SELECT count(*) FROM access_principals) = 0
               AND (SELECT count(*) FROM access_bootstrap) != 0)",
-        [],
+        [combined],
         |r| r.get(0),
     )?;
     if invalid {

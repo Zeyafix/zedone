@@ -49,7 +49,11 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     assert_eq!(document["paths"].as_object().unwrap().len(), 2);
     assert!(document["paths"]["/v1/commands/access.inspect"]["post"].is_object());
     assert!(document["paths"]["/v1/commands/access.revoke"]["post"].is_object());
-    for name in ["AdministrationScope", "SpacesScope"] {
+    for name in [
+        "AdministrationScope",
+        "SpacesScope",
+        "AdministrationAndSpacesScope",
+    ] {
         assert_eq!(
             document["components"]["schemas"][name]["additionalProperties"],
             false

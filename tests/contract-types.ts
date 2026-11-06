@@ -13,6 +13,11 @@ function typedCommands(store: IntentionStore) {
 }
 void typedCommands;
 
+const combinedScope: components["schemas"]["AccessScope"] = {
+  kind: "administration_and_spaces", spaces: { a: "read_write", b: "read" },
+};
+void combinedScope;
+
 type Request = components["schemas"]["CommandRequest_Value"];
 type Response = components["schemas"]["CommandResponse_Value"];
 type ErrorCode = components["schemas"]["ErrorCode"];

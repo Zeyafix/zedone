@@ -24,7 +24,21 @@ pub enum AccessMode {
 #[serde(untagged)]
 pub enum AccessScope {
     Administration(AdministrationScope),
+    AdministrationAndSpaces(AdministrationAndSpacesScope),
     Spaces(SpacesScope),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AdministrationAndSpacesScope {
+    pub kind: AdministrationAndSpacesKind,
+    pub spaces: BTreeMap<String, AccessMode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdministrationAndSpacesKind {
+    AdministrationAndSpaces,
 }
 
 // Separate strict structs keep Serde and utoipa's variant schemas identical,
@@ -55,6 +69,12 @@ pub enum SpacesKind {
 }
 
 impl AccessScope {
+    pub fn administration_and_spaces(spaces: BTreeMap<String, AccessMode>) -> Self {
+        Self::AdministrationAndSpaces(AdministrationAndSpacesScope {
+            kind: AdministrationAndSpacesKind::AdministrationAndSpaces,
+            spaces,
+        })
+    }
     pub fn administration() -> Self {
         Self::Administration(AdministrationScope {
             kind: AdministrationKind::Administration,

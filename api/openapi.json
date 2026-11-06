@@ -94,6 +94,9 @@
             "$ref": "#/components/schemas/AdministrationScope"
           },
           {
+            "$ref": "#/components/schemas/AdministrationAndSpacesScope"
+          },
+          {
             "$ref": "#/components/schemas/SpacesScope"
           }
         ]
@@ -126,6 +129,34 @@
           },
           "version": {
             "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdministrationAndSpacesKind": {
+        "type": "string",
+        "enum": [
+          "administration_and_spaces"
+        ]
+      },
+      "AdministrationAndSpacesScope": {
+        "type": "object",
+        "required": [
+          "kind",
+          "spaces"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AdministrationAndSpacesKind"
+          },
+          "spaces": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AccessMode"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false

@@ -86,6 +86,88 @@ async fn post(service: &Service, operation: &str, body: &str, key: &str) -> Valu
 }
 
 #[tokio::test]
+async fn combined_scope_has_the_same_strict_snapshot_and_replay_on_http_ipc_and_cli() {
+    let (dir, storage, service, admin, member) = setup().await;
+    let mixed_key = Arc::new(AccessKey::generate().unwrap());
+    let (a, m, k) = (admin.clone(), member.clone(), mixed_key.clone());
+    storage
+        .timed_transact(move |ctx, clock| {
+            ctx.replace_access(
+                &a.credential(),
+                clock,
+                m.subject(),
+                &k,
+                &GrantScope::AdministrationAndSpaces(BTreeMap::from([(
+                    "a".into(),
+                    SpacePermission::ReadWrite,
+                )])),
+                None,
+            )
+        })
+        .await
+        .unwrap();
+    let secret: String = mixed_key
+        .credential()
+        .0
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    let body = inspect(30, member.subject());
+    let original = post(&service, "access.inspect", &body, &secret).await;
+    assert_eq!(
+        original["result"]["scope"],
+        json!({"kind":"administration_and_spaces", "spaces":{"a":"read_write"}})
+    );
+    let replay: Value =
+        serde_json::from_str(&ipc::invoke(&service, "access.inspect", &body, &secret).await)
+            .unwrap();
+    assert_eq!(replay["replayed"], true);
+    assert_eq!(replay["result"], original["result"]);
+    let key_path = dir.path().join("mixed.key");
+    std::fs::write(&key_path, &secret).unwrap();
+    let mut child = Command::new(
+        std::env::var("ZEDONE_TEST_CLI").unwrap_or_else(|_| env!("CARGO_BIN_EXE_zedone").into()),
+    )
+    .arg("--database")
+    .arg(dir.path().join("device.db"))
+    .arg("--key-file")
+    .arg(key_path)
+    .args(["--operation", "access.inspect"])
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(body.as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&output.stdout).unwrap(),
+        replay
+    );
+    let revoke = request(
+        31,
+        "access.revoke",
+        json!({"subject":member.subject(), "expected":original["result"]["version"]}),
+    );
+    assert_eq!(
+        post(&service, "access.revoke", &revoke, &key(&admin)).await["status"],
+        "ok"
+    );
+    assert_eq!(
+        post(&service, "access.inspect", &body, &secret).await["error"]["code"],
+        "access_denied",
+        "revocation precedes the existing receipt"
+    );
+}
+
+#[tokio::test]
 async fn http_ipc_and_cli_share_replay_after_regrant_and_restart_without_repeating_revocation() {
     let (dir, storage, service, admin, member) = setup().await;
     let original = post(

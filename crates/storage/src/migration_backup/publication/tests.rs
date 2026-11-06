@@ -61,6 +61,25 @@ async fn initial(storage: &Storage, folder: &Path) -> PublishedBackup {
         .unwrap()
 }
 
+#[test]
+fn folder_lock_is_released_even_while_a_duplicate_descriptor_survives() {
+    let folder = TempDir::new().unwrap();
+    let held = lock(folder.path()).unwrap();
+    // A concurrent fork can inherit this same open file description until exec.
+    let duplicate = held.0.try_clone().unwrap();
+    assert!(lock(folder.path()).is_err());
+    drop(held);
+    let next = lock(folder.path()).expect("the completed operation must release its lock");
+    assert!(lock(folder.path()).is_err());
+    drop(duplicate);
+    assert!(
+        lock(folder.path()).is_err(),
+        "the successor still owns its lock"
+    );
+    drop(next);
+    assert!(lock(folder.path()).is_ok());
+}
+
 #[tokio::test]
 async fn successful_replacement_is_complete_and_reverse_edit_keeps_backup() {
     let (root, storage, folder) = fixture().await;
@@ -115,10 +134,13 @@ async fn errors_at_each_boundary_preserve_old_until_confirmed_publication() {
         let old = initial(&storage, &folder).await;
         let before = files(&old.path);
         let path = folder.clone();
+        let reached = Arc::new(AtomicUsize::new(0));
+        let observed = reached.clone();
         let result = storage
             .run(move |connection| {
                 execute(connection, &path, 2, LIMITS, apply, target, |stage| {
                     if stage == point {
+                        observed.fetch_add(1, Ordering::SeqCst);
                         Err(StorageError::Unavailable)
                     } else {
                         Ok(())
@@ -126,6 +148,11 @@ async fn errors_at_each_boundary_preserve_old_until_confirmed_publication() {
                 })
             })
             .await;
+        assert_eq!(
+            reached.load(Ordering::SeqCst),
+            1,
+            "requested fault {point:?} must be reached; result: {result:?}"
+        );
         if point == Point::BeforeCleanup {
             assert!(result.unwrap().cleanup_pending);
         } else {
@@ -138,7 +165,8 @@ async fn errors_at_each_boundary_preserve_old_until_confirmed_publication() {
                     StorageError::OutcomeUnknown
                 } else {
                     StorageError::Unavailable
-                }
+                },
+                "fault at {point:?}"
             );
         }
         assert_eq!(before, files(&old.path));

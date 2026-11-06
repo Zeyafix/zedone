@@ -14,6 +14,8 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/check-ui*.mjs'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -30,6 +32,8 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/check-ui*.mjs'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -50,7 +54,7 @@ jobs:
       matrix:
         os: [windows-2025, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    # Cold Windows setup plus debug/release builds can exhaust 10 minutes before UI checks.
+    # Preserve the existing host budgets; optimize repeated compilation instead.
     timeout-minutes: ${{ matrix.os == 'windows-2025' && 20 || 10 }}
     defaults:
       run:
@@ -95,6 +99,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
           cargo "+$($versions.rust)" fetch --locked
           if ($LASTEXITCODE -ne 0) { throw 'Product dependency fetch failed.' }
+          cargo "+$($versions.rust)" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { throw 'Shell dependency fetch failed.' }
       - name: Check product boundaries, contract and unsafe rejection
         run: |
           bun install --frozen-lockfile --ignore-scripts
@@ -110,3 +116,5 @@ jobs:
       - name: Check Rust, generated contracts, Vue and HTTP in Chromium
         working-directory: prototypes
         run: bun run check
+      - name: Check shared UI shell and real product HTTP in Chromium
+        run: bun run ui:check

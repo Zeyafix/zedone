@@ -131,15 +131,21 @@ impl Storage {
                 if ready.send(Ok(())).is_err() {
                     return;
                 }
+                let mut stopped = Vec::new();
                 while let Some(message) = receiver.blocking_recv() {
                     match message {
                         Message::Run(job) => job(&mut connection),
-                        Message::Stop(stopped) => {
-                            drop(connection);
-                            let _ = stopped.send(());
-                            return;
+                        Message::Stop(reply) => {
+                            // Stop admission immediately, then drain every job
+                            // already accepted before confirming termination.
+                            receiver.close();
+                            stopped.push(reply);
                         }
                     }
+                }
+                drop(connection);
+                for reply in stopped {
+                    let _ = reply.send(());
                 }
             })
             .map_err(|_| StorageError::Unavailable)?;

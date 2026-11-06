@@ -20,6 +20,9 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/build-ui-android.mjs'
+      - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-product.mjs'
   pull_request:
     paths:
@@ -39,6 +42,9 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/build-ui-android.mjs'
+      - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-product.mjs'
   workflow_dispatch:
 
@@ -50,9 +56,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  android:
+  android-checks:
+    name: android (${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [native, prototype-ui, shell]
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -74,7 +85,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: gradle
+          cache: ${{ matrix.suite != 'native' && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -153,7 +164,9 @@ jobs:
             . -> target
             prototypes -> target
           cache-bin: false
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # One writer retains the existing cache namespace and restore paths;
+          # parallel suites must not race to publish different subsets.
+          save-if: ${{ github.ref == 'refs/heads/main' && matrix.suite == 'native' }}
       - name: Restore pinned Tauri CLI
         id: tauri-cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
@@ -167,29 +180,47 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
+        if: matrix.suite != 'prototype-ui'
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          rust=$(jq -r .rust scripts/environment-versions.json)
+          if [[ '${{ matrix.suite }}' == shell ]]; then
+            cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
+          else
+            cargo "+$rust" fetch --locked
+          fi
       - name: Prepare locked prototype dependencies and contracts
+        if: matrix.suite != 'shell'
         working-directory: prototypes
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
           rust=$(jq -r .rust "$versions")
           cargo "+$rust" fetch --locked
-          cargo "+$rust" fetch --locked --manifest-path ../Cargo.toml
           bun install --frozen-lockfile
-          bun run check:types
+          if [[ '${{ matrix.suite }}' == native ]]; then bun run check:types; fi
           chmod +x src-tauri/gen/android/gradlew
       - name: Build host comparison endpoint
+        if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: |
           rust=$(jq -r .rust "$GITHUB_WORKSPACE/scripts/environment-versions.json")
           CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
       - name: Build Android x86_64 APK and instrumentation
+        if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: bun run android:build
       - name: Build Android arm64 APK and instrumentation
+        if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: bun run android:build aarch64
+      - name: Build product UI shell for both Android ABIs
+        if: matrix.suite == 'shell'
+        run: |
+          chmod +x ui/src-tauri/gen/android/gradlew
+          bun scripts/build-ui-android.mjs x86_64
+          bun scripts/build-ui-android.mjs aarch64
       - name: Check host Automerge probe
+        if: matrix.suite == 'native'
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
@@ -205,7 +236,7 @@ jobs:
       - name: Check Android environment
         run: |
           shellcheck scripts/check-android-environment.sh
-          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs
+          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
       - name: Check rejection and cleanup on compiler failure
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")
@@ -247,3 +278,16 @@ jobs:
         with:
           path: ${{ runner.temp }}/zedone-tauri-cli/bin/cargo-tauri
           key: ${{ steps.tauri-cache.outputs.cache-primary-key }}
+
+  # Keep one stable required check. An omitted, cancelled or failed suite fails
+  # the aggregate; a green subset can never approve this PR.
+  android:
+    needs: android-checks
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every Android suite
+        env:
+          RESULT: ${{ needs.android-checks.result }}
+        run: test "$RESULT" = success

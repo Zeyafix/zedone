@@ -28,9 +28,53 @@ P03.02 добавляет те же тесты атомарного хранен
 
 ## Что переиспользуется
 
+P05.01 добавляет `ui/**` в paths. Shell — отдельный Cargo workspace, но его
+штатные драйверы используют общий с ядром корневой `target/`.
+Windows/Linux после прежних проверок выполняют `bun run ui:check`: общий UI,
+host framing/security и реальные команды через HTTP в Chromium. Android
+собирает debug APK обеих ABI, а последний CI emulator callback проверяет
+сеанс/навигацию/темы/Back в новом APK. Локально этот драйвер запрещён — требуется
+Device. Готовность CI определять по финальному head; первые отменённые/упавшие
+запуски и замена увеличения timeout оптимизацией описаны в EV-064.
+Команды и ограничения — [ui-shell.md](ui-shell.md), EV-064.
+
+Android выполняет три независимых набора параллельно на стандартных runners:
+`native` (product-check и host/Android Automerge), `prototype-ui` (обе APK и
+instrumentation прототипа, host HTTP endpoint и весь UI/lifecycle-набор),
+`shell` (обе APK оболочки и её UI-набор). Каждый job владеет отдельным SDK/AVD,
+проходит прежние environment/negative-cleanup проверки и имеет лимит 10 минут.
+`fail-fast: false` сохраняет диагностику остальных наборов при одном отказе.
+Итоговый стабильный check `android` с `if: always()` требует успеха всей матрицы:
+failure/cancelled/skipped не принимаются как успех. Без аргумента dispatcher
+сохраняет все прежние команды и последовательный порядок; неизвестный набор
+отклоняется. Цель CI.03 — не более 10 минут ожидания Android workflow; эффект
+ещё проверяется на Actions. Параллелизм может увеличить суммарные runner-minutes
+из-за подготовки трёх сред, не сокращает сами сценарии.
+
+Rust cache paths/namespace остаются прежними, единственный writer на main —
+`native`; остальные jobs только читают, чтобы разные подмножества результатов
+не конкурировали за один immutable cache key. Это сохраняет fallback прежнего
+main-кэша; наличие shell build artifacts в кэше не гарантируется.
+
+Сохраняются прежние host budgets: Linux 10 минут, Windows 20. Повышение Linux
+до 20 отклонено разработчиком. Вместо него shell не собирает Android-only
+tauri-build при host-проверке и переиспользует product Cargo output, сокращая
+дублирующую компиляцию. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
+
+Набор cache paths возвращён к корневому и прототипному target, включая Android
+workflow. Добавление третьего физического target в PR меняло версию архива:
+GitHub учитывает [пути и compression tool в cache version](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-key-matching).
+Поэтому одинакового restore-prefix было недостаточно для прежнего архива main.
+Возврат прежнего набора путей устраняет это различие. В PR #52 head `3943831`
+фактический full-match restore подтверждён на Windows/Linux/Android; оба host
+job прошли с прежними лимитами (EV-064). Это не обещает hit будущим запускам.
+Проверки выполняются
+и без кэша, Cargo заново проверяет актуальность units. Никаких ручных правок
+fingerprints, пропуска compilation/tests или PR-записи кэшей main нет.
+
 | Кэш | Состав и ключ | Владелец |
 | --- | --- | --- |
-| Rust | Registry/git и зависимости `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
+| Rust | Registry/git и зависимости корневого `target` продукта/оболочки и `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
 | Tauri CLI | Только `$RUNNER_TEMP/zedone-tauri-cli/bin/cargo-tauri`; точный ключ OS/архитектура/Rust/tauri_cli, без широкого restore fallback | actions/cache restore/save, SHA v5.1.0 |
 | Gradle | Зависимости и wrapper из Gradle User Home; ключ по environment-versions.json, Cargo.lock и файлам вложенного Gradle-проекта | Уже используемый actions/setup-java, `cache: gradle` |
 
@@ -110,6 +154,15 @@ bash scripts/check-ci-tauri.sh
 процесс APK и lifecycle logcat. Исходная ошибка сохраняется, перезапуск и
 проверки SQLite/отзыва ключа не повторяются автоматически. Пример исходного
 отказа и ограничения выводов — [EV-031](../agent/verification/EV-031-android-webview-target.md).
+
+Shell-драйвер, как прототипный, использует нативный CDP touch и DOM-проверки:
+актуальный Playwright требует `Element.checkVisibility`, отсутствующий в
+WebView 101. Перед касанием проверяются видимость, размеры, disabled и
+`elementFromPoint`, после — реальные состояния меню/темы/навигации. Имена,
+radio.checked, сохранение после reload, Back, отсутствие переполнения и
+пустой localStorage после сброса проверяются явно. Полифиллы и принудительный
+DOM click вместо ввода не добавляются. Локальная Android UI-приёмка по-прежнему
+проходит через Device; desktop proof драйвера её не заменяет (EV-064/LOG-315).
 
 ## Отмена
 

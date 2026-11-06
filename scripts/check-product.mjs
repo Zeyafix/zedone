@@ -20,6 +20,7 @@ function run(command, { cwd = root, extraEnv = {}, capture = false, failure = fa
     stderr: failure ? "pipe" : "inherit",
   });
   assert.ok(!result.signalCode, `Command interrupted: ${command[0]}`);
+  if (!failure && result.exitCode !== 0 && capture) process.stderr.write(result.stdout);
   if (!failure) assert.equal(result.exitCode, 0, `Command failed: ${command[0]}`);
   return result;
 }

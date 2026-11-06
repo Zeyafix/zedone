@@ -288,3 +288,75 @@ not supported`. Playwright по умолчанию настраивает deskto
 не запускался; product runtime/видимый UI не менялись, LOG-308 сохраняется.
 Все UI assertions/сценарии CI сохранены. Полный CI нового head ещё необходим
 перед merge. Raw logs и protocol trace — в `docs/reports/p05-01/`.
+
+## LOG-313: Linux storage failure и освобождение folder lock
+
+Linux `7580981` упал в старом product storage test
+`errors_at_each_boundary_preserve_old_until_confirmed_publication`: вместо
+ожидаемого `OutcomeUnknown` получен `Unavailable`. Это не timeout и не
+падение shell/browser. В исходном логе отсутствовали конкретный checkpoint
+и системная ошибка, поэтому точный syscall того запуска не установлен.
+
+При проверке найден отдельный воспроизводимый дефект жизненного цикла lock:
+сырой `File` только закрывался при выходе из операции. Duplicate/inherited
+descriptor удерживал ту же блокировку после завершения владельца; следующий
+захват мог получить `Unavailable` ещё до нужной инъекции. Параллельные fork/exec
+crash-тестов — возможный источник такой копии на Unix. Это согласуется с
+[Rust File::try_lock/unlock](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock)
+и [flock open-file-description semantics](https://man7.org/linux/man-pages/man2/flock.2.html),
+но не доказывает причину именно старого CI/Android отказа без его trace.
+
+Детерминированная регрессия сохраняет `try_clone` дескриптора после завершения
+первого владельца, требует захвата следующего и проверяет, что закрытие старой
+копии не освобождает lock нового владельца. На прежнем поведении она упала с
+`Unavailable` на Windows и нативном Android. С guard, явно вызывающим unlock,
+обе проверки passed. Исключение конкурирующих операций, граница commit,
+OutcomeUnknown, файлы/свидетельство и возможность восстановления не ослаблены.
+Fault matrix теперь требует, чтобы запрошенный checkpoint был достигнут
+ровно один раз, и указывает его в assertion. Ранний отказ не маскируется.
+
+Обычные 20 повторов полного старого native storage набора passed и не
+воспроизвели исходный Linux отказ; это ограничение сохранено. После исправления
+полный Windows product-check passed: fmt/Clippy, 135 storage и прежние
+core/contract/adapters/TS tests, release, unsafe guards и побайтовые
+Rust/OpenAPI/TS/validators. Полный Android product-check также passed: те же
+native tests/контракт, обе release ABI и unsafe guards. Штатные runner удалили
+свои sandbox; открытый для native checks Device-эмулятор закрыт/выключен.
+Окончательные GitHub CI нового head ещё обязательны перед merge.
+
+BUG-006 относится к освобождению lock, не к доказанной причине старого syscall.
+ADR-0034, developer docs и EV-051 уточнены; публичные команды/права, SQL,
+wire/архивы, зависимости и видимый UI не менялись. Локальная UI/IPC-приёмка
+LOG-308 сохраняется в своём охвате; native checks не выдаются за UI-проверку.
+
+## LOG-314: Android storage failure и гонка shutdown
+
+Android job `128021389124`, head `7580981`, упал в
+`busy_database_and_shutdown_never_return_success`: оставшийся clone после
+успешного shutdown получил `OutcomeUnknown` вместо `Unavailable`. Это другой
+отказ, чем Linux publication test, и не ошибка WebView/timeout.
+
+Прежний worker отправлял подтверждение Stop до уничтожения receiver. Между
+подтверждением и закрытием очереди clone мог принять новое задание; worker
+завершался без его выполнения, а потеря принятого ответа корректно давала
+`OutcomeUnknown`. Также терялись уже принятые задания за Stop.
+Теперь worker вызывает `receiver.close()`, дренирует принятые задания,
+закрывает SQLite и лишь затем подтверждает все принятые Stop. Политика
+`OutcomeUnknown` для потери принятого ответа не ослаблена.
+
+Регрессия без таймеров удерживает worker каналом, помещает Stop, SQL-задание
+и второй Stop в очередь, затем освобождает worker. Проверяет оба подтверждения,
+выполнение принятого SQL и закрытый приём у clone. На прежнем коде стабильно
+терялся ответ SQL; после исправления тест passed. Существующий тест Android
+не изменён. Локальные логи before/after и полные проверки находятся в
+`docs/reports/p05-01/`: `shutdown-drain-before.log`, `shutdown-drain-after.log`,
+`product-storage-lifecycle-check.log`, `android-storage-lifecycle-check.log`.
+Обе полные проверки прошли с 136 storage tests, прежними core/contract/adapters,
+14 клиентскими тестами/97 assertions, сверкой контракта и unsafe guards;
+Windows fmt/Clippy/release и обе release ABI Android passed. Android native
+runner использовал Device-эмулятор и удалил sandbox; UI-приёмку не подменяет.
+
+BUG-007 resolved локально. ADR-0028/developer docs/журнал обновлены. Обратимость
+прикладных действий, общий Service человека/агента и единая SQLite/Automerge
+сохранены. UI и контракт не менялись; доказательства LOG-308 остаются в своём
+охвате. Окончательные CI обоих lifecycle fixes ещё должны пройти перед merge.

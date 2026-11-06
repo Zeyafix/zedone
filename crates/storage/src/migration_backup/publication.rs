@@ -122,7 +122,18 @@ fn directory(path: &Path) -> StorageResult<()> {
     Ok(())
 }
 
-fn lock(folder: &Path) -> StorageResult<File> {
+struct FolderLock(File);
+
+impl Drop for FolderLock {
+    fn drop(&mut self) {
+        // Closing alone retains the lock while a duplicate/inherited descriptor
+        // survives, e.g. during a concurrent fork before exec. End ownership
+        // explicitly; closing the file remains the fallback if unlock fails.
+        let _ = self.0.unlock();
+    }
+}
+
+fn lock(folder: &Path) -> StorageResult<FolderLock> {
     directory(folder)?;
     let file = io(OpenOptions::new()
         .read(true)
@@ -131,7 +142,7 @@ fn lock(folder: &Path) -> StorageResult<File> {
         .truncate(false)
         .open(folder.join("migration.lock")))?;
     file.try_lock().map_err(|_| StorageError::Unavailable)?;
-    Ok(file)
+    Ok(FolderLock(file))
 }
 
 // Unix can fsync directory entries. std/tempfile do not provide a Windows

@@ -621,6 +621,52 @@ async fn busy_database_and_shutdown_never_return_success() {
 }
 
 #[tokio::test]
+async fn shutdown_drains_admitted_work_before_acknowledging_and_closes_clones() {
+    let (_dir, storage) = open().await;
+    let clone = storage.clone();
+    let (started, ready) = tokio::sync::oneshot::channel();
+    let (release, resume) = std::sync::mpsc::channel();
+    storage
+        .sender
+        .send(Message::Run(Box::new(move |_| {
+            started.send(()).unwrap();
+            resume.recv().unwrap();
+        })))
+        .await
+        .unwrap();
+    ready.await.unwrap();
+    let (stopped, shutdown) = tokio::sync::oneshot::channel();
+    storage.sender.send(Message::Stop(stopped)).await.unwrap();
+    let (finished, work) = tokio::sync::oneshot::channel();
+    storage
+        .sender
+        .send(Message::Run(Box::new(move |connection| {
+            let value = connection.query_row("SELECT 1", [], |row| row.get::<_, i64>(0));
+            finished.send(value).unwrap();
+        })))
+        .await
+        .unwrap();
+    let (also_stopped, other_shutdown) = tokio::sync::oneshot::channel();
+    storage
+        .sender
+        .send(Message::Stop(also_stopped))
+        .await
+        .unwrap();
+    release.send(()).unwrap();
+    shutdown.await.unwrap();
+    other_shutdown.await.unwrap();
+    assert!(
+        clone.sender.is_closed(),
+        "shutdown must close admission before acknowledging"
+    );
+    assert_eq!(
+        work.await.expect("admitted work must be drained").unwrap(),
+        1
+    );
+    assert_eq!(clone.run(|_| Ok(())).await, Err(StorageError::Unavailable));
+}
+
+#[tokio::test]
 async fn independent_workers_serialize_and_recheck_the_persistence_key() {
     let (dir, first) = open().await;
     seed(&first).await;

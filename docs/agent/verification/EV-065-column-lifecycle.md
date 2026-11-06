@@ -11,8 +11,8 @@ dependencies_evidence: ["P04.01/EV-063: PR #50 merged 4f2ae48; доступен 
 scope: ["core column.create/read/list/rename/trash/restore", "Automerge/projection", "Service HTTP/CLI/IPC", "Rust-derived API/TS/validator", "CI routing native-наборов для финальной проверки", "проверки и docs; без UI/карточек/перемещений/обмена"]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android", "git diff --check"]
 reverse_and_failure: "Переименование обратно, корзина/восстановление, сохранность ID/положения/групп; stale/ABA, права/отзыв/срок, restart/concurrent writers, SQL/commit failure."
-result: verified_awaiting_ci
-next: "Публикация PR и финальные CI; после успеха merge/удаление ветки по LOG-319. Затем готов P05.02."
+result: done_merged_pr_54
+next: "P04.02 done; следующий готовый шаг — P05.02, управление пространствами и колонками в UI. Новая реализация не начата."
 ```
 
 Ориентир 300 ручных строк превышается одним неделимым жизненным циклом:
@@ -66,8 +66,8 @@ Android `bun scripts/check-product.mjs --android` — passed: те же 174
 Эмулятор открыт через Device. Нативные процессы запущены штатным CLI runner,
 без UI-действий через adb; sandbox удалён в finally. Сессия Device закрыта,
 предварительно работавший эмулятор оставлен включённым. Разработчик поручил
-публикацию, merge после успеха и удаление ветки (LOG-319); CI/интеграция
-ещё ожидаются. Логи машины остаются только в игнорируемых
+публикацию, merge после успеха и удаление ветки (LOG-319); поручение выполнено
+через PR #54/889d4b0 (LOG-322). Логи машины остаются только в игнорируемых
 `docs/reports/p04-02-windows.log`, `p04-02-android.log`, `p04-02-contract.log`.
 
 ## Ограничения
@@ -107,17 +107,36 @@ Linux 7e711ea снова достиг 10 минут при font download с Azur
 Проверены actionlint/ShellCheck, YAML, полное совпадение всех прежних шагов/
 лимитов после удаления нового шага из parsed YAML, точный mirror payload,
 отказ отсутствующему конфигу и сохранение ошибки записи (Bash simulation).
-Реальные загрузки с нового зеркала и все финальные CI ещё ожидаются.
+На финальном head 479c456 реальные загрузки с HTTPS archive и все семь CI прошли.
 Runtime и локальная APT-конфигурация не менялись; машинные доказательства —
 docs/reports/p04-02-apt-mirror-proof.log и p04-02-ci-linux-second.log.
-Публикация/merge ещё ожидаются. Увеличение runner-minutes возможно.
+PR #54 интегрирован; GAP-010 resolved. Увеличение runner-minutes возможно.
+
+### Окончательная интеграция
+
+[PR #54](https://github.com/Zeyafix/zedone/pull/54), точный head
+479c456e50a1bc2f15366d92691be2b5039dfde0, прошёл все семь checks:
+Windows/Linux и Android product-native/prototype-native/prototype-ui/shell
+с итоговым aggregate. Raw logs подтверждают все прежние native/UI/ABI/unsafe/
+negative-cleanup проверки и Linux-загрузки шрифтов с archive.ubuntu.com HTTPS.
+Набор проверок и лимиты 10/20 минут не ослаблены. Финальные запуски —
+[host](https://github.com/Zeyafix/zedone/actions/runs/42278800691) и
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42278800689).
+
+Перед merge проверены тот же head, CLEAN/MERGEABLE, отсутствие comments,
+reviews, review requests и inline comments. Merge выполнен в
+889d4b02b644cbde8b432e77b8ca109b19211174 по LOG-319; исходная ветка
+удалена локально/на GitHub, main обновлён, watch снят. GAP-009/010 resolved;
+это успех конкретных запусков, не гарантия будущей сети/кэшей/времени.
+Машинные raw logs/metadata — только docs/reports/p04-02-ci-*-final.* и
+p04-02-publication-final-54.json. Документальная фиксация не меняет runtime.
 
 ### Продуктовый охват
 
 Это API-срез пустой колонки. Карточки/состав/группы контейнеров, UI/APK,
 продуктовый обмен, физический arm64 и полный бюджет приложения не приняты.
-Полные T06/T07/A01/A05/A55/A56 остаются partial. Ветка локальная,
-состояние done не объявляется до требуемых CI/интеграции.
+Полные T06/T07/A01/A05/A55/A56 остаются partial. P04.02 done только в
+принятом объёме пустой колонки; UI P05.02, весь P04/P05 не завершены.
 
 ## Пять правил
 

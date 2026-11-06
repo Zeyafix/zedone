@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#25292A">
+  <title>Моя неделя — ZeDone · Шов</title>
+  <!--
+    ШОВ / самостоятельное визуальное исследование исходного «Графита».
+
+    Дизайн-план. Рабочий органайзер из угольной ткани: не отдельные плитки,
+    а соединённые карманы. Светлый шов показывает границу карточек; цвет нити
+    связывает заголовок колонки, её секцию и мобильную вкладку. Фон ровный.
+    Палитра: уголь #25292A, карман #33393A, лён #ECECE2,
+    голубая нить #ACC8CE, сиреневая нить #C3B5D4, соломенная нить #D7CAA0.
+    Типографика: локальный Bahnschrift для названия пространства и колонок;
+    Segoe UI для спокойного чтения карточек и управления. Без загрузок.
+    Всё выровнено влево. На широком экране центральная секция чуть шире.
+
+    [ZeDone] [пространство] [пространство] [пространство]
+    [Название пространства]                [поиск] [+ карточка]
+    [Разобрать        ] [В работе           ] [Готово           ]
+    | карман-карточка | | карман-карточка   | | карман-карточка |
+    : светлый шов    : : светлый шов      : : светлый шов    :
+    | карман-карточка | | карман-карточка   | | карман-карточка |
+    [ + добавить     ] [ + добавить        ] [ + добавить     ]
+    Телефон: название / поиск + создание / вкладки / одна секция.
+
+    Проверка плана перед сборкой. Убраны привычная боковая панель, фактура
+    на всём фоне и отдельные приподнятые плитки. Смелость сосредоточена
+    в конструкции соединённых карманов; нити не соревнуются с текстом.
+    Нумерации, искусственных показателей и декоративных кнопок нет.
+
+    Самокритика. У соединённых карточек слабее ощущение отдельного объекта,
+    поэтому каждая получает собственный заголовок, открывающий уголок,
+    hover и внутренний focus-visible. Швы оставлены только на стыках;
+    плотную имитацию ткани и тени убрал. Системные шрифты дадут несколько
+    разную метрику на Windows и Android — предусмотрены гибкие размеры.
+    Визуальные проверки и проверки на устройствах не выполнялись.
+    Это автономное демо: только память страницы, не продуктовая реализация.
+  -->
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #25292A;
+      --pocket: #33393A;
+      --ink: #ECECE2;
+      --muted: #B8C0BD;
+      --blue: #ACC8CE;
+      --lilac: #C3B5D4;
+      --flax: #D7CAA0;
+      --line: #596361;
+      --font: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+      --display: Bahnschrift, "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; min-height: 100%; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+    button, input, textarea, select { font: inherit; touch-action: manipulation; }
+    button { border: 0; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible {
+      outline: 2px solid var(--flax); outline-offset: 4px;
+    }
+    svg { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
+    button svg { pointer-events: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skip-link { position: absolute; top: -100px; left: 16px; z-index: 10; padding: 12px 18px; color: var(--canvas); background: var(--ink); }
+    .skip-link:focus { top: 12px; }
+    .topbar { border-bottom: 1px solid #444D4B; }
+    .topbar-inner { max-width: 1512px; margin: auto; min-height: 88px; padding: 0 42px; display: flex; align-items: center; gap: 42px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; font: 550 23px/1 var(--display); letter-spacing: -.7px; }
+    .brand-mark { width: 30px; height: 32px; color: var(--ink); }
+    .space-navigation { min-width: 0; align-self: stretch; display: flex; align-items: stretch; }
+    .space-list { display: flex; align-items: stretch; gap: 8px; }
+    .space-button { display: flex; align-items: center; gap: 10px; position: relative; padding: 14px 18px; min-height: 48px; background: transparent; color: var(--muted); text-align: left; font-size: 14px; }
+    .space-button svg { width: 18px; height: 18px; }
+    .space-button span { overflow-wrap: anywhere; }
+    .space-button:hover { color: var(--ink); background: #303536; }
+    .space-button[aria-current="page"] { color: var(--ink); background: #303637; border-radius: 0 0 14px 2px; }
+    .space-button[aria-current="page"]::after { content: ""; position: absolute; bottom: 7px; left: 18px; right: 18px; height: 4px; border-bottom: 1px dashed var(--blue); opacity: .8; }
+    .space-button[aria-current="page"] svg { color: var(--blue); }
+    .demo-label { margin-left: auto; flex-shrink: 0; font-size: 12px; color: var(--muted); }
+    .spaces-toggle { display: none; }
+    .workspace { max-width: 1512px; margin: 0 auto; padding: 44px 42px 24px; }
+    .workspace-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 46px; }
+    .title-wrap { min-width: 0; }
+    .workspace-title { font: 350 clamp(40px, 4.7vw, 64px)/1.09 var(--display); letter-spacing: -1.8px; margin: 0; overflow-wrap: anywhere; }
+    .workspace-meta { color: var(--muted); font-size: 13px; margin: 13px 0 0; }
+    .workspace-tools { display: flex; gap: 10px; align-items: center; padding-bottom: 3px; }
+    .search-field { display: flex; align-items: center; gap: 9px; min-height: 46px; width: 215px; border-bottom: 1px solid #7C8985; padding: 0 6px; }
+    .search-field > svg { color: var(--muted); width: 18px; height: 18px; }
+    .search-field:focus-within { border-bottom-color: var(--flax); background: #303637; }
+    .search-field input { min-width: 0; width: 100%; height: 44px; color: var(--ink); background: transparent; border: 0; font-size: 14px; outline: none; }
+    .search-field input:focus-visible { outline: 2px solid var(--flax); outline-offset: -2px; }
+    input::placeholder, textarea::placeholder { color: #AFB8B5; opacity: 1; }
+    .search-field input::-webkit-search-cancel-button { display: none; }
+    .search-key { color: var(--muted); font-size: 13px; padding: 0 4px; }
+    .clear-search { display: none; flex: 0 0 44px; align-items: center; justify-content: center; min-height: 44px; margin-right: -6px; background: transparent; color: var(--ink); }
+    .clear-search svg { width: 17px; height: 17px; }
+    .search-field.has-query .clear-search { display: flex; }
+    .search-field.has-query .search-key { display: none; }
+    .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 46px; padding: 11px 17px; border: 1px solid var(--ink); border-radius: 3px 12px 3px 3px; background: var(--ink); color: var(--canvas); font-size: 14px; font-weight: 600; }
+    .primary-button:hover { background: #D8DED7; border-color: #D8DED7; }
+    .new-card { white-space: nowrap; }
+    .column-tabs { display: none; }
+    .board { display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 22px; align-items: start; }
+    .column { --thread: var(--blue); min-width: 0; padding-top: 12px; }
+    .column[data-column="focus"] { --thread: var(--lilac); padding-top: 0; }
+    .column[data-column="done"] { --thread: var(--flax); }
+    .column-header { position: relative; display: flex; align-items: center; gap: 11px; min-height: 52px; padding: 0 15px 13px 9px; }
+    .column-header::after { content: ""; position: absolute; left: 8px; bottom: 0; height: 12px; border-left: 1px solid var(--thread); opacity: .75; }
+    .column-dot { position: relative; width: 16px; height: 7px; border-top: 1px solid var(--thread); border-bottom: 1px solid var(--thread); transform: rotate(-35deg); }
+    .column-title { margin: 0; font: 500 19px/1.3 var(--display); letter-spacing: -.25px; }
+    .column-count { color: var(--thread); margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .card-list { position: relative; background: var(--pocket); border: 1px solid #626F6B; border-top-color: var(--thread); border-radius: 3px 18px 3px 3px; }
+    .column[data-column="focus"] .card-list { background: #373B40; }
+    .card-list::before { content: ""; position: absolute; z-index: 1; pointer-events: none; top: 12px; bottom: 12px; left: 6px; border-left: 1px dashed var(--thread); opacity: .43; }
+    .card { position: relative; display: block; width: 100%; min-height: 150px; padding: 21px 24px 20px 26px; background: transparent; text-align: left; }
+    .card:first-child { border-radius: 2px 17px 0 0; }
+    .card:last-child { border-radius: 0 0 2px 2px; }
+    .card:only-child { border-radius: 2px 17px 2px 2px; }
+    .card + .card::before { content: ""; position: absolute; top: 0; left: 15px; right: 13px; border-top: 1px dashed var(--thread); opacity: .55; }
+    .card:hover { background: #414949; }
+    .column[data-column="focus"] .card:hover { background: #44464F; }
+    .card:focus-visible { outline-offset: -6px; border-radius: 3px 14px 3px 3px; }
+    .card-corner { position: absolute; right: 9px; top: 10px; width: 12px; height: 12px; color: var(--thread); opacity: .75; }
+    .card-title { display: block; font-size: 20px; line-height: 1.35; letter-spacing: -.35px; font-weight: 500; padding-right: 5px; overflow-wrap: anywhere; }
+    .card-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 11px; font-size: 14px; line-height: 1.6; color: #BCC6C2; overflow-wrap: anywhere; }
+    .card-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 17px; }
+    .tag { position: relative; display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 22px; padding: 1px 8px 1px 0; font-size: 12px; color: #CCD6D1; overflow-wrap: anywhere; }
+    .tag::before { content: ""; width: 10px; height: 4px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; flex: 0 0 auto; opacity: .75; }
+    .tag[data-tag="Работа"] { color: #D2C3E3; }
+    .tag[data-tag="Отдых"] { color: #BBD8DD; }
+    .tag[data-tag="Дом"] { color: #DED0AA; }
+    .add-pocket { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: calc(100% - 15px); margin: 0 0 0 7px; min-height: 53px; padding: 11px 16px 11px 18px; background: transparent; border: 1px solid #626F6B; border-top: 0; border-radius: 0 0 14px 3px; color: var(--thread); font-size: 13px; text-align: left; }
+    .add-pocket svg { width: 18px; height: 18px; }
+    .add-pocket:hover { background: #33393A; color: var(--ink); }
+    .empty-state { position: relative; padding: 32px 23px 26px; min-height: 205px; }
+    .empty-state p { margin: 0 0 12px; font-size: 14px; color: var(--muted); max-width: 28ch; }
+    .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 0; background: transparent; color: var(--blue); font-size: 14px; }
+    .text-button:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+    .empty-state .text-button { color: var(--thread); text-align: left; }
+    .demo-note { display: flex; align-items: baseline; gap: 9px; margin: 34px 0 0; padding: 13px 0 0; color: var(--muted); font-size: 12px; }
+    .demo-note p { margin: 0; }
+    .demo-note span { color: var(--ink); }
+    .icon-button { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; background: transparent; color: var(--muted); border-radius: 3px; }
+    .icon-button:hover { color: var(--ink); background: #424A49; }
+    dialog { width: min(600px, calc(100% - 40px)); max-height: calc(100dvh - 40px); margin: auto; padding: 0; background: var(--pocket); color: var(--ink); border: 1px solid #8E9C96; border-top: 2px solid var(--lilac); border-radius: 3px 20px 3px 3px; overflow-y: auto; }
+    dialog::backdrop { background: rgb(13 17 18 / .78); }
+    .dialog-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px 0 28px; }
+    .dialog-caption { font-size: 13px; color: var(--muted); margin: 0; font-weight: 400; }
+    .dialog-body { padding: 12px 28px 28px; }
+    .dialog-title, .editor-title { font: 450 30px/1.25 var(--display); letter-spacing: -.6px; margin: 0 0 20px; overflow-wrap: anywhere; }
+    .dialog-description { margin: 0; font-size: 16px; line-height: 1.75; color: #D0D7D3; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .dialog-column { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 26px 0 0; color: var(--muted); font-size: 14px; }
+    .dialog-column span:last-child { color: var(--ink); }
+    .dialog-body .card-tags { margin-top: 14px; }
+    .dialog-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 18px 28px 24px; border-top: 1px dashed #87938E; }
+    .delete-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 46px; margin-right: auto; padding: 9px 0; color: #E0B5B6; background: transparent; font-size: 14px; }
+    .delete-button:hover { color: #FFD6D7; }
+    .delete-button svg { width: 18px; height: 18px; }
+    .secondary-button { min-height: 46px; padding: 10px 15px; border: 1px solid #A2ADA7; border-radius: 3px; background: transparent; color: var(--ink); font-size: 14px; }
+    .secondary-button:hover { background: #424A49; }
+    .field { display: grid; gap: 7px; margin-top: 19px; min-width: 0; }
+    .field label { font-size: 14px; }
+    .field input, .field textarea, .field select { width: 100%; min-width: 0; min-height: 48px; border: 1px solid #84928B; border-radius: 3px; padding: 11px 12px; background: #282E2F; color: var(--ink); font-size: 16px; }
+    .field textarea { resize: vertical; min-height: 144px; line-height: 1.6; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 15px; }
+    .field-hint { font-size: 12px; color: var(--muted); margin: 0; }
+    .spaces-dialog { width: min(410px, calc(100% - 32px)); }
+    .spaces-dialog .space-list { display: grid; gap: 5px; padding: 12px 18px 22px; }
+    .spaces-dialog .space-button { min-height: 58px; }
+    .spaces-dialog .space-button[aria-current="page"]::after { bottom: 3px; }
+    .toast { position: fixed; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 24px; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); min-height: 64px; padding: 8px 20px; border: 1px solid var(--blue); border-radius: 3px 13px 3px 3px; background: #343D3D; color: var(--ink); font-size: 14px; box-shadow: 0 8px 36px #152020; }
+    .toast[hidden] { display: none; }
+    .toast .text-button { flex-shrink: 0; }
+    @media (min-width: 1600px) { .workspace { padding-top: 56px; } .workspace-header { margin-bottom: 56px; } .board { gap: 30px; } .card { padding-top: 28px; padding-bottom: 26px; } }
+    @media (min-width: 761px) and (max-width: 1100px) {
+      .topbar-inner { padding: 0 26px; gap: 24px; }
+      .space-list { gap: 0; }
+      .space-button { padding-left: 12px; padding-right: 12px; font-size: 13px; gap: 8px; }
+      .space-button[aria-current="page"]::after { left: 12px; right: 12px; }
+      .workspace { padding-left: 26px; padding-right: 26px; }
+      .workspace-header { flex-wrap: wrap; gap: 20px; }
+      .workspace-tools { margin-left: auto; }
+      .board { gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .card { padding: 23px 19px 20px 22px; }
+      .card-title { font-size: 18px; }
+    }
+    @media (max-width: 760px) {
+      .topbar-inner { min-height: 68px; padding: 0 20px; gap: 10px; }
+      .brand { font-size: 21px; gap: 8px; }
+      .brand-mark { width: 25px; height: 29px; }
+      .space-navigation { display: none; }
+      .demo-label { margin-left: 2px; font-size: 11px; }
+      .spaces-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; margin-left: auto; padding: 8px 0 8px 8px; background: transparent; color: var(--ink); font-size: 12px; }
+      .spaces-toggle svg { width: 16px; height: 16px; }
+      .workspace { padding: 28px 20px 25px; }
+      .workspace-header { display: block; margin-bottom: 24px; }
+      .workspace-title { font-size: 43px; letter-spacing: -1.3px; }
+      .workspace-meta { font-size: 12px; margin-top: 9px; }
+      .workspace-tools { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 15px; margin-top: 24px; padding: 0; }
+      .search-field { width: 100%; min-height: 48px; }
+      .search-field input { height: 46px; font-size: 16px; }
+      .search-key { display: none; }
+      .new-card { width: 48px; height: 48px; padding: 0; }
+      .new-card span { display: none; }
+      .new-card svg { width: 23px; height: 23px; }
+      .column-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0 0 22px; }
+      .column-tab { --thread: var(--blue); position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 48px; min-width: 0; padding: 9px 4px 12px; border-bottom: 1px solid #65716B; border-radius: 3px 10px 0 0; background: transparent; color: var(--muted); font-size: 13px; }
+      .column-tab[data-column-tab="focus"] { --thread: var(--lilac); }
+      .column-tab[data-column-tab="done"] { --thread: var(--flax); }
+      .column-tab[aria-selected="true"] { background: #343B3B; color: var(--ink); border-bottom-color: var(--thread); }
+      .column-tab[aria-selected="true"]::after { content: ""; position: absolute; bottom: 4px; left: 10px; right: 10px; border-bottom: 1px dashed var(--thread); opacity: .65; }
+      .column-tab span { color: var(--thread); font-size: 11px; }
+      .column-tab:focus-visible { outline-offset: -3px; }
+      .board { display: block; }
+      .column { padding-top: 0; }
+      .column:not(.is-active) { display: none; }
+      .column-header { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+      .card { padding: 24px 23px 23px 26px; }
+      .card-title { font-size: 20px; }
+      .card-description { font-size: 14px; line-height: 1.65; -webkit-line-clamp: 3; }
+      .card-tags { margin-top: 17px; }
+      .add-pocket { min-height: 56px; font-size: 14px; }
+      .demo-note { display: block; margin-top: 26px; padding-bottom: 78px; font-size: 12px; line-height: 1.65; }
+      .demo-note span { display: none; }
+      dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); }
+      .dialog-top { padding-left: 21px; padding-right: 10px; }
+      .dialog-body { padding: 10px 21px 24px; }
+      .dialog-title, .editor-title { font-size: 28px; }
+      .dialog-footer { padding: 16px 21px 21px; flex-wrap: wrap; }
+      .dialog-footer .delete-button { flex-basis: 100%; justify-content: flex-start; }
+      .dialog-footer .primary-button { margin-left: auto; }
+      .field-grid { grid-template-columns: 1fr; gap: 0; }
+      .field textarea { min-height: 125px; }
+      .toast { left: 16px; right: 16px; bottom: 16px; width: auto; max-width: none; transform: none; gap: 12px; padding: 10px 14px; font-size: 13px; }
+      .toast .text-button { font-size: 13px; }
+    }
+    @media (max-width: 369px) {
+      .topbar-inner { padding-left: 16px; padding-right: 16px; }
+      .workspace { padding-left: 16px; padding-right: 16px; }
+      .workspace-title { font-size: 38px; }
+      .column-tab { font-size: 12px; gap: 5px; }
+      .card { padding-right: 19px; padding-left: 23px; }
+      .card-title { font-size: 19px; }
+      .dialog-footer { padding-left: 17px; padding-right: 17px; gap: 8px; }
+      .dialog-footer .primary-button, .dialog-footer .secondary-button { padding-left: 11px; padding-right: 11px; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      dialog[open] { animation: unfold .14s ease-out; }
+      @keyframes unfold { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+    @media (forced-colors: active) { .card + .card::before, .card-list::before { border-color: CanvasText; } .column-tab[aria-selected="true"], .space-button[aria-current="page"] { outline: 2px solid Highlight; outline-offset: -3px; } }
+  </style>
+</head>
+<body>
+  <a href="#main" class="skip-link">К карточкам</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><svg class="brand-mark" viewBox="0 0 30 32" fill="none" aria-hidden="true"><path d="M5 6.5 25 3 7 27.5l19-3.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m8 8 13-2M10 26l13-2.4" stroke="currentColor" stroke-opacity=".4" stroke-linecap="round"/></svg><span>ZeDone</span></div>
+      <nav class="space-navigation" aria-label="Пространства"><div class="space-list" id="desktopSpaces"></div></nav>
+      <span class="demo-label">Демо</span>
+      <button class="spaces-toggle" type="button" data-action="spaces" aria-haspopup="dialog" aria-controls="spacesDialog">Пространства<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5.5 8 4.5 4.5L14.5 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </header>
+  <main class="workspace" id="main" tabindex="-1">
+    <header class="workspace-header">
+      <div class="title-wrap"><h1 class="workspace-title" id="spaceTitle">Моя неделя</h1><p class="workspace-meta" id="spaceMeta">7 карточек</p></div>
+      <div class="workspace-tools">
+        <div class="search-field" id="searchField">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.6" cy="8.6" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="m12.7 12.7 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <label class="sr-only" for="search">Найти карточку в пространстве</label>
+          <input id="search" type="search" placeholder="Найти карточку" autocomplete="off">
+          <span class="search-key" aria-hidden="true">/</span>
+          <button class="clear-search" type="button" data-action="clear-search" aria-label="Очистить поиск"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+        </div>
+        <button class="primary-button new-card" id="newCard" type="button" data-action="add" aria-label="Добавить карточку"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Добавить карточку</span></button>
+      </div>
+    </header>
+    <div class="column-tabs" id="columnTabs" role="tablist" aria-label="Колонки пространства"></div>
+    <div class="board" id="board"></div>
+    <p class="sr-only" id="searchStatus" role="status" aria-live="polite"></p>
+    <footer class="demo-note"><span>Демо</span><p>Изменения останутся до перезагрузки страницы.</p></footer>
+  </main>
+  <dialog id="cardDialog" aria-labelledby="dialogTitle"></dialog>
+  <dialog class="spaces-dialog" id="spacesDialog" aria-labelledby="spacesDialogTitle">
+    <div class="dialog-top"><h2 class="dialog-caption" id="spacesDialogTitle">Пространства</h2><button type="button" class="icon-button" data-action="close-spaces" aria-label="Закрыть пространства"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>
+    <div class="space-list" id="mobileSpaces"></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script>/* Design-only fixture. Each document clones it; no product storage is used. */
+window.ZeDoneDemoData = {
+  space: 'Моя неделя',
+  spaces: ['Моя неделя', 'Дом', 'Идеи для поездок'],
+  columns: [
+    { id: 'thoughts', title: 'Разобрать' },
+    { id: 'focus', title: 'В работе' },
+    { id: 'done', title: 'Готово' }
+  ],
+  cards: [
+    { id: 'c1', column: 'thoughts', title: 'Выбрать маршрут на выходные', description: 'Сравнить тропу у озера и прогулку к маяку. Проверить дорогу и прогноз перед выездом.', tags: ['Отдых'] },
+    { id: 'c2', column: 'thoughts', title: 'Разобрать заметки с телефона', description: 'Перенести рецепты в пространство «Дом», а идеи для поездок собрать отдельно.', tags: ['Личное'] },
+    { id: 'c3', column: 'thoughts', title: 'Найти место для чтения', description: 'Освободить угол у окна. Измерить расстояние до розетки, прежде чем выбирать светильник.', tags: ['Дом'] },
+    { id: 'c4', column: 'focus', title: 'Собрать портфолио', description: 'Выбрать три проекта. Для каждого описать задачу, своё решение и результат.', tags: ['Работа'] },
+    { id: 'c5', column: 'focus', title: 'Записаться к стоматологу', description: 'Позвонить в клинику и выбрать время после работы. Уточнить стоимость осмотра.', tags: ['Личное'] },
+    { id: 'c6', column: 'done', title: 'Сохранить семейные фотографии', description: 'Копия за октябрь записана на внешний диск. Проверено, что фотографии открываются.', tags: ['Дом'] },
+    { id: 'c7', column: 'done', title: 'Вернуть книгу в библиотеку', description: '«Дизайн привычных вещей» возвращён. Следующая книга — из списка для чтения.', tags: ['Личное'] }
+  ]
+};
+</script>
+  <script>
+    (() => {
+      'use strict';
+      const fixture = JSON.parse(JSON.stringify(window.ZeDoneDemoData));
+      const state = {
+        space: fixture.space, spaces: fixture.spaces, columns: fixture.columns,
+        cards: fixture.cards.map(card => ({ ...card, space: fixture.space })),
+        activeColumn: fixture.columns[0].id, query: '', deleted: [], notice: ''
+      };
+      const $ = id => document.getElementById(id);
+      const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+      let modal = null;
+      let returnFocus = 'newCard';
+      let noticeTimer;
+      let cardSequence = 0;
+      const compact = window.matchMedia('(max-width: 760px)');
+      const icons = {
+        plus: '<path d="M10 4v12M4 10h12"/>',
+        close: '<path d="m5 5 10 10M15 5 5 15"/>',
+        space: '<path d="M3.5 4.5h5l2 2h6v9h-13z"/>',
+        trash: '<path d="M4 5.5h12M8 5.5v-2h4v2M6 5.5l.7 11h6.6l.7-11M8.5 8.5v5M11.5 8.5v5"/>',
+        edit: '<path d="m12.8 3.8 3.4 3.4M4 16l3.8-.8L16 7a1.8 1.8 0 0 0 0-2.5l-.5-.5A1.8 1.8 0 0 0 13 4L4.8 12.2z"/>'
+      };
+      const icon = name => `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+      const tagsMarkup = tags => tags.map(tag => `<span class="tag" data-tag="${escape(tag)}">${escape(tag)}</span>`).join('');
+      function cardWord(number) {
+        const tens = number % 100, units = number % 10;
+        return tens >= 11 && tens <= 14 ? 'карточек' : units === 1 ? 'карточка' : units >= 2 && units <= 4 ? 'карточки' : 'карточек';
+      }
+      function currentCards() { return state.cards.filter(card => card.space === state.space); }
+      function matches(card) {
+        const words = state.query.toLocaleLowerCase('ru').trim().split(/\s+/).filter(Boolean);
+        const content = [card.title, card.description, ...card.tags].join(' ').toLocaleLowerCase('ru');
+        return words.every(word => content.includes(word));
+      }
+      function renderSpaces() {
+        const markup = state.spaces.map(space => `<button class="space-button" type="button" data-space="${escape(space)}"${space === state.space ? ' aria-current="page"' : ''}>${icon('space')}<span>${escape(space)}</span></button>`).join('');
+        $('desktopSpaces').innerHTML = markup;
+        $('mobileSpaces').innerHTML = markup;
+      }
+      function renderBoard() {
+        const all = currentCards();
+        const shown = all.filter(matches);
+        $('spaceTitle').textContent = state.space;
+        document.title = `${state.space} — ZeDone · Шов`;
+        $('spaceMeta').textContent = state.query.trim() ? `Найдено: ${shown.length} из ${all.length}` : `${all.length} ${cardWord(all.length)}`;
+        $('searchField').classList.toggle('has-query', Boolean(state.query));
+        $('searchStatus').textContent = state.query.trim() ? `Найдено ${shown.length} ${cardWord(shown.length)}` : '';
+        $('columnTabs').innerHTML = state.columns.map(column => {
+          const count = shown.filter(card => card.column === column.id).length;
+          return `<button class="column-tab" id="tab-${column.id}" type="button" role="tab" data-column-tab="${column.id}" aria-selected="${column.id === state.activeColumn}" aria-controls="column-${column.id}" tabindex="${column.id === state.activeColumn ? '0' : '-1'}">${escape(column.title)}<span>${count}</span></button>`;
+        }).join('');
+        $('board').innerHTML = state.columns.map(column => {
+          const cards = shown.filter(card => card.column === column.id);
+          const empty = state.query.trim()
+            ? '<div class="empty-state"><p>В этой колонке ничего не найдено.</p><button class="text-button" type="button" data-action="clear-search">Очистить поиск</button></div>'
+            : `<div class="empty-state"><p>Здесь есть место для новой карточки.</p><button class="text-button" type="button" data-add-column="${column.id}">${icon('plus')}Добавить карточку</button></div>`;
+          const pockets = cards.map(card => `<button class="card" type="button" data-open="${escape(card.id)}" aria-label="Открыть карточку «${escape(card.title)}»"><svg class="card-corner" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 2.5h6.5V9M9 3 2.5 9.5" stroke="currentColor" stroke-width="1"/></svg><span class="card-title">${escape(card.title)}</span>${card.description ? `<span class="card-description">${escape(card.description)}</span>` : ''}${card.tags.length ? `<span class="card-tags">${tagsMarkup(card.tags)}</span>` : ''}</button>`).join('');
+          return `<section class="column${column.id === state.activeColumn ? ' is-active' : ''}" id="column-${column.id}" data-column="${column.id}" role="${compact.matches ? 'tabpanel' : 'region'}" aria-labelledby="${compact.matches ? 'tab-' : 'column-title-'}${column.id}">
+            <header class="column-header"><span class="column-dot" aria-hidden="true"></span><h2 class="column-title" id="column-title-${column.id}">${escape(column.title)}</h2><span class="column-count" aria-label="${cards.length} ${cardWord(cards.length)}">${cards.length}</span></header>
+            <div class="card-list">${cards.length ? pockets : empty}</div>
+            ${cards.length ? `<button class="add-pocket" type="button" data-add-column="${column.id}" aria-label="Добавить карточку в колонку «${escape(column.title)}»"><span>Добавить карточку</span>${icon('plus')}</button>` : ''}
+          </section>`;
+        }).join('');
+      }
+      function renderToast() {
+        clearTimeout(noticeTimer);
+        const toast = $('toast');
+        if (state.deleted.length) {
+          const text = state.deleted.length === 1 ? 'Карточка удалена' : `Удалено карточек: ${state.deleted.length}`;
+          toast.innerHTML = `<span>${text}</span><button class="text-button" type="button" data-action="undo">Восстановить</button>`;
+          toast.hidden = false;
+        } else if (state.notice) {
+          toast.textContent = state.notice;
+          toast.hidden = false;
+          noticeTimer = setTimeout(() => { state.notice = ''; toast.hidden = true; }, 2800);
+        } else { toast.hidden = true; }
+      }
+      function render() { renderSpaces(); renderBoard(); renderToast(); }
+      function dialogTop(caption) {
+        return `<div class="dialog-top"><span class="dialog-caption">${caption}</span><button class="icon-button" type="button" data-action="close-card" aria-label="Закрыть карточку">${icon('close')}</button></div>`;
+      }
+      function renderCardDialog() {
+        const dialog = $('cardDialog');
+        const card = modal.cardId ? state.cards.find(item => item.id === modal.cardId) : null;
+        if (modal.mode === 'view' && card) {
+          const column = state.columns.find(item => item.id === card.column);
+          dialog.innerHTML = `${dialogTop('Карточка')}<div class="dialog-body"><h2 class="dialog-title" id="dialogTitle">${escape(card.title)}</h2>${card.description ? `<p class="dialog-description">${escape(card.description)}</p>` : '<p class="dialog-description">Описание пока не добавлено.</p>'}<p class="dialog-column"><span>Колонка</span><span>${escape(column.title)}</span></p>${card.tags.length ? `<div class="card-tags">${tagsMarkup(card.tags)}</div>` : ''}</div><footer class="dialog-footer"><button class="delete-button" type="button" data-action="delete">${icon('trash')}Удалить</button><button class="secondary-button" type="button" data-action="close-card">Закрыть</button><button class="primary-button" type="button" data-action="edit">${icon('edit')}Редактировать</button></footer>`;
+        } else {
+          const values = card || { title: '', description: '', tags: [], column: modal.column || state.activeColumn };
+          dialog.innerHTML = `${dialogTop(card ? 'Карточка' : 'Новая карточка')}<form id="cardForm"><div class="dialog-body"><h2 class="editor-title" id="dialogTitle">${card ? 'Редактировать карточку' : 'О чём хотите помнить?'}</h2><div class="field"><label for="cardTitle">Заголовок</label><input id="cardTitle" name="title" value="${escape(values.title)}" maxlength="120" required autocomplete="off" placeholder="Например, выбрать маршрут"></div><div class="field"><label for="cardDescription">Описание</label><textarea id="cardDescription" name="description" maxlength="3000" placeholder="Детали, которые пригодятся позже">${escape(values.description)}</textarea></div><div class="field-grid"><div class="field"><label for="cardColumn">Колонка</label><select id="cardColumn" name="column">${state.columns.map(column => `<option value="${column.id}"${column.id === values.column ? ' selected' : ''}>${escape(column.title)}</option>`).join('')}</select></div><div class="field"><label for="cardTags">Теги</label><input id="cardTags" name="tags" value="${escape(values.tags.join(', '))}" maxlength="150" placeholder="Личное, Работа" aria-describedby="tagHint"><p class="field-hint" id="tagHint">Через запятую</p></div></div></div><footer class="dialog-footer"><button class="secondary-button" type="button" data-action="cancel-edit">Отмена</button><button class="primary-button" type="submit">${card ? 'Сохранить' : 'Добавить карточку'}</button></footer></form>`;
+          $('cardTitle').addEventListener('input', event => event.target.setCustomValidity(''));
+          $('cardForm').addEventListener('submit', saveCard);
+        }
+        if (!dialog.open) dialog.showModal();
+        if (modal.mode !== 'view') requestAnimationFrame(() => {
+          const title = $('cardTitle');
+          if (dialog.open && title) title.focus();
+        });
+      }
+      function openCard(id) {
+        returnFocus = id;
+        modal = { mode: 'view', cardId: id };
+        renderCardDialog();
+      }
+      function addCard(column) {
+        returnFocus = 'newCard';
+        modal = { mode: 'new', column: column || state.activeColumn };
+        renderCardDialog();
+      }
+      function saveCard(event) {
+        event.preventDefault();
+        const title = $('cardTitle').value.trim();
+        if (!title) { $('cardTitle').setCustomValidity('Добавьте заголовок карточки.'); $('cardTitle').reportValidity(); return; }
+        const values = {
+          title, description: $('cardDescription').value.trim(), column: $('cardColumn').value,
+          tags: [...new Set($('cardTags').value.split(',').map(tag => tag.trim()).filter(Boolean))].slice(0, 8)
+        };
+        if (modal.cardId) {
+          const card = state.cards.find(item => item.id === modal.cardId);
+          Object.assign(card, values);
+          returnFocus = card.id;
+          state.notice = 'Карточка сохранена';
+        } else {
+          const card = { id: `new-${Date.now()}-${++cardSequence}`, space: state.space, ...values };
+          state.cards.push(card);
+          returnFocus = card.id;
+          state.notice = 'Карточка добавлена';
+        }
+        state.activeColumn = values.column;
+        state.query = '';
+        $('search').value = '';
+        render();
+        $('cardDialog').close();
+      }
+      function deleteCard() {
+        const index = state.cards.findIndex(card => card.id === modal.cardId);
+        if (index < 0) return;
+        state.deleted.push({ card: state.cards[index], index });
+        state.cards.splice(index, 1);
+        state.notice = '';
+        returnFocus = 'newCard';
+        render();
+        $('cardDialog').close();
+      }
+      function undoDelete() {
+        const entry = state.deleted.pop();
+        if (!entry) return;
+        state.cards.splice(Math.min(entry.index, state.cards.length), 0, entry.card);
+        state.notice = 'Карточка восстановлена';
+        state.space = entry.card.space;
+        state.activeColumn = entry.card.column;
+        state.query = '';
+        $('search').value = '';
+        render();
+        if (state.deleted.length) $('toast').querySelector('button').focus();
+        else {
+          const visibleCard = entry.card.space === state.space && entry.card.column === state.activeColumn
+            ? $('board').querySelector(`[data-open="${entry.card.id}"]`) : null;
+          (visibleCard || $('newCard')).focus();
+        }
+      }
+      function clearSearch() {
+        state.query = '';
+        $('search').value = '';
+        renderBoard();
+        $('search').focus();
+      }
+      function setColumn(column, focusTab) {
+        state.activeColumn = column;
+        renderBoard();
+        if (focusTab) $(`tab-${column}`).focus();
+      }
+      document.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.dataset.open) return openCard(button.dataset.open);
+        if (button.dataset.addColumn) return addCard(button.dataset.addColumn);
+        if (button.dataset.columnTab) return setColumn(button.dataset.columnTab, true);
+        if (button.dataset.space) {
+          const wasSpacesDialog = $('spacesDialog').open;
+          state.space = button.dataset.space;
+          state.query = '';
+          $('search').value = '';
+          render();
+          if (wasSpacesDialog) $('spacesDialog').close();
+          else $('desktopSpaces').querySelector('[aria-current="page"]').focus();
+          return;
+        }
+        switch (button.dataset.action) {
+          case 'add': addCard(); break;
+          case 'clear-search': clearSearch(); break;
+          case 'spaces': $('spacesDialog').showModal(); break;
+          case 'close-spaces': $('spacesDialog').close(); break;
+          case 'close-card': $('cardDialog').close(); break;
+          case 'edit': modal.mode = 'edit'; renderCardDialog(); break;
+          case 'cancel-edit':
+            if (modal.cardId) { modal.mode = 'view'; renderCardDialog(); }
+            else $('cardDialog').close();
+            break;
+          case 'delete': deleteCard(); break;
+          case 'undo': undoDelete(); break;
+        }
+      });
+      $('search').addEventListener('input', event => {
+        state.query = event.target.value;
+        const results = currentCards().filter(matches);
+        if (state.query.trim() && results.length && !results.some(card => card.column === state.activeColumn)) {
+          state.activeColumn = results[0].column;
+        }
+        renderBoard();
+      });
+      $('search').addEventListener('keydown', event => { if (event.key === 'Escape' && state.query) { event.preventDefault(); clearSearch(); } });
+      $('columnTabs').addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const current = state.columns.findIndex(column => column.id === state.activeColumn);
+        const index = event.key === 'Home' ? 0 : event.key === 'End' ? state.columns.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + state.columns.length) % state.columns.length;
+        setColumn(state.columns[index].id, true);
+      });
+      document.addEventListener('keydown', event => {
+        const editing = event.target.closest('input, textarea, select, [contenteditable="true"]');
+        if (event.key === '/' && !editing && !$('cardDialog').open && !$('spacesDialog').open) {
+          event.preventDefault(); $('search').focus();
+        }
+      });
+      $('cardDialog').addEventListener('close', () => {
+        if ($('cardDialog').open) return;
+        modal = null;
+        const focus = returnFocus === 'newCard' ? $('newCard') : $('board').querySelector(`[data-open="${returnFocus}"]`);
+        (focus || $('newCard')).focus();
+      });
+      for (const dialog of [$('cardDialog'), $('spacesDialog')]) {
+        dialog.addEventListener('click', event => {
+          if (event.target !== dialog) return;
+          const rect = dialog.getBoundingClientRect();
+          if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+        });
+      }
+      compact.addEventListener('change', () => {
+        const focused = document.activeElement;
+        const column = focused?.closest('[data-column]')?.dataset.column || focused?.dataset.columnTab;
+        const cardId = focused?.dataset.open;
+        renderBoard();
+        if (column) {
+          if (compact.matches && column !== state.activeColumn) $('tab-' + state.activeColumn).focus();
+          else if (cardId) $('board').querySelector('[data-open="' + cardId + '"]').focus();
+          else if (compact.matches) $('tab-' + column).focus();
+          else $('newCard').focus();
+        }
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

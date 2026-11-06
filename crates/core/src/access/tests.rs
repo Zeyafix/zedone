@@ -132,6 +132,20 @@ fn data_permissions_and_administration_are_independent() {
             [true, true, false, false],
         ),
         (GrantScope::Administration, [false, false, true, true]),
+        (
+            GrantScope::AdministrationAndSpaces(BTreeMap::from([(
+                "A".into(),
+                SpacePermission::Read,
+            )])),
+            [true, false, true, true],
+        ),
+        (
+            GrantScope::AdministrationAndSpaces(BTreeMap::from([(
+                "A".into(),
+                SpacePermission::ReadWrite,
+            )])),
+            [true, true, true, true],
+        ),
     ] {
         let mut session = Session::new(scope);
         for (requirement, allowed) in [
@@ -156,6 +170,54 @@ fn data_permissions_and_administration_are_independent() {
             expected.into_iter().filter(|allowed| *allowed).count()
         );
     }
+}
+
+#[test]
+fn active_grant_is_not_a_space_permission_or_an_authentication_bypass() {
+    let clock = TestClock(Cell::new(10));
+    for scope in [
+        GrantScope::Administration,
+        GrantScope::Spaces(BTreeMap::from([("B".into(), SpacePermission::Read)])),
+        GrantScope::AdministrationAndSpaces(BTreeMap::from([(
+            "B".into(),
+            SpacePermission::ReadWrite,
+        )])),
+    ] {
+        let mut session = Session::new(scope);
+        session
+            .execute(&[RequiredAccess::ActiveGrant], &clock)
+            .unwrap();
+        expect_denied(session.execute(&[RequiredAccess::ActiveGrant, READ], &clock));
+        session.grant().expires_at = Some(UNIX_EPOCH + Duration::from_secs(10));
+        expect_denied(session.execute(&[RequiredAccess::ActiveGrant], &clock));
+        session.grant().expires_at = None;
+        session.grant().revoked = true;
+        expect_denied(session.execute(&[RequiredAccess::ActiveGrant], &clock));
+        assert_eq!(session.operations, 1);
+    }
+    for scope in [
+        GrantScope::Spaces(BTreeMap::new()),
+        GrantScope::AdministrationAndSpaces(BTreeMap::new()),
+        GrantScope::AdministrationAndSpaces(BTreeMap::from([(
+            "".into(),
+            SpacePermission::ReadWrite,
+        )])),
+    ] {
+        let mut session = Session::new(scope);
+        expect_denied(session.execute(&[RequiredAccess::ActiveGrant], &clock));
+        assert_eq!(session.operations, 0);
+    }
+    let mut session = Session::new(GrantScope::Administration);
+    session.access = None;
+    expect_denied(session.execute(&[RequiredAccess::ActiveGrant], &clock));
+    session.unavailable = true;
+    assert_eq!(
+        session
+            .execute(&[RequiredAccess::ActiveGrant], &clock)
+            .unwrap_err()
+            .code,
+        ErrorCode::Unavailable
+    );
 }
 
 #[test]

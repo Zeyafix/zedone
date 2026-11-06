@@ -16,19 +16,19 @@ use crate::{
     startup::{MigrationOptions, Startup},
 };
 
-struct TestClock(u64);
+pub(super) struct TestClock(pub(super) u64);
 impl Clock for TestClock {
     fn now(&self) -> CommandResult<SystemTime> {
         Ok(UNIX_EPOCH + Duration::from_millis(self.0))
     }
 }
-const NOW: TestClock = TestClock(100);
+pub(super) const NOW: TestClock = TestClock(100);
 
 fn scope(permission: SpacePermission) -> GrantScope {
     GrantScope::Spaces(BTreeMap::from([("a".into(), permission)]))
 }
 
-fn denied<T>(result: StorageResult<T>) {
+pub(super) fn denied<T>(result: StorageResult<T>) {
     assert!(matches!(
         result,
         Err(StorageError::Rejected(CommandError {
@@ -37,7 +37,7 @@ fn denied<T>(result: StorageResult<T>) {
     ));
 }
 
-async fn setup() -> (TempDir, Storage, Arc<PendingAccess>, Arc<PendingAccess>) {
+pub(super) async fn setup() -> (TempDir, Storage, Arc<PendingAccess>, Arc<PendingAccess>) {
     let dir = TempDir::new().unwrap();
     let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
     let admin = Arc::new(PendingAccess::generate().unwrap());
@@ -62,7 +62,7 @@ async fn setup() -> (TempDir, Storage, Arc<PendingAccess>, Arc<PendingAccess>) {
     (dir, storage, admin, member)
 }
 
-async fn check(
+pub(super) async fn check(
     storage: &Storage,
     secret: Vec<u8>,
     space: &'static str,
@@ -650,7 +650,7 @@ async fn product_v1_migration_preserves_history_and_archives_without_inventing_a
         connection
             .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        3
+        4
     );
 }
 

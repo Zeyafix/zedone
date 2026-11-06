@@ -18,6 +18,23 @@ const success: Response = { status: "ok", replayed: true, result: {
   subject: parameters.subject, scope: { kind: "administration" }, expires_at_unix_ms: null, revoked: true, version: Array(32).fill(1),
 } };
 
+test("combined administration and exact spaces use the Rust-derived validator and normal delivery", async () => {
+  const response: Response = { ...success, result: { ...success.result,
+    scope: { kind: "administration_and_spaces", spaces: { a: "read_write", b: "read" } },
+  } };
+  expect(validateResponse(response)).toBe(true);
+  for (const scope of [
+    {kind:"administration_and_spaces"},
+    {kind:"administration_and_spaces",spaces:{a:"owner"}},
+    {kind:"administration_and_spaces",spaces:{a:"read"},create_spaces:true},
+    {kind:"administration",spaces:{a:"read_write"}},
+  ]) expect(validateResponse({...response, result:{...response.result,scope}})).toBe(false);
+  const { store } = fixture();
+  const id = await prepare("2".repeat(32), "access.inspect", parameters, store);
+  expect((await new CommandClient(store, async () => response).deliver(id)).status).toBe("completed");
+  expect(await store.list()).toEqual([]);
+});
+
 test("fresh cryptographic intentions preserve Unicode, original versions, and independent IDs", async () => {
   const { store } = fixture();
   const params = { subject: "空間", expected: Array(32).fill(7) };

@@ -11,8 +11,8 @@ dependencies_evidence: [".1 PR #40 merged 50fe374", ".2 PR #46 merged 5c42224", 
 scope: ["полный оставшийся P03.05 в отдельной ветке по прямому поручению разработчика"]
 checks: ["Windows product-check", "Android native product-check, release x86_64/arm64 и Tauri bridge", "Rust/OpenAPI/TS и клиентские отказные сценарии", "полный diff, исторические layout/эталоны, документация"]
 reverse_and_failure: "Отзыв/новая выдача/исходный повтор, отказ последнему admin, истечение/rollback/restart/ошибки, неизвестный исход и сохранение клиента."
-result: verified_local_uncommitted
-next: "Ревью/публикация/CI/интеграция полного P03.05 по отдельному поручению; реализация и локальная проверка завершены."
+result: done_merged_pr_47
+next: "P04.01 на интегрированном P03.05; полная приёмка P03.06 зависит от P04.10."
 ```
 
 P03.05.1 и .2 уже интегрированы; .3/.4 и проверка родителя выполнены в одной
@@ -86,3 +86,14 @@ Linux CI passed. Причина — Git checkout преобразовал LF в 
 Runtime/генератор/производные не менялись. Финальные CI нового head и merge
 проверяются по Git/PR и `docs/reports/p03-05/publication.json`; прежний failed CI
 не засчитывается как passed и не обходится. LOG-279.
+
+## Завершение интеграции — LOG-294
+
+2026-11-05 [PR #47](https://github.com/Zeyafix/zedone/pull/47), окончательный
+head `7dc69d7389b090eef1c2fd004c7deb9349c6a52c`, интегрирован в
+`f4bf4e1cef79dbaeedc0231da9ffcd34b4fa761a` после SUCCESS всех трёх проверок:
+Windows, Linux и Android. BUG-004 resolved; исходная ветка удалена локально
+и на GitHub. Сверено повторно 2026-11-06; локальные факты публикации —
+`docs/reports/p03-05/publication.json`. Прежние указания на отсутствие
+коммита/PR/CI/интеграции описывают историческую точку локальной приёмки.
+P03.05/.3/.4 done, но полный T06/P03 и продуктовый UI этим не закрыты.

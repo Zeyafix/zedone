@@ -37,7 +37,7 @@ export interface components {
     schemas: {
         /** @enum {string} */
         AccessMode: "read" | "read_write";
-        AccessScope: components["schemas"]["AdministrationScope"] | components["schemas"]["SpacesScope"];
+        AccessScope: components["schemas"]["AdministrationScope"] | components["schemas"]["AdministrationAndSpacesScope"] | components["schemas"]["SpacesScope"];
         /**
          * @description No keys or verifiers leave storage. Version includes retired/current key
          *     identities internally so a regrant cannot revive a stale revocation request.
@@ -49,6 +49,14 @@ export interface components {
             scope: components["schemas"]["AccessScope"];
             subject: string;
             version: components["schemas"]["StateVersion"];
+        };
+        /** @enum {string} */
+        AdministrationAndSpacesKind: "administration_and_spaces";
+        AdministrationAndSpacesScope: {
+            kind: components["schemas"]["AdministrationAndSpacesKind"];
+            spaces: {
+                [key: string]: components["schemas"]["AccessMode"];
+            };
         };
         /** @enum {string} */
         AdministrationKind: "administration";

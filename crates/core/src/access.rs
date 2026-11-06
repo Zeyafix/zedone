@@ -23,11 +23,33 @@ pub enum SpacePermission {
     ReadWrite,
 }
 
-/// Administration is granted separately and never implies access to data.
+/// Administration and exact data rights are independent, even when combined.
 #[derive(Clone)]
 pub enum GrantScope {
     Spaces(BTreeMap<String, SpacePermission>),
     Administration,
+    AdministrationAndSpaces(BTreeMap<String, SpacePermission>),
+}
+
+impl GrantScope {
+    pub fn spaces(&self) -> Option<&BTreeMap<String, SpacePermission>> {
+        match self {
+            Self::Spaces(spaces) | Self::AdministrationAndSpaces(spaces) => Some(spaces),
+            Self::Administration => None,
+        }
+    }
+
+    pub fn administration(&self) -> bool {
+        matches!(
+            self,
+            Self::Administration | Self::AdministrationAndSpaces(_)
+        )
+    }
+
+    fn valid(&self) -> bool {
+        self.spaces()
+            .is_none_or(|spaces| !spaces.is_empty() && spaces.keys().all(|id| !id.is_empty()))
+    }
 }
 
 /// Trusted current state, never accepted from a request or restored space copy.
@@ -50,6 +72,9 @@ pub struct ResolvedAccess {
 /// Clients cannot supply a weaker requirement in place of the handler's policy.
 #[derive(Clone, Copy)]
 pub enum RequiredAccess<'a> {
+    /// Any current, nonempty grant; used for creation, not an issued capability.
+    /// Does not authorize reading or changing an existing space.
+    ActiveGrant,
     Space {
         id: &'a str,
         permission: SpacePermission,
@@ -118,22 +143,24 @@ pub fn with_authorized<T: AccessTransaction, R>(
     if access.subject.is_empty()
         || access.subject != grant.subject
         || grant.revoked
-        || !required
-            .iter()
-            .all(|requirement| match (&grant.scope, requirement) {
-                (GrantScope::Spaces(spaces), RequiredAccess::Space { id, permission }) => {
-                    !id.is_empty()
-                        && spaces.get(*id).is_some_and(|granted| {
+        || !grant.scope.valid()
+        || !required.iter().all(|requirement| match requirement {
+            RequiredAccess::ActiveGrant => true,
+            RequiredAccess::Space { id, permission } => {
+                !id.is_empty()
+                    && grant
+                        .scope
+                        .spaces()
+                        .and_then(|spaces| spaces.get(*id))
+                        .is_some_and(|granted| {
                             *permission == SpacePermission::Read
                                 || *granted == SpacePermission::ReadWrite
                         })
-                }
-                (
-                    GrantScope::Administration,
-                    RequiredAccess::ManageDevices | RequiredAccess::ManageAccess,
-                ) => true,
-                _ => false,
-            })
+            }
+            RequiredAccess::ManageDevices | RequiredAccess::ManageAccess => {
+                grant.scope.administration()
+            }
+        })
     {
         return Err(denied());
     }

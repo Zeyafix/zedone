@@ -360,3 +360,51 @@ BUG-007 resolved локально. ADR-0028/developer docs/журнал обно
 прикладных действий, общий Service человека/агента и единая SQLite/Automerge
 сохранены. UI и контракт не менялись; доказательства LOG-308 остаются в своём
 охвате. Окончательные CI обоих lifecycle fixes ещё должны пройти перед merge.
+
+## LOG-315 / CI.03: Android до 10 минут и совместимость UI-драйвера
+
+Head `eb5ca23`: Windows/Linux SUCCESS, Android product native/core/storage/
+adapters/contract/обе release ABI/unsafe passed, включая все 136 storage tests.
+Полный старый prototype native/UI/HTTP/lifecycle набор тоже passed. Android
+job `128037135095` затем упал в shell-драйвере: Playwright 1.64.1 вызывает
+`element.checkVisibility`, отсутствующий в штатном AOSP WebView 101. Это
+инструментальная несовместимость, а не отказ прикладного UI. Raw logs/steps —
+`docs/reports/p05-01/ci-android-eb5ca23*.{log,json}`.
+
+Драйвер теперь использует тот же подход, что существующий prototype driver:
+DOM-проверки и нативные CDP touch events. Перед касанием проверяются наличие,
+видимость/размеры, disabled и попадание `elementFromPoint`; принудительные DOM
+click и полифилл приложения не используются. Прежние проверки меню/Back,
+светлой/тёмной/системной темы, сохранения после reload, сброса localStorage и
+переполнения сохранены; имена/радиосостояния и отсутствие pageerror явные.
+
+Desktop proof на настоящем serve-shell/Chrome с удалённым
+`Element.prototype.checkVisibility` прошёл все сценарии; скрытый и перекрытый
+контролы отклонены. Back в этом proof имитирует Kotlin-логику, поэтому он
+не считается приёмкой Android Back. Android-драйвер локально не запускался;
+требование Device не обходилось. Прежняя локальная Android приёмка LOG-308
+сохраняется, реальный исправленный CI-драйвер ещё должен пройти Actions.
+
+Разработчик отдельно поручил попробовать сократить Android CI до 10 минут.
+Исходный job последовательно готовил обе пары APK и выполнял все наборы.
+CI.03 делит независимые native/prototype-ui/shell на параллельные стандартные
+runners, каждый с отдельным SDK/AVD и лимитом 10 минут. Environment и
+negative-cleanup сохраняются в каждом; все native/UI/ABI/unsafe сценарии
+сохраняются в сумме матрицы. Итоговый стабильный `android` с `if: always()`
+успешен только при success всей матрицы. Отмена/пропуск/отказ блокируют итог.
+Без аргумента dispatcher выполняет прежний полный порядок. Rust cache
+namespace/paths прежние, native — единственный main writer; PR только читает.
+
+Проверены actionlint 1.7.12 (официальный архив с SHA-256), YAML, точное
+разбиение всех пяти команд без потерь/дублирования, прежний порядок default
+и отказ неизвестного suite. Bash-выражение итогового job принимает только
+success, отвергая failure/cancelled/skipped/пустое значение. JS syntax и
+whitespace passed. Локальные proof scripts/logs находятся в docs/reports/p05-01.
+Runtime/зависимости/публичный API/UI assets не менялись, поэтому полная native
+матрица повторно локально не запускалась. Реальные CI, время workflow и сумма
+runner-minutes ещё не измерены для новой схемы; 10 минут не объявляются
+достигнутыми. Подготовка трёх сред может увеличить суммарные runner-minutes.
+
+Обратимость (отмена workflow/обратный коммит), общий API человека/агента,
+docs, прежний платформенный охват и единая SQLite/Automerge сохранены.
+CI.03 in_progress до фактической проверки Actions; P05.01 verified, не done.

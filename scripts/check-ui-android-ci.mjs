@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
+import { checkShell } from "./check-ui-android-scenarios.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
 const root = resolve(import.meta.dir, "..");
@@ -37,25 +38,10 @@ try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
   const page = browser.contexts()[0]?.pages()[0];
   assert.ok(page, "ZeDone WebView must be present");
-  await page.getByRole("heading", { name: "Доступ не настроен", exact: true }).waitFor();
-  await page.getByRole("button", { name: "Меню", exact: true }).click();
-  await page.getByRole("dialog").waitFor();
-  device("shell", "input", "keyevent", "4");
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
-  await page.getByRole("button", { name: "Меню", exact: true }).click();
-  await page.getByRole("dialog").getByRole("link", { name: "Настройки", exact: true }).click();
-  await page.getByRole("radio", { name: "Тёмная", exact: true }).check();
-  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
-  await page.reload();
-  await page.getByRole("radio", { name: "Тёмная", exact: true }).waitFor();
-  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
-  await page.getByRole("radio", { name: "Светлая", exact: true }).check();
-  assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
-  await page.getByRole("radio", { name: "Как на устройстве", exact: true }).check();
-  assert.equal(await page.evaluate(() => localStorage.length), 0);
-  device("shell", "input", "keyevent", "4");
-  await page.getByRole("heading", { level: 1, name: "Пространства" }).waitFor();
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await checkShell(page, () => device("shell", "input", "keyevent", "4"));
+  assert.deepEqual(errors, [], "Shell must not raise page errors");
   console.log("Android shell: local session IPC, menu/Back, theme light/dark/reset/reload and layout passed. Provisioned domain IPC remains a separate acceptance cell.");
 } finally {
   await browser?.close();

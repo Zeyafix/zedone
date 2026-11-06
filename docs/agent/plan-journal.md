@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P05.01
 last_completed_stage: P02
 last_completed_step: P04.01
-active_work: "PR #52: проверены исправления folder lock и гонки shutdown worker после Linux/Android failure; публикация и финальные CI"
-next_action: "LOG-314: опубликовать исправления lifecycle хранилища, проверить все CI окончательного head, затем merge/очистка по действующему поручению. Лимиты и assertions сохранены; точная причина старого Linux отказа не доказана."
+active_work: "PR #52 / CI.03: Android UI-драйвер для WebView 101 и параллельная матрица с целью не более 10 минут; финальные CI"
+next_action: "LOG-315: опубликовать CI.03 и touch-драйвер, проверить все финальные jobs и фактическую длительность Android workflow. При успехе завершить PR по LOG-307; никакие проверки не исключаются."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-314
+last_event: LOG-315
 ```
 
 P05.01 verified локально в `feat/p05-01-ui-shell` от `7535437`, EV-064/ADR-0042. Windows Chrome/Opera, типы/fmt/Clippy/два shell-теста, обе debug ABI/manifest и Device на AOSP/WebView 101 passed: мобильное меню/темы/system/relaunch/Back, настоящий space.list IPC и отказы/повтор. BUG-005 исправлен target Chrome 101/fallback/классом вместо :has; GAP-008 закрыт реальной приёмкой. Исходный sandbox восстановлен, синтетическая база/ключ удалены. PR #52 открыт; после отклонения повышения timeout проверяются оптимизации и финальные CI. T08 partial и весь P05 не закрыты.
@@ -2842,3 +2842,11 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Детерминированная регрессия без таймеров проверяет SQL-задание за Stop, два shutdown и закрытие приёма у clone. До изменения упала на потерянном ответе SQL, после прошла; исходный Android assertion не менялся. Сверены полные Windows/Android product-check логи финального runtime: по 136 storage tests и прежние core/contract/adapters/client checks, обе release ABI/unsafe/контракт passed. Полный host product-check дополнительно повторён перед публикацией и passed (pr-recovery-product-check.log). Локальные файлы — docs/reports/p05-01; UI/IPC LOG-308 не повторяется, видимое поведение не менялось.
 - FolderLock fix/строгие fault checkpoints LOG-313 сохранены и проверены. Связь duplicate lock с исходным Linux syscall остаётся гипотезой. BUG-007 resolved локально; ADR-0028/developer docs/EV-064/реестр актуальны. Пять правил соблюдены в охвате исправления: обратные действия прежние, общий API, docs, нативная матрица двух платформ, одна SQLite/Automerge.
 - Применяются ze-commit/ze-pr; публикация в существующий PR, все финальные CI и merge/очистка при успехе — следующий шаг в рамках действующего поручения LOG-307. Лимиты и проверки не ослабляются; успех CI/интеграция пока не заявляются.
+
+### LOG-315 — 2026-11-06 — агент Codex, CI.03 и исправление touch-драйвера Android
+
+- Head eb5ca23: оба host job SUCCESS, Android product/136 storage/обе release ABI/unsafe и весь прежний prototype native/UI/HTTP/lifecycle набор passed. Затем shell-драйвер упал из-за отсутствующего element.checkVisibility в AOSP WebView 101. Оба lifecycle fixes прошли CI; точный syscall исходного старого Linux отказа по-прежнему не установлен.
+- Разработчик отдельно поручил попробовать сократить Android с текущего долгого запуска до 10 минут. CI.03 in_progress: native/prototype-ui/shell выполняются параллельно на стандартных runners с отдельными SDK/AVD и лимитом 10 минут каждый. Строгий итоговый android требует success всей матрицы, fail-fast выключен. Полный default порядок сохранён; все пять прежних команд распределены без исключений. Повторная подготовка сред может увеличить суммарные runner-minutes; цель времени workflow пока не доказана.
+- Shell использует существующий подход prototype: DOM assertions и нативные CDP touch events без полифилла приложения/forced DOM click. Видимость/размеры/disabled/hit-test проверяются до касания; все menu/Back/theme/reload/reset/layout сценарии сохранены. Настоящий desktop shell с отсутствующим checkVisibility прошёл proof, скрытый/перекрытый контролы отклонены. Это не Android UI-приёмка; локально Device не обходился.
+- Actionlint 1.7.12/SHA-256, YAML, routing/default/unknown-suite, строгий Bash aggregate, JS syntax и whitespace проверены; EV-064/developer docs/очередь обновлены. Runtime/API/SQL/зависимости/UI assets не менялись. Пять правил сохранены в охвате CI; прежняя продуктовая приёмка LOG-308 остаётся со своими ограничениями.
+- Следующий шаг — коммит/push в PR #52, окончательные CI и замер Android workflow/runner-minutes. Наблюдение PR сохраняется, merge/очистка только после успеха по LOG-307. CI.03 и P05.01 пока не закрыты.

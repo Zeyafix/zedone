@@ -2,6 +2,15 @@
 /docs/reports/
 /target/
 /node_modules/
+/ui/dist/
+/ui/src-tauri/target/
+/ui/src-tauri/gen/schemas/
+/ui/src-tauri/gen/android/.gradle/
+/ui/src-tauri/gen/android/.kotlin/
+/ui/src-tauri/gen/android/**/build/
+/ui/src-tauri/gen/android/app/src/main/jniLibs/
+/ui/src-tauri/gen/android/tauri.settings.gradle
+/ui/src-tauri/gen/android/app/tauri.build.gradle.kts
 /prototypes/target/
 /prototypes/node_modules/
 /prototypes/dist/

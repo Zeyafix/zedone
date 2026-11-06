@@ -28,6 +28,14 @@ P03.02 добавляет те же тесты атомарного хранен
 
 ## Что переиспользуется
 
+P05.01 добавляет `ui/**` в paths и отдельный shell Cargo workspace в Rust cache.
+Windows/Linux после прежних проверок выполняют `bun run ui:check`: общий UI,
+host framing/security и реальные команды через HTTP в Chromium. Android
+собирает debug APK обеих ABI, а последний CI emulator callback проверяет
+сеанс/навигацию/темы/Back в новом APK. Локально этот драйвер запрещён — требуется
+Device. Изменённые CI пока не запускались; факт определять по финальному head.
+Команды и ограничения — [ui-shell.md](ui-shell.md), EV-064.
+
 | Кэш | Состав и ключ | Владелец |
 | --- | --- | --- |
 | Rust | Registry/git и зависимости `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |

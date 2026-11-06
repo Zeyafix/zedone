@@ -1,0 +1,34 @@
+[package]
+name = "zedone-shell"
+version = "0.0.0"
+edition = "2024"
+license = "CC-BY-NC-SA-4.0"
+publish = false
+
+[workspace]
+
+[lib]
+name = "zedone_shell"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+zedone-core = { path = "../../crates/core" }
+zedone-storage = { path = "../../crates/storage" }
+zedone-adapters = { path = "../../crates/adapters", features = ["tauri"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+tokio = { version = "=1.54.1", features = ["macros", "rt", "net", "signal"] }
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tauri = { version = "=2.12.5", default-features = false, features = ["wry", "compression"] }
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+tower = { version = "=0.5.3", features = ["util"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

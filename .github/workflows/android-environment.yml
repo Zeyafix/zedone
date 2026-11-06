@@ -20,6 +20,9 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/build-ui-android.mjs'
+      - 'scripts/check-ui-android-ci.mjs'
       - 'scripts/check-product.mjs'
   pull_request:
     paths:
@@ -39,6 +42,9 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/build-ui-android.mjs'
+      - 'scripts/check-ui-android-ci.mjs'
       - 'scripts/check-product.mjs'
   workflow_dispatch:
 
@@ -152,6 +158,7 @@ jobs:
           workspaces: |
             . -> target
             prototypes -> target
+            ui/src-tauri -> target
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Restore pinned Tauri CLI
@@ -167,7 +174,10 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          rust=$(jq -r .rust scripts/environment-versions.json)
+          cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
       - name: Prepare locked prototype dependencies and contracts
         working-directory: prototypes
         run: |
@@ -189,6 +199,11 @@ jobs:
       - name: Build Android arm64 APK and instrumentation
         working-directory: prototypes
         run: bun run android:build aarch64
+      - name: Build product UI shell for both Android ABIs
+        run: |
+          chmod +x ui/src-tauri/gen/android/gradlew
+          bun scripts/build-ui-android.mjs x86_64
+          bun scripts/build-ui-android.mjs aarch64
       - name: Check host Automerge probe
         working-directory: prototypes
         run: bun run check:automerge

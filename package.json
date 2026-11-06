@@ -2,12 +2,25 @@
   "name": "zedone-contract",
   "private": true,
   "type": "module",
+  "scripts": {
+    "ui:build": "bun --bun vite build --config ui/vite.config.mjs",
+    "ui:check": "bun scripts/check-ui.mjs"
+  },
   "dependencies": {
+    "@tauri-apps/api": "2.12.4",
+    "reka-ui": "2.11.0",
+    "vue": "3.5.44",
     "openapi-fetch": "0.17.0"
   },
   "devDependencies": {
+    "@types/web-bluetooth": "0.0.22",
+    "@vitejs/plugin-vue": "6.0.10",
     "ajv": "8.20.0",
     "openapi-typescript": "7.13.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vue-tsc": "3.3.13",
+    "vue-component-type-helpers": "3.3.13",
+    "playwright": "1.64.1"
   }
 }

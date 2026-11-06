@@ -14,6 +14,8 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/check-ui*.mjs'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -30,6 +32,8 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'ui/**'
+      - 'scripts/check-ui*.mjs'
       - 'scripts/check-product.mjs'
       - '.gitattributes'
       - 'scripts/environment-versions.json'
@@ -78,6 +82,7 @@ jobs:
           workspaces: |
             . -> target
             prototypes -> target
+            ui/src-tauri -> target
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -95,6 +100,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
           cargo "+$($versions.rust)" fetch --locked
           if ($LASTEXITCODE -ne 0) { throw 'Product dependency fetch failed.' }
+          cargo "+$($versions.rust)" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { throw 'Shell dependency fetch failed.' }
       - name: Check product boundaries, contract and unsafe rejection
         run: |
           bun install --frozen-lockfile --ignore-scripts
@@ -110,3 +117,5 @@ jobs:
       - name: Check Rust, generated contracts, Vue and HTTP in Chromium
         working-directory: prototypes
         run: bun run check
+      - name: Check shared UI shell and real product HTTP in Chromium
+        run: bun run ui:check

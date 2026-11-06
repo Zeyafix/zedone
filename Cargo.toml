@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/core", "crates/storage", "crates/adapters"]
-exclude = ["prototypes"]
+exclude = ["prototypes", "ui/src-tauri"]
 resolver = "3"
 
 [workspace.package]

@@ -54,8 +54,9 @@ jobs:
       matrix:
         os: [windows-2025, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    # Cold Windows setup plus debug/release builds can exhaust 10 minutes before UI checks.
-    timeout-minutes: ${{ matrix.os == 'windows-2025' && 20 || 10 }}
+    # Product/prototype checks plus the new shell can exceed 10 minutes on a
+    # cold runner. Keep the same bounded budget on both hosts; skip no checks.
+    timeout-minutes: 20
     defaults:
       run:
         shell: pwsh

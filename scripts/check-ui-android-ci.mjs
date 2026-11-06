@@ -32,7 +32,9 @@ try {
   assert.match(pid || "", /^\d+$/);
   port = device("forward", "tcp:0", `localabstract:webview_devtools_remote_${pid}`);
   assert.match(port, /^\d+$/);
-  browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+  // WebView has no desktop browser context/download management. Preserve its
+  // settings instead of sending Playwright's default browser overrides.
+  browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
   const page = browser.contexts()[0]?.pages()[0];
   assert.ok(page, "ZeDone WebView must be present");
   await page.getByRole("heading", { name: "Доступ не настроен", exact: true }).waitFor();

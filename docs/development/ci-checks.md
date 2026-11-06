@@ -47,8 +47,10 @@ tauri-build при host-проверке и переиспользует product
 workflow. Добавление третьего физического target в PR меняло версию архива:
 GitHub учитывает [пути и compression tool в cache version](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-key-matching).
 Поэтому одинакового restore-prefix было недостаточно для прежнего архива main.
-Возврат прежнего набора путей устраняет это различие; фактический restore/hit
-проверяется по новому CI, его наличие заранее не обещается. Проверки выполняются
+Возврат прежнего набора путей устраняет это различие. В PR #52 head `3943831`
+фактический full-match restore подтверждён на Windows/Linux/Android; оба host
+job прошли с прежними лимитами (EV-064). Это не обещает hit будущим запускам.
+Проверки выполняются
 и без кэша, Cargo заново проверяет актуальность units. Никаких ручных правок
 fingerprints, пропуска compilation/tests или PR-записи кэшей main нет.
 

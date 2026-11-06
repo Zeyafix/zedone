@@ -66,3 +66,8 @@ Scaffold основан на проверенном шаблоне Tauri, без
 `check-ui-android-ci.mjs` допускается только в настоящем CI, внутри штатного
 emulator callback. Он не заменяет локальную приёмку. Успешный IPC сеанса и
 IPC прикладной команды учитываются отдельно. Логи/снимки — в `docs/reports/`.
+CDP-подключение к WebView использует `noDefaults: true`: WebView не реализует
+desktop browser context/download management, поэтому стандартная настройка
+Playwright `Browser.setDownloadBehavior` даёт protocol error. Режим сохраняет
+реальные настройки WebView, включая системное оформление; UI assertions
+остаются прежними. См. [Playwright connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp-option-no-defaults).

@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P05.01
 last_completed_stage: P02
 last_completed_step: P04.01
-active_work: "PR #52: по поручению разработчика заменить увеличение timeout реальной оптимизацией сборки/кэшей; проверить новые CI перед merge"
-next_action: "LOG-311: прежние лимиты восстановлены, Android build tools исключены из host, shell переиспользует product target, возвращены прежние cache paths. Локальный cold-target контроль/host/APK/native Android passed; опубликовать и проверить все новые финальные CI перед merge/очисткой. Исходный storage отказ не воспроизведён, диагностика сохранена."
+active_work: "PR #52: оптимизация прошла Windows/Linux с прежними лимитами; исправить CDP-подключение Android UI-драйвера и проверить новый head перед merge"
+next_action: "LOG-312: actual Rust cache restore подтверждён на трёх runners, оба host job и Android native/storage passed. Новый UI-драйвер должен использовать noDefaults для WebView; protocol check passed. Опубликовать исправление, дождаться всех финальных CI, затем merge/очистка."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-311
+last_event: LOG-312
 ```
 
 P05.01 verified локально в `feat/p05-01-ui-shell` от `7535437`, EV-064/ADR-0042. Windows Chrome/Opera, типы/fmt/Clippy/два shell-теста, обе debug ABI/manifest и Device на AOSP/WebView 101 passed: мобильное меню/темы/system/relaunch/Back, настоящий space.list IPC и отказы/повтор. BUG-005 исправлен target Chrome 101/fallback/классом вместо :has; GAP-008 закрыт реальной приёмкой. Исходный sandbox восстановлен, синтетическая база/ключ удалены. PR #52 открыт; после отклонения повышения timeout проверяются оптимизации и финальные CI. T08 partial и весь P05 не закрыты.
@@ -2817,3 +2817,10 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Контрольный Windows cold-target cargo check before/after passed; после изменения tauri-build отсутствует в host build-dependency tree, компиляции меньше. Условия/времена/ограничения — EV-064 и локальные docs/reports/p05-01. Это не обещание времени полного CI. Полные host ui:check Chrome/Opera и Windows product-check, обе debug APK/manifest и запуск нового APK через Device passed.
 - Нативные Android core/storage/adapters/contract тесты повторены штатным runner на Device-эмуляторе: все passed, исходный storage отказ CI локально не воспроизведён. Теперь stdout неуспешного captured subprocess печатается до сохранённого отказа; диагностика не меняет assertions/exit code. Причина исходного отказа неизвестна, успешный повтор её не доказывает. Эмулятор закрыт после native tests/smoke, их sandbox удалён runner.
 - Обратимость/общий API человека и агента/документация/Windows–Android-паритет/единый источник истины сохранены в охвате LOG-308; оптимизация не меняет продуктовый runtime. Следующий шаг — опубликовать оптимизацию в том же PR #52, проверить все CI финального head, затем merge и очистка ветки по действующему поручению. Успех CI/merge пока не заявляется.
+
+### LOG-312 — 2026-11-06 — агент Codex, успешная host-оптимизация и WebView CDP в Android CI
+
+- Head 3943831: Windows/Linux SUCCESS с прежними лимитами, без пропущенных проверок. Raw logs Windows/Linux/Android подтверждают full-match Rust cache restore прежних main-ключей; оптимизация cache paths проверена на Actions.
+- Android прошёл обе APK оболочки, продуктовые native/storage/contract/две release ABI/unsafe guards и прежний прототипный native/UI/HTTP/lifecycle набор. Исходный storage отказ не воспроизведён; причину старого отказа успешный повтор не устанавливает.
+- Новый shell CI-драйвер упал при connectOverCDP на Browser.setDownloadBehavior: WebView не поддерживает desktop context/download management. В существующем prototype-драйвере уже задан документированный noDefaults; тот же режим применён к shell. Runtime/UI/assertions не меняются, errors не перехватываются как успех и проверки не сокращаются.
+- Синтаксис passed. Закреплённый Playwright с синтетическим CDP endpoint воспроизвёл исходный отказ с defaults и успешно подключился без неподдерживаемой команды при noDefaults. Это только protocol proof, не локальная UI-проверка; Device не обходился. Документация/EV-064 обновлены. Следующий шаг — push в тот же PR, все финальные CI, merge/очистка при успехе по действующему поручению.

@@ -257,3 +257,34 @@ Android CI в `2b97d25` скрывал stdout упавшего storage test bina
 sandbox удалён штатным runner, открытый эмулятор закрыт/выключен через Device.
 Новый окончательный CI обязателен перед merge.
 Локальные логи/контрольное измерение — `docs/reports/p05-01/`.
+
+## LOG-312: результат оптимизации в CI и исправление WebView-драйвера
+
+Head `3943831`: оба host job Windows/Linux passed с исходными лимитами.
+Raw logs подтверждают `Cache hit`, `Cache restored successfully` и
+`full match: true` для прежних Rust-архивов на Windows/Linux/Android.
+Таким образом, проблема совместимости cache paths проверена на настоящих
+runners; это не гарантия наличия кэша у будущего запуска.
+
+Android job прошёл обе debug APK оболочки, product native tests/contract,
+обе release ABI продукта/unsafe guards, прототипные native/UI/HTTP/lifecycle
+проверки. Все 134 storage-теста passed. Отказ старого `2b97d25` здесь не
+воспроизведён, его причина остаётся неизвестной.
+
+Новый CI-драйвер оболочки остановился уже после прототипных проверок при
+CDP-подключении: `Browser.setDownloadBehavior: Browser context management is
+not supported`. Playwright по умолчанию настраивает desktop downloads в
+существующем browser context; AOSP WebView эту команду не поддерживает.
+Вызов теперь использует `noDefaults: true`, как существующий прототипный
+драйвер. Это документированный режим Playwright, а не перехват/игнорирование
+ошибки. Источник — [connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp-option-no-defaults),
+а также исходник закреплённого Playwright 1.64.1, который при этом режиме
+не отправляет `Browser.setDownloadBehavior` для default context.
+
+Проверены синтаксис драйвера и протокол закреплённого Playwright на изолированном
+синтетическом CDP endpoint: с defaults воспроизводится тот же отказ, с
+`noDefaults: true` подключение успешно и неподдерживаемой команды в trace нет.
+Это проверка handshake, не Android UI-приёмка. Драйвер локально в обход Device
+не запускался; product runtime/видимый UI не менялись, LOG-308 сохраняется.
+Все UI assertions/сценарии CI сохранены. Полный CI нового head ещё необходим
+перед merge. Raw logs и protocol trace — в `docs/reports/p05-01/`.

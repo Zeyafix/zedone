@@ -1,10 +1,10 @@
 use super::*;
 use zedone_core::access::SpacePermission;
 
-fn sid(n: u8) -> String {
+pub(super) fn sid(n: u8) -> String {
     format!("{n:032x}")
 }
-async fn setup_spaces() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
+pub(super) async fn setup_spaces() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
     let dir = TempDir::new().unwrap();
     let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
     let admin = Arc::new(PendingAccess::generate().unwrap());
@@ -16,7 +16,7 @@ async fn setup_spaces() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
     let service = Service::new(storage.clone());
     (dir, storage, service, admin)
 }
-fn cli(dir: &TempDir, secret: &str, operation: &str, body: &str) -> Value {
+pub(super) fn cli(dir: &TempDir, secret: &str, operation: &str, body: &str) -> Value {
     let file = dir.path().join("space-command.key");
     std::fs::write(&file, secret).unwrap();
     let mut child = Command::new(

@@ -31,6 +31,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/column.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_trash"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.create": {
         parameters: {
             query?: never;
@@ -159,12 +255,60 @@ export interface components {
         AdministrationScope: {
             kind: components["schemas"]["AdministrationKind"];
         };
+        ColumnList: {
+            columns: components["schemas"]["ColumnSnapshot"][];
+        };
+        ColumnSnapshot: {
+            column: string;
+            deletion_groups: string[];
+            /** @description Unknown/future contents block trash and restore until supported. */
+            empty: boolean;
+            names: string[];
+            /** @description All distinct position registers; conflicting values are never overwritten. */
+            positions: number[];
+            space: string;
+            state: components["schemas"]["SpaceState"];
+            version: components["schemas"]["StateVersion"];
+        };
         CommandError: {
             code: components["schemas"]["ErrorCode"];
         };
         CommandFailure: {
             error: components["schemas"]["CommandError"];
             status: components["schemas"]["ErrorStatus"];
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_CreateColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                name: string;
+                space: string;
+            };
         };
         /**
          * @description Preserve this entire request, including the ID, for every delivery of an
@@ -236,6 +380,38 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_ListColumns: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                include_trashed: boolean;
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_ListSpaces: {
             id: [
                 number,
@@ -258,6 +434,38 @@ export interface components {
             operation: string;
             parameters: {
                 include_trashed: boolean;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ReadColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                space: string;
             };
         };
         /**
@@ -298,6 +506,40 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_RenameColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                name: string;
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RenameSpace: {
             id: [
                 number,
@@ -321,6 +563,39 @@ export interface components {
             parameters: {
                 expected: components["schemas"]["StateVersion"];
                 name: string;
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_RestoreColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
                 space: string;
             };
         };
@@ -386,6 +661,39 @@ export interface components {
             parameters: {
                 expected: components["schemas"]["StateVersion"];
                 subject: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_TrashColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
             };
         };
         /**
@@ -462,6 +770,20 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -493,6 +815,29 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_ColumnList: {
+            replayed: boolean;
+            result: {
+                columns: components["schemas"]["ColumnSnapshot"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_ColumnSnapshot: {
+            replayed: boolean;
+            result: {
+                column: string;
+                deletion_groups: string[];
+                /** @description Unknown/future contents block trash and restore until supported. */
+                empty: boolean;
+                names: string[];
+                /** @description All distinct position registers; conflicting values are never overwritten. */
+                positions: number[];
+                space: string;
+                state: components["schemas"]["SpaceState"];
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_SpaceList: {
             replayed: boolean;
             result: {
@@ -518,6 +863,11 @@ export interface components {
             replayed: boolean;
             result: unknown;
             status: components["schemas"]["SuccessStatus"];
+        };
+        CreateColumn: {
+            column: string;
+            name: string;
+            space: string;
         };
         CreateSpace: {
             name: string;
@@ -546,15 +896,34 @@ export interface components {
             operation: string;
             request: string;
         };
+        ListColumns: {
+            include_trashed: boolean;
+            space: string;
+        };
         ListSpaces: {
             include_trashed: boolean;
         };
+        ReadColumn: {
+            column: string;
+            space: string;
+        };
         ReadSpace: {
+            space: string;
+        };
+        RenameColumn: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            name: string;
             space: string;
         };
         RenameSpace: {
             expected: components["schemas"]["StateVersion"];
             name: string;
+            space: string;
+        };
+        RestoreColumn: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
             space: string;
         };
         RestoreSpace: {
@@ -591,6 +960,11 @@ export interface components {
         StateVersion: number[];
         /** @enum {string} */
         SuccessStatus: "ok";
+        TrashColumn: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
         TrashSpace: {
             expected: components["schemas"]["StateVersion"];
             space: string;
@@ -646,6 +1020,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_AccessSnapshot"];
+                };
+            };
+        };
+    };
+    column_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CreateColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
+    column_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListColumns"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnList"];
+                };
+            };
+        };
+    };
+    column_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
+    column_rename: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RenameColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
+    column_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RestoreColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
+    column_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_TrashColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
                 };
             };
         };

@@ -47,7 +47,7 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 8);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 14);
     for operation in [
         "space.create",
         "space.read",
@@ -55,6 +55,12 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
         "space.rename",
         "space.trash",
         "space.restore",
+        "column.create",
+        "column.read",
+        "column.list",
+        "column.rename",
+        "column.trash",
+        "column.restore",
     ] {
         assert!(document["paths"][format!("/v1/commands/{operation}")]["post"].is_object());
     }
@@ -283,5 +289,5 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
     ] {
         assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
     }
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 8);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 14);
 }

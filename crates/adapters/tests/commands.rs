@@ -26,6 +26,9 @@ use zedone_storage::{
 #[path = "commands/spaces.rs"]
 mod spaces;
 
+#[path = "commands/columns.rs"]
+mod columns;
+
 fn key(access: &PendingAccess) -> String {
     access
         .credential()

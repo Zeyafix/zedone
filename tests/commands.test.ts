@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, newSpaceId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, newColumnId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
 import validateResponse from "../api/validate-response.js";
 
 function fixture() {
@@ -17,6 +17,29 @@ const parameters = { subject: "1".repeat(32) };
 const success: Response = { status: "ok", replayed: true, result: {
   subject: parameters.subject, scope: { kind: "administration" }, expires_at_unix_ms: null, revoked: true, version: Array(32).fill(1),
 } };
+
+test("column intentions preserve their parent, ID and original version across restart and verify their own result", async () => {
+  const {store, storage}=fixture();
+  const space=newSpaceId(), column=newColumnId();
+  expect(column).toMatch(/^[a-f0-9]{32}$/); expect(newColumnId()).not.toBe(column);
+  const parameters={space,column,expected:Array(32).fill(7)};
+  const id=await prepare("2".repeat(32),"column.trash",parameters,store);
+  const saved=(await store.load(id))!.body;
+  parameters.expected[0]=8;
+  const restarted=webIntentionStore(storage,"test");
+  const wrong: Response={status:"ok",replayed:true,result:{space,names:["Board"],state:"trashed",deletion_groups:[],empty:true,version:Array(32).fill(9)}};
+  expect(validateResponse(wrong,"column.trash")).toBe(false);
+  expect((await new CommandClient(restarted,async()=>wrong).deliver(id)).status).toBe("pending");
+  const result={space,column,names:["Ёж 😀"],positions:[0],state:"trashed" as const,deletion_groups:["original group"],empty:true,version:Array(32).fill(9)};
+  const response: Response={status:"ok",replayed:true,result};
+  expect(validateResponse(response,"column.trash")).toBe(true);
+  expect(validateResponse(response,"column.list")).toBe(false);
+  expect(validateResponse({...response,result:{columns:[result]}},"column.list")).toBe(true);
+  expect(validateResponse({...response,result:{...result,positions:["0"]}},"column.trash")).toBe(false);
+  expect(validateResponse({...response,result:{...result,owner:true}},"column.trash")).toBe(false);
+  expect((await new CommandClient(restarted,async intention=>{expect(intention.body).toBe(saved);return response;}).deliver(id)).status).toBe("completed");
+  expect(JSON.parse(saved).parameters.expected[0]).toBe(7);
+});
 
 test("space creation preserves its target and exact Unicode name across lost replies and client restart", async () => {
   const {store, storage, values}=fixture();

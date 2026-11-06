@@ -41,6 +41,9 @@ function randomId() {
 /** Generate once for a new space and persist it with the creation intention. */
 export function newSpaceId(): string { return randomId().id; }
 
+/** Generate once and persist with the column creation intention. */
+export function newColumnId(): string { return randomId().id; }
+
 const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 export class CommandClient {
   constructor(private readonly store: IntentionStore, private readonly transport: Transport) {}

@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [native, prototype-ui, shell]
+        suite: [product-native, prototype-native, prototype-ui, shell]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -85,7 +85,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: ${{ matrix.suite != 'native' && 'gradle' || '' }}
+          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell') && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -166,7 +166,7 @@ jobs:
           cache-bin: false
           # One writer retains the existing cache namespace and restore paths;
           # parallel suites must not race to publish different subsets.
-          save-if: ${{ github.ref == 'refs/heads/main' && matrix.suite == 'native' }}
+          save-if: ${{ github.ref == 'refs/heads/main' && matrix.suite == 'product-native' }}
       - name: Restore pinned Tauri CLI
         id: tauri-cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
@@ -180,7 +180,7 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite != 'prototype-ui'
+        if: matrix.suite == 'product-native' || matrix.suite == 'shell'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)
@@ -190,14 +190,14 @@ jobs:
             cargo "+$rust" fetch --locked
           fi
       - name: Prepare locked prototype dependencies and contracts
-        if: matrix.suite != 'shell'
+        if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
           rust=$(jq -r .rust "$versions")
           cargo "+$rust" fetch --locked
           bun install --frozen-lockfile
-          if [[ '${{ matrix.suite }}' == native ]]; then bun run check:types; fi
+          if [[ '${{ matrix.suite }}' == prototype-native ]]; then bun run check:types; fi
           chmod +x src-tauri/gen/android/gradlew
       - name: Build host comparison endpoint
         if: matrix.suite == 'prototype-ui'
@@ -220,7 +220,7 @@ jobs:
           bun scripts/build-ui-android.mjs x86_64
           bun scripts/build-ui-android.mjs aarch64
       - name: Check host Automerge probe
-        if: matrix.suite == 'native'
+        if: matrix.suite == 'prototype-native'
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM

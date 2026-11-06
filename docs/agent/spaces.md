@@ -1,5 +1,7 @@
 # Пространства через общий API
 
+Жизненный цикл колонок внутри пространства описан в [отдельной инструкции](columns.md).
+
 P04.01 предоставляет шесть операций через одни Rust handlers/guard/replay/Storage.
 Авторитетный контракт — `api/openapi.json`; типы и runtime validator — его
 производные `api/schema.d.ts` и `api/validate-response.*`. Агент не пишет SQL

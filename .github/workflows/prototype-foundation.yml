@@ -106,6 +106,16 @@ jobs:
           bun install --frozen-lockfile --ignore-scripts
           if ($LASTEXITCODE -ne 0) { throw 'Product JavaScript dependency installation failed.' }
           bun scripts/check-product.mjs
+      - name: Use Ubuntu HTTPS mirrors for browser dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
+          test -f /etc/apt/apt-mirrors.txt
+          printf '%s\n' \
+            $'https://archive.ubuntu.com/ubuntu/\tpriority:1' \
+            $'https://security.ubuntu.com/ubuntu/\tpriority:2' \
+            | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install locked JavaScript dependencies and test browser
         working-directory: prototypes
         run: |

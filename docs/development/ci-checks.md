@@ -74,6 +74,17 @@ JS/Cargo зависимости, host Automerge проверяется в protot
 tauri-build при host-проверке и переиспользует product Cargo output, сокращая
 дублирующую компиляцию. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
 
+При подготовке браузера Linux использует HTTPS-архивы archive.ubuntu.com
+и security.ubuntu.com вместо Azure HTTP mirror в `/etc/apt/apt-mirrors.txt`.
+В PR #54 два запуска исчерпали 10 минут при загрузке 21.1 MB шрифтов с Azure
+после успешного product-check. Шаг меняет только mirrorlist одноразового runner;
+существующие suites/components/Signed-By, подписи Release и хеши пакетов
+сохраняются, Playwright по-прежнему устанавливается с `--with-deps chromium`.
+Windows этот шаг не выполняет. Сам факт смены зеркала не гарантирует доступность
+сети или время будущего запуска; проверяется новый CI head.
+Исходная схема списка зеркал подтверждена
+[скриптом GitHub runner-images](https://github.com/actions/runner-images/blob/c74a28e5f8943ae6a39cac7c3701dd6bd0a2ea51/images/ubuntu/scripts/build/configure-apt-sources.sh).
+
 Набор cache paths возвращён к корневому и прототипному target, включая Android
 workflow. Добавление третьего физического target в PR меняло версию архива:
 GitHub учитывает [пути и compression tool в cache version](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-key-matching).

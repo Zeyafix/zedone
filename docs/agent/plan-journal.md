@@ -10,17 +10,17 @@ current_stage_state: in_progress
 current_step: P04.02
 last_completed_stage: P02
 last_completed_step: P05.01
-active_work: "P04.02/PR #54: разделение product/prototype native после двух timeout; GAP-009/EV-065/LOG-320. Продуктовый runtime verified, финальные CI ожидаются."
-next_action: "Опубликовать CI-routing fix в PR #54 и проверить все checks нового head; затем merge/удаление ветки по LOG-319. После done готов P05.02."
+active_work: "P04.02/PR #54: Linux APT mirror fix после второго timeout, GAP-010/EV-065/LOG-321. Разделённая Android-матрица passed на 7e711ea."
+next_action: "Опубликовать Linux mirror fix в PR #54 и проверить все checks финального head; затем merge/удаление ветки по LOG-319. После done готов P05.02."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-009]
+open_gaps: [GAP-007, GAP-010]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
-blocking_current_step: [GAP-009]
+blocking_current_step: [GAP-010]
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-320
+last_event: LOG-321
 ```
 
 P05.01 и CI.03 done в согласованном охвате: [PR #52](https://github.com/Zeyafix/zedone/pull/52), head `84677ce`, интегрирован в `38db75e` после шести успешных Windows/Linux/Android checks. Оболочка/Device UI/настоящий HTTP/IPC и обратные состояния приняты по EV-064/ADR-0042/LOG-308; исходный sandbox восстановлен, синтетическая база/ключ удалены. BUG-005/006/007 resolved, GAP-008 закрыт. Android workflow прошёл за 9:23, все прежние native/UI/ABI/unsafe/negative-cleanup проверки сохранены; сумма Android job time — 23:47. Это один запуск с подтверждённым cache restore, не гарантия холодного/будущего времени. Ветка удалена. T08 partial и весь P05 не закрыты. P04.02 verified локально (EV-065/LOG-318); публикация и интеграция после успешных CI поручены в LOG-319.
@@ -431,7 +431,8 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
-| GAP-009 | gap | in_progress | P04.02 CI | high: совмещённый native job дважды достиг 10 минут на PR #54/head aada64a; продуктовые 174 теста/обе ABI passed, прежний Automerge набор не завершился. Product-native/prototype-native разделены без удаления команд/увеличения лимита; локальные routing/failure/aggregate/actionlint проверки passed, требуются все финальные CI нового head. Linux первого запуска отдельно достиг 10 минут на загрузке шрифтов Ubuntu, assertion failure не зарегистрирован; новый head повторяет полную host-матрицу. EV-065/LOG-320. |
+| GAP-009 | gap | resolved | P04.02 CI | Совмещённый native дважды исчерпал 10 минут на aada64a. Разделение product-native/prototype-native сохранило все команды/guards/лимиты; на 7e711ea все четыре Android suites и aggregate SUCCESS (run 42276553193). Охват завершения Android подтверждён; финальные checks следующего head по-прежнему обязательны. EV-065/LOG-320/321. |
+| GAP-010 | gap | in_progress | P04.02 CI | high: Linux на aada64a/7e711ea дважды исчерпал 10 минут на загрузке Playwright font packages с azure.archive.ubuntu.com после успешного product-check. В одноразовом runner mirrorlist переключён на официальные Ubuntu HTTPS archives с сохранением Signed-By/suites/components и полного --with-deps chromium; локальные actionlint/ShellCheck/YAML/Bash failure/guard proofs passed. Требуется успешный финальный Linux CI; доступность зеркала/время заранее не гарантируются. EV-065/LOG-321. |
 | BUG-004 | bug | resolved | P03.05 | PR #47 head ac0a8c0: Windows CI отклонил standalone validator из-за преобразования LF→CRLF при Git checkout; правила новых generated JS/d.ts отсутствовали. Runtime-тесты прошли, Linux CI success. Воспроизведены оба отказа при core.autocrlf=true/core.eol=crlf; явные LF attributes сохраняют оба артефакта побайтово на Windows/Linux, check-types и 11 клиентских тестов passed. Runtime/генератор/артефакты не меняются; Закрыт: исправленный head 7dc69d7 прошёл все три Windows/Linux/Android CI и интегрирован PR #47 в f4bf4e1; LOG-294. EV-058/LOG-279 |
 | GAP-007 | gap | in_progress | — | Исходный Android main 41641087962 на f173064 упал при подключении WebView после restart; повтор attempt 2 тоже упал. CI.02 (ожидание page/диагностика) интегрирован PR #26 в d141d92, PR и main Windows/Linux/Android Actions passed, реальный restart/SQLite/отзыв ключа подтверждены. Первопричина и устранение всех периодических сбоев не доказаны; наблюдать новые отказы с диагностикой. Не блокирует P02.04.2; EV-031/LOG-211 |
 | GAP-008 | gap | resolved | P05.01/T08 | EV-064/LOG-306/308: DEFAULT исправил два отказа запуска; Device подтвердил повторные open/relaunch. После BUG-005 проверены мобильное меню/темы/system/Back и настоящий space.list IPC с отказами/повтором на изолированной синтетике. Исходный sandbox восстановлен, ключ/база fixture удалены. Локальный охват оболочки пройден; весь продуктовый T08/P05 и физический arm64 не принимаются. |
@@ -2888,3 +2889,11 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Native разделён на product-native и prototype-native с прежними 10 минутами и отдельными SDK/AVD. Сохраняются пять исходных команд, полный default order и native alias, host Automerge/типы, environment/negative-cleanup и строгий aggregate; подготовка JS/Cargo ограничена соответствующими suites. Единственный main cache writer — product-native, прежние paths/namespace/fallback сохранены. Ещё один runner может увеличить суммарное машинное время; достижение цели ожидания пока не заявляется.
 - Actionlint 1.7.12/ShellCheck, YAML/JS syntax, routes/default/alias/unknown/extra args, exit/signal propagation, suite preparation guards и Bash aggregate passed локально. Runtime/API/SQL/UI assets не менялись, исходные Windows/Device native EV-065 остаются действующими; повторный UI не нужен. Машинные raw logs/proof — только docs/reports/p04-02-ci-*.
 - Пять правил сохранены в CI-срезе: продуктовые обратные действия/общий API/SQLite прежние, docs обновлены, ни одна платформенная проверка не удалена. Следующий шаг — commit/push в тот же PR, все финальные checks нового head, merge/очистка только после успеха по LOG-319. Watch сохраняется.
+
+### LOG-321 — 2026-11-06 — агент Codex, Android split passed и повторный Linux mirror timeout
+
+- На head 7e711ea Android run 42276553193 завершился SUCCESS: product-native/prototype-native/prototype-ui/shell и строгий aggregate passed с прежними 10 минутами/полным охватом. GAP-009 resolved в проверенной ревизии; новый финальный head всё равно должен пройти всю матрицу.
+- Linux job 128094235011 снова cancelled по лимиту 10 минут, как и первый запуск: после успешного product-check Playwright --with-deps скачивал 21.1 MB font packages с azure.archive.ubuntu.com, повторял Ign, до UI не дошёл. GAP-010 открыт; это подтверждённая стадия отказа, не ошибка продуктового assertion.
+- В foundation добавлен Linux-only шаг перед установкой браузера: существующий apt mirrorlist одноразового runner содержит официальные Ubuntu HTTPS archives с приоритетами. Остальные sources/suites/components/Signed-By, весь --with-deps chromium, все прежние шаги и Linux/Windows бюджеты 10/20 сохранены. Схема зеркал сверена с исходным configure-apt-sources.sh runner-images; ссылка в CI docs.
+- Actionlint 1.7.12/ShellCheck, YAML, точное сохранение прежнего workflow, Linux guard, payload зеркал, отказ при отсутствующем конфиге/ошибке tee passed локально. Это Bash simulation; ни системный APT локальной машины, ни продуктовый runtime не менялись. Локальные EV-065 и native/ABI/Device доказательства сохраняются. Реальная загрузка с новых зеркал и все финальные CI ещё ожидаются.
+- Пять правил сохранены: обратимость и общий API/SQLite прежние, docs/проблемы обновлены, платформенные тесты не исключались. Применяются ze-commit/ze-pr; следующий шаг — push в тот же PR #54, проверки нового head, затем merge/очистка по LOG-319. Watch сохраняется, работа не завершена.

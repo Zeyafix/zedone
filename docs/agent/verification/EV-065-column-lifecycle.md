@@ -72,7 +72,7 @@ Android `bun scripts/check-product.mjs --android` — passed: те же 174
 
 ## Ограничения
 
-### CI PR #54 и GAP-009
+### CI PR #54, GAP-009 и GAP-010
 
 Head aada64a: Windows SUCCESS; Linux cancelled по лимиту 10 минут во время
 загрузки font packages с Ubuntu mirror после успешного product-check.
@@ -95,8 +95,22 @@ Android prototype-ui/shell SUCCESS. Совмещённый native дважды c
 arguments, сохранение exit 23/сигнала, guards подготовки каждого suite и Bash
 aggregate для success/failure/cancelled/skipped/пустого результата.
 Это simulation маршрутизации, не завершённый новый CI/замер производительности.
-Логи/доказательства — docs/reports/p04-02-ci-*. GAP-009 открыт до нового CI;
-публикация/merge ещё ожидаются. Увеличение runner-minutes возможно.
+Логи/доказательства — docs/reports/p04-02-ci-*. На head 7e711ea все четыре
+Android suites и aggregate SUCCESS (run 42276553193), GAP-009 resolved.
+Это проверка полного охвата данной ревизии, не гарантия будущего времени.
+
+Linux 7e711ea снова достиг 10 минут при font download с Azure mirror после
+успешного product-check, до запуска прежних UI-наборов. GAP-010 открыт.
+Новый Linux-only шаг меняет только /etc/apt/apt-mirrors.txt одноразового runner
+на archive.ubuntu.com/security.ubuntu.com HTTPS с явными приоритетами.
+Источники suites/components/Signed-By и --with-deps chromium не меняются.
+Проверены actionlint/ShellCheck, YAML, полное совпадение всех прежних шагов/
+лимитов после удаления нового шага из parsed YAML, точный mirror payload,
+отказ отсутствующему конфигу и сохранение ошибки записи (Bash simulation).
+Реальные загрузки с нового зеркала и все финальные CI ещё ожидаются.
+Runtime и локальная APT-конфигурация не менялись; машинные доказательства —
+docs/reports/p04-02-apt-mirror-proof.log и p04-02-ci-linux-second.log.
+Публикация/merge ещё ожидаются. Увеличение runner-minutes возможно.
 
 ### Продуктовый охват
 

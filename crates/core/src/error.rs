@@ -15,6 +15,8 @@ pub enum ErrorCode {
     AccessDenied,
     NotFound,
     StaleState,
+    /// Current domain conflicts must be resolved before this operation.
+    Conflict,
     CommandMismatch,
     /// The operation is unavailable and is known not to have committed.
     Unavailable,

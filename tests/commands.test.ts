@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
 import validateResponse from "../api/validate-response.js";
 
 function fixture() {
@@ -17,6 +17,47 @@ const parameters = { subject: "1".repeat(32) };
 const success: Response = { status: "ok", replayed: true, result: {
   subject: parameters.subject, scope: { kind: "administration" }, expires_at_unix_ms: null, revoked: true, version: Array(32).fill(1),
 } };
+
+test("space creation preserves its target and exact Unicode name across lost replies and client restart", async () => {
+  const {store, storage, values}=fixture();
+  const space=newSpaceId();
+  expect(space).toMatch(/^[a-f0-9]{32}$/);expect(newSpaceId()).not.toBe(space);
+  const params={space,name:"Ёж 空間 😀\nnotes"};
+  const id=await prepare("2".repeat(32),"space.create",params,store);
+  const saved=(await store.load(id))!.body;
+  params.name="Unsent later input";
+  const sent: string[]=[];
+  expect((await new CommandClient(store,async intention=>{sent.push(intention.body);throw new Error("lost response");}).deliver(id)).status).toBe("pending");
+  const restored=webIntentionStore(storage,"test");
+  expect((await restored.load(id))!.body).toBe(saved);
+  const response: Response={status:"ok",replayed:true,result:{space,names:["Ёж 空間 😀\nnotes"],state:"active",deletion_groups:[],empty:true,version:Array(32).fill(9)}};
+  const client=new CommandClient(restored,ipcTransport(async (_,args)=>{
+    sent.push((args.invocation as {request:string}).request);
+    return JSON.stringify(response);
+  },async()=>({subject:"2".repeat(32),key:"approved"})));
+  expect((await client.deliver(id)).status).toBe("completed");
+  expect(sent).toHaveLength(4);expect(sent.every(body=>body===saved)).toBe(true);
+  expect(JSON.parse(saved).parameters.space).toBe(space);
+  expect(JSON.parse(saved).parameters.name).toBe("Ёж 空間 😀\nnotes");
+  expect([...values.values()].join()).not.toContain("approved");
+});
+
+test("a valid response for another operation cannot confirm a space creation", async () => {
+  const {store}=fixture();
+  const space=newSpaceId();
+  const id=await prepare("2".repeat(32),"space.create",{space,name:"One"},store);
+  expect(validateResponse(success,"access.inspect")).toBe(true);
+  expect(validateResponse(success,"space.create")).toBe(false);
+  expect((await new CommandClient(store,async()=>success).deliver(id)).status).toBe("pending");
+  expect(await store.load(id)).toBeDefined();
+  const response: Response={status:"ok",replayed:true,result:{space,names:["One"],state:"active",deletion_groups:[],empty:true,version:Array(32).fill(1)}};
+  expect(validateResponse(response,"space.create")).toBe(true);
+  expect(validateResponse(response,"space.list")).toBe(false);
+  expect(validateResponse({...response,result:{spaces:[response.result]}},"space.list")).toBe(true);
+  expect(validateResponse({...response,result:{...response.result,state:"deleted"}},"space.create")).toBe(false);
+  expect(validateResponse({...response,result:{...response.result,owner:true}},"space.create")).toBe(false);
+  expect((await new CommandClient(store,async()=>response).deliver(id)).status).toBe("completed");
+});
 
 test("combined administration and exact spaces use the Rust-derived validator and normal delivery", async () => {
   const response: Response = { ...success, result: { ...success.result,

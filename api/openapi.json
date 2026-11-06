@@ -77,6 +77,210 @@
           }
         ]
       }
+    },
+    "/v1/commands/space.create": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CreateSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.list": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ListSpaces"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.read": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ReadSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.rename": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "rename",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RenameSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.restore": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RestoreSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.trash": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "trash",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_TrashSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -207,6 +411,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_CreateSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_InspectAccess": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -236,6 +481,166 @@
             ],
             "properties": {
               "subject": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ListSpaces": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "include_trashed"
+            ],
+            "properties": {
+              "include_trashed": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ReadSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space"
+            ],
+            "properties": {
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_RenameSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "name",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_RestoreSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
                 "type": "string"
               }
             },
@@ -285,6 +690,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_TrashSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_Value": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -315,6 +761,28 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_AccessSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_SpaceList": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_SpaceList"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_SpaceSnapshot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_SpaceSnapshot"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -382,6 +850,95 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_SpaceList": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "spaces"
+            ],
+            "properties": {
+              "spaces": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SpaceSnapshot"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_SpaceSnapshot": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space",
+              "names",
+              "state",
+              "deletion_groups",
+              "empty",
+              "version"
+            ],
+            "properties": {
+              "deletion_groups": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "empty": {
+                "type": "boolean",
+                "description": "This slice only trashes/restores spaces without domain content."
+              },
+              "names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "All distinct current names; multiple names require conflict resolution."
+              },
+              "space": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/SpaceState"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_Value": {
         "type": "object",
         "required": [
@@ -400,6 +957,22 @@
         },
         "additionalProperties": false
       },
+      "CreateSpace": {
+        "type": "object",
+        "required": [
+          "space",
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ErrorCode": {
         "type": "string",
         "description": "Shared machine-readable errors, without credentials, SQL or platform details.\n\nCodes describe semantics, not HTTP statuses or retry policy. A stale request\nrequires a fresh read and a new explicit action. An unknown outcome requires\nchecking/replaying the original command, never inventing a new command ID.",
@@ -408,6 +981,7 @@
           "access_denied",
           "not_found",
           "stale_state",
+          "conflict",
           "command_mismatch",
           "unavailable",
           "outcome_unknown"
@@ -448,6 +1022,66 @@
         },
         "additionalProperties": false
       },
+      "ListSpaces": {
+        "type": "object",
+        "required": [
+          "include_trashed"
+        ],
+        "properties": {
+          "include_trashed": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReadSpace": {
+        "type": "object",
+        "required": [
+          "space"
+        ],
+        "properties": {
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenameSpace": {
+        "type": "object",
+        "required": [
+          "space",
+          "name",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "name": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RestoreSpace": {
+        "type": "object",
+        "required": [
+          "space",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "RevokeAccess": {
         "type": "object",
         "required": [
@@ -463,6 +1097,69 @@
           }
         },
         "additionalProperties": false
+      },
+      "SpaceList": {
+        "type": "object",
+        "required": [
+          "spaces"
+        ],
+        "properties": {
+          "spaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpaceSnapshot"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpaceSnapshot": {
+        "type": "object",
+        "required": [
+          "space",
+          "names",
+          "state",
+          "deletion_groups",
+          "empty",
+          "version"
+        ],
+        "properties": {
+          "deletion_groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "empty": {
+            "type": "boolean",
+            "description": "This slice only trashes/restores spaces without domain content."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "All distinct current names; multiple names require conflict resolution."
+          },
+          "space": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SpaceState"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpaceState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "trashed",
+          "conflicted"
+        ]
       },
       "SpacesKind": {
         "type": "string",
@@ -507,6 +1204,22 @@
         "enum": [
           "ok"
         ]
+      },
+      "TrashSpace": {
+        "type": "object",
+        "required": [
+          "space",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

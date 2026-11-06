@@ -10,6 +10,12 @@ function typedCommands(store: IntentionStore) {
   void prepare("2".repeat(32), "access.revoke", { subject: "1".repeat(32) }, store);
   // @ts-expect-error No bootstrap is exposed to HTTP/CLI/IPC clients.
   void prepare("2".repeat(32), "access.bootstrap", {}, store);
+  void prepare("2".repeat(32), "space.create", { space: "3".repeat(32), name: "空間" }, store);
+  void prepare("2".repeat(32), "space.list", { include_trashed: false }, store);
+  // @ts-expect-error Creation cannot receive a forged subject or permissions.
+  void prepare("2".repeat(32), "space.create", { space: "3".repeat(32), name: "x", subject: "2".repeat(32) }, store);
+  // @ts-expect-error Rename needs the original state version.
+  void prepare("2".repeat(32), "space.rename", { space: "3".repeat(32), name: "x" }, store);
 }
 void typedCommands;
 
@@ -45,7 +51,7 @@ function consume(response: Response): unknown {
   const code: ErrorCode = response.error.code;
   switch (code) {
     case "invalid_request": case "access_denied": case "not_found":
-    case "stale_state": case "command_mismatch": case "unavailable":
+    case "stale_state": case "conflict": case "command_mismatch": case "unavailable":
     case "outcome_unknown": return code;
     default: {
       const exhaustive: never = code;

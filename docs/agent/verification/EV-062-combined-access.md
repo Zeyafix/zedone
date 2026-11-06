@@ -11,8 +11,8 @@ dependencies_evidence: ["P03.05: PR #47 merged f4bf4e1, Windows/Linux/Android SU
 scope: ["core guard/GrantScope/AccessScope", "storage access и семантическая схема v4 через прежний startup", "Rust/OpenAPI/TypeScript/validator", "проверки и документация; прикладные операции P04.01.2 не открываются"]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android", "исторические validators/неизменённые layout и эталоны", "полный diff и git diff --check"]
 reverse_and_failure: "Совмещённые права → чистое администрирование; отзыв/новая выдача, последний admin, срок, неизвестное пространство, откат всей записи, отказ повреждённой v3 и миграции без копии."
-result: verified_local_publication
-next: "Публикация/финальные CI/интеграция P04.01.1 по поручению полностью завершить P04.01; затем P04.01.2 без нового согласования (LOG-299)."
+result: done_merged_pr_49
+next: "P04.01.2 на интегрированном 9aa71ff, EV-063/LOG-300–301."
 ```
 
 По [ADR-0040](../../architecture/decisions/0040-space-creation-access.md)
@@ -87,3 +87,11 @@ LOG-299 фиксирует начало публикации/CI/интеграц
 Текущие факты публикации — Git/GitHub и `docs/reports/p04-01/publication-access.json`;
 успех ещё не выполненных CI заранее не заявляется. Runtime после локальной
 матрицы не менялся. P04.01 целиком остаётся in_progress.
+
+## Интеграция — LOG-300
+
+[PR #49](https://github.com/Zeyafix/zedone/pull/49), head `f7525ff`,
+merged в `9aa71ffc28f3dd0c0cf9f5d1a18291dd1838e65b` после SUCCESS всех трёх
+Windows/Linux/Android checks. Финальный head/ревью/конфликты проверены,
+исходная ветка удалена локально и на GitHub; P04.01.1 done. Прежние записи
+о local-only/ожидании CI исторические. P04.01.2 начат на интегрированном результате.

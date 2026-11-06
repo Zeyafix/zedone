@@ -23,6 +23,9 @@ use zedone_storage::{
     access::{AccessKey, PendingAccess},
 };
 
+#[path = "commands/spaces.rs"]
+mod spaces;
+
 fn key(access: &PendingAccess) -> String {
     access
         .credential()

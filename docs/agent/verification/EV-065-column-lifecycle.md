@@ -8,7 +8,7 @@ branch: feat/p04-02-column-lifecycle
 goal: "Создать, прочитать/перечислить, переименовать, отправить пустую колонку в корзину и восстановить через общий API."
 requirements: [T06, T07, A01, A05, A55, A56]
 dependencies_evidence: ["P04.01/EV-063: PR #50 merged 4f2ae48; доступен в базе"]
-scope: ["core column.create/read/list/rename/trash/restore", "Automerge/projection", "Service HTTP/CLI/IPC", "Rust-derived API/TS/validator", "проверки и docs; без UI/карточек/перемещений/обмена"]
+scope: ["core column.create/read/list/rename/trash/restore", "Automerge/projection", "Service HTTP/CLI/IPC", "Rust-derived API/TS/validator", "CI routing native-наборов для финальной проверки", "проверки и docs; без UI/карточек/перемещений/обмена"]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android", "git diff --check"]
 reverse_and_failure: "Переименование обратно, корзина/восстановление, сохранность ID/положения/групп; stale/ABA, права/отзыв/срок, restart/concurrent writers, SQL/commit failure."
 result: verified_awaiting_ci
@@ -71,6 +71,34 @@ Android `bun scripts/check-product.mjs --android` — passed: те же 174
 `docs/reports/p04-02-windows.log`, `p04-02-android.log`, `p04-02-contract.log`.
 
 ## Ограничения
+
+### CI PR #54 и GAP-009
+
+Head aada64a: Windows SUCCESS; Linux cancelled по лимиту 10 минут во время
+загрузки font packages с Ubuntu mirror после успешного product-check.
+Android prototype-ui/shell SUCCESS. Совмещённый native дважды cancelled
+по лимиту 10 минут; оба раза продуктовые 174 теста/обе release ABI прошли,
+затем прежний Automerge набор прототипа не успел завершиться. Aggregate
+правильно отклонил cancelled; отсутствие assertion failure не означает успех.
+
+Для нового head matrix содержит product-native/prototype-native/prototype-ui/shell,
+каждый с отдельными SDK/AVD и прежним лимитом 10 минут. Все пять исходных
+команд распределены без исключений; default сохраняет порядок, прежний native
+остаётся совместимым alias двух нативных команд. Host Automerge/контракты
+готовятся в prototype-native; product-native готовит продуктовые зависимости.
+Прежние environment/negative-cleanup/unsafe/UI/ABI проверки и строгий aggregate
+сохранены. Runtime/SQL/API/UI assets не менялись; прежние локальные проверки
+сохраняют силу, повторная Device-приёмка для routing не нужна.
+
+Локально passed: actionlint 1.7.12 с ShellCheck, YAML/JS syntax,
+сопоставление пяти команд и default order, native alias, отказ unknown/extra
+arguments, сохранение exit 23/сигнала, guards подготовки каждого suite и Bash
+aggregate для success/failure/cancelled/skipped/пустого результата.
+Это simulation маршрутизации, не завершённый новый CI/замер производительности.
+Логи/доказательства — docs/reports/p04-02-ci-*. GAP-009 открыт до нового CI;
+публикация/merge ещё ожидаются. Увеличение runner-minutes возможно.
+
+### Продуктовый охват
 
 Это API-срез пустой колонки. Карточки/состав/группы контейнеров, UI/APK,
 продуктовый обмен, физический arm64 и полный бюджет приложения не приняты.

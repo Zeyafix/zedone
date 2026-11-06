@@ -38,14 +38,16 @@ Device. Готовность CI определять по финальному h
 запуски и замена увеличения timeout оптимизацией описаны в EV-064.
 Команды и ограничения — [ui-shell.md](ui-shell.md), EV-064.
 
-Android выполняет три независимых набора параллельно на стандартных runners:
-`native` (product-check и host/Android Automerge), `prototype-ui` (обе APK и
+Android выполняет четыре независимых набора параллельно на стандартных runners:
+`product-native` (product-check), `prototype-native` (host/Android Automerge),
+`prototype-ui` (обе APK и
 instrumentation прототипа, host HTTP endpoint и весь UI/lifecycle-набор),
 `shell` (обе APK оболочки и её UI-набор). Каждый job владеет отдельным SDK/AVD,
 проходит прежние environment/negative-cleanup проверки и имеет лимит 10 минут.
 `fail-fast: false` сохраняет диагностику остальных наборов при одном отказе.
 Итоговый стабильный check `android` с `if: always()` требует успеха всей матрицы:
-failure/cancelled/skipped не принимаются как успех. Без аргумента dispatcher
+failure/cancelled/skipped не принимаются как успех. Прежний аргумент `native`
+dispatcher сохраняет оба нативных набора последовательно. Без аргумента dispatcher
 сохраняет все прежние команды и последовательный порядок; неизвестный набор
 отклоняется. Цель CI.03 — не более 10 минут ожидания Android workflow —
 достигнута в запуске `42264208567` head `84677ce`: 9:23 от старта
@@ -55,9 +57,17 @@ workflow до завершения (включая aggregate), все шесть
 холодного или будущего времени; подробности и ограничения — EV-064/LOG-316.
 
 Rust cache paths/namespace остаются прежними, единственный writer на main —
-`native`; остальные jobs только читают, чтобы разные подмножества результатов
+`product-native`; остальные jobs только читают, чтобы разные подмножества результатов
 не конкурировали за один immutable cache key. Это сохраняет fallback прежнего
 main-кэша; наличие shell build artifacts в кэше не гарантируется.
+Разделение product/prototype native добавлено в P04.02 после двух таймаутов
+совмещённого job на head aada64a: продуктовые тесты/ABI прошли, но прежний
+прототипный набор не успел завершиться. Все пять исходных команд и их порядок
+в полном dispatcher сохранены. Каждый native runner готовит только собственные
+JS/Cargo зависимости, host Automerge проверяется в prototype-native.
+Объём SDK/проверки environment/negative-cleanup и лимиты не сокращаются.
+Дополнительный runner может увеличить суммарное машинное время; результат
+по времени всего workflow определяется новым запуском, не предполагается заранее.
 
 Сохраняются прежние host budgets: Linux 10 минут, Windows 20. Повышение Linux
 до 20 отклонено разработчиком. Вместо него shell не собирает Android-only

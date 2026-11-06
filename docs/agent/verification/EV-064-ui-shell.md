@@ -1,8 +1,9 @@
 # EV-064: P05.01 — общая оболочка UI
 
-Статус: `verified` — локальная приёмка оболочки завершена (LOG-308),
-BUG-005/GAP-008 устранены и перепроверены. Готовится PR; финальные CI/интеграция
-ещё не выполнены, P05.01 не объявляется done.
+Статус: `done` в согласованном охвате оболочки и CI.03. Локальная приёмка
+LOG-308 и все шесть окончательных checks head `84677ce` passed; PR #52
+интегрирован в `38db75e`, ветка удалена. Итог — LOG-316 в конце документа.
+Полный продуктовый T08/P05, физический arm64 и release APK не принимаются.
 
 ```yaml
 step: P05.01
@@ -15,8 +16,8 @@ dependencies_evidence: ["P03.05 done, PR #47/f4bf4e1/EV-058", "P04.01 done, PR #
 scope: ["ui", "package.json/bun.lock", "scripts/check-ui.mjs", "CI integration", "docs"]
 checks: ["vue-tsc под Node (локально 26.8.1, база CI 24.22.1)", "Vite под Bun", "Rust host fmt/Clippy/tests", "Chrome/Opera UI+HTTP", "две ABI APK", "Android Device UI+настоящий IPC — passed"]
 reverse_and_failure: "Навигация/Back, смена темы в обе стороны/системный сброс; отказ доступа/связи/storage и поздний ответ"
-result: "Локальный shell-срез verified: Windows UI/HTTP, обе debug ABI/manifest, Device темы/навигация/Back и настоящий space.list IPC/отказы; финальные PR CI ещё ожидаются"
-next: "Создать PR; после успешного финального head/CI/ревью merge, удалить ветку и зафиксировать done"
+result: "P05.01/CI.03 done: локальный shell-срез и шесть окончательных Windows/Linux/Android checks head 84677ce passed; PR #52 интегрирован в 38db75e, ветка удалена"
+next: "При новом поручении — готовый P04.02, необходимый для P05.02; дальнейшая реализация не начата"
 ```
 
 Охват больше ориентира 300 строк: один проверяемый результат включает общий UI
@@ -408,3 +409,51 @@ runner-minutes ещё не измерены для новой схемы; 10 м�
 Обратимость (отмена workflow/обратный коммит), общий API человека/агента,
 docs, прежний платформенный охват и единая SQLite/Automerge сохранены.
 CI.03 in_progress до фактической проверки Actions; P05.01 verified, не done.
+
+## LOG-316: окончательный CI, время и интеграция P05.01/CI.03
+
+[PR #52](https://github.com/Zeyafix/zedone/pull/52), точный head
+`84677ce6efd7c74f45d0834fec3199a5ce644aac`, прошёл все шесть checks:
+Windows/Linux, три Android suites и строгий итоговый `android`.
+[Android run 42264208567](https://github.com/Zeyafix/zedone/actions/runs/42264208567)
+начался 2026-11-06 17:43:17Z, завершился 17:52:40Z: **9:23**.
+Цель не более 10 минут ожидания выполнена в этом запуске.
+
+| Android job | Время | Результат |
+| --- | --- | --- |
+| native | 7:02 | SUCCESS |
+| prototype-ui | 9:14 | SUCCESS |
+| shell | 7:28 | SUCCESS |
+| aggregate android | 0:03 | SUCCESS |
+| Сумма job time | 23:47 | Не wall-clock время workflow |
+
+Предыдущий run `42260006121` длился 17:50 от старта до terminal update,
+его единственный Android job — 17:46; он завершился отказом shell-драйвера.
+Это не пара двух успешных измерений одинакового кода: вместе с параллелизмом
+исправлена несовместимость драйвера, и финальный запуск выполняет полный shell
+набор. Новый результат не заявляет сокращение суммарного машинного времени:
+оно выросло из-за подготовки трёх сред. Во всех трёх финальных jobs подтверждён
+full-match restore прежнего Rust-кэша. Cold run, другие runner images,
+доступность сетевых архивов и будущее время этим запуском не доказаны.
+
+Raw logs подтверждают 136 storage tests, product core/contract/adapters,
+обе release ABI/unsafe/контракт, host/native Automerge, обе prototype APK/
+instrumentation и весь старый UI/HTTP/lifecycle набор. Обе shell APK и ранее
+падавшие menu/Back/theme/reload/reset/layout проверки прошли на штатном AOSP
+WebView. Version/compiler-failure/cleanup passed в каждом suite. Никакой
+замены проверки кэшем или исключения сценария из суммы матрицы нет.
+
+Непосредственно перед merge проверены head, шесть SUCCESS, CLEAN/MERGEABLE,
+отсутствие comments/reviews/review requests/inline comments. PR интегрирован
+merge-коммитом `38db75e26ff3f5b7908b378174e7d92fa29ceeb8`; source branch удалена
+локально и на GitHub, main обновлён, watch снят. Итоговый PR body сверяет
+completed checks и ограничения, сохраняя исходную реальную before/after пару.
+Локальные raw logs/jobs/publication — `docs/reports/p05-01/ci03-*` и
+`publication-final-52.json`.
+
+P05.01 и CI.03 done в согласованном срезе. Обратимые действия оболочки,
+единый API человека/агента, документация, Windows/Android-паритет и одна
+SQLite/Automerge проверены в описанном охвате. T08/full P05, управление
+пространствами в UI, физический arm64/release APK и начальная выдача доступа
+не закрываются. Дальнейшая реализация не начата; следующий готовый шаг P04.02.
+Это документальная фиксация проверенного runtime, не новый runtime change.

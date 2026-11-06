@@ -9,11 +9,12 @@ use zedone_core::{
     wire::{CommandRequest, CommandResponse, decode_request},
 };
 
-const ERRORS: [(ErrorCode, &str); 7] = [
+const ERRORS: [(ErrorCode, &str); 8] = [
     (ErrorCode::InvalidRequest, "invalid_request"),
     (ErrorCode::AccessDenied, "access_denied"),
     (ErrorCode::NotFound, "not_found"),
     (ErrorCode::StaleState, "stale_state"),
+    (ErrorCode::Conflict, "conflict"),
     (ErrorCode::CommandMismatch, "command_mismatch"),
     (ErrorCode::Unavailable, "unavailable"),
     (ErrorCode::OutcomeUnknown, "outcome_unknown"),
@@ -46,7 +47,17 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 2);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 8);
+    for operation in [
+        "space.create",
+        "space.read",
+        "space.list",
+        "space.rename",
+        "space.trash",
+        "space.restore",
+    ] {
+        assert!(document["paths"][format!("/v1/commands/{operation}")]["post"].is_object());
+    }
     assert!(document["paths"]["/v1/commands/access.inspect"]["post"].is_object());
     assert!(document["paths"]["/v1/commands/access.revoke"]["post"].is_object());
     for name in [
@@ -272,5 +283,5 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
     ] {
         assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
     }
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 2);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 8);
 }

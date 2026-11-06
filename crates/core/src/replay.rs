@@ -105,6 +105,33 @@ where
     C::Output: DeserializeOwned,
     T: ReplayTransaction,
 {
+    execute_as(
+        transaction,
+        credential,
+        clock,
+        required,
+        id,
+        command,
+        |tx, _| operation(tx),
+    )
+}
+
+/// The authenticated subject is supplied only by the guard, never by command
+/// JSON. Creation uses it to grant access in the same transaction as the data.
+pub fn execute_as<C, T>(
+    transaction: &mut T,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    required: &[RequiredAccess<'_>],
+    id: CommandId,
+    command: &C,
+    operation: impl FnOnce(&mut T, &str) -> CommandResult<C::Output>,
+) -> CommandResult<Execution<C::Output>>
+where
+    C: Command,
+    C::Output: DeserializeOwned,
+    T: ReplayTransaction,
+{
     if id == [0; 16] || C::NAME.is_empty() {
         return Err(error(ErrorCode::InvalidRequest));
     }
@@ -124,7 +151,7 @@ where
                 replayed: true,
             });
         }
-        let result = operation(tx)?;
+        let result = operation(tx, subject)?;
         let bytes = serde_json::to_vec(&result).map_err(|_| error(ErrorCode::Unavailable))?;
         tx.record(
             &key,

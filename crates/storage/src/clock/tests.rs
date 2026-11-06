@@ -184,6 +184,87 @@ async fn clock_failure_never_runs_work_or_creates_authority() {
 }
 
 #[tokio::test]
+async fn space_creation_expiring_at_the_final_commit_gate_leaves_neither_space_nor_new_access() {
+    use zedone_core::{
+        spaces::{self, CreateSpace},
+        wire::CommandRequest,
+    };
+    let (_dir, storage, admin, time) = setup().await;
+    let member = Arc::new(PendingAccess::generate().unwrap());
+    let (a, m) = (admin.clone(), member.clone());
+    storage
+        .timed_with_source(source(time.clone()), move |ctx, clock| {
+            ctx.issue_access(
+                &a.credential(),
+                clock,
+                &m,
+                &GrantScope::Administration,
+                Some(UNIX_EPOCH + Duration::from_millis(1_500_000)),
+            )
+        })
+        .await
+        .unwrap();
+    let jump = time.clone();
+    let m = member.clone();
+    let result = storage
+        .timed_with_source(source(time), move |ctx, clock| {
+            let request = CommandRequest {
+                id: [53; 16],
+                operation: "space.create".into(),
+                parameters: CreateSpace {
+                    space: "3".repeat(32),
+                    name: "Must roll back".into(),
+                },
+            };
+            let completed = spaces::create(ctx, &m.credential(), clock, &request)?;
+            jump.store(2_000_000, Ordering::SeqCst);
+            Ok(completed)
+        })
+        .await;
+    assert!(matches!(
+        result,
+        Err(StorageError::Rejected(CommandError {
+            code: ErrorCode::AccessDenied
+        }))
+    ));
+    storage
+        .transact(move |ctx| {
+            assert!(matches!(
+                ctx.resolve_access(&member.credential())?
+                    .unwrap()
+                    .grant
+                    .scope,
+                GrantScope::Administration
+            ));
+            assert_eq!(
+                ctx.connection().query_row(
+                    "SELECT count(*) FROM documents WHERE space = ?1",
+                    ["3".repeat(32)],
+                    |row| row.get::<_, i64>(0)
+                )?,
+                0
+            );
+            assert_eq!(
+                ctx.connection().query_row(
+                    "SELECT count(*) FROM access_spaces WHERE subject = ?1",
+                    [member.subject()],
+                    |row| row.get::<_, i64>(0)
+                )?,
+                0
+            );
+            assert_eq!(
+                ctx.connection()
+                    .query_row("SELECT count(*) FROM command_results", [], |row| row
+                        .get::<_, i64>(0))?,
+                0
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn observed_expiry_survives_restart_and_only_new_key_regrants_access() {
     let (dir, storage, admin, time) = setup().await;
     let member = Arc::new(PendingAccess::generate().unwrap());

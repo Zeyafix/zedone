@@ -102,9 +102,24 @@ if (mode !== "--write-openapi") {
   const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
     .replaceAll("#/components/schemas/", "#/$defs/"));
   const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
-  const validator = standalone(ajv, ajv.compile({ $defs: schemas, $ref: "#/$defs/CommandResponse_AccessSnapshot" }));
+  // Derive operation-specific validation and client types from concrete Rust
+  // paths. A valid result for another operation cannot confirm an intention.
+  const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
+    operation: path.slice("/v1/commands/".length),
+    request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
+    response: item.post.responses["200"].content["application/json"].schema.$ref.split("/").at(-1),
+  })).sort((a, b) => a.operation.localeCompare(b.operation));
+  const responses = [...new Set(routes.map(route => route.response))];
+  ajv.addSchema({ $id: "zedone.responses", $defs: schemas });
+  const checks = Object.fromEntries(responses.map(name => [name, `zedone.responses#/$defs/${name}`]));
+  const mapping = routes.map(route => `${JSON.stringify(route.operation)}: ${route.response}`).join(",\n");
+  const validator = standalone(ajv, checks) + `\nconst responseValidators = Object.freeze({\n${mapping}\n});\nexport const operations = Object.freeze(Object.keys(responseValidators));\nexport default function validate(value, operation) {\n  if (operation !== undefined) return Object.hasOwn(responseValidators, operation) && responseValidators[operation](value);\n  return Object.values(responseValidators).some(check => check(value));\n}\n`;
   assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
-  const validatorTypes = 'import type { components } from "./schema";\nexport default function validate(value: unknown): value is components["schemas"]["CommandResponse_AccessSnapshot"];\n';
+  const validatorTypes = 'import type { components } from "./schema";\n'
+    + `export type Operation = ${routes.map(route => JSON.stringify(route.operation)).join(" | ")};\n`
+    + `export type Parameters = {\n${routes.map(route => `  ${JSON.stringify(route.operation)}: components["schemas"][${JSON.stringify(route.request)}]["parameters"];`).join("\n")}\n};\n`
+    + `export type Response = ${responses.map(name => `components["schemas"][${JSON.stringify(name)}]`).join(" | ")};\n`
+    + 'export const operations: readonly Operation[];\nexport default function validate(value: unknown, operation?: Operation): value is Response;\n';
   if (mode === "--write-types") {
     await Bun.write(typesFile, types);
     await Bun.write(resolve(root, "api/validate-response.js"), validator);

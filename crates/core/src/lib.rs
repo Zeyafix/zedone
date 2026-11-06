@@ -6,6 +6,7 @@ pub mod access_commands;
 pub mod command;
 pub mod error;
 pub mod replay;
+pub mod spaces;
 pub mod wire;
 
 use utoipa::OpenApi;
@@ -14,7 +15,9 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "ZeDone API"),
-    paths(access_commands::inspect, access_commands::revoke),
+    paths(access_commands::inspect, access_commands::revoke,
+        spaces::create, spaces::read, spaces::list, spaces::rename,
+        spaces::trash, spaces::restore),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

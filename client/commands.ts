@@ -1,14 +1,8 @@
 import createClient from "openapi-fetch";
 import type { components, paths } from "../api/schema";
-import validateResponse from "../api/validate-response.js";
-
+import validateResponse, { operations, type Operation, type Parameters, type Response } from "../api/validate-response.js";
+export type { Operation, Response } from "../api/validate-response.js";
 type Schemas = components["schemas"];
-export type Operation = "access.inspect" | "access.revoke";
-type Parameters = {
-  "access.inspect": Schemas["CommandRequest_InspectAccess"]["parameters"];
-  "access.revoke": Schemas["CommandRequest_RevokeAccess"]["parameters"];
-};
-export type Response = Schemas["CommandResponse_AccessSnapshot"];
 
 // A pending intention is delivery state, never authoritative application data.
 // No key is included. Persist BEFORE delivery; reload after a crash and retry
@@ -27,10 +21,8 @@ class IdentityChanged extends Error {}
 
 export async function prepare<O extends Operation>(subject: string, operation: O, parameters: Parameters[O], store: IntentionStore): Promise<string> {
   if (!/^[a-f0-9]{32}$/.test(subject)) throw new Error("invalid_subject");
-  if (!["access.inspect", "access.revoke"].includes(operation)) throw new Error("invalid_request");
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  if (bytes.every(byte => byte === 0)) throw new Error("unavailable");
-  const id = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  if (!operations.includes(operation)) throw new Error("invalid_request");
+  const { bytes, id } = randomId();
   // Detect a collision rather than replacing an unresolved intention.
   if (await store.load(id)) throw new Error("unavailable");
   const body = JSON.stringify({ id: Array.from(bytes), operation, parameters });
@@ -38,6 +30,16 @@ export async function prepare<O extends Operation>(subject: string, operation: O
   await store.save(id, Object.freeze({ subject, operation, body }));
   return id;
 }
+
+function randomId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  if (bytes.every(byte => byte === 0)) throw new Error("unavailable");
+  const id = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  return { bytes, id };
+}
+
+/** Generate once for a new space and persist it with the creation intention. */
+export function newSpaceId(): string { return randomId().id; }
 
 const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 export class CommandClient {
@@ -59,7 +61,7 @@ export class CommandClient {
         });
         const response = await Promise.race([this.transport(intention, controller.signal), timeout]);
         // A malformed/missing envelope never confirms a command.
-        if (!validateResponse(response)) throw new Error("outcome_unknown");
+        if (!validateResponse(response, intention.operation)) throw new Error("outcome_unknown");
         previous = response;
         if (response.status === "ok") {
           await this.store.remove(id);
@@ -128,7 +130,7 @@ export function webIntentionStore(storage: Pick<Storage, "getItem" | "setItem" |
       const value: unknown = JSON.parse(text);
       if (!value || typeof value !== "object" || !("operation" in value) || !("body" in value) || !("subject" in value)
           || Object.keys(value).sort().join(",") !== "body,operation,subject" || typeof value.subject !== "string" || !/^[a-f0-9]{32}$/.test(value.subject)
-          || !["access.inspect", "access.revoke"].includes(String(value.operation)) || typeof value.body !== "string") throw new Error("invalid_intention");
+          || typeof value.operation !== "string" || !operations.includes(value.operation as Operation) || typeof value.body !== "string") throw new Error("invalid_intention");
       const request = JSON.parse(value.body);
       if (!/^[a-f0-9]{32}$/.test(id) || request.operation !== value.operation || !Array.isArray(request.id)
           || request.id.length !== 16 || request.id.some((byte: unknown) => typeof byte !== "number" || !Number.isInteger(byte) || byte < 0 || byte > 255)

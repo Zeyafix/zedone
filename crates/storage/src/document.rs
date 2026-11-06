@@ -88,6 +88,18 @@ impl<'a> ReadContext<'a> {
             .optional()?)
     }
 
+    /// A list visits one document at a time. Never drop unflushed changes when
+    /// trusted infrastructure composes several operations in a transaction.
+    pub(crate) fn release_document(&mut self, space: &str) {
+        if self
+            .documents
+            .get(space)
+            .is_some_and(|doc| doc.pending.is_empty())
+        {
+            self.documents.remove(space);
+        }
+    }
+
     /// Automerge persists shared progress, not in-flight transport state.
     pub fn peer_state(&self, space: &str, peer: &[u8]) -> StorageResult<State> {
         let bytes: Option<Vec<u8>> = self

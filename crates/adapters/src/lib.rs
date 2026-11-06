@@ -9,6 +9,7 @@ use zedone_core::{
     access_commands::{self, InspectAccess, RevokeAccess},
     error::{CommandError, ErrorCode},
     replay::Execution,
+    spaces::{self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, RestoreSpace, TrashSpace},
     wire::{CommandResponse, decode_request},
 };
 use zedone_storage::Storage;
@@ -41,39 +42,30 @@ impl Service {
             if body.len() > MAX_REQUEST_BYTES {
                 return Err(invalid());
             }
+            // Every arm fixes both the concrete decoder and the core handler.
+            // Neither the request nor a transport supplies policy or a callback.
+            macro_rules! run {
+                ($command:ty, $handler:path) => {{
+                    let request = decode_request::<$command>(body)?;
+                    let execution = self
+                        .storage
+                        .timed_transact(move |ctx, clock| {
+                            Ok($handler(ctx, &Credential(&secret), clock, &request)?)
+                        })
+                        .await
+                        .map_err(CommandError::from)?;
+                    value(execution)
+                }};
+            }
             match operation {
-                InspectAccess::NAME => {
-                    let request = decode_request::<InspectAccess>(body)?;
-                    let execution = self
-                        .storage
-                        .timed_transact(move |ctx, clock| {
-                            Ok(access_commands::inspect(
-                                ctx,
-                                &Credential(&secret),
-                                clock,
-                                &request,
-                            )?)
-                        })
-                        .await
-                        .map_err(CommandError::from)?;
-                    value(execution)
-                }
-                RevokeAccess::NAME => {
-                    let request = decode_request::<RevokeAccess>(body)?;
-                    let execution = self
-                        .storage
-                        .timed_transact(move |ctx, clock| {
-                            Ok(access_commands::revoke(
-                                ctx,
-                                &Credential(&secret),
-                                clock,
-                                &request,
-                            )?)
-                        })
-                        .await
-                        .map_err(CommandError::from)?;
-                    value(execution)
-                }
+                InspectAccess::NAME => run!(InspectAccess, access_commands::inspect),
+                RevokeAccess::NAME => run!(RevokeAccess, access_commands::revoke),
+                CreateSpace::NAME => run!(CreateSpace, spaces::create),
+                ReadSpace::NAME => run!(ReadSpace, spaces::read),
+                ListSpaces::NAME => run!(ListSpaces, spaces::list),
+                RenameSpace::NAME => run!(RenameSpace, spaces::rename),
+                TrashSpace::NAME => run!(TrashSpace, spaces::trash),
+                RestoreSpace::NAME => run!(RestoreSpace, spaces::restore),
                 _ => Err(invalid()),
             }
         }

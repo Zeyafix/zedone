@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     body::Bytes,
-    extract::{DefaultBodyLimit, State},
+    extract::{DefaultBodyLimit, Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
@@ -28,8 +28,7 @@ struct HttpState {
 /// from a request supplies this setting, and an allowed page still needs a key.
 pub fn router_with_origin(service: Service, browser_origin: Option<String>) -> Router {
     Router::new()
-        .route("/v1/commands/access.inspect", post(inspect))
-        .route("/v1/commands/access.revoke", post(revoke))
+        .route("/v1/commands/{operation}", post(dispatch))
         .fallback(|| async { failure(ErrorCode::InvalidRequest) })
         .method_not_allowed_fallback(|| async { failure(ErrorCode::InvalidRequest) })
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
@@ -39,19 +38,16 @@ pub fn router_with_origin(service: Service, browser_origin: Option<String>) -> R
         })
 }
 
-async fn inspect(
+async fn dispatch(
+    operation: Result<Path<String>, axum::extract::rejection::PathRejection>,
     State(service): State<HttpState>,
     headers: HeaderMap,
     body: Result<Bytes, axum::extract::rejection::BytesRejection>,
 ) -> Response {
-    command(service, headers, body, "access.inspect").await
-}
-async fn revoke(
-    State(service): State<HttpState>,
-    headers: HeaderMap,
-    body: Result<Bytes, axum::extract::rejection::BytesRejection>,
-) -> Response {
-    command(service, headers, body, "access.revoke").await
+    let Ok(Path(operation)) = operation else {
+        return failure(ErrorCode::InvalidRequest);
+    };
+    command(service, headers, body, &operation).await
 }
 
 async fn command(

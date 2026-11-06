@@ -10,6 +10,7 @@ mod document;
 pub mod migration_backup;
 mod schema;
 pub mod snapshot;
+mod spaces;
 pub mod startup;
 mod version;
 

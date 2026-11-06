@@ -158,7 +158,6 @@ jobs:
           workspaces: |
             . -> target
             prototypes -> target
-            ui/src-tauri -> target
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Restore pinned Tauri CLI

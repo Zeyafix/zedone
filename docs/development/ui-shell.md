@@ -14,6 +14,10 @@ bun run ui:check
 
 `ui:check` выполняет vue-tsc под Node (база CI 24.22.1), Vite под Bun,
 fmt/Clippy/tests shell workspace, сборку host/example и браузерную проверку.
+Host-прогоны используют корневой `target/` вместе с product-check: Cargo
+переиспользует неизменённые зависимости, сохраняя различия profiles/features/flags.
+Android-сборка также использует корневой `target/`; отдельные ABI располагаются
+в его подкаталогах, прототипы сохраняют свой независимый `prototypes/target/`.
 `UI_NODE_PATH`/`UI_NODE_VERSION` — явный локальный override уже подготовленной
 среды; результат отмечается отдельно от закреплённой базовой версии.
 `UI_BROWSER_PATHS` — JSON-массив путей Chrome/Opera. Без него используется
@@ -22,7 +26,7 @@ fmt/Clippy/tests shell workspace, сборку host/example и браузерн�
 Windows development host после `ui:check`:
 
 ```powershell
-ui/src-tauri/target/debug/serve-shell.exe --data-directory docs/reports/ui-local
+target/debug/serve-shell.exe --data-directory docs/reports/ui-local
 ```
 
 Он выводит loopback URL и встраивает собранные ресурсы без Vite-сервера и внешней
@@ -51,6 +55,11 @@ JS/CSS target Chrome 101 задан явно: стандартная оптим�
 новый range syntax ломала mobile layout на штатном AOSP WebView. Для оформления
 выбранной темы используется производный Vue-класс, а не неподдерживаемый :has.
 JNI-исключение ограничено `entry_point`; core/storage/adapters сохраняют forbid.
+Feature `android-shell` включает optional build-dependency tauri-build только
+для APK. Его явно задаёт build-ui-android.mjs; прямой Cargo Android build
+без feature отклоняется, чтобы не получить оболочку без настроенного JNI.
+Обычный browser host не собирает Android packaging tools. Версии и набор
+runtime-проверок не меняются.
 Scaffold основан на проверенном шаблоне Tauri, без экранов/плагинов прототипов.
 
 Локальная UI-проверка — только Device/agent-device/device_screenshot.

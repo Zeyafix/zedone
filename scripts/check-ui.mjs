@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
+// Share product artifacts with product-check. Cargo separates host/Android
+// targets and profiles, and rebuilds units whose features or flags differ.
+const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun);
 function run(args) {
   console.log(`> ${args.join(" ")}`);
-  const result = Bun.spawnSync(args, { cwd: root, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+  const result = Bun.spawnSync(args, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
   assert.equal(result.exitCode, 0, args.join(" "));
 }
 const nodePath = process.env.UI_NODE_PATH || "node";

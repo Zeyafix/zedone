@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P05.01
 last_completed_stage: P02
 last_completed_step: P04.01
-active_work: "P05.01: устранить BUG-005, завершить Device-приёмку, PR/CI/merge/очистка ветки по поручению разработчика; EV-064"
-next_action: "PR #52: исходный Linux job f56daad cancelled по лимиту 10 минут; увеличить host budget до 20 без пропуска проверок. После push проверить новый финальный head/все CI/ревью, merge и удалить ветку; исходный timeout не passed."
+active_work: "PR #52: по поручению разработчика заменить увеличение timeout реальной оптимизацией сборки/кэшей; проверить новые CI перед merge"
+next_action: "LOG-311: прежние лимиты восстановлены, Android build tools исключены из host, shell переиспользует product target, возвращены прежние cache paths. Локальный cold-target контроль/host/APK/native Android passed; опубликовать и проверить все новые финальные CI перед merge/очисткой. Исходный storage отказ не воспроизведён, диагностика сохранена."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007]
@@ -19,11 +19,11 @@ accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
-visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows-снимки проверены, Android UI ещё не принят; EV-064/LOG-305."
-last_event: LOG-309
+visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
+last_event: LOG-311
 ```
 
-P05.01 verified локально в `feat/p05-01-ui-shell` от `7535437`, EV-064/ADR-0042. Windows Chrome/Opera, типы/fmt/Clippy/два shell-теста, обе debug ABI/manifest и Device на AOSP/WebView 101 passed: мобильное меню/темы/system/relaunch/Back, настоящий space.list IPC и отказы/повтор. BUG-005 исправлен target Chrome 101/fallback/классом вместо :has; GAP-008 закрыт реальной приёмкой. Исходный sandbox восстановлен, синтетическая база/ключ удалены. Коммит/PR/CI ещё готовятся; T08 partial и весь P05 не закрыты.
+P05.01 verified локально в `feat/p05-01-ui-shell` от `7535437`, EV-064/ADR-0042. Windows Chrome/Opera, типы/fmt/Clippy/два shell-теста, обе debug ABI/manifest и Device на AOSP/WebView 101 passed: мобильное меню/темы/system/relaunch/Back, настоящий space.list IPC и отказы/повтор. BUG-005 исправлен target Chrome 101/fallback/классом вместо :has; GAP-008 закрыт реальной приёмкой. Исходный sandbox восстановлен, синтетическая база/ключ удалены. PR #52 открыт; после отклонения повышения timeout проверяются оптимизации и финальные CI. T08 partial и весь P05 не закрыты.
 
 P04.01 done в согласованном объёме пустого пространства: основа прав интегрирована PR #49 в 9aa71ff, шесть общих команд и итоговая приёмка — PR #50 head 3093e12 в 4f2ae48 после трёх SUCCESS Windows/Linux/Android. EV-063: создание/список/чтение/переименование/корзина/восстановление, атомарный RW создателю, безопасные повторы/отказы, по 164 Rust-теста Windows/нативного Android, 14 клиентских, обе ABI/Tauri bridge. Исходные ветки удалены. P04 целиком и P03.06 не завершены; UI/содержимое/продуктовая синхронизация остаются в следующих шагах.
 
@@ -2802,3 +2802,18 @@ limitations: "Непроверенные части и связанные BUG/GA
 - PR #52 создан для head f56daad, связан с сеансом и наблюдается. Английские title/body/credit проверены, публичная before/after пара совпадает с просмотренными PNG побайтово, rendered body содержит ровно две картинки; media вне Git. Автор/коммиттер noreply, staged source/privacy review passed.
 - По событию CI проверены job/annotations/raw log: Linux 127979055577 в run 42243344708 отменён из-за общего лимита 10m0s. Продуктовый набор и прототипный шаг passed; Node 24.22.1 vue-tsc/Vite нового UI прошли, отмена в холодном Clippy shell. Windows/Android ещё выполнялись. Отмена не считается успешной приёмкой.
 - Host matrix получает одинаковый ограниченный budget 20 минут, без пропуска проверок/изменения runtime. YAML/diff проверяются; прежние локальные Windows/Device/две debug ABI доказательства сохраняются, повторная runtime-матрица для изменения timeout не требуется. Следующий шаг — push, финальные CI нового head, проверка ревью/конфликтов, merge/очистка в рамках исходного поручения. Наблюдение PR сохраняется; задача не завершена.
+
+### LOG-310 — 2026-11-06 — агент Codex, пересмотр timeout по поручению разработчика
+
+- Разработчик отклонил увеличение лимита и поручил найти оптимизации. LOG-309 сохраняется как история невыбранного подхода; Linux должен вернуться к 10 минутам, существующий Windows budget — к прежним 20. Пропуск/ослабление тестов не допускается.
+- Из исходных CI-логов установлены последовательные root/prototype/shell сборки и повторная компиляция общих crates в отдельных target directories. Хост браузера также без необходимости собирал tauri-build для Android. Проверяются feature-gated Android build dependency и переиспользование host Cargo output продукта в UI. Cargo/Cargo.lock проверяют актуальность, кэш не становится свидетельством успешного теста.
+- Также изучается restore существующих main-кэшей: файлы есть, но новый combined cache получает No cache found. Новая зависимость/состав workspace не должны принудительно дублировать всю холодную работу. Замеры и машинные отчёты остаются в docs/reports/p05-01. Итоговая оптимизация и успех CI пока не заявляются.
+- В последнем head 2b97d25 Linux прошёл, Windows отменён на старте shell шага, Android упал в нативном storage test; исходный runner теряет stdout упавшего test subprocess. Это отдельная диагностика в рамках действующего PR-поручения, не основание пропускать тесты или увеличивать лимиты.
+
+### LOG-311 — 2026-11-06 — агент Codex, сокращение повторной компиляции и восстановление cache paths
+
+- Linux budget возвращён к 10 минутам, Windows сохранён 20; все существующие проверки оставлены. Optional tauri-build включается Android feature только штатным APK build-драйвером, прямой Android build без неё явно отклоняется. Shell workspace использует корневой Cargo target вместе с продуктом; Cargo сохраняет проверку fingerprints/targets/profiles/features/flags. Версии/lockfiles и продуктовые операции не менялись.
+- Третий физический cache path менял GitHub cache version и мешал восстановить существующие архивы main даже по restore-prefix. Host/Android workflow возвращены к прежним двум путям; никакого ослабления ключей, ручной правки fingerprints или записи main-кэша из PR. Фактический restore ещё должен быть проверен в новом CI.
+- Контрольный Windows cold-target cargo check before/after passed; после изменения tauri-build отсутствует в host build-dependency tree, компиляции меньше. Условия/времена/ограничения — EV-064 и локальные docs/reports/p05-01. Это не обещание времени полного CI. Полные host ui:check Chrome/Opera и Windows product-check, обе debug APK/manifest и запуск нового APK через Device passed.
+- Нативные Android core/storage/adapters/contract тесты повторены штатным runner на Device-эмуляторе: все passed, исходный storage отказ CI локально не воспроизведён. Теперь stdout неуспешного captured subprocess печатается до сохранённого отказа; диагностика не меняет assertions/exit code. Причина исходного отказа неизвестна, успешный повтор её не доказывает. Эмулятор закрыт после native tests/smoke, их sandbox удалён runner.
+- Обратимость/общий API человека и агента/документация/Windows–Android-паритет/единый источник истины сохранены в охвате LOG-308; оптимизация не меняет продуктовый runtime. Следующий шаг — опубликовать оптимизацию в том же PR #52, проверить все CI финального head, затем merge и очистка ветки по действующему поручению. Успех CI/merge пока не заявляется.

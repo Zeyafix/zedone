@@ -24,11 +24,12 @@ axum = { version = "=0.8.9", default-features = false, features = ["http1", "jso
 tauri = { version = "=2.12.5", default-features = false, features = ["wry", "compression"] }
 
 [build-dependencies]
-tauri-build = { version = "=2.7.4", features = [] }
+tauri-build = { version = "=2.7.4", features = [], optional = true }
 
 [dev-dependencies]
 tempfile = "=3.27.0"
 tower = { version = "=0.5.3", features = ["util"] }
 
 [features]
+android-shell = ["dep:tauri-build"]
 custom-protocol = ["tauri/custom-protocol"]

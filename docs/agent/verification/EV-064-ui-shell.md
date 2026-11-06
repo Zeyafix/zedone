@@ -208,9 +208,52 @@ release APK, полный аудит доступности P05.10, управл
 закреплённым Node 24.22.1 прошли, отмена произошла во время холодного Clippy.
 Это не успешная Linux-приёмка и не подтверждение причины возможных будущих отказов.
 
-Host matrix получает одинаковый ограниченный бюджет 20 минут без пропуска
-проверок. Runtime не меняется; локальная матрица LOG-308 остаётся действительной.
-Новый head и все окончательные Windows/Linux/Android CI требуется проверить
-перед merge. Исходный cancelled остаётся в истории, не объявляется passed.
+В `2b97d25` host matrix временно получила одинаковый бюджет 20 минут. Разработчик
+отклонил это решение (LOG-310); оно заменяется оптимизацией ниже. Исходный
+cancelled остаётся в истории, не объявляется passed. Linux этого промежуточного
+head прошёл, Windows был отменён по своему 20-минутному лимиту, Android завершился
+с ненулевым кодом storage test binary. Это не готовность к merge.
 Оба публичных PNG-вложения PR после публикации проверены побайтово против
 просмотренных файлов; rendered body содержит ровно два изображения.
+
+## Оптимизация вместо увеличения лимита
+
+Восстановлены прежние бюджеты Linux 10 / Windows 20 минут. Набор шагов и
+проверок не сокращён. Исправлены три источника лишней работы:
+
+- `tauri-build` нужен только Android packaging, но прежде компилировался и для
+  browser host. Optional build-dependency включается feature `android-shell`,
+  которую явно передаёт штатный APK build-драйвер. Android без feature получает
+  compile error, а не сборку без JNI setup.
+- Отдельный shell Cargo workspace теперь использует корневой `target/` вместе
+  с product-check. Cargo проверяет fingerprints и различия targets/profiles/
+  features/flags; артефакты не копируются и не объявляются актуальными вручную.
+  Прототипный target остаётся отдельным.
+- Из обоих workflow удалён третий физический cache path. Его добавление меняло
+  GitHub cache version, несмотря на существующий restore-prefix и архивы main.
+  Возвращён прежний набор путей; фактический cache restore нужно подтвердить
+  новым CI, одно это изменение не считается cache-hit.
+
+Контрольный cold-target `cargo check` на Windows: две временные копии before
+`2b97d25` / after, новые отдельные target directories, одинаковые toolchain,
+registry, assets и профиль, без параллельных компиляторов. Оба passed; before
+22.055 s и 222 compile/check записи, after 9.509 s и 97 записей. В дереве host
+build-dependencies после изменения нет tauri-build. Это один локальный контроль,
+не оценка времени GitHub runner и не измерение полного `ui:check`.
+
+Полный host `ui:check` с общим target passed: прежние типы/Clippy/тесты/сборки
+и browser suites Chrome/Opera. Полный Windows product-check passed: тесты,
+release, unsafe rejection, Rust/OpenAPI/TS/validators и клиентские сценарии.
+Обе debug APK собраны с явной Android feature, manifest checks passed. Новый
+APK установлен и запущен через Device; snapshot и device_screenshot подтвердили
+мобильный экран оболочки. Полная UI/IPC-приёмка LOG-308 сохраняется.
+
+Android CI в `2b97d25` скрывал stdout упавшего storage test binary за общей
+ошибкой `adb`. Драйвер теперь печатает captured stdout при отказе, сохраняя
+ненулевой код и все assertions. Причина того отказа ещё не установлена;
+локальный полный Android product-check после изменения passed: все нативные
+тесты, идентичный контракт, обе release ABI продукта и unsafe guards. Исходный
+отказ не воспроизведён, успешный повтор не доказывает его причину. Тестовый
+sandbox удалён штатным runner, открытый эмулятор закрыт/выключен через Device.
+Новый окончательный CI обязателен перед merge.
+Локальные логи/контрольное измерение — `docs/reports/p05-01/`.

@@ -28,23 +28,33 @@ P03.02 добавляет те же тесты атомарного хранен
 
 ## Что переиспользуется
 
-P05.01 добавляет `ui/**` в paths и отдельный shell Cargo workspace в Rust cache.
+P05.01 добавляет `ui/**` в paths. Shell — отдельный Cargo workspace, но его
+штатные драйверы используют общий с ядром корневой `target/`.
 Windows/Linux после прежних проверок выполняют `bun run ui:check`: общий UI,
 host framing/security и реальные команды через HTTP в Chromium. Android
 собирает debug APK обеих ABI, а последний CI emulator callback проверяет
 сеанс/навигацию/темы/Back в новом APK. Локально этот драйвер запрещён — требуется
-Device. Изменённые CI пока не запускались; факт определять по финальному head.
+Device. Готовность CI определять по финальному head; первые отменённые/упавшие
+запуски и замена увеличения timeout оптимизацией описаны в EV-064.
 Команды и ограничения — [ui-shell.md](ui-shell.md), EV-064.
 
-Для host matrix установлен общий лимит 20 минут. Прежние 10 минут Linux
-исчерпались на первом холодном PR #52 при Clippy нового shell workspace,
-после успешных продуктовых и прототипных проверок. Аннотация GitHub подтвердила
-timeout, а не отказ теста. Набор проверок не сокращается; бюджет остаётся
-ограниченным и одинаковым для Windows/Linux. Итог определять по новому head.
+Сохраняются прежние host budgets: Linux 10 минут, Windows 20. Повышение Linux
+до 20 отклонено разработчиком. Вместо него shell не собирает Android-only
+tauri-build при host-проверке и переиспользует product Cargo output, сокращая
+дублирующую компиляцию. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
+
+Набор cache paths возвращён к корневому и прототипному target, включая Android
+workflow. Добавление третьего физического target в PR меняло версию архива:
+GitHub учитывает [пути и compression tool в cache version](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-key-matching).
+Поэтому одинакового restore-prefix было недостаточно для прежнего архива main.
+Возврат прежнего набора путей устраняет это различие; фактический restore/hit
+проверяется по новому CI, его наличие заранее не обещается. Проверки выполняются
+и без кэша, Cargo заново проверяет актуальность units. Никаких ручных правок
+fingerprints, пропуска compilation/tests или PR-записи кэшей main нет.
 
 | Кэш | Состав и ключ | Владелец |
 | --- | --- | --- |
-| Rust | Registry/git и зависимости `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
+| Rust | Registry/git и зависимости корневого `target` продукта/оболочки и `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
 | Tauri CLI | Только `$RUNNER_TEMP/zedone-tauri-cli/bin/cargo-tauri`; точный ключ OS/архитектура/Rust/tauri_cli, без широкого restore fallback | actions/cache restore/save, SHA v5.1.0 |
 | Gradle | Зависимости и wrapper из Gradle User Home; ключ по environment-versions.json, Cargo.lock и файлам вложенного Gradle-проекта | Уже используемый actions/setup-java, `cache: gradle` |
 

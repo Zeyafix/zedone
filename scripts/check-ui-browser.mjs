@@ -7,7 +7,8 @@ import { chromium } from "playwright";
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
 const suffix = process.platform === "win32" ? ".exe" : "";
-const fixture = Bun.spawn([resolve(root, `ui/src-tauri/target/debug/examples/shell-fixture${suffix}`), "--serve", directory], { stdout: "pipe", stderr: "inherit" });
+const target = resolve(process.env.CARGO_TARGET_DIR || resolve(root, "target"));
+const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix}`), "--serve", directory], { stdout: "pipe", stderr: "inherit" });
 let browser;
 try {
   const reader = fixture.stdout.getReader();

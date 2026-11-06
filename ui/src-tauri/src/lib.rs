@@ -1,6 +1,9 @@
 //! The platform composition root. No bootstrap or authority derived from UI.
 #![deny(unsafe_code)]
 
+#[cfg(all(target_os = "android", not(feature = "android-shell")))]
+compile_error!("Android builds require --features android-shell; use scripts/build-ui-android.mjs");
+
 use serde::{Deserialize, Serialize};
 use std::{io::Read, path::Path};
 use zedone_adapters::Service;

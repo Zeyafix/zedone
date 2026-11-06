@@ -25,6 +25,15 @@ Windows development host встраивает собранные HTML/JS/CSS, с
 `127.0.0.1` на случайном порту и соединяет same-origin UI с тем же HTTP router.
 Поставка, трей и единый Windows-процесс остаются P08.
 
+Независимые Cargo workspaces не требуют дублировать физический build output.
+Штатные product/UI-драйверы используют корневой target с разделением Cargo по
+target triple/profile/features/flags; прототипы сохраняют свой target. Никаких
+копирований готовых бинарников в обход Cargo или подмены fingerprint нет.
+tauri-build — optional build-dependency за feature android-shell, включаемым
+Android build-драйвером; browser host не компилирует ненужный packaging tool.
+Прямой Android build без feature отклоняется явно. Это не сокращает тестовую
+матрицу: feature проверяется настоящими APK обеих ABI, host — обычными тестами.
+
 Хост открывает одну `zedone.sqlite` штатным Storage startup; он не выдаёт права,
 не вызывает bootstrap и не обходит миграционную проверку. В новой установке
 прав нет. Пока протокол P06 не реализован, доверенная локальная точка сборки

@@ -7,6 +7,9 @@ use serde_json::Value;
 use zedone_core::{
     access::Credential,
     access_commands::{self, InspectAccess, RevokeAccess},
+    columns::{
+        self, CreateColumn, ListColumns, ReadColumn, RenameColumn, RestoreColumn, TrashColumn,
+    },
     error::{CommandError, ErrorCode},
     replay::Execution,
     spaces::{self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, RestoreSpace, TrashSpace},
@@ -66,6 +69,12 @@ impl Service {
                 RenameSpace::NAME => run!(RenameSpace, spaces::rename),
                 TrashSpace::NAME => run!(TrashSpace, spaces::trash),
                 RestoreSpace::NAME => run!(RestoreSpace, spaces::restore),
+                CreateColumn::NAME => run!(CreateColumn, columns::create),
+                ReadColumn::NAME => run!(ReadColumn, columns::read),
+                ListColumns::NAME => run!(ListColumns, columns::list),
+                RenameColumn::NAME => run!(RenameColumn, columns::rename),
+                TrashColumn::NAME => run!(TrashColumn, columns::trash),
+                RestoreColumn::NAME => run!(RestoreColumn, columns::restore),
                 _ => Err(invalid()),
             }
         }

@@ -118,16 +118,15 @@ pub trait SpaceStore: ReplayTransaction {
 fn error(code: ErrorCode) -> CommandError {
     CommandError { code }
 }
+pub(crate) fn valid_id(id: &str) -> bool {
+    id.len() == 32
+        && id != "00000000000000000000000000000000"
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
 fn validate<C: Command>(request: &CommandRequest<C>, space: Option<&str>) -> CommandResult<()> {
-    if request.operation != C::NAME
-        || space.is_some_and(|id| {
-            id.len() != 32
-                || id == "0".repeat(32)
-                || !id
-                    .bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-        })
-    {
+    if request.operation != C::NAME || space.is_some_and(|id| !valid_id(id)) {
         return Err(error(ErrorCode::InvalidRequest));
     }
     Ok(())

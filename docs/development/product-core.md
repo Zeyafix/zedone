@@ -11,6 +11,14 @@ SHA-256 `08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044`.
 [EV-052](../agent/verification/EV-052-schema-admission.md).
 
 Архитектура — [границы ядра](../architecture/core-boundaries.md).
+Жизненный цикл пустых колонок — [ADR-0043](../architecture/decisions/0043-column-lifecycle.md),
+контракт и доставка — [инструкция агента](../agent/columns.md).
+`core::columns::ColumnStore` расширяет SpaceStore; WriteContext хранит
+колонки в том же графе, без отдельной SQL-таблицы текущих полей.
+Тесты `columns` проверяют обратимость/причинную проекцию, конфликты, права,
+SQL/commit/конкуренцию, а adapter tests — HTTP/IPC/реальный CLI и restart.
+Группировка операций для проекций списка выполняется за один проход;
+корневая history исключена, прежний алгоритм space.version сохранён.
 Продукт находится в корневом Cargo workspace; `prototypes/` проверяется отдельно.
 Версии Rust/Bun берутся из `scripts/environment-versions.json`, зависимости —
 из корневого Cargo.lock. Новых инструментов относительно подготовленной среды нет.

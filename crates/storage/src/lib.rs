@@ -6,6 +6,7 @@
 
 pub mod access;
 mod clock;
+mod columns;
 mod document;
 pub mod migration_backup;
 mod schema;

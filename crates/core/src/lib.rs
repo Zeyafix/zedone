@@ -3,6 +3,7 @@
 
 pub mod access;
 pub mod access_commands;
+pub mod columns;
 pub mod command;
 pub mod error;
 pub mod replay;
@@ -17,7 +18,9 @@ use utoipa::OpenApi;
     info(title = "ZeDone API"),
     paths(access_commands::inspect, access_commands::revoke,
         spaces::create, spaces::read, spaces::list, spaces::rename,
-        spaces::trash, spaces::restore),
+        spaces::trash, spaces::restore,
+        columns::create, columns::read, columns::list, columns::rename,
+        columns::trash, columns::restore),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

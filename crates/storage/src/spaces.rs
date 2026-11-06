@@ -22,6 +22,13 @@ fn invalid() -> StorageError {
 /// Exclude only the reserved technical history branch and its descendants.
 /// Never hash global heads, timestamps, receipt writes or peer progress.
 fn projection(graph: &Automerge) -> StorageResult<BTreeMap<String, serde_json::Value>> {
+    Ok(domain_projections(graph)?.into_values().flatten().collect())
+}
+
+/// A column owns its root entry and all descendants, including deleted ones.
+pub(crate) fn domain_projections(
+    graph: &Automerge,
+) -> StorageResult<BTreeMap<String, BTreeMap<String, serde_json::Value>>> {
     let mut parents = HashMap::new();
     let mut operations = Vec::new();
     for change in graph.get_changes(&[]) {
@@ -46,10 +53,16 @@ fn projection(graph: &Automerge) -> StorageResult<BTreeMap<String, serde_json::V
         if matches!(key, Key::Map(name) if name.as_str() == "history") {
             continue;
         }
-        result.insert(
-            id.to_string(),
-            serde_json::to_value(op).map_err(|_| invalid())?,
-        );
+        let Key::Map(name) = key else {
+            return Err(invalid());
+        };
+        result
+            .entry(name.to_string())
+            .or_insert_with(BTreeMap::new)
+            .insert(
+                id.to_string(),
+                serde_json::to_value(op).map_err(|_| invalid())?,
+            );
     }
     Ok(result)
 }
@@ -100,7 +113,7 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
     })
 }
 
-fn valid_group(group: &str) -> bool {
+pub(crate) fn valid_group(group: &str) -> bool {
     let parts: Vec<_> = group.split(':').collect();
     parts.len() == 3
         && parts[0] == "trash"

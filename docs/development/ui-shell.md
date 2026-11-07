@@ -41,6 +41,35 @@ Android UI выполняется
 [ADR-0042](../architecture/decisions/0042-product-ui-shell.md), результат —
 [EV-064](../agent/verification/EV-064-ui-shell.md). Runtime не зависит от прототипов.
 
+## Сборка для пробного запуска Windows
+
+Пользовательский порядок запуска и первых действий — в
+[Quick Start для Windows 11](../user/quick-start-windows.md).
+Установщика пока нет; для пробного запуска нужны рабочая копия репозитория
+и базовые инструменты Windows из
+[подготовки окружения](quick-start-windows.md#1-установите-базовые-инструменты):
+PowerShell, Rust/MSVC с Windows SDK и Bun. Android SDK для Windows-оболочки
+не требуется. Версии берутся из `scripts/environment-versions.json`.
+
+Из корня репозитория в PowerShell выполните команды по очереди.
+После ошибки остановитесь и устраните её перед продолжением:
+
+```powershell
+bun install --frozen-lockfile --ignore-scripts
+bun run ui:build
+$versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
+cargo "+$($versions.rust)" build --locked --manifest-path ui/src-tauri/Cargo.toml --target-dir target --bin serve-shell --example shell-fixture
+```
+
+Сначала собирается UI, затем Rust-host, который встраивает эти ресурсы.
+Результат — `target/debug/serve-shell.exe` и тестовый
+`target/debug/examples/shell-fixture.exe`. При изменении исходников повторите
+сборку в том же порядке. Это сборка для знакомства, без заявления полной приёмки.
+Служебный example не входит в приложение и не заменяет пользовательскую выдачу
+прав; он допустим только для отдельной тестовой установки.
+
+## Проверки оболочки
+
 Из корня, с подготовленными инструментами `scripts/environment-versions.json`:
 
 ```powershell

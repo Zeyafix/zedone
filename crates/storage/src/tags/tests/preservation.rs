@@ -526,12 +526,10 @@ async fn concurrent_assignment_and_deletion_have_one_serializable_winner() {
 }
 
 #[tokio::test]
-async fn v5_migration_preserves_legacy_graph_versions_and_receipts_and_blocks_old_writers() {
+async fn initial_schema_restart_preserves_graph_versions_and_receipts() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("tags.db");
-    let mut startup = crate::startup::Startup::new(&path);
-    startup.registry = crate::schema::Registry(&crate::schema::REGISTRY.0[..5]);
-    let s = startup.automatic(None).await.unwrap();
+    let s = Storage::open(&path).await.unwrap();
     let a = Arc::new(PendingAccess::generate().unwrap());
     let b = a.clone();
     let original = s
@@ -545,7 +543,7 @@ async fn v5_migration_preserves_legacy_graph_versions_and_receipts_and_blocks_ol
                     1,
                     CreateSpace {
                         space: sid(1),
-                        name: "Legacy".into(),
+                        name: "Current".into(),
                     },
                 ),
             )?)
@@ -566,15 +564,7 @@ async fn v5_migration_preserves_legacy_graph_versions_and_receipts_and_blocks_ol
         .await
         .unwrap();
     s.shutdown().await.unwrap();
-    assert!(Storage::open(&path).await.is_err());
-    let s = crate::startup::Startup::new(&path)
-        .automatic(Some(crate::startup::MigrationOptions {
-            folder: dir.path().to_owned(),
-            created_at_unix_ms: 10,
-            limits: crate::migration_backup::tests::LIMITS,
-        }))
-        .await
-        .unwrap();
+    let s = Storage::open(&path).await.unwrap();
     assert_eq!(
         s.transact(|ctx| Ok(ctx.space_snapshot(&sid(1))?))
             .await
@@ -601,7 +591,7 @@ async fn v5_migration_preserves_legacy_graph_versions_and_receipts_and_blocks_ol
             1,
             CreateSpace {
                 space: sid(1),
-                name: "Legacy".into()
+                name: "Current".into()
             }
         )
     )
@@ -610,10 +600,4 @@ async fn v5_migration_preserves_legacy_graph_versions_and_receipts_and_blocks_ol
     assert_eq!(replay.result, original);
     run!(s, a, core::create, create(2, 5, "Work")).unwrap();
     s.shutdown().await.unwrap();
-    let mut old = crate::startup::Startup::new(&path);
-    old.registry = crate::schema::Registry(&crate::schema::REGISTRY.0[..5]);
-    assert_eq!(
-        old.automatic(None).await.err(),
-        Some(StorageError::UnsupportedSchema)
-    );
 }

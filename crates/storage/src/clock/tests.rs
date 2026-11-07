@@ -10,11 +10,7 @@ use zedone_core::access::{
 };
 
 use super::*;
-use crate::{
-    access::PendingAccess,
-    migration_backup::tests::LIMITS,
-    startup::{MigrationOptions, Startup},
-};
+use crate::access::PendingAccess;
 
 fn source(time: Arc<AtomicU64>) -> impl Fn() -> CommandResult<SystemTime> + Send + 'static {
     static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
@@ -320,12 +316,10 @@ async fn observed_expiry_survives_restart_and_only_new_key_regrants_access() {
 }
 
 #[tokio::test]
-async fn v2_migration_preserves_authority_and_requires_verified_backup() {
+async fn initial_schema_restart_preserves_authority_and_revoked_keys() {
     let dir = TempDir::new().unwrap();
-    let path = dir.path().join("v2.db");
-    let mut old_startup = Startup::new(&path);
-    old_startup.registry = crate::schema::Registry(&crate::schema::REGISTRY.0[..2]);
-    let old = old_startup.automatic(None).await.unwrap();
+    let path = dir.path().join("device.db");
+    let old = Storage::open(&path).await.unwrap();
     let admin = Arc::new(PendingAccess::generate().unwrap());
     let member = Arc::new(PendingAccess::generate().unwrap());
     let replacement = Arc::new(crate::access::AccessKey::generate().unwrap());
@@ -364,15 +358,7 @@ async fn v2_migration_preserves_authority_and_requires_verified_backup() {
     .await
     .unwrap();
     old.shutdown().await.unwrap();
-    assert!(Storage::open(&path).await.is_err());
-    let storage = Startup::new(&path)
-        .automatic(Some(MigrationOptions {
-            folder: dir.path().to_owned(),
-            created_at_unix_ms: 10,
-            limits: LIMITS,
-        }))
-        .await
-        .unwrap();
+    let storage = Storage::open(&path).await.unwrap();
     storage
         .timed_transact(move |ctx, clock| {
             assert!(ctx.resolve_access(&member.credential())?.is_none());

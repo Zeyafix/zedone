@@ -17,14 +17,82 @@ fn fixture() -> (TempDir, PathBuf) {
     (root, path)
 }
 
-async fn open_with_backup(path: &Path) -> StorageResult<Storage> {
-    crate::startup::Startup::new(path)
-        .automatic(Some(crate::startup::MigrationOptions {
-            folder: path.parent().unwrap().to_owned(),
+#[tokio::test]
+async fn only_initial_schema_is_registered_and_new_installation_needs_no_backup() {
+    assert_eq!(REGISTRY.0.len(), 1);
+    assert_eq!(REGISTRY.current().version, 1);
+    let root = TempDir::new().unwrap();
+    let path = root.path().join("device.sqlite");
+    Storage::open(&path)
+        .await
+        .unwrap()
+        .shutdown()
+        .await
+        .unwrap();
+    let connection = Connection::open(&path).unwrap();
+    REGISTRY.target(&connection).unwrap();
+    for table in [
+        "access_principals",
+        "access_keys",
+        "access_spaces",
+        "access_bootstrap",
+    ] {
+        let count: i64 = connection
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "new installation must not invent access");
+    }
+    let observed: i64 = connection
+        .query_row("SELECT observed_ms FROM access_clock", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(observed, 0);
+    assert!(
+        fs::read_dir(root.path())
+            .unwrap()
+            .all(|entry| !entry.unwrap().path().is_dir())
+    );
+}
+
+#[tokio::test]
+async fn previous_development_schemas_are_rejected_without_migration_or_reset() {
+    for version in 1..=6 {
+        let (root, path) = fixture();
+        let connection = Connection::open(&path).unwrap();
+        connection
+            .pragma_update(None, "user_version", version)
+            .unwrap();
+        if version == 1 {
+            // The original development v1 had no installation clock or access.
+            connection
+                .execute_batch(
+                    "DROP TABLE access_clock; DROP TABLE access_bootstrap;
+                 DROP TABLE access_spaces; DROP TABLE access_keys; DROP TABLE access_principals",
+                )
+                .unwrap();
+        }
+        connection.close().unwrap();
+        let before = durable_files(&path);
+        let options = crate::startup::MigrationOptions {
+            folder: root.path().to_owned(),
             created_at_unix_ms: 10,
             limits: crate::migration_backup::tests::LIMITS,
-        }))
-        .await
+        };
+        let error = if version == 1 {
+            StorageError::InvalidDatabase
+        } else {
+            StorageError::UnsupportedSchema
+        };
+        assert_eq!(Storage::open(&path).await.err(), Some(error));
+        assert_eq!(
+            crate::startup::Startup::new(&path)
+                .automatic(Some(options))
+                .await
+                .err(),
+            Some(error)
+        );
+        assert_eq!(durable_files(&path), before);
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+    }
 }
 
 // SHM contains SQLite's transient reader locks, not authoritative DB/WAL data.
@@ -43,16 +111,16 @@ fn durable_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 #[tokio::test]
-async fn historical_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
+async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
     assert_eq!(
         Sha256::digest(V1)
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044"
+        "19c67889599faa12492f9187d809f9d08fe58998cfd5930f16288f0d35c766c8"
     );
     let (_root, path) = fixture();
-    let storage = open_with_backup(&path).await.unwrap();
+    let storage = Storage::open(&path).await.unwrap();
     storage
         .write(b"edit".to_vec(), vec![], |ctx| {
             assert_eq!(ctx.read().document(SPACE)?.get_actor().to_bytes(), &[0x31]);
@@ -67,7 +135,7 @@ async fn historical_v1_opens_keeps_receipts_and_supports_reverse_after_restart()
         .await
         .unwrap();
     storage.shutdown().await.unwrap();
-    let storage = open_with_backup(&path).await.unwrap();
+    let storage = Storage::open(&path).await.unwrap();
     storage
         .write(b"reverse".to_vec(), vec![], |ctx| {
             assert_eq!(ctx.read().document(SPACE)?.get_actor().to_bytes(), &[0x31]);
@@ -147,7 +215,7 @@ async fn foreign_keys_are_checked_before_enabling_wal_and_retry_can_succeed() {
         .execute("DELETE FROM changes WHERE space = 'missing'", [])
         .unwrap();
     connection.close().unwrap();
-    open_with_backup(&path)
+    Storage::open(&path)
         .await
         .unwrap()
         .shutdown()

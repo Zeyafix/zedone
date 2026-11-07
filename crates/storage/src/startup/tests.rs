@@ -37,7 +37,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -45,7 +45,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -53,7 +53,7 @@ const GOOD: Registry = Registry(&[
     Schema {
         version: 3,
         sql: V3,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: Some(third),
         archive: V1_ARCHIVE,
         validate: None,
@@ -63,7 +63,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -71,7 +71,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -79,7 +79,7 @@ const FAIL: Registry = Registry(&[
     Schema {
         version: 3,
         sql: V3,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: Some(failing_third),
         archive: V1_ARCHIVE,
         validate: None,
@@ -601,7 +601,7 @@ const THROUGH_V2: Registry = Registry(&[
     Schema {
         version: 1,
         sql: V1,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: None,
         archive: V1_ARCHIVE,
         validate: None,
@@ -609,7 +609,7 @@ const THROUGH_V2: Registry = Registry(&[
     Schema {
         version: 2,
         sql: V2,
-        seed: None,
+        seed: Some(crate::clock::seed),
         upgrade: Some(second),
         archive: V2_ARCHIVE,
         validate: None,
@@ -672,9 +672,9 @@ fn real_commit_failure_rolls_back_the_entire_chain_and_preserves_original() {
 }
 
 #[test]
-fn released_registry_keeps_every_transition_and_archive_adapter() {
-    let registry = schema::REGISTRY;
-    assert!(!registry.0.is_empty());
+fn synthetic_registry_keeps_every_transition_and_archive_adapter() {
+    let registry = GOOD;
+    assert_eq!(registry.0.len(), 3);
     assert!(registry.0[0].upgrade.is_none());
     for pair in registry.0.windows(2) {
         assert!(pair[0].version < pair[1].version);
@@ -688,7 +688,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 1,
             sql: V1,
-            seed: None,
+            seed: Some(crate::clock::seed),
             upgrade: None,
             archive: V1_ARCHIVE,
             validate: None,
@@ -696,7 +696,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 2,
             sql: V2,
-            seed: None,
+            seed: Some(crate::clock::seed),
             upgrade: Some(second),
             archive: V2_ARCHIVE,
             validate: None,
@@ -704,7 +704,7 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
         Schema {
             version: 3,
             sql: V3,
-            seed: None,
+            seed: Some(crate::clock::seed),
             upgrade: Some(|tx| {
                 // Claims success after a partial service mutation, without creating b.
                 tx.execute("DELETE FROM command_results", [])?;

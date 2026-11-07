@@ -244,11 +244,6 @@ impl WriteContext<'_> {
         {
             return Err(error(ErrorCode::InvalidRequest));
         }
-        if matches!(scope, GrantScope::AdministrationAndSpaces(_))
-            && crate::schema::REGISTRY.known(self.connection())?.version < 4
-        {
-            return Err(error(ErrorCode::InvalidRequest));
-        }
         // Every old verifier remains a tombstone, even after replacement/restart.
         let reused: bool = self.connection().query_row(
             "SELECT EXISTS(SELECT 1 FROM access_keys WHERE verifier = ?1)",
@@ -324,10 +319,7 @@ impl WriteContext<'_> {
                 ))
             })?
             .collect::<Result<BTreeMap<_, _>, _>>()?;
-        let legacy = crate::schema::REGISTRY.known(self.connection())?.version < 4;
-        if (!administration && spaces.is_empty())
-            || (legacy && administration && !spaces.is_empty())
-        {
+        if !administration && spaces.is_empty() {
             return Err(StorageError::InvalidDatabase);
         }
         Ok(Some(Grant {
@@ -468,19 +460,10 @@ impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
 /// In addition to DDL/FK checks, reject incomplete bootstrap/key/grant state.
 /// No missing or damaged authorization state is treated as a new installation.
 pub(crate) fn validate(connection: &rusqlite::Connection) -> StorageResult<()> {
-    validate_with(connection, false)
-}
-
-pub(crate) fn validate_v4(connection: &rusqlite::Connection) -> StorageResult<()> {
-    validate_with(connection, true)
-}
-
-fn validate_with(connection: &rusqlite::Connection, combined: bool) -> StorageResult<()> {
     let invalid: bool = connection.query_row(
         "SELECT EXISTS(
             SELECT 1 FROM access_principals p WHERE
               (p.administration = 0 AND NOT EXISTS(SELECT 1 FROM access_spaces s WHERE s.subject = p.subject))
-              OR (?1 = 0 AND p.administration = 1 AND EXISTS(SELECT 1 FROM access_spaces s WHERE s.subject = p.subject))
               OR (SELECT count(*) FROM access_keys k WHERE k.subject = p.subject AND k.active = 1)
                  != 1 - p.revoked
         ) OR ((SELECT count(*) FROM access_principals) > 0
@@ -489,7 +472,7 @@ fn validate_with(connection: &rusqlite::Connection, combined: bool) -> StorageRe
                        WHERE administration = 1 AND revoked = 0 AND expires_ms IS NULL)))
           OR ((SELECT count(*) FROM access_principals) = 0
               AND (SELECT count(*) FROM access_bootstrap) != 0)",
-        [combined],
+        [],
         |r| r.get(0),
     )?;
     if invalid {

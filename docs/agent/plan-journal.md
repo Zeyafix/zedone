@@ -9,9 +9,9 @@ current_stage: P04
 current_stage_state: in_progress
 current_step: DEV.01
 last_completed_stage: P02
-last_completed_step: P04.06
+last_completed_step: DEV.01
 active_work: null
-next_action: "DEV.01 verified: опубликовать PR и проверить окончательный head/CI/замечания; по LOG-350 при успехе merge и удаление ветки, затем P04.07. Поддержка прошлых версий — после реализации всего плана."
+next_action: "DEV.01 done: PR #67/head 1546924 интегрирован в 04ca631 после семи SUCCESS; ветка удалена. Следующий готовый шаг — P04.07. Поддержка прошлых версий — после реализации всего плана."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007]
@@ -20,18 +20,19 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-350
+last_event: LOG-351
 ```
 
-DEV.01 verified локально: одна изменяемая стартовая схема v1 вместо v1–v6,
-[ADR-0047](../architecture/decisions/0047-initial-schema-until-plan-complete.md)/
-[EV-071](verification/EV-071-initial-schema.md)/LOG-349. Поддержка прошлых
+DEV.01 done: [PR #67](https://github.com/Zeyafix/zedone/pull/67), head 1546924,
+merge 04ca631 после семи SUCCESS Windows/Linux/Android. Одна изменяемая
+стартовая схема v1 заменяет v1–v6; [ADR-0047](../architecture/decisions/0047-initial-schema-until-plan-complete.md)/
+[EV-071](verification/EV-071-initial-schema.md)/LOG-351. Поддержка прошлых
 версий вводится **только после реализации всего плана**. Прежние базы разработки
 не мигрируют и не сбрасываются; инфраструктура проверяется на синтетических
-переходах. По 224 Rust-теста Windows/нативного Android, 19 клиентских тестов,
-обе Android release ABI/21 unsafe guard/контракт passed. Ветка
-refactor/single-initial-schema от e092e3b. По LOG-350 разрешены коммит/push/PR
-и merge с удалением ветки после успешных проверок; CI/интеграция ещё ожидаются.
+переходах. По 224 продуктовых Rust-теста Windows/Linux/нативного Android,
+19 client/183 assertions, обе Android release ABI/21 unsafe guard/контракт и
+прежняя native/UI/cleanup матрица подтверждены. Исходная ветка удалена локально
+и на GitHub. Следующий готовый шаг — P04.07; новая реализация не начата.
 Исторические сводки ниже описывают прежние ревизии.
 
 P04.06 done в API-срезе тегов и назначений: [PR #65](https://github.com/Zeyafix/zedone/pull/65),
@@ -3270,3 +3271,27 @@ limitations: "Непроверенные части и связанные BUG/GA
 - origin/main совпадает с базой, существующего PR ветки нет. UI не менялся.
   Следующий шаг — коммит/PR, полный CI, проверка замечаний и конфликтов;
   merge и удаление ветки только при успехе. DEV.01 остаётся verified.
+
+### LOG-351 — 2026-11-07 — агент Codex, DEV.01 принят и PR #67 интегрирован
+
+- Точный head 1546924158db84b2581c333a9a68faa02902507d прошёл семь checks:
+  Windows/Linux foundation, Android product-native/prototype-native/prototype-ui/
+  shell и строгий aggregate. Runs: host 42388483156, Android 42388483225.
+  Raw logs подтвердили 224 продуктовых Rust-теста каждой платформы,
+  19 client/183 assertions, обе release ABI/unsafe/контракт и прежний native/UI/
+  negative-cleanup охват. Лимиты CI и весь исходный набор проверок сохранены.
+- Перед merge проверены тот же head, CLEAN/MERGEABLE, отсутствие comments,
+  reviews/review requests и inline comments; PR body обновлён результатами CI.
+  По LOG-350 PR #67 интегрирован в 04ca6318edc4ee0fac64a974d042447b396f06a4.
+  Исходная ветка удалена на GitHub и локально; main обновлён до merge.
+- Пять правил и границы EV-071 сохраняются: обратные действия/restart/replay,
+  общий API человека/агента, актуальные docs, native Windows/Android и один
+  SQLite/Automerge/Rust-derived контракт. Прежние базы разработки не поддерживаются
+  по решению разработчика, не удалены и не сбрасываются. Полные T10/M01–M04/
+  M07/M08/A08, физический arm64 и полное восстановление не принимаются.
+- DEV.01 done, очередь/EV/текущий статус обновлены отдельным документальным
+  изменением. Все workflow исключают docs по path filters: отсутствие запусков
+  для фиксации результата не считается новым успехом CI. Runtime не меняется.
+  Raw logs/метаданные только docs/reports/dev-01-ci-*-1546924.log и
+  docs/reports/dev-01-pr67-merged.json. Следующий готовый шаг — P04.07,
+  новая реализация не начата; новых BUG/GAP/блокеров нет.

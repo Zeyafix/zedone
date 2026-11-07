@@ -6,6 +6,7 @@ use crate::{
 use automerge::{Automerge, ObjId, ObjType, ROOT, ReadDoc, transaction::Transactable};
 use std::collections::BTreeMap;
 use zedone_core::{
+    cards::CardSnapshot,
     columns::{ColumnSnapshot, ColumnStore},
     command::CommandResult,
     error::{CommandError, ErrorCode},
@@ -39,9 +40,11 @@ struct Scope<'a> {
     unknown: BTreeMap<&'a str, &'a Projection>,
     known_content: bool,
     cards: crate::cards::Memberships<'a>,
+    snapshots: Vec<CardSnapshot>,
 }
 fn scope<'a>(
     graph: &Automerge,
+    space: &str,
     projections: &'a BTreeMap<String, Projection>,
 ) -> StorageResult<Scope<'a>> {
     Ok(Scope {
@@ -52,6 +55,7 @@ fn scope<'a>(
             .collect(),
         known_content: graph.keys(ROOT).all(|key| known_root(&key)),
         cards: crate::cards::memberships(graph, projections)?,
+        snapshots: crate::cards::snapshots(graph, space, projections)?,
     })
 }
 pub(crate) fn object(graph: &Automerge, column: &str) -> StorageResult<ObjId> {
@@ -106,17 +110,31 @@ fn snapshot(
     };
     let deletion_groups = lifecycle.into_iter().filter(|s| s != "active").collect();
     let positions = crate::ordering::ranks(graph, &object)?;
-    let empty = scope.known_content
-        && !scope.cards.occupied.contains(column)
+    let supported = scope.known_content
         && graph
             .keys(&object)
             .all(|k| matches!(k.as_str(), "format" | "name" | "lifecycle" | "position"));
+    let empty = supported && !scope.cards.occupied.contains(column);
+    let members: Vec<_> = scope
+        .snapshots
+        .iter()
+        .filter(|c| c.columns.iter().any(|id| id == column))
+        .cloned()
+        .collect();
     // Opaque root content could reference this column. Include its causal
     // history conservatively, including removal, until its schema is supported.
     let version = if let Some(cards) = scope.cards.related.get(column) {
         state_version(
             &("column.v1", space, column),
-            &(projection, &scope.unknown, cards),
+            &(
+                projection,
+                &scope.unknown,
+                cards,
+                members
+                    .iter()
+                    .map(|c| (&c.card, c.version))
+                    .collect::<Vec<_>>(),
+            ),
         )?
     } else {
         // Keep the original token for columns which have never had cards.
@@ -130,6 +148,7 @@ fn snapshot(
         deletion_groups,
         positions,
         empty,
+        contents: supported.then_some(members),
         version,
     })
 }
@@ -179,7 +198,7 @@ impl ColumnStore for WriteContext<'_> {
         self.space_snapshot(space)?; // Validate the enclosing document format.
         let graph = self.read().document(space)?;
         let projections = domain_projections(graph)?;
-        let scope = scope(graph, &projections)?;
+        let scope = scope(graph, space, &projections)?;
         Ok(snapshot(
             graph,
             space,
@@ -193,7 +212,7 @@ impl ColumnStore for WriteContext<'_> {
         let graph = self.read().document(space)?;
         // Decode the graph once for the whole list, not once per column.
         let projections = domain_projections(graph)?;
-        let scope = scope(graph, &projections)?;
+        let scope = scope(graph, space, &projections)?;
         let mut result = Vec::new();
         for root in graph.keys(ROOT) {
             if let Some(column) = root.strip_prefix("column:") {

@@ -15,6 +15,28 @@ function fixture() {
 }
 const parameters = { subject: "1".repeat(32) };
 
+test("column group previews are validated and retries retain the confirmed scope version", async () => {
+  const {store,storage}=fixture();
+  const space=newSpaceId(),column=newColumnId(),subject="2".repeat(32);
+  const params={space,column,expected:Array(32).fill(7)};
+  const id=await prepare(subject,"column.trash",params,store);
+  const original=(await store.load(id))!.body;
+  params.expected[0]=8;
+  const denied=new CommandClient(store,async()=>({status:"error",error:{code:"stale_state"}}));
+  expect((await denied.deliver(id)).status).toBe("pending");
+  const card={space,card:newCardId(),titles:["Task"],descriptions:["Saved"],columns:[column],positions:[0],completed:[true],tags:[],state:"trashed" as const,deletion_groups:[`trash:${subject}:${"3".repeat(32)}`],version:Array(32).fill(9)};
+  const result={space,column,names:["Column"],positions:[0],empty:false,state:"trashed" as const,deletion_groups:card.deletion_groups,contents:[card],version:Array(32).fill(10)};
+  const reply:Response={status:"ok",replayed:true,result};
+  expect(validateResponse(reply,"column.trash")).toBe(true);
+  expect(validateResponse({...reply,result:{...result,contents:[{...card,completed:["true"]}]}},"column.trash")).toBe(false);
+  expect(validateResponse({...reply,result:{...result,contents:[{...card,extra:true}]}},"column.read")).toBe(false);
+  const sent:string[]=[];
+  const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(reply);},async()=>({subject,key:"approved"}));
+  expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([original,original]);
+  expect(JSON.parse(original).parameters.expected[0]).toBe(7);
+});
+
 test("search keeps its original query and scope on retry and validates nested results", async () => {
   const { store } = fixture();
   const space = newSpaceId(), card = newCardId();

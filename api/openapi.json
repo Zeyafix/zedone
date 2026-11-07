@@ -1561,6 +1561,16 @@
           "column": {
             "type": "string"
           },
+          "contents": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CardSnapshot"
+            },
+            "description": "Current members, including earlier trash and conflicts, for scope preview.\nNone means unsupported contents; legacy receipts also omit this field."
+          },
           "deletion_groups": {
             "type": "array",
             "items": {
@@ -1569,7 +1579,7 @@
           },
           "empty": {
             "type": "boolean",
-            "description": "Unknown/future contents block trash and restore until supported."
+            "description": "True only when there are no cards or unknown contents."
           },
           "names": {
             "type": "array",
@@ -3674,6 +3684,16 @@
               "column": {
                 "type": "string"
               },
+              "contents": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/CardSnapshot"
+                },
+                "description": "Current members, including earlier trash and conflicts, for scope preview.\nNone means unsupported contents; legacy receipts also omit this field."
+              },
               "deletion_groups": {
                 "type": "array",
                 "items": {
@@ -3682,7 +3702,7 @@
               },
               "empty": {
                 "type": "boolean",
-                "description": "Unknown/future contents block trash and restore until supported."
+                "description": "True only when there are no cards or unknown contents."
               },
               "names": {
                 "type": "array",

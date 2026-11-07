@@ -1,5 +1,20 @@
 # Разработка продуктового Rust-ядра
 
+P04.09.1 расширяет прежние `column.trash/restore` на группу карточек:
+[ADR-0050](../architecture/decisions/0050-column-trash-groups.md),
+[EV-074](../agent/verification/EV-074-column-trash-groups.md).
+`ColumnSnapshot.contents` — снимки текущих членов из одного графа и одной
+транзакции, включая прежнюю корзину и конфликты; None блокирует неподдерживаемый
+состав. Column.version дополнительно включает причинные версии членов с
+назначенными тегами; данные истории/receipts/peer progress по-прежнему исключены.
+Для списка карточки/теги декодируются один раз, без отдельного индекса/кэша.
+Политика группы находится в core::columns, запись использует CardStore и
+прежние lifecycle/завершение text session; атомарность обеспечивает общий
+WriteContext/replay. Новых таблиц, зависимостей или изменений схемы v1 нет.
+Проверки включают SQL-отказ внутри группы и receipt, transaction checkpoints,
+unknown commit/replay, гонку двух workers, HTTP/IPC/CLI и native Windows/Android.
+UI остаётся ограничен пустыми колонками до P05.08.
+
 P04.07 добавляет `core::search`/`card.search` через общий Service. Поиск читает
 снимки `CardStore` в авторизованной транзакции, не создавая отдельного индекса.
 Unicode-ключ общий с тегами, но края обрезаются только у запроса; исходные

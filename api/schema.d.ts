@@ -654,8 +654,13 @@ export interface components {
         };
         ColumnSnapshot: {
             column: string;
+            /**
+             * @description Current members, including earlier trash and conflicts, for scope preview.
+             *     None means unsupported contents; legacy receipts also omit this field.
+             */
+            contents?: components["schemas"]["CardSnapshot"][] | null;
             deletion_groups: string[];
-            /** @description Unknown/future contents block trash and restore until supported. */
+            /** @description True only when there are no cards or unknown contents. */
             empty: boolean;
             names: string[];
             /** @description All distinct position registers; conflicting values are never overwritten. */
@@ -2014,8 +2019,13 @@ export interface components {
             replayed: boolean;
             result: {
                 column: string;
+                /**
+                 * @description Current members, including earlier trash and conflicts, for scope preview.
+                 *     None means unsupported contents; legacy receipts also omit this field.
+                 */
+                contents?: components["schemas"]["CardSnapshot"][] | null;
                 deletion_groups: string[];
-                /** @description Unknown/future contents block trash and restore until supported. */
+                /** @description True only when there are no cards or unknown contents. */
                 empty: boolean;
                 names: string[];
                 /** @description All distinct position registers; conflicting values are never overwritten. */

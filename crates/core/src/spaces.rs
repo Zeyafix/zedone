@@ -25,9 +25,19 @@ pub struct SpaceSnapshot {
     pub names: Vec<String>,
     pub state: SpaceState,
     pub deletion_groups: Vec<String>,
-    /// This slice only trashes/restores spaces without domain content.
     pub empty: bool,
+    /// Authoritative scope preview. None blocks lifecycle changes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contents: Option<SpaceContents>,
     pub version: StateVersion,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SpaceContents {
+    pub columns: Vec<crate::columns::ColumnSnapshot>,
+    pub cards: Vec<crate::cards::CardSnapshot>,
+    pub tags: Vec<crate::tags::TagSnapshot>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -234,7 +244,7 @@ enum Change<'a> {
     Restore,
 }
 fn change<C: Command<Output = SpaceSnapshot>>(
-    tx: &mut impl SpaceStore,
+    tx: &mut impl crate::cards::CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<C>,
@@ -263,11 +273,37 @@ fn change<C: Command<Output = SpaceSnapshot>>(
                 Change::Rename(name) if before.state == SpaceState::Active => {
                     tx.rename_space(space, name)?
                 }
-                Change::Trash if before.state == SpaceState::Active && before.empty => {
+                Change::Trash if before.state == SpaceState::Active => {
+                    let contents = lifecycle_scope(&before)?;
                     let id: String = request.id.iter().map(|b| format!("{b:02x}")).collect();
-                    tx.set_space_lifecycle(space, &format!("trash:{subject}:{id}"))?;
+                    let group = format!("trash:{subject}:{id}");
+                    for card in &contents.cards {
+                        if card.state == SpaceState::Active {
+                            tx.set_card_lifecycle(space, &card.card, &group)?;
+                        }
+                    }
+                    for column in &contents.columns {
+                        if column.state == SpaceState::Active {
+                            tx.set_column_lifecycle(space, &column.column, &group)?;
+                        }
+                    }
+                    tx.set_space_lifecycle(space, &group)?;
                 }
-                Change::Restore if before.state == SpaceState::Trashed && before.empty => {
+                Change::Restore if before.state == SpaceState::Trashed => {
+                    let contents = lifecycle_scope(&before)?;
+                    let [group] = before.deletion_groups.as_slice() else {
+                        return Err(error(ErrorCode::Conflict));
+                    };
+                    for column in &contents.columns {
+                        if column.deletion_groups == [group.as_str()] {
+                            tx.set_column_lifecycle(space, &column.column, "active")?;
+                        }
+                    }
+                    for card in &contents.cards {
+                        if card.deletion_groups == [group.as_str()] {
+                            tx.set_card_lifecycle(space, &card.card, "active")?;
+                        }
+                    }
                     tx.set_space_lifecycle(space, "active")?
                 }
                 _ => return Err(error(ErrorCode::InvalidRequest)),
@@ -277,9 +313,33 @@ fn change<C: Command<Output = SpaceSnapshot>>(
     )
 }
 
+pub(crate) fn lifecycle_scope(space: &SpaceSnapshot) -> CommandResult<&SpaceContents> {
+    let contents = space
+        .contents
+        .as_ref()
+        .ok_or_else(|| error(ErrorCode::InvalidRequest))?;
+    if contents.columns.iter().any(|c| {
+        c.state == SpaceState::Conflicted
+            || c.names.len() != 1
+            || c.positions.len() != 1
+            || c.contents.is_none()
+    }) || contents
+        .cards
+        .iter()
+        .any(|c| c.state == SpaceState::Conflicted)
+        || contents
+            .tags
+            .iter()
+            .any(|t| t.state == crate::tags::TagState::Conflicted)
+    {
+        return Err(error(ErrorCode::Conflict));
+    }
+    Ok(contents)
+}
+
 #[utoipa::path(post, path = "/v1/commands/space.rename", request_body = CommandRequest<RenameSpace>, responses((status = 200, body = CommandResponse<SpaceSnapshot>)), security(("access_key" = [])))]
 pub fn rename(
-    tx: &mut impl SpaceStore,
+    tx: &mut impl crate::cards::CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RenameSpace>,
@@ -297,7 +357,7 @@ pub fn rename(
 
 #[utoipa::path(post, path = "/v1/commands/space.trash", request_body = CommandRequest<TrashSpace>, responses((status = 200, body = CommandResponse<SpaceSnapshot>)), security(("access_key" = [])))]
 pub fn trash(
-    tx: &mut impl SpaceStore,
+    tx: &mut impl crate::cards::CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<TrashSpace>,
@@ -315,7 +375,7 @@ pub fn trash(
 
 #[utoipa::path(post, path = "/v1/commands/space.restore", request_body = CommandRequest<RestoreSpace>, responses((status = 200, body = CommandResponse<SpaceSnapshot>)), security(("access_key" = [])))]
 pub fn restore(
-    tx: &mut impl SpaceStore,
+    tx: &mut impl crate::cards::CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RestoreSpace>,

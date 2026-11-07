@@ -149,6 +149,11 @@ pub struct RestoreCard {
     pub space: String,
     pub card: String,
     pub expected: StateVersion,
+    /// Omit to restore to the original active column.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub column: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_column: Option<StateVersion>,
 }
 impl Command for RestoreCard {
     const NAME: &'static str = "card.restore";
@@ -195,6 +200,8 @@ pub trait CardStore: ColumnStore {
     fn card_snapshot(&mut self, space: &str, card: &str) -> CommandResult<CardSnapshot>;
     fn cards(&mut self, space: &str) -> CommandResult<Vec<CardSnapshot>>;
     fn card_history(&mut self, space: &str, card: &str) -> CommandResult<CardHistory>;
+    /// Batch history reads share one graph projection for whole-space cleanup.
+    fn card_histories(&mut self, space: &str, cards: &[String]) -> CommandResult<Vec<CardHistory>>;
     fn edit_card(
         &mut self,
         parameters: &EditCard,
@@ -381,10 +388,10 @@ enum Change<'a> {
     Edit(&'a EditCard),
     SetCompleted(bool),
     Trash,
-    Restore,
+    Restore(&'a RestoreCard),
 }
 fn change<C: Command<Output = CardSnapshot>>(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<C>,
@@ -412,7 +419,9 @@ fn change<C: Command<Output = CardSnapshot>>(
             {
                 return Err(error(ErrorCode::Conflict));
             }
-            parents(tx, space, &before.columns[0])?;
+            if !matches!(action, Change::Restore(_)) {
+                parents(tx, space, &before.columns[0])?;
+            }
             let command = command_id(&request.id);
             match action {
                 Change::BeginEditing if before.state == SpaceState::Active => {
@@ -438,7 +447,36 @@ fn change<C: Command<Output = CardSnapshot>>(
                 Change::Trash if before.state == SpaceState::Active => {
                     tx.set_card_lifecycle(space, card, &format!("trash:{subject}:{command}"))?
                 }
-                Change::Restore if before.state == SpaceState::Trashed => {
+                Change::Restore(p) if before.state == SpaceState::Trashed => {
+                    let column = p.column.as_deref().unwrap_or(&before.columns[0]);
+                    if !valid_id(column) || p.column.is_some() != p.expected_column.is_some() {
+                        return Err(error(ErrorCode::InvalidRequest));
+                    }
+                    parents(tx, space, column)?;
+                    let target = tx.column_snapshot(space, column)?;
+                    if let Some(expected) = p.expected_column {
+                        replay::require_current(expected, target.version)?;
+                    }
+                    if target.names.len() != 1 || target.positions.len() != 1 {
+                        return Err(error(ErrorCode::Conflict));
+                    }
+                    if column != before.columns[0] {
+                        let last = tx
+                            .cards(space)?
+                            .into_iter()
+                            .filter(|c| c.columns.iter().any(|id| id == column))
+                            .flat_map(|c| c.positions.into_iter().map(move |r| r.key(&c.card)))
+                            .max();
+                        let rank = crate::ordering::Rank::between(last.as_deref(), None, card)?;
+                        tx.place_card(
+                            space,
+                            card,
+                            &crate::ordering::CardPlacement {
+                                column: column.into(),
+                                rank,
+                            },
+                        )?;
+                    }
                     tx.set_card_lifecycle(space, card, "active")?
                 }
                 _ => return Err(error(ErrorCode::InvalidRequest)),
@@ -449,7 +487,7 @@ fn change<C: Command<Output = CardSnapshot>>(
 }
 #[utoipa::path(post, path = "/v1/commands/card.edit", operation_id = "card_edit", request_body = CommandRequest<EditCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn edit(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<EditCard>,
@@ -467,7 +505,7 @@ pub fn edit(
 }
 #[utoipa::path(post, path = "/v1/commands/card.set_completed", operation_id = "card_set_completed", request_body = CommandRequest<SetCardCompleted>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn set_completed(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<SetCardCompleted>,
@@ -484,7 +522,7 @@ pub fn set_completed(
 }
 #[utoipa::path(post, path = "/v1/commands/card.trash", operation_id = "card_trash", request_body = CommandRequest<TrashCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn trash(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<TrashCard>,
@@ -501,7 +539,7 @@ pub fn trash(
 }
 #[utoipa::path(post, path = "/v1/commands/card.restore", operation_id = "card_restore", request_body = CommandRequest<RestoreCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn restore(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RestoreCard>,
@@ -513,13 +551,13 @@ pub fn restore(
         clock,
         request,
         (&p.space, &p.card, p.expected),
-        Change::Restore,
+        Change::Restore(p),
     )
 }
 
 #[utoipa::path(post, path = "/v1/commands/card.begin_editing", operation_id = "card_begin_editing", request_body = CommandRequest<BeginCardEditing>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn begin_editing(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<BeginCardEditing>,
@@ -538,7 +576,7 @@ pub fn begin_editing(
 
 #[utoipa::path(post, path = "/v1/commands/card.autosave", operation_id = "card_autosave", request_body = CommandRequest<AutosaveCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn autosave(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<AutosaveCard>,
@@ -560,7 +598,7 @@ pub fn autosave(
 
 #[utoipa::path(post, path = "/v1/commands/card.finish_editing", operation_id = "card_finish_editing", request_body = CommandRequest<FinishCardEditing>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn finish_editing(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<FinishCardEditing>,
@@ -581,7 +619,7 @@ pub fn finish_editing(
 
 #[utoipa::path(post, path = "/v1/commands/card.restore_text", operation_id = "card_restore_text", request_body = CommandRequest<RestoreCardText>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
 pub fn restore_text(
-    tx: &mut impl CardStore,
+    tx: &mut impl crate::ordering::OrderStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RestoreCardText>,

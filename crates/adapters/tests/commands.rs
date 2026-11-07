@@ -29,6 +29,9 @@ mod spaces;
 #[path = "commands/columns.rs"]
 mod columns;
 
+#[path = "commands/cleanup.rs"]
+mod cleanup;
+
 #[path = "commands/history.rs"]
 mod history;
 

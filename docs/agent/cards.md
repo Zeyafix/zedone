@@ -18,7 +18,7 @@ Rust — источник `api/openapi.json`, TypeScript и валидаторо
 | `card.move` | space, card, column, before, expected | ReadWrite |
 | `card.set_completed` | space, card, completed, expected | ReadWrite |
 | `card.trash` | space, card, expected | ReadWrite |
-| `card.restore` | space, card, expected | ReadWrite |
+| `card.restore` | space, card, expected; необязательные column и expected_column вместе | ReadWrite |
 
 Создайте `card` через `newCardId()` и сохраните вместе с точным намерением:
 
@@ -88,7 +88,7 @@ UI редактора/тегов остаётся последующим шаг�
 P04.09.1: [колонка](columns.md) удаляется со своими активными карточками одной
 группой; восстановление возвращает только эту группу, сохраняя прежнюю корзину.
 Нерешённый конфликт карточки блокирует всю группу. Пространство и отдельное
-восстановление карточки в другую колонку — P04.09.2. Архитектура —
+восстановление карточки в другую колонку реализованы в P04.09.2. Архитектура —
 [ADR-0044](../architecture/decisions/0044-card-lifecycle.md) и
 [ADR-0050](../architecture/decisions/0050-column-trash-groups.md).
 
@@ -162,3 +162,15 @@ restore_text завершает открытую серию отдельно; в
 Неизвестный исход повторяют исходным намерением; повтор не возвращает карточку
 назад после позднейшей правки. Техническое решение —
 [ADR-0049](../architecture/decisions/0049-card-editing-history.md).
+
+
+Для восстановления в другую активную колонку прочитайте карточку и целевую
+колонку. Передайте column и expected_column=column.version вместе с
+expected=card.version в card.restore. Пространство должно быть активным;
+если оно в корзине, сначала явно выполните space.restore. Карточка получает
+место в конце выбранной колонки, её ID/поля/теги/история сохраняются.
+Без пары column/expected_column прежнее восстановление возможно только в
+исходную активную колонку. После stale перечитать оба состояния и получить
+новое явное намерение; исходный неизвестный запрос повторять без изменений.
+
+Объём и ручная очистка истории: [history.inspect/clear](cleanup.md).

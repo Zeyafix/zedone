@@ -931,6 +931,8 @@ async fn restoration_checks_all_card_fields_and_trash_finalizes_without_changing
         req(
             8,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(9),
                 expected: trashed.version

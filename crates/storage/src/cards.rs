@@ -94,9 +94,6 @@ pub(super) fn history(graph: &Automerge, card: &ObjId) -> StorageResult<Vec<Card
             description: descriptions[0].clone(),
         });
     }
-    if result.is_empty() {
-        return Err(invalid());
-    }
     result.sort_by(|a, b| a.sequence.cmp(&b.sequence).then(a.id.cmp(&b.id)));
     Ok(result)
 }
@@ -310,6 +307,20 @@ pub(crate) fn snapshots(
     Ok(result)
 }
 
+/// Visible cleanup never resets the causal ordering of later versions.
+pub(crate) fn next_sequence(graph: &Automerge, card: &str) -> StorageResult<u64> {
+    let projections = history_projections(graph)?;
+    let max = projections
+        .get(&key(card))
+        .into_iter()
+        .flat_map(|p| p.values())
+        .filter(|op| op["key"] == "sequence")
+        .filter_map(|op| op["value"].as_u64())
+        .max();
+    max.map_or(Some(0), |n| n.checked_add(1))
+        .ok_or_else(invalid)
+}
+
 pub(super) fn append_version(
     doc: &mut automerge::transaction::Transaction<'_>,
     history: &ObjId,
@@ -377,6 +388,7 @@ impl CardStore for WriteContext<'_> {
                 .document(&p.space)?
                 .get_all(ROOT, key(&p.card))?
                 .is_empty()
+                || domain_projections(self.read().document(&p.space)?)?.contains_key(&key(&p.card))
             {
                 return Err(CommandError {
                     code: ErrorCode::StaleState,
@@ -433,17 +445,26 @@ impl CardStore for WriteContext<'_> {
     }
     fn card_history(&mut self, space: &str, card: &str) -> CommandResult<CardHistory> {
         self.card_snapshot(space, card)?;
+        Ok(self.card_histories(space, &[card.into()])?.remove(0))
+    }
+    fn card_histories(&mut self, space: &str, cards: &[String]) -> CommandResult<Vec<CardHistory>> {
+        self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
-        let object = object(graph, card)?;
         let projections = history_projections(graph)?;
-        let projection = projections.get(&key(card)).ok_or_else(invalid)?;
-        Ok(CardHistory {
-            space: space.into(),
-            card: card.into(),
-            versions: history(graph, &object)?,
-            next: None,
-            version: state_version(&("card.history.v1", space, card), projection)?,
-        })
+        cards
+            .iter()
+            .map(|card| {
+                let object = object(graph, card)?;
+                let projection = projections.get(&key(card)).ok_or_else(invalid)?;
+                Ok(CardHistory {
+                    space: space.into(),
+                    card: card.clone(),
+                    versions: history(graph, &object)?,
+                    next: None,
+                    version: state_version(&("card.history.v1", space, card), projection)?,
+                })
+            })
+            .collect()
     }
     fn edit_card(&mut self, p: &EditCard, subject: &str, command: &str) -> CommandResult<()> {
         let result = (|| -> StorageResult<_> {
@@ -456,12 +477,7 @@ impl CardStore for WriteContext<'_> {
             self.finish_pending_text(&p.space, &p.card)?;
             let graph = self.read().document(&p.space)?;
             let object = object(graph, &p.card)?;
-            let sequence = history(graph, &object)?
-                .iter()
-                .map(|v| v.sequence)
-                .max()
-                .and_then(|n| n.checked_add(1))
-                .ok_or_else(invalid)?;
+            let sequence = next_sequence(graph, &p.card)?;
             let history = map(graph, &object, "history")?;
             self.edit(&p.space, |doc| {
                 doc.put(&object, "title", p.title.as_str())?;

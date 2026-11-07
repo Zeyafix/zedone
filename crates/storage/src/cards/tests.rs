@@ -73,6 +73,7 @@ macro_rules! run {
             .await
     }};
 }
+mod cleanup;
 mod completion;
 mod history;
 mod ordering;
@@ -250,6 +251,8 @@ async fn lifecycle_history_replay_groups_and_restart_are_one_atomic_result() {
         req(
             8,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(9),
                 expected: deleted.version
@@ -301,6 +304,8 @@ async fn lifecycle_history_replay_groups_and_restart_are_one_atomic_result() {
             req(
                 8,
                 RestoreCard {
+                    column: None,
+                    expected_column: None,
                     space: sid(1),
                     card: sid(9),
                     expected: deleted.version
@@ -901,6 +906,8 @@ async fn conflicts_preserve_variants_and_block_every_ordinary_mutation() {
                 req(
                     6,
                     RestoreCard {
+                        column: None,
+                        expected_column: None,
                         space: sid(1),
                         card: sid(9),
                         expected: conflicted.version

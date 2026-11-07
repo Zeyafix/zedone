@@ -153,6 +153,27 @@ fn snapshot(
     })
 }
 
+pub(crate) fn snapshots(graph: &Automerge, space: &str) -> StorageResult<Vec<ColumnSnapshot>> {
+    // Decode the graph once for the whole list, not once per column.
+    let projections = domain_projections(graph)?;
+    let scope = scope(graph, space, &projections)?;
+    let mut result = Vec::new();
+    for root in graph.keys(ROOT) {
+        if let Some(column) = root.strip_prefix("column:") {
+            if !valid_id(column) {
+                return Err(invalid());
+            }
+            result.push(snapshot(
+                graph,
+                space,
+                column,
+                projections.get(&root).ok_or_else(invalid)?,
+                &scope,
+            )?);
+        }
+    }
+    Ok(result)
+}
 impl ColumnStore for WriteContext<'_> {
     fn create_column(
         &mut self,
@@ -166,6 +187,7 @@ impl ColumnStore for WriteContext<'_> {
                 .document(space)?
                 .get_all(ROOT, key(column))?
                 .is_empty()
+                || domain_projections(self.read().document(space)?)?.contains_key(&key(column))
             {
                 return Err(CommandError {
                     code: ErrorCode::StaleState,
@@ -210,26 +232,9 @@ impl ColumnStore for WriteContext<'_> {
     fn columns(&mut self, space: &str) -> CommandResult<Vec<ColumnSnapshot>> {
         self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
-        // Decode the graph once for the whole list, not once per column.
-        let projections = domain_projections(graph)?;
-        let scope = scope(graph, space, &projections)?;
-        let mut result = Vec::new();
-        for root in graph.keys(ROOT) {
-            if let Some(column) = root.strip_prefix("column:") {
-                if !valid_id(column) {
-                    return Err(invalid().into());
-                }
-                result.push(snapshot(
-                    graph,
-                    space,
-                    column,
-                    projections.get(&root).ok_or_else(invalid)?,
-                    &scope,
-                )?);
-            }
-        }
-        Ok(result)
+        Ok(snapshots(graph, space)?)
     }
+
     fn rename_column(&mut self, space: &str, column: &str, name: &str) -> CommandResult<()> {
         let object = object(self.read().document(space)?, column)?;
         Ok(self.edit(space, |doc| {

@@ -5,6 +5,7 @@ pub mod access;
 pub mod access_commands;
 pub mod card_history;
 pub mod cards;
+pub mod cleanup;
 pub mod columns;
 pub mod command;
 pub mod error;
@@ -31,7 +32,7 @@ use utoipa::OpenApi;
         cards::set_completed, cards::trash, cards::restore,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,
         tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,
-        search::search),
+        search::search, cleanup::inspect_trash, cleanup::purge_trash, cleanup::inspect_history, cleanup::clear_history),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

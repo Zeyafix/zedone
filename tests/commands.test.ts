@@ -420,3 +420,32 @@ test("editing sessions and restoration keep original session, pair and version o
     expect(JSON.parse(original).parameters).toEqual(params);
   }
 });
+
+
+test("cleanup intentions retain the confirmed scope and condition across restart and uncertain replies", async () => {
+  const subject="2".repeat(32),space=newSpaceId(),card=newCardId(),column=newColumnId(),expected=Array(32).fill(7);
+  const selection={kind:"objects" as const,columns:[column],cards:[]};
+  const trash={space,selection,includes_space:false,columns:[],cards:[],conflicts:[],version:expected};
+  const history={space,card:null,entries:[],text_bytes:0,removable_bytes:0,version:expected};
+  const actions=[
+    ["trash.inspect",{space,selection},trash],
+    ["trash.purge",{space,selection,expected},trash],
+    ["history.inspect",{space,card:null},history],
+    ["history.clear",{space,card:null,expected},history],
+  ] as const;
+  for(const [operation,params,result] of actions) {
+    const {store,storage}=fixture();const id=await prepare(subject,operation,params,store);
+    const original=(await store.load(id))!.body;
+    const response:Response={status:"ok",replayed:true,result};
+    expect(validateResponse(response,operation)).toBe(true);
+    expect(validateResponse({...response,result:{...result,version:[7]}},operation)).toBe(false);
+    const sent:string[]=[];
+    const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject,key:"approved"}));
+    expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+    expect(sent).toEqual([original,original]);
+    expect(JSON.parse(original).parameters).toEqual(params);
+  }
+  const {store}=fixture();const id=await prepare(subject,"card.restore",{space,card,column,expected_column:expected,expected},store);
+  expect(JSON.parse((await store.load(id))!.body).parameters.column).toBe(column);
+  expect(validateResponse({status:"ok",replayed:false,result:trash},"history.clear")).toBe(false);
+});

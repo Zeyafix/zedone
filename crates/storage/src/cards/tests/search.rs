@@ -200,6 +200,8 @@ async fn search_follows_moves_completion_trash_restore_and_frozen_receipts_after
         req(
             11,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(9),
                 expected: trash.version

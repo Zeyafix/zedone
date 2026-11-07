@@ -45,3 +45,16 @@ CREATE TABLE access_clock (
     singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
     observed_ms INTEGER NOT NULL CHECK(observed_ms >= 0)
 ) STRICT, WITHOUT ROWID;
+CREATE TABLE card_editing (
+    space TEXT NOT NULL REFERENCES documents(space),
+    card TEXT NOT NULL CHECK(length(card) = 32),
+    subject TEXT NOT NULL REFERENCES access_principals(subject),
+    session TEXT NOT NULL CHECK(length(session) = 32),
+    pending_id TEXT,
+    title TEXT,
+    description TEXT,
+    changed_ms INTEGER CHECK(changed_ms >= 0),
+    CHECK((pending_id IS NULL AND title IS NULL AND description IS NULL AND changed_ms IS NULL)
+       OR (pending_id IS NOT NULL AND title IS NOT NULL AND length(trim(title)) > 0 AND description IS NOT NULL AND changed_ms IS NOT NULL)),
+    PRIMARY KEY(space, card)
+) STRICT, WITHOUT ROWID;

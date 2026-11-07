@@ -117,7 +117,7 @@ async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "19c67889599faa12492f9187d809f9d08fe58998cfd5930f16288f0d35c766c8"
+        "b87df5f3879df1ecf932ef515f231ccc62f7654780d18bf0ea85abff74734083"
     );
     let (_root, path) = fixture();
     let storage = Storage::open(&path).await.unwrap();

@@ -31,6 +31,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.autosave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_autosave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.begin_editing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_begin_editing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.create": {
         parameters: {
             query?: never;
@@ -57,6 +89,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["card_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.finish_editing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_finish_editing"];
         delete?: never;
         options?: never;
         head?: never;
@@ -137,6 +185,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["card_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.restore_text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_restore_text"];
         delete?: never;
         options?: never;
         head?: never;
@@ -527,6 +591,23 @@ export interface components {
         AdministrationScope: {
             kind: components["schemas"]["AdministrationKind"];
         };
+        AutosaveCard: {
+            card: string;
+            description: string;
+            expected: components["schemas"]["StateVersion"];
+            session: string;
+            space: string;
+            title: string;
+        };
+        /**
+         * @description The command ID becomes the session ID. Begin anew after a client restart;
+         *     retry an uncertain begin with its original ID before making a new intention.
+         */
+        BeginCardEditing: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
         CardHistory: {
             card: string;
             next?: string | null;
@@ -589,6 +670,79 @@ export interface components {
         CommandFailure: {
             error: components["schemas"]["CommandError"];
             status: components["schemas"]["ErrorStatus"];
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_AutosaveCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                description: string;
+                expected: components["schemas"]["StateVersion"];
+                session: string;
+                space: string;
+                title: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_BeginCardEditing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            /**
+             * @description The command ID becomes the session ID. Begin anew after a client restart;
+             *     retry an uncertain begin with its original ID before making a new intention.
+             */
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
         };
         /**
          * @description Preserve this entire request, including the ID, for every delivery of an
@@ -789,6 +943,40 @@ export interface components {
                 expected: components["schemas"]["StateVersion"];
                 space: string;
                 title: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_FinishCardEditing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                session: string;
+                space: string;
             };
         };
         /**
@@ -1315,6 +1503,40 @@ export interface components {
                 card: string;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_RestoreCardText: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+                text_version: string;
             };
         };
         /**
@@ -1901,6 +2123,12 @@ export interface components {
         ErrorCode: "invalid_request" | "access_denied" | "not_found" | "stale_state" | "conflict" | "command_mismatch" | "unavailable" | "outcome_unknown";
         /** @enum {string} */
         ErrorStatus: "error";
+        FinishCardEditing: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            session: string;
+            space: string;
+        };
         InspectAccess: {
             subject: string;
         };
@@ -1994,6 +2222,12 @@ export interface components {
             card: string;
             expected: components["schemas"]["StateVersion"];
             space: string;
+        };
+        RestoreCardText: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+            text_version: string;
         };
         RestoreColumn: {
             column: string;
@@ -2161,6 +2395,52 @@ export interface operations {
             };
         };
     };
+    card_autosave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_AutosaveCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_begin_editing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_BeginCardEditing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
     card_create: {
         parameters: {
             query?: never;
@@ -2194,6 +2474,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_EditCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_finish_editing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_FinishCardEditing"];
             };
         };
         responses: {
@@ -2309,6 +2612,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_RestoreCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_restore_text: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RestoreCardText"];
             };
         };
         responses: {

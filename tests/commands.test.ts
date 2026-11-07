@@ -374,3 +374,27 @@ test("relative moves preserve the original destination, anchor and version acros
     expect(sent).toEqual([saved,saved]);expect(JSON.parse(saved).parameters.before).toBe(before);expect(JSON.parse(saved).parameters.expected[0]).toBe(7);
   }
 });
+
+
+test("editing sessions and restoration keep original session, pair and version on uncertain delivery", async () => {
+  const space=newSpaceId(),card=newCardId(),subject="2".repeat(32),session="3".repeat(32),expected=Array(32).fill(7);
+  const actions=[
+    ["card.begin_editing",{space,card,expected}],
+    ["card.autosave",{space,card,session,title:"Ёж",description:"Saved pair",expected}],
+    ["card.finish_editing",{space,card,session,expected}],
+    ["card.restore_text",{space,card,text_version:`${subject}:${session}`,expected}],
+  ] as const;
+  for(const [operation,params] of actions) {
+    const {store,storage}=fixture();
+    const id=await prepare(subject,operation,params,store);
+    const original=(await store.load(id))!.body;
+    expect((await new CommandClient(store,async()=>({status:"error",error:{code:"stale_state"}})).deliver(id)).status).toBe("pending");
+    const response:Response={status:"ok",replayed:true,result:{space,card,titles:["Ёж"],descriptions:["Saved pair"],columns:[newColumnId()],positions:[0],completed:[false],tags:[],state:"active",deletion_groups:[],version:Array(32).fill(8)}};
+    expect(validateResponse(response,operation)).toBe(true);
+    const sent:string[]=[];
+    const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject,key:"approved"}));
+    expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+    expect(sent).toEqual([original,original]);
+    expect(JSON.parse(original).parameters).toEqual(params);
+  }
+});

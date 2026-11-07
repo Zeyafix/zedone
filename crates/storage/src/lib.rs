@@ -5,6 +5,7 @@
 //! may be sent to a client. Domain history belongs in the same document as data.
 
 pub mod access;
+mod card_history;
 mod cards;
 mod clock;
 mod columns;

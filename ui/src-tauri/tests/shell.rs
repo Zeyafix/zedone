@@ -8,6 +8,113 @@ use tower::ServiceExt;
 use zedone_shell::{Session, Shell};
 
 #[tokio::test]
+async fn new_application_host_finishes_saved_editing_series_before_exposing_service() {
+    let dir = tempfile::tempdir().unwrap();
+    let storage = zedone_storage::Storage::open(dir.path().join("zedone.sqlite"))
+        .await
+        .unwrap();
+    let access = zedone_storage::access::PendingAccess::generate().unwrap();
+    let key: String = access
+        .credential()
+        .0
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    storage
+        .transact(move |ctx| ctx.bootstrap_access(&access))
+        .await
+        .unwrap();
+    let service = zedone_adapters::Service::new(storage.clone());
+    let space = "1".repeat(32);
+    let column = "2".repeat(32);
+    let card = "3".repeat(32);
+    async fn call(
+        service: &zedone_adapters::Service,
+        key: &str,
+        id: u8,
+        operation: &str,
+        parameters: Value,
+    ) -> Value {
+        let result = serde_json::to_value(
+            service
+                .dispatch(
+                    operation,
+                    json!({"id":vec![id;16],"operation":operation,"parameters":parameters})
+                        .to_string()
+                        .as_bytes(),
+                    key,
+                )
+                .await,
+        )
+        .unwrap();
+        assert_eq!(result["status"], "ok");
+        result["result"].clone()
+    }
+    call(
+        &service,
+        &key,
+        1,
+        "space.create",
+        json!({"space":space,"name":"Board"}),
+    )
+    .await;
+    call(
+        &service,
+        &key,
+        2,
+        "column.create",
+        json!({"space":space,"column":column,"name":"Column"}),
+    )
+    .await;
+    let first = call(
+        &service,
+        &key,
+        3,
+        "card.create",
+        json!({"space":space,"column":column,"card":card,"title":"Initial","description":""}),
+    )
+    .await;
+    call(
+        &service,
+        &key,
+        4,
+        "card.begin_editing",
+        json!({"space":space,"card":card,"expected":first["version"]}),
+    )
+    .await;
+    let saved = call(&service,&key,5,"card.autosave",json!({"space":space,"card":card,"session":"04".repeat(16),"title":"Last saved title","description":"Last saved description","expected":first["version"]})).await;
+    storage.shutdown().await.unwrap();
+    drop(service);
+    let shell = zedone_shell::open_shell(dir.path()).await;
+    let service = shell.service.as_ref().unwrap();
+    assert_eq!(
+        call(
+            service,
+            &key,
+            6,
+            "card.read",
+            json!({"space":space,"card":card})
+        )
+        .await,
+        saved
+    );
+    let history = call(
+        service,
+        &key,
+        7,
+        "card.history",
+        json!({"space":space,"card":card,"after":null,"limit":100,"expected":null}),
+    )
+    .await;
+    assert_eq!(history["versions"].as_array().unwrap().len(), 2);
+    assert_eq!(history["versions"][1]["title"], "Last saved title");
+    assert_eq!(
+        history["versions"][1]["description"],
+        "Last saved description"
+    );
+}
+
+#[tokio::test]
 async fn session_never_grants_access_or_swallows_corrupt_configuration() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("local-session.json");

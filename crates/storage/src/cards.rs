@@ -36,7 +36,7 @@ pub(crate) fn object(graph: &Automerge, card: &str) -> StorageResult<ObjId> {
     }
     Ok(values[0].1.clone())
 }
-fn map(graph: &Automerge, object: &ObjId, field: &str) -> StorageResult<ObjId> {
+pub(super) fn map(graph: &Automerge, object: &ObjId, field: &str) -> StorageResult<ObjId> {
     let values = graph.get_all(object, field)?;
     if values.len() != 1 || values[0].0 != automerge::Value::Object(ObjType::Map) {
         return Err(invalid());
@@ -61,7 +61,7 @@ fn registers<T: Ord>(
     values.dedup();
     Ok(values)
 }
-fn history(graph: &Automerge, card: &ObjId) -> StorageResult<Vec<CardTextVersion>> {
+pub(super) fn history(graph: &Automerge, card: &ObjId) -> StorageResult<Vec<CardTextVersion>> {
     let history = map(graph, card, "history")?;
     let mut result = Vec::new();
     for id in graph.keys(&history) {
@@ -292,7 +292,7 @@ pub(crate) fn memberships<'a>(
     Ok(Memberships { related, occupied })
 }
 
-fn append_version(
+pub(super) fn append_version(
     doc: &mut automerge::transaction::Transaction<'_>,
     history: &ObjId,
     id: &str,
@@ -307,6 +307,46 @@ fn append_version(
     Ok(())
 }
 impl CardStore for WriteContext<'_> {
+    fn begin_card_editing(
+        &mut self,
+        space: &str,
+        card: &str,
+        subject: &str,
+        session: &str,
+    ) -> CommandResult<()> {
+        Ok(self.start_text_session(space, card, subject, session)?)
+    }
+    fn autosave_card(
+        &mut self,
+        p: &zedone_core::card_history::AutosaveCard,
+        subject: &str,
+        command: &str,
+        now_ms: i64,
+    ) -> CommandResult<()> {
+        Ok(self.save_text_series(p, subject, command, now_ms)?)
+    }
+    fn finish_card_editing(
+        &mut self,
+        space: &str,
+        card: &str,
+        subject: &str,
+        session: &str,
+    ) -> CommandResult<()> {
+        Ok(self.end_text_session(space, card, subject, session)?)
+    }
+    fn settle_card_history(&mut self, space: &str, card: &str, now_ms: i64) -> CommandResult<()> {
+        Ok(self.expire_text_series(space, card, now_ms)?)
+    }
+    fn restore_card_text(
+        &mut self,
+        space: &str,
+        card: &str,
+        version: &str,
+        subject: &str,
+        command: &str,
+    ) -> CommandResult<()> {
+        Ok(self.restore_text_version(space, card, version, subject, command)?)
+    }
     fn create_card(
         &mut self,
         p: &CreateCard,
@@ -405,6 +445,7 @@ impl CardStore for WriteContext<'_> {
             {
                 return Ok(());
             }
+            self.finish_pending_text(&p.space, &p.card)?;
             let graph = self.read().document(&p.space)?;
             let object = object(graph, &p.card)?;
             let sequence = history(graph, &object)?
@@ -447,6 +488,15 @@ impl CardStore for WriteContext<'_> {
         card: &str,
         lifecycle: &str,
     ) -> CommandResult<()> {
+        self.finish_pending_text(space, card)?;
+        let deletion = self
+            .connection()
+            .execute(
+                "DELETE FROM card_editing WHERE space = ?1 AND card = ?2",
+                (space, card),
+            )
+            .map_err(StorageError::from);
+        self.checked(deletion)?;
         let object = object(self.read().document(space)?, card)?;
         Ok(self.edit(space, |doc| {
             doc.put(&object, "lifecycle", lifecycle)?;

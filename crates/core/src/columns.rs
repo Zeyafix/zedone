@@ -1,6 +1,7 @@
 //! Column policy shared by HTTP, CLI and IPC. No adapter supplies authority.
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission},
+    cards::{CardSnapshot, CardStore},
     command::{Command, CommandResult},
     error::{CommandError, ErrorCode},
     replay::{self, Execution, StateVersion},
@@ -20,8 +21,12 @@ pub struct ColumnSnapshot {
     pub deletion_groups: Vec<String>,
     /// All distinct position registers; conflicting values are never overwritten.
     pub positions: Vec<crate::ordering::Rank>,
-    /// Unknown/future contents block trash and restore until supported.
+    /// True only when there are no cards or unknown contents.
     pub empty: bool,
+    /// Current members, including earlier trash and conflicts, for scope preview.
+    /// None means unsupported contents; legacy receipts also omit this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contents: Option<Vec<CardSnapshot>>,
     pub version: StateVersion,
 }
 
@@ -223,7 +228,7 @@ enum Change<'a> {
     Restore,
 }
 fn change<C: Command<Output = ColumnSnapshot>>(
-    tx: &mut impl ColumnStore,
+    tx: &mut impl CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<C>,
@@ -253,11 +258,23 @@ fn change<C: Command<Output = ColumnSnapshot>>(
                 Change::Rename(name) if before.state == SpaceState::Active => {
                     tx.rename_column(space, column, name)?
                 }
-                Change::Trash if before.state == SpaceState::Active && before.empty => {
+                Change::Trash if before.state == SpaceState::Active => {
+                    let cards = group_members(&before, None)?;
                     let id: String = request.id.iter().map(|b| format!("{b:02x}")).collect();
-                    tx.set_column_lifecycle(space, column, &format!("trash:{subject}:{id}"))?;
+                    let group = format!("trash:{subject}:{id}");
+                    for card in cards {
+                        tx.set_card_lifecycle(space, &card.card, &group)?;
+                    }
+                    tx.set_column_lifecycle(space, column, &group)?;
                 }
-                Change::Restore if before.state == SpaceState::Trashed && before.empty => {
+                Change::Restore if before.state == SpaceState::Trashed => {
+                    let [group] = before.deletion_groups.as_slice() else {
+                        return Err(error(ErrorCode::Conflict));
+                    };
+                    let cards = group_members(&before, Some(group))?;
+                    for card in cards {
+                        tx.set_card_lifecycle(space, &card.card, "active")?;
+                    }
                     tx.set_column_lifecycle(space, column, "active")?
                 }
                 _ => return Err(error(ErrorCode::InvalidRequest)),
@@ -267,9 +284,34 @@ fn change<C: Command<Output = ColumnSnapshot>>(
     )
 }
 
+fn group_members<'a>(
+    column: &'a ColumnSnapshot,
+    restore_group: Option<&str>,
+) -> CommandResult<Vec<&'a CardSnapshot>> {
+    let contents = column
+        .contents
+        .as_ref()
+        .ok_or_else(|| error(ErrorCode::InvalidRequest))?;
+    // Validate the entire scope before mutating anything. Never resolve a
+    // disputed placement, text, tag or lifecycle as a side effect of deletion.
+    if contents
+        .iter()
+        .any(|c| c.state == SpaceState::Conflicted || c.columns != [column.column.as_str()])
+    {
+        return Err(error(ErrorCode::Conflict));
+    }
+    Ok(contents
+        .iter()
+        .filter(|c| match restore_group {
+            None => c.state == SpaceState::Active,
+            Some(group) => c.deletion_groups == [group],
+        })
+        .collect())
+}
+
 #[utoipa::path(post, path = "/v1/commands/column.rename", operation_id = "column_rename", request_body = CommandRequest<RenameColumn>, responses((status = 200, body = CommandResponse<ColumnSnapshot>)), security(("access_key" = [])))]
 pub fn rename(
-    tx: &mut impl ColumnStore,
+    tx: &mut impl CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RenameColumn>,
@@ -286,7 +328,7 @@ pub fn rename(
 }
 #[utoipa::path(post, path = "/v1/commands/column.trash", operation_id = "column_trash", request_body = CommandRequest<TrashColumn>, responses((status = 200, body = CommandResponse<ColumnSnapshot>)), security(("access_key" = [])))]
 pub fn trash(
-    tx: &mut impl ColumnStore,
+    tx: &mut impl CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<TrashColumn>,
@@ -303,7 +345,7 @@ pub fn trash(
 }
 #[utoipa::path(post, path = "/v1/commands/column.restore", operation_id = "column_restore", request_body = CommandRequest<RestoreColumn>, responses((status = 200, body = CommandResponse<ColumnSnapshot>)), security(("access_key" = [])))]
 pub fn restore(
-    tx: &mut impl ColumnStore,
+    tx: &mut impl CardStore,
     credential: &Credential<'_>,
     clock: &impl Clock,
     request: &CommandRequest<RestoreColumn>,

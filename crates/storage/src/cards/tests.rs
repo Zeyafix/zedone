@@ -77,6 +77,7 @@ mod completion;
 mod history;
 mod ordering;
 mod search;
+mod trash_groups;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {
     assert_eq!(
         result.unwrap_err(),
@@ -457,27 +458,9 @@ async fn card_data_and_removed_membership_change_only_relevant_column_and_card_t
             .await,
         ErrorCode::StaleState,
     );
-    let a = admin.clone();
-    rejected(
-        storage
-            .transact(move |ctx| {
-                Ok(zedone_core::columns::trash(
-                    ctx,
-                    &a.credential(),
-                    &Now,
-                    &req(
-                        3,
-                        TrashColumn {
-                            space: sid(1),
-                            column: sid(2),
-                            expected: occupied.version,
-                        },
-                    ),
-                )?)
-            })
-            .await,
-        ErrorCode::InvalidRequest,
-    );
+    // Known members are now previewed for the group lifecycle; stale tokens
+    // still fail before any member changes. Full group tests live separately.
+    assert_eq!(occupied.contents, Some(vec![first.clone()]));
     run!(storage, admin, create, creation(4, 8)).unwrap();
     assert_eq!(fresh(&storage, &admin, 5, 9).await, first);
     for (i, field) in [
@@ -843,6 +826,31 @@ async fn conflicts_preserve_variants_and_block_every_ordinary_mutation() {
             .unwrap();
         let conflicted = fresh(&storage, &admin, 2, 9).await;
         assert_eq!(conflicted.state, SpaceState::Conflicted);
+        let column = storage
+            .transact(|ctx| Ok(ctx.column_snapshot(&sid(1), &sid(2))?))
+            .await
+            .unwrap();
+        let key = admin.clone();
+        rejected(
+            storage
+                .transact(move |ctx| {
+                    Ok(zedone_core::columns::trash(
+                        ctx,
+                        &key.credential(),
+                        &Now,
+                        &req(
+                            90,
+                            TrashColumn {
+                                space: sid(1),
+                                column: sid(2),
+                                expected: column.version,
+                            },
+                        ),
+                    )?)
+                })
+                .await,
+            ErrorCode::Conflict,
+        );
         match field {
             "title" => assert_eq!(conflicted.titles.len(), 2),
             "description" => assert_eq!(conflicted.descriptions.len(), 2),

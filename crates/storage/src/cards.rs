@@ -292,6 +292,24 @@ pub(crate) fn memberships<'a>(
     Ok(Memberships { related, occupied })
 }
 
+pub(crate) fn snapshots(
+    graph: &Automerge,
+    space: &str,
+    projections: &BTreeMap<String, Projection>,
+) -> StorageResult<Vec<CardSnapshot>> {
+    let tags = crate::tags::snapshots(graph, space, projections)?;
+    let mut result = Vec::new();
+    for root in graph.keys(ROOT) {
+        if let Some(card) = root.strip_prefix("card:") {
+            if !valid_id(card) {
+                return Err(invalid());
+            }
+            result.push(snapshot(graph, space, card, projections, &tags)?);
+        }
+    }
+    Ok(result)
+}
+
 pub(super) fn append_version(
     doc: &mut automerge::transaction::Transaction<'_>,
     history: &ObjId,
@@ -411,17 +429,7 @@ impl CardStore for WriteContext<'_> {
         self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
         let projections = domain_projections(graph)?;
-        let tags = crate::tags::snapshots(graph, space, &projections)?;
-        let mut result = Vec::new();
-        for root in graph.keys(ROOT) {
-            if let Some(card) = root.strip_prefix("card:") {
-                if !valid_id(card) {
-                    return Err(invalid().into());
-                }
-                result.push(snapshot(graph, space, card, &projections, &tags)?);
-            }
-        }
-        Ok(result)
+        Ok(snapshots(graph, space, &projections)?)
     }
     fn card_history(&mut self, space: &str, card: &str) -> CommandResult<CardHistory> {
         self.card_snapshot(space, card)?;

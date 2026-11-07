@@ -214,6 +214,40 @@
         ]
       }
     },
+    "/v1/commands/card.move": {
+      "post": {
+        "tags": [
+          "ordering"
+        ],
+        "operationId": "card_move",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_MoveCard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.read": {
       "post": {
         "tags": [
@@ -406,6 +440,40 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CommandResponse_ColumnList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/column.move": {
+      "post": {
+        "tags": [
+          "ordering"
+        ],
+        "operationId": "column_move",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_MoveColumn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ColumnSnapshot"
                 }
               }
             }
@@ -907,6 +975,23 @@
         },
         "additionalProperties": false
       },
+      "CardPlacement": {
+        "type": "object",
+        "description": "A whole register: concurrent moves cannot mix a column with another rank.",
+        "required": [
+          "column",
+          "rank"
+        ],
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          }
+        },
+        "additionalProperties": false
+      },
       "CardSnapshot": {
         "type": "object",
         "required": [
@@ -950,12 +1035,17 @@
               "type": "string"
             }
           },
+          "placements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardPlacement"
+            },
+            "description": "Whole variants after a move; legacy documents and receipts omit these."
+          },
           "positions": {
             "type": "array",
             "items": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 0
+              "$ref": "#/components/schemas/Rank"
             }
           },
           "space": {
@@ -1063,9 +1153,7 @@
           "positions": {
             "type": "array",
             "items": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 0
+              "$ref": "#/components/schemas/Rank"
             },
             "description": "All distinct position registers; conflicting values are never overwritten."
           },
@@ -1450,6 +1538,114 @@
             "properties": {
               "include_trashed": {
                 "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_MoveCard": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card",
+              "column",
+              "expected"
+            ],
+            "properties": {
+              "before": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Insert before this active card in the destination; null appends."
+              },
+              "card": {
+                "type": "string"
+              },
+              "column": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_MoveColumn": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "column",
+              "expected"
+            ],
+            "properties": {
+              "before": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Insert before this active column; null appends."
+              },
+              "column": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -2395,12 +2591,17 @@
                   "type": "string"
                 }
               },
+              "placements": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardPlacement"
+                },
+                "description": "Whole variants after a move; legacy documents and receipts omit these."
+              },
               "positions": {
                 "type": "array",
                 "items": {
-                  "type": "integer",
-                  "format": "int64",
-                  "minimum": 0
+                  "$ref": "#/components/schemas/Rank"
                 }
               },
               "space": {
@@ -2511,9 +2712,7 @@
               "positions": {
                 "type": "array",
                 "items": {
-                  "type": "integer",
-                  "format": "int64",
-                  "minimum": 0
+                  "$ref": "#/components/schemas/Rank"
                 },
                 "description": "All distinct position registers; conflicting values are never overwritten."
               },
@@ -2823,6 +3022,98 @@
         "properties": {
           "include_trashed": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MoveCard": {
+        "type": "object",
+        "required": [
+          "space",
+          "card",
+          "column",
+          "expected"
+        ],
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Insert before this active card in the destination; null appends."
+          },
+          "card": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MoveColumn": {
+        "type": "object",
+        "required": [
+          "space",
+          "column",
+          "expected"
+        ],
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Insert before this active column; null appends."
+          },
+          "column": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Rank": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankPart"
+            }
+          }
+        ],
+        "description": "Legacy integer positions remain valid in historical documents and receipts."
+      },
+      "RankPart": {
+        "type": "object",
+        "required": [
+          "digit",
+          "id"
+        ],
+        "properties": {
+          "digit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
           }
         },
         "additionalProperties": false

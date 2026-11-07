@@ -395,7 +395,7 @@ async fn v3_to_v4_is_backed_up_preserves_state_and_does_not_expand_any_grant() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        4
+        crate::schema::REGISTRY.current().version
     );
     let candidates: Vec<_> = fs::read_dir(dir.path())
         .unwrap()

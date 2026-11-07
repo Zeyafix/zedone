@@ -392,7 +392,7 @@ async fn v2_migration_preserves_authority_and_requires_verified_backup() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        4
+        crate::schema::REGISTRY.current().version
     );
     assert_eq!(
         conn.query_row("SELECT count(*) FROM access_principals", [], |r| r

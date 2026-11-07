@@ -7,6 +7,7 @@ pub mod cards;
 pub mod columns;
 pub mod command;
 pub mod error;
+pub mod ordering;
 pub mod replay;
 pub mod spaces;
 pub mod wire;
@@ -21,7 +22,7 @@ use utoipa::OpenApi;
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,
-        columns::trash, columns::restore,
+        columns::trash, columns::restore, ordering::move_column, ordering::move_card,
         cards::create, cards::read, cards::history, cards::list, cards::edit,
         cards::set_completed, cards::trash, cards::restore),
     modifiers(&Security),

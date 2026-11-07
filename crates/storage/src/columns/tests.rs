@@ -7,6 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tempfile::TempDir;
+use zedone_core::ordering::Rank::Legacy;
 use zedone_core::{
     access::{Clock, Credential, GrantScope, SpacePermission},
     columns::{self as core, *},
@@ -121,8 +122,8 @@ async fn lifecycle_preserves_position_identity_groups_replays_and_restart() {
     let first = run!(storage, admin, create, creation(1, 9)).unwrap().result;
     let second = run!(storage, admin, create, creation(2, 2)).unwrap().result;
     assert_eq!(first.names, ["Ёж 空間 😀\n"]);
-    assert_eq!(first.positions, [0]);
-    assert_eq!(second.positions, [1]);
+    assert_eq!(first.positions, [Legacy(0)]);
+    assert_eq!(second.positions, [Legacy(1)]);
     let renamed = run!(storage, admin, rename, rename_req(3, 9, "", first.version))
         .unwrap()
         .result;
@@ -600,7 +601,7 @@ async fn conflicts_preserve_all_names_positions_and_lifecycle_variants() {
         let view = fresh(&storage, &admin, 2, 1).await;
         match field {
             "name" => assert_eq!(view.names.len(), 2),
-            "position" => assert_eq!(view.positions, [1, 2]),
+            "position" => assert_eq!(view.positions, [Legacy(1), Legacy(2)]),
             _ => assert_eq!(view.state, SpaceState::Conflicted),
         }
         let listed = run!(

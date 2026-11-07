@@ -10,6 +10,7 @@ P04.02 предоставляет column.create/read/list/rename/trash/restore �
 | `column.create` | space, column, name | ReadWrite, активный родитель, новый ID |
 | `column.read` | space, column | Read/ReadWrite |
 | `column.list` | space, include_trashed | Read/ReadWrite |
+| `column.move` | space, column, before, expected | ReadWrite |
 | `column.rename` | space, column, name, expected | ReadWrite, активные родитель и колонка |
 | `column.trash` | space, column, expected | ReadWrite, активные родитель и пустая колонка |
 | `column.restore` | space, column, expected | ReadWrite, активный родитель, пустая колонка в корзине |
@@ -27,7 +28,7 @@ ID команды независим. Равные/пустые имена ра�
 ColumnSnapshot содержит space/column, names, positions, state,
 deletion_groups, empty и version. Список содержит columns. Добавление помещает
 колонку после существующих позиций, восстановление сохраняет её место;
-явное перемещение — P04.05. Конфликтующие варианты не скрываются и не
+явное перемещение — `column.move` (P04.05). Конфликтующие варианты не скрываются и не
 перезаписываются обычной командой. include_trashed=false исключает только
 однозначную корзину. Для нового состояния read/list нужен новый ID команды.
 
@@ -49,3 +50,14 @@ Receipt подтверждает прежнее выполнение, не за�
 Неизвестные корневые поля также меняют версию, включая изменение с возвратом.
 Корзина пространства с колонками
 остаётся P04.09, UI — P05.02. Архитектура — [ADR-0043](../architecture/decisions/0043-column-lifecycle.md).
+
+
+`column.move` ставит колонку перед активной колонкой `before` того же пространства;
+`before=null` — конец. Требуются свежая `column.version` и ReadWrite. Содержимое
+перемещается вместе с колонкой без изменения ID/версий/истории её карточек.
+Себя или колонку другого пространства указывать нельзя. Возврат — новая move
+с актуальной версией. Уже достигнутое место — noop; stale всё равно отклоняется.
+При неизвестном исходе повторяют точный исходный запрос. `positions` теперь
+допускает прежнее число либо массив компонентов ранга, который клиент не вычисляет:
+порядок возвращает `column.list`. UI перетаскивания — P05.05. Архитектура —
+[ADR-0045](../architecture/decisions/0045-relative-placement.md).

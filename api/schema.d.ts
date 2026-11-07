@@ -95,6 +95,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_move"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.read": {
         parameters: {
             query?: never;
@@ -185,6 +201,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["column_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_move"];
         delete?: never;
         options?: never;
         head?: never;
@@ -393,13 +425,20 @@ export interface components {
         CardList: {
             cards: components["schemas"]["CardSnapshot"][];
         };
+        /** @description A whole register: concurrent moves cannot mix a column with another rank. */
+        CardPlacement: {
+            column: string;
+            rank: components["schemas"]["Rank"];
+        };
         CardSnapshot: {
             card: string;
             columns: string[];
             completed: boolean[];
             deletion_groups: string[];
             descriptions: string[];
-            positions: number[];
+            /** @description Whole variants after a move; legacy documents and receipts omit these. */
+            placements?: components["schemas"]["CardPlacement"][];
+            positions: components["schemas"]["Rank"][];
             space: string;
             state: components["schemas"]["SpaceState"];
             tags: string[];
@@ -427,7 +466,7 @@ export interface components {
             empty: boolean;
             names: string[];
             /** @description All distinct position registers; conflicting values are never overwritten. */
-            positions: number[];
+            positions: components["schemas"]["Rank"][];
             space: string;
             state: components["schemas"]["SpaceState"];
             version: components["schemas"]["StateVersion"];
@@ -698,6 +737,77 @@ export interface components {
             operation: string;
             parameters: {
                 include_trashed: boolean;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_MoveCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                /** @description Insert before this active card in the destination; null appends. */
+                before?: string | null;
+                card: string;
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_MoveColumn: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                /** @description Insert before this active column; null appends. */
+                before?: string | null;
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
             };
         };
         /**
@@ -1294,7 +1404,9 @@ export interface components {
                 completed: boolean[];
                 deletion_groups: string[];
                 descriptions: string[];
-                positions: number[];
+                /** @description Whole variants after a move; legacy documents and receipts omit these. */
+                placements?: components["schemas"]["CardPlacement"][];
+                positions: components["schemas"]["Rank"][];
                 space: string;
                 state: components["schemas"]["SpaceState"];
                 tags: string[];
@@ -1319,7 +1431,7 @@ export interface components {
                 empty: boolean;
                 names: string[];
                 /** @description All distinct position registers; conflicting values are never overwritten. */
-                positions: number[];
+                positions: components["schemas"]["Rank"][];
                 space: string;
                 state: components["schemas"]["SpaceState"];
                 version: components["schemas"]["StateVersion"];
@@ -1408,6 +1520,28 @@ export interface components {
         };
         ListSpaces: {
             include_trashed: boolean;
+        };
+        MoveCard: {
+            /** @description Insert before this active card in the destination; null appends. */
+            before?: string | null;
+            card: string;
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
+        MoveColumn: {
+            /** @description Insert before this active column; null appends. */
+            before?: string | null;
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
+        /** @description Legacy integer positions remain valid in historical documents and receipts. */
+        Rank: number | components["schemas"]["RankPart"][];
+        RankPart: {
+            /** Format: int32 */
+            digit: number;
+            id: string;
         };
         ReadCard: {
             card: string;
@@ -1650,6 +1784,29 @@ export interface operations {
             };
         };
     };
+    card_move: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_MoveCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
     card_read: {
         parameters: {
             query?: never;
@@ -1784,6 +1941,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_ColumnList"];
+                };
+            };
+        };
+    };
+    column_move: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_MoveColumn"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
                 };
             };
         };

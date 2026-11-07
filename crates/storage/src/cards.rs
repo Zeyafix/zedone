@@ -23,7 +23,7 @@ fn invalid() -> StorageError {
 fn key(card: &str) -> String {
     format!("card:{card}")
 }
-fn object(graph: &Automerge, card: &str) -> StorageResult<ObjId> {
+pub(crate) fn object(graph: &Automerge, card: &str) -> StorageResult<ObjId> {
     let values = graph.get_all(ROOT, key(card))?;
     if values.is_empty() {
         return Err(CommandError {
@@ -116,6 +116,7 @@ fn snapshot(
                     | "description"
                     | "column"
                     | "position"
+                    | "placement"
                     | "completed"
                     | "tags"
                     | "lifecycle"
@@ -130,14 +131,28 @@ fn snapshot(
         return Err(invalid());
     }
     let descriptions = strings(graph, &object, "description")?;
-    let columns = strings(graph, &object, "column")?;
+    let placements = crate::ordering::placements(graph, &object)?;
+    let (mut columns, mut positions) = if placements.is_empty() {
+        (
+            strings(graph, &object, "column")?,
+            crate::ordering::ranks(graph, &object)?,
+        )
+    } else {
+        (
+            placements.iter().map(|p| p.column.clone()).collect(),
+            placements.iter().map(|p| p.rank.clone()).collect(),
+        )
+    };
+    columns.sort();
+    columns.dedup();
+    positions.sort_by_key(|r| r.key(card));
+    positions.dedup();
     for column in &columns {
         if !valid_id(column) {
             return Err(invalid());
         }
         column_object(graph, column)?;
     }
-    let positions = registers(graph, &object, "position", |v| v.as_u64())?;
     let completed = registers(graph, &object, "completed", |v| v.as_bool())?;
     let tags_object = map(graph, &object, "tags")?;
     let mut tags = Vec::new();
@@ -152,7 +167,8 @@ fn snapshot(
     if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
         return Err(invalid());
     }
-    let conflicted = titles.len() != 1
+    let conflicted = placements.len() > 1
+        || titles.len() != 1
         || descriptions.len() != 1
         || columns.len() != 1
         || positions.len() != 1
@@ -181,6 +197,7 @@ fn snapshot(
         columns,
         positions,
         completed,
+        placements,
         tags,
         state,
         deletion_groups,
@@ -206,7 +223,13 @@ pub(crate) fn memberships<'a>(
                 return Err(invalid());
             }
             let object = object(graph, card)?;
-            for column in strings(graph, &object, "column")? {
+            let places = crate::ordering::placements(graph, &object)?;
+            let columns = if places.is_empty() {
+                strings(graph, &object, "column")?
+            } else {
+                places.into_iter().map(|p| p.column).collect()
+            };
+            for column in columns {
                 if !valid_id(&column) {
                     return Err(invalid());
                 }
@@ -217,14 +240,22 @@ pub(crate) fn memberships<'a>(
     for (root, projection) in projections {
         if root.strip_prefix("card:").is_some_and(valid_id) {
             for op in projection.values() {
-                if op["key"] == "column"
-                    && let Some(column) = op["value"].as_str()
-                {
-                    if !valid_id(column) {
+                let column = if op["key"] == "column" {
+                    op["value"].as_str().map(str::to_owned)
+                } else if op["key"] == "placement" {
+                    Some(
+                        crate::ordering::decode_place(op["value"].as_str().ok_or_else(invalid)?)?
+                            .column,
+                    )
+                } else {
+                    None
+                };
+                if let Some(column) = column {
+                    if !valid_id(&column) {
                         return Err(invalid());
                     }
                     related
-                        .entry(column.into())
+                        .entry(column)
                         .or_default()
                         .insert(root.as_str(), projection);
                 }
@@ -267,22 +298,24 @@ impl CardStore for WriteContext<'_> {
                 }
                 .into());
             }
-            let position = self
-                .cards(&p.space)?
-                .iter()
-                .filter(|c| c.columns.contains(&p.column))
-                .flat_map(|c| c.positions.iter())
-                .max()
-                .copied()
-                .map_or(Some(0), |n| n.checked_add(1))
-                .ok_or_else(invalid)?;
+            let position = crate::ordering::append(
+                self.cards(&p.space)?
+                    .into_iter()
+                    .filter(|c| c.columns.contains(&p.column))
+                    .flat_map(|c| {
+                        c.positions
+                            .into_iter()
+                            .map(move |rank| (c.card.clone(), rank))
+                    }),
+                &p.card,
+            )?;
             self.edit(&p.space, |doc| {
                 let object = doc.put_object(ROOT, key(&p.card), ObjType::Map)?;
                 doc.put(&object, "format", "zedone.card.v1")?;
                 doc.put(&object, "title", p.title.as_str())?;
                 doc.put(&object, "description", p.description.as_str())?;
                 doc.put(&object, "column", p.column.as_str())?;
-                doc.put(&object, "position", position)?;
+                crate::ordering::put_rank(doc, &object, &position)?;
                 doc.put(&object, "completed", false)?;
                 doc.put_object(&object, "tags", ObjType::Map)?;
                 doc.put(&object, "lifecycle", "active")?;

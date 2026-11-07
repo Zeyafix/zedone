@@ -11,6 +11,7 @@ Rust — источник `api/openapi.json`, TypeScript и валидаторо
 | `card.history` | space, card, after, limit, expected | Read/ReadWrite |
 | `card.list` | space, include_trashed | Read/ReadWrite |
 | `card.edit` | space, card, title, description, expected | ReadWrite |
+| `card.set_completed` | space, card, completed, expected | ReadWrite |
 | `card.trash` | space, card, expected | ReadWrite |
 | `card.restore` | space, card, expected | ReadWrite |
 
@@ -55,13 +56,29 @@ title/description с id, subject и локальным sequence; sequence не �
 нельзя подменять expected и автоматически отправлять старую правку.
 conflict требует разрешения, которое остаётся отдельным шагом P06.
 
+`card.set_completed` явно задаёт `completed: true` или `completed: false`.
+Обе операции требуют активной карточки и родителей. Колонка не определяет
+выполнение: команда не меняет принадлежность, порядок, текст, теги и историю.
+То же значение с актуальной version — успешный noop без новой версии карточки;
+устаревшая version отклоняется даже при совпадении требуемого значения.
+После изменения описания старая отметка выполнено получает `stale_state`.
+Корзина/восстановление сохраняют выполнение. Для снятия отметки прочитайте
+актуальную карточку и подготовьте новое намерение:
+
+```ts
+const pending = await prepare(subject, "card.set_completed", {
+  space, card, completed: false, expected: snapshot.version,
+}, store);
+await client.deliver(pending);
+```
+
 При неизвестном результате повторите исходное сохранённое намерение с тем же
 ID, параметрами и expected. Receipt подтверждает прежнее выполнение и не
 является свежим состоянием для замены view. Для нового read/list нужен новый
 ID. После отзыва или истечения доступа повтор также запрещён.
 Ключ не сохраняется в намерении, не передаётся как параметр команды и не логируется.
 
-UI редактора, выполнение/теги/перемещения, серии истории и групповая корзина
+UI редактора, теги/перемещения, серии истории и групповая корзина
 контейнеров остаются последующими шагами. Наличие карточек, в том числе в корзине,
 блокирует текущую корзину/восстановление колонки. Архитектура —
 [ADR-0044](../architecture/decisions/0044-card-lifecycle.md).

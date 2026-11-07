@@ -42,6 +42,35 @@ test("card edit retains its original text and version after denial and restart; 
   expect(JSON.parse(saved).parameters.title).toBe("Ёж 😀");expect(JSON.parse(saved).parameters.expected[0]).toBe(7);
 });
 
+test("completion retries preserve the explicit value and original version after stale state and restart", async () => {
+  for (const completed of [true, false]) {
+    const { store, storage } = fixture();
+    const params = { space: newSpaceId(), card: newCardId(), completed, expected: Array(32).fill(7) };
+    const id = await prepare("2".repeat(32), "card.set_completed", params, store);
+    const saved = (await store.load(id))!.body;
+    params.completed = !completed; params.expected[0] = 8;
+    let calls = 0;
+    expect((await new CommandClient(store, async () => { calls++; return {status:"error",error:{code:"stale_state"}}; }).deliver(id)).status).toBe("pending");
+    expect(calls).toBe(1);
+    const reopened = webIntentionStore(storage, "test");
+    const response: Response = {status:"ok",replayed:true,result:{
+      space: params.space, card: params.card, titles:["Task"], descriptions:[""],
+      columns:[newColumnId()], positions:[0], completed:[completed], tags:[],
+      state:"active", deletion_groups:[], version:Array(32).fill(9),
+    }};
+    const sent: string[] = [];
+    const transport = ipcTransport(async (_, args) => {
+      sent.push((args.invocation as {request:string}).request);
+      if (sent.length === 1) throw new Error("lost reply");
+      return JSON.stringify(response);
+    }, async () => ({subject:"2".repeat(32),key:"approved"}));
+    expect((await new CommandClient(reopened, transport).deliver(id)).status).toBe("completed");
+    expect(sent).toEqual([saved, saved]);
+    expect(JSON.parse(saved).parameters).toEqual({...params, completed, expected:Array(32).fill(7)});
+    expect(await reopened.load(id)).toBeUndefined();
+  }
+});
+
 test("column intentions preserve their parent, ID and original version across restart and verify their own result", async () => {
   const {store, storage}=fixture();
   const space=newSpaceId(), column=newColumnId();

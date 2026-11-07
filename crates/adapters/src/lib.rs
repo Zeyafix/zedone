@@ -8,7 +8,8 @@ use zedone_core::{
     access::Credential,
     access_commands::{self, InspectAccess, RevokeAccess},
     cards::{
-        self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard, TrashCard,
+        self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard,
+        SetCardCompleted, TrashCard,
     },
     columns::{
         self, CreateColumn, ListColumns, ReadColumn, RenameColumn, RestoreColumn, TrashColumn,
@@ -83,6 +84,7 @@ impl Service {
                 ReadCardHistory::NAME => run!(ReadCardHistory, cards::history),
                 ListCards::NAME => run!(ListCards, cards::list),
                 EditCard::NAME => run!(EditCard, cards::edit),
+                SetCardCompleted::NAME => run!(SetCardCompleted, cards::set_completed),
                 TrashCard::NAME => run!(TrashCard, cards::trash),
                 RestoreCard::NAME => run!(RestoreCard, cards::restore),
                 _ => Err(invalid()),

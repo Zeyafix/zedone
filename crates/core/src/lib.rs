@@ -3,6 +3,7 @@
 
 pub mod access;
 pub mod access_commands;
+pub mod cards;
 pub mod columns;
 pub mod command;
 pub mod error;
@@ -20,7 +21,8 @@ use utoipa::OpenApi;
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,
-        columns::trash, columns::restore),
+        columns::trash, columns::restore,
+        cards::create, cards::read, cards::history, cards::list, cards::edit, cards::trash, cards::restore),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

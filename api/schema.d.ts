@@ -31,6 +31,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_edit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_history"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_trash"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/column.create": {
         parameters: {
             query?: never;
@@ -255,6 +367,40 @@ export interface components {
         AdministrationScope: {
             kind: components["schemas"]["AdministrationKind"];
         };
+        CardHistory: {
+            card: string;
+            next?: string | null;
+            space: string;
+            version: components["schemas"]["StateVersion"];
+            versions: components["schemas"]["CardTextVersion"][];
+        };
+        CardList: {
+            cards: components["schemas"]["CardSnapshot"][];
+        };
+        CardSnapshot: {
+            card: string;
+            columns: string[];
+            completed: boolean[];
+            deletion_groups: string[];
+            descriptions: string[];
+            positions: number[];
+            space: string;
+            state: components["schemas"]["SpaceState"];
+            tags: string[];
+            titles: string[];
+            version: components["schemas"]["StateVersion"];
+        };
+        CardTextVersion: {
+            description: string;
+            id: string;
+            /**
+             * Format: int64
+             * @description Local causal sequence; independent branches may share a sequence.
+             */
+            sequence: number;
+            subject: string;
+            title: string;
+        };
         ColumnList: {
             columns: components["schemas"]["ColumnSnapshot"][];
         };
@@ -276,6 +422,41 @@ export interface components {
         CommandFailure: {
             error: components["schemas"]["CommandError"];
             status: components["schemas"]["ErrorStatus"];
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_CreateCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                column: string;
+                description: string;
+                space: string;
+                title: string;
+            };
         };
         /**
          * @description Preserve this entire request, including the ID, for every delivery of an
@@ -349,6 +530,41 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_EditCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                description: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+                title: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_InspectAccess: {
             id: [
                 number,
@@ -371,6 +587,38 @@ export interface components {
             operation: string;
             parameters: {
                 subject: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ListCards: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                include_trashed: boolean;
+                space: string;
             };
         };
         /**
@@ -434,6 +682,74 @@ export interface components {
             operation: string;
             parameters: {
                 include_trashed: boolean;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ReadCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ReadCardHistory: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                after?: string | null;
+                card: string;
+                expected?: components["schemas"]["StateVersion"] | null;
+                /** Format: int32 */
+                limit: number;
+                space: string;
             };
         };
         /**
@@ -573,6 +889,39 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_RestoreCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RestoreColumn: {
             id: [
                 number,
@@ -661,6 +1010,39 @@ export interface components {
             parameters: {
                 expected: components["schemas"]["StateVersion"];
                 subject: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_TrashCard: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
             };
         };
         /**
@@ -770,6 +1152,27 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_CardHistory: components["schemas"]["CommandSuccess_CardHistory"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_CardList: components["schemas"]["CommandSuccess_CardList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_CardSnapshot: components["schemas"]["CommandSuccess_CardSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -811,6 +1214,41 @@ export interface components {
                 revoked: boolean;
                 scope: components["schemas"]["AccessScope"];
                 subject: string;
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_CardHistory: {
+            replayed: boolean;
+            result: {
+                card: string;
+                next?: string | null;
+                space: string;
+                version: components["schemas"]["StateVersion"];
+                versions: components["schemas"]["CardTextVersion"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_CardList: {
+            replayed: boolean;
+            result: {
+                cards: components["schemas"]["CardSnapshot"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_CardSnapshot: {
+            replayed: boolean;
+            result: {
+                card: string;
+                columns: string[];
+                completed: boolean[];
+                deletion_groups: string[];
+                descriptions: string[];
+                positions: number[];
+                space: string;
+                state: components["schemas"]["SpaceState"];
+                tags: string[];
+                titles: string[];
                 version: components["schemas"]["StateVersion"];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -864,6 +1302,13 @@ export interface components {
             result: unknown;
             status: components["schemas"]["SuccessStatus"];
         };
+        CreateCard: {
+            card: string;
+            column: string;
+            description: string;
+            space: string;
+            title: string;
+        };
         CreateColumn: {
             column: string;
             name: string;
@@ -872,6 +1317,13 @@ export interface components {
         CreateSpace: {
             name: string;
             space: string;
+        };
+        EditCard: {
+            card: string;
+            description: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+            title: string;
         };
         /**
          * @description Shared machine-readable errors, without credentials, SQL or platform details.
@@ -896,12 +1348,28 @@ export interface components {
             operation: string;
             request: string;
         };
+        ListCards: {
+            include_trashed: boolean;
+            space: string;
+        };
         ListColumns: {
             include_trashed: boolean;
             space: string;
         };
         ListSpaces: {
             include_trashed: boolean;
+        };
+        ReadCard: {
+            card: string;
+            space: string;
+        };
+        ReadCardHistory: {
+            after?: string | null;
+            card: string;
+            expected?: components["schemas"]["StateVersion"] | null;
+            /** Format: int32 */
+            limit: number;
+            space: string;
         };
         ReadColumn: {
             column: string;
@@ -919,6 +1387,11 @@ export interface components {
         RenameSpace: {
             expected: components["schemas"]["StateVersion"];
             name: string;
+            space: string;
+        };
+        RestoreCard: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
             space: string;
         };
         RestoreColumn: {
@@ -960,6 +1433,11 @@ export interface components {
         StateVersion: number[];
         /** @enum {string} */
         SuccessStatus: "ok";
+        TrashCard: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
         TrashColumn: {
             column: string;
             expected: components["schemas"]["StateVersion"];
@@ -1020,6 +1498,167 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_AccessSnapshot"];
+                };
+            };
+        };
+    };
+    card_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CreateCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_edit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_EditCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadCardHistory"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardHistory"];
+                };
+            };
+        };
+    };
+    card_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListCards"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardList"];
+                };
+            };
+        };
+    };
+    card_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RestoreCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_trash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_TrashCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
                 };
             };
         };

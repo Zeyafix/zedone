@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, newSpaceId, newColumnId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
 import validateResponse from "../api/validate-response.js";
 
 function fixture() {
@@ -17,6 +17,30 @@ const parameters = { subject: "1".repeat(32) };
 const success: Response = { status: "ok", replayed: true, result: {
   subject: parameters.subject, scope: { kind: "administration" }, expires_at_unix_ms: null, revoked: true, version: Array(32).fill(1),
 } };
+
+test("card edit retains its original text and version after denial and restart; validation includes paired history", async () => {
+  const {store, storage}=fixture();
+  const card=newCardId(),space=newSpaceId(),column=newColumnId();
+  expect(card).toMatch(/^[a-f0-9]{32}$/);expect(newCardId()).not.toBe(card);
+  const params={space,card,title:"Ёж 😀",description:"<b>raw</b>",expected:Array(32).fill(7)};
+  const id=await prepare("2".repeat(32),"card.edit",params,store);
+  const saved=(await store.load(id))!.body;
+  params.title="later input";params.expected[0]=8;
+  const response: Response={status:"error",error:{code:"stale_state"}};
+  expect((await new CommandClient(store,async()=>response).deliver(id)).status).toBe("pending");
+  const restarted=webIntentionStore(storage,"test");expect((await restarted.load(id))!.body).toBe(saved);
+  const result={space,card,titles:["Ёж 😀"],descriptions:["<b>raw</b>"],columns:[column],positions:[0],completed:[false],tags:[],state:"active" as const,deletion_groups:[],version:Array(32).fill(9)};
+  const completed: Response={status:"ok",replayed:true,result};
+  expect(validateResponse(completed,"card.edit")).toBe(true);
+  expect(validateResponse(completed,"column.rename")).toBe(false);
+  expect(validateResponse({...completed,result:{cards:[result]}},"card.list")).toBe(true);
+  const history={space,card,versions:[{id:"version",subject:"2".repeat(32),sequence:1,title:"Ёж 😀",description:"<b>raw</b>"}],next:null,version:Array(32).fill(9)};
+  expect(validateResponse({...completed,result:history},"card.history")).toBe(true);
+  expect(validateResponse({...completed,result:{...history,versions:[{...history.versions[0],description:42}]}},"card.history")).toBe(false);
+  expect(validateResponse({...completed,result:{...result,completed:["false"]}},"card.edit")).toBe(false);
+  expect((await new CommandClient(restarted,async intention=>{expect(intention.body).toBe(saved);return completed;}).deliver(id)).status).toBe("completed");
+  expect(JSON.parse(saved).parameters.title).toBe("Ёж 😀");expect(JSON.parse(saved).parameters.expected[0]).toBe(7);
+});
 
 test("column intentions preserve their parent, ID and original version across restart and verify their own result", async () => {
   const {store, storage}=fixture();

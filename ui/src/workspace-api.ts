@@ -6,7 +6,7 @@ import { localCredential, localTransport } from "./connection";
 type Schemas = components["schemas"];
 export type Space = Schemas["SpaceSnapshot"];
 export type Column = Schemas["ColumnSnapshot"];
-export type Mutation = Exclude<Operation, "access.inspect" | "access.revoke" | "space.list" | "space.read" | "column.list" | "column.read">;
+export type Mutation = Extract<Operation, `${"space" | "column"}.${"create" | "rename" | "trash" | "restore"}`>;
 type Reads = {
   "space.list": Schemas["SpaceList"];
   "space.read": Space;

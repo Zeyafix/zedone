@@ -11,6 +11,14 @@ SHA-256 `08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044`.
 [EV-052](../agent/verification/EV-052-schema-admission.md).
 
 Архитектура — [границы ядра](../architecture/core-boundaries.md).
+Жизненный цикл карточки — [ADR-0044](../architecture/decisions/0044-card-lifecycle.md)
+и [API агента](../agent/cards.md). CardStore расширяет ColumnStore; карточка
+хранится одним корневым объектом, а не копируется в колонку. Текст/история/receipt
+сохраняются атомарно; история не участвует в причинной версии карточки.
+Column.empty/version учитывают текущие и удалённые связи карточек, включая корзину.
+Тесты cards проверяют полный жизненный цикл, поля/stale/ABA, историю,
+конфликты, права, SQL/commit, restart, конкуренцию и общие HTTP/IPC/CLI.
+Нативная матрица выполняется одинаково на Windows/Android командами ниже.
 Жизненный цикл пустых колонок — [ADR-0043](../architecture/decisions/0043-column-lifecycle.md),
 контракт и доставка — [инструкция агента](../agent/columns.md).
 `core::columns::ColumnStore` расширяет SpaceStore; WriteContext хранит

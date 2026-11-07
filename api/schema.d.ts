@@ -159,6 +159,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.set_tag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_set_tag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.trash": {
         parameters: {
             query?: never;
@@ -383,6 +399,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/tag.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/tag.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/tag.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/tag.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/tag.rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -585,6 +681,72 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_CreateTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                name: string;
+                space: string;
+                tag: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_DeleteTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+                tag: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_EditCard: {
             id: [
                 number,
@@ -737,6 +899,38 @@ export interface components {
             operation: string;
             parameters: {
                 include_trashed: boolean;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ListTags: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                include_deleted: boolean;
+                space: string;
             };
         };
         /**
@@ -948,6 +1142,38 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_ReadTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                space: string;
+                tag: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RenameColumn: {
             id: [
                 number,
@@ -1006,6 +1232,40 @@ export interface components {
                 expected: components["schemas"]["StateVersion"];
                 name: string;
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_RenameTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                name: string;
+                space: string;
+                tag: string;
             };
         };
         /**
@@ -1170,6 +1430,42 @@ export interface components {
                 completed: boolean;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_SetCardTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                expected_tag: components["schemas"]["StateVersion"];
+                present: boolean;
+                space: string;
+                tag: string;
             };
         };
         /**
@@ -1361,6 +1657,20 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_TagList: components["schemas"]["CommandSuccess_TagList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_TagSnapshot: components["schemas"]["CommandSuccess_TagSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_Value: components["schemas"]["CommandSuccess_Value"] | components["schemas"]["CommandFailure"];
         CommandSuccess_AccessSnapshot: {
             replayed: boolean;
@@ -1459,6 +1769,25 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_TagList: {
+            replayed: boolean;
+            result: {
+                tags: components["schemas"]["TagSnapshot"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_TagSnapshot: {
+            replayed: boolean;
+            result: {
+                names: string[];
+                space: string;
+                state: components["schemas"]["TagState"];
+                tag: string;
+                /** @description Includes causal assignment history, so deletion cannot expand silently. */
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_Value: {
             replayed: boolean;
             result: unknown;
@@ -1479,6 +1808,16 @@ export interface components {
         CreateSpace: {
             name: string;
             space: string;
+        };
+        CreateTag: {
+            name: string;
+            space: string;
+            tag: string;
+        };
+        DeleteTag: {
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+            tag: string;
         };
         EditCard: {
             card: string;
@@ -1521,6 +1860,10 @@ export interface components {
         ListSpaces: {
             include_trashed: boolean;
         };
+        ListTags: {
+            include_deleted: boolean;
+            space: string;
+        };
         MoveCard: {
             /** @description Insert before this active card in the destination; null appends. */
             before?: string | null;
@@ -1562,6 +1905,10 @@ export interface components {
         ReadSpace: {
             space: string;
         };
+        ReadTag: {
+            space: string;
+            tag: string;
+        };
         RenameColumn: {
             column: string;
             expected: components["schemas"]["StateVersion"];
@@ -1572,6 +1919,12 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             name: string;
             space: string;
+        };
+        RenameTag: {
+            expected: components["schemas"]["StateVersion"];
+            name: string;
+            space: string;
+            tag: string;
         };
         RestoreCard: {
             card: string;
@@ -1596,6 +1949,14 @@ export interface components {
             completed: boolean;
             expected: components["schemas"]["StateVersion"];
             space: string;
+        };
+        SetCardTag: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            expected_tag: components["schemas"]["StateVersion"];
+            present: boolean;
+            space: string;
+            tag: string;
         };
         SpaceList: {
             spaces: components["schemas"]["SpaceSnapshot"][];
@@ -1623,6 +1984,19 @@ export interface components {
         StateVersion: number[];
         /** @enum {string} */
         SuccessStatus: "ok";
+        TagList: {
+            tags: components["schemas"]["TagSnapshot"][];
+        };
+        TagSnapshot: {
+            names: string[];
+            space: string;
+            state: components["schemas"]["TagState"];
+            tag: string;
+            /** @description Includes causal assignment history, so deletion cannot expand silently. */
+            version: components["schemas"]["StateVersion"];
+        };
+        /** @enum {string} */
+        TagState: "active" | "deleted" | "conflicted";
         TrashCard: {
             card: string;
             expected: components["schemas"]["StateVersion"];
@@ -1863,6 +2237,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_SetCardCompleted"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_set_tag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_SetCardTag"];
             };
         };
         responses: {
@@ -2194,6 +2591,121 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
+    tag_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CreateTag"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    tag_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_DeleteTag"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    tag_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListTags"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagList"];
+                };
+            };
+        };
+    };
+    tag_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadTag"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    tag_rename: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RenameTag"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
                 };
             };
         };

@@ -1,0 +1,60 @@
+# Теги через общий API
+
+Используйте тот же Service через HTTP `/v1/commands/<operation>`, CLI или Tauri IPC;
+прямая запись в SQLite не является API. JSON-контракт и клиент выведены из Rust.
+`tag.read/list` требуют Read, изменения — ReadWrite точного пространства.
+Действующие права, срок и отзыв проверяются также перед replay.
+
+| Команда | Параметры |
+| --- | --- |
+| `tag.create` | `space`, новый `tag`, `name` |
+| `tag.read` | `space`, `tag` |
+| `tag.list` | `space`, `include_deleted` |
+| `tag.rename` | `space`, `tag`, `name`, `expected` из TagSnapshot |
+| `tag.delete` | `space`, `tag`, `expected` из TagSnapshot |
+| `card.set_tag` | `space`, `card`, `tag`, `present`, `expected` карточки, `expected_tag` тега |
+
+TagSnapshot содержит `space`, `tag`, варианты `names`, `state`:
+`active/deleted/conflicted`, причинную `version`. Список отсортирован общим ядром.
+`include_deleted=true` и `tag.read` позволяют проверить техническую отметку
+удаления; это не корзина и не возможность восстановления.
+
+```ts
+import { newTagId, prepare } from "../../client/commands";
+const tag = newTagId();
+const create = await prepare(subject, "tag.create", { space, tag, name: "Работа" }, store);
+await client.deliver(create);
+// Затем свежие card.read и tag.read с новыми ID, а не старые receipts.
+const assign = await prepare(subject, "card.set_tag", {
+  space, card, tag, present: true,
+  expected: cardSnapshot.version, expected_tag: tagSnapshot.version,
+}, store);
+await client.deliver(assign);
+```
+
+Для снятия используйте новую команду с `present:false` и актуальными версиями.
+Noop не меняет доменную версию, но проверяет исходные условия. Не заменяйте набор
+тегов целиком. Сохраняйте исходные ID/версии/имя/флаг в намерении до доставки;
+при неизвестном исходе повторяется точное намерение. `stale_state` требует
+свежего чтения и нового решения, а не автоматической подмены expected.
+
+Имена сравниваются Unicode White_Space trim + канонический full case folding
+с NFC-ключом, независимо от локали. Исходное имя сохраняется. Занятое имя даёт
+`conflict`, пустое — `invalid_request`. Переименование не объединяет теги.
+Различие е/ё, внутренние пробелы и диакритика сохраняются.
+
+`tag.delete` атомарно снимает назначения в активных карточках и корзине, сохраняя
+карточки. Новые/снятые назначения делают подготовленное удаление устаревшим;
+токены также консервативно учитывают корни имён пространства. Новый тег с прежним
+именем получает новый ID; старый ID занят отметкой удаления. `tag.restore` нет.
+Повтор старого успешного назначения возвращает старый receipt и не назначает тег
+снова после снятия/удаления. Для текущего состояния нужны новые read-команды.
+
+Собственные конфликты карточки блокируют обычные изменения. Конфликт только
+имени тега блокирует его назначение/снятие, сохраняя правки карточки и работу
+с другими тегами. UI и продуктовые решения/обмен — P05/P06.
+
+Схема v6 требует штатного startup с проверенной предмиграционной копией для
+старой базы; не сбрасывайте базу ради запуска и не используйте старый writer.
+[Архитектура](../architecture/decisions/0046-tag-lifecycle.md) ·
+[повторы](command-retries.md) · [проверка](verification/EV-070-tags.md).

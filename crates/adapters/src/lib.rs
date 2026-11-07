@@ -18,6 +18,7 @@ use zedone_core::{
     ordering::{self, MoveCard, MoveColumn},
     replay::Execution,
     spaces::{self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, RestoreSpace, TrashSpace},
+    tags::{self, CreateTag, DeleteTag, ListTags, ReadTag, RenameTag, SetCardTag},
     wire::{CommandResponse, decode_request},
 };
 use zedone_storage::Storage;
@@ -90,6 +91,12 @@ impl Service {
                 SetCardCompleted::NAME => run!(SetCardCompleted, cards::set_completed),
                 TrashCard::NAME => run!(TrashCard, cards::trash),
                 RestoreCard::NAME => run!(RestoreCard, cards::restore),
+                CreateTag::NAME => run!(CreateTag, tags::create),
+                ReadTag::NAME => run!(ReadTag, tags::read),
+                ListTags::NAME => run!(ListTags, tags::list),
+                RenameTag::NAME => run!(RenameTag, tags::rename),
+                DeleteTag::NAME => run!(DeleteTag, tags::delete),
+                SetCardTag::NAME => run!(SetCardTag, tags::set_card_tag),
                 _ => Err(invalid()),
             }
         }

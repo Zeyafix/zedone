@@ -11,6 +11,15 @@ SHA-256 `08683246876eb7e32592efe22be11737406fccfa15e787742b3505c9f1e6a044`.
 [EV-052](../agent/verification/EV-052-schema-admission.md).
 
 Архитектура — [границы ядра](../architecture/core-boundaries.md).
+Теги и `card.set_tag` — [ADR-0046](../architecture/decisions/0046-tag-lifecycle.md)
+и [API агента](../agent/tags.md). TagStore расширяет CardStore; bool-регистры
+назначений и техническое удаление сохраняются в том же Automerge-графе.
+Unicode-сравнение выполняют закреплённые ICU4X casemap/normalizer 2.4.0 с
+compiled_data; JS/SQLite/локаль ОС не сравнивают имена независимо.
+Семантическая схема v6 использует прежний DDL и защищённую миграцию с копией;
+исторические графы и receipts не переписываются. Новые тесты tags проверяют
+уникальность/обратные действия, версии/ABA/replay, атомарность/SQL/конкуренцию,
+сохранность конфликтов, Windows/нативный Android и общий HTTP/CLI/IPC.
 Жизненный цикл карточки — [ADR-0044](../architecture/decisions/0044-card-lifecycle.md)
 и [API агента](../agent/cards.md). CardStore расширяет ColumnStore; карточка
 хранится одним корневым объектом, а не копируется в колонку. Текст/история/receipt

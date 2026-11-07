@@ -9,6 +9,8 @@ publish.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 utoipa.workspace = true
+icu_casemap.workspace = true
+icu_normalizer.workspace = true
 
 [lints]
 workspace = true

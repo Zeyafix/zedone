@@ -47,6 +47,9 @@ export function newColumnId(): string { return randomId().id; }
 /** Generate once and persist with the card creation intention. */
 export function newCardId(): string { return randomId().id; }
 
+/** A deleted tag identity cannot be reused, even for the same name. */
+export function newTagId(): string { return randomId().id; }
+
 const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 export class CommandClient {
   constructor(private readonly store: IntentionStore, private readonly transport: Transport) {}

@@ -12,8 +12,8 @@ dependencies_evidence: [P04.02/EV-065/PR54/889d4b0]
 scope: [core card lifecycle and paged history, storage cards and column membership, Service HTTP/CLI/IPC, Rust-derived contract, client intentions, tests, docs]
 checks: [bun scripts/check-product.mjs, bun scripts/check-product.mjs --android, git diff --check]
 reverse_and_failure: Правка обратно, корзина/восстановление, stale/ABA, права/отзыв/срок, SQL/commit rollback, неизвестный результат, restart и конкуренция.
-result: verified_publication_authorized
-next: PR/финальный CI, проверка замечаний и merge/удаление ветки по поручению LOG-330; следующий продуктовый шаг P04.04 после done P04.03.
+result: done_merged_pr_58
+next: P04.04, выполнение/снятие отметки карточки через общий API; новая реализация не начата.
 ```
 
 Ориентир 300 строк превышается неделимым жизненным циклом: создание сразу
@@ -73,9 +73,7 @@ Rust-тестов на x86_64, включая настоящий CLI и преж
 Машинные логи остаются только в игнорируемых docs/reports/p04-03-*-complete.log.
 Полный handwritten/generated diff проверен; git diff --check passed.
 
-P04.03 verified локально, без коммита/PR/новых CI/merge. Новых BUG/GAP/блокеров
-не выявлено. Следующий шаг — ревью/публикация по поручению и финальные проверки
-точного head; после интеграции готов P04.04. Другие продуктовые шаги не начаты.
+P04.03 done: [PR #58](https://github.com/Zeyafix/zedone/pull/58), head e0ee5ed, merged 2bbc0db после семи SUCCESS Windows/Linux/Android. Ветка удалена локально/на GitHub, watch снят. Новых BUG/GAP/блокеров нет. Следующий готовый шаг P04.04; другие продуктовые шаги не начаты.
 
 ## Границы приёмки
 
@@ -86,8 +84,7 @@ P04.03 verified локально, без коммита/PR/новых CI/merge. 
 хранилище пока разбирает историю целевой карточки целиком при построении страницы.
 Полные T06/T07/A01/A05/A07/A18/A21/A33/A55 остаются partial.
 Физический arm64, release APK и полный UI-паритет не принимаются.
-Публикация/условные merge и удаление ветки поручены разработчиком (LOG-330).
-До фактического успеха финального head/CI и интеграции P04.03 остаётся verified.
+Поручение LOG-330 выполнено: PR #58 интегрирован после успешного финального CI, ветка удалена; LOG-331.
 
 ## Пять правил
 
@@ -100,3 +97,17 @@ P04.03 verified локально, без коммита/PR/новых CI/merge. 
   UI/APK/физический телефон вне текущей приёмки.
 - Источник истины: одна SQLite/Automerge, транзакционная история/receipts,
   Rust-derived контракт; клиент хранит только исходное намерение доставки.
+
+## Окончательная интеграция
+
+[PR #58](https://github.com/Zeyafix/zedone/pull/58), точный head
+e0ee5edf27f20800f5debd96aeb7ef7b7ed29928, прошёл все семь checks.
+Запуски: [host](https://github.com/Zeyafix/zedone/actions/runs/42351945557),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42351945565).
+Raw logs подтвердили продуктовые 186 Rust-тестов/16 клиентских/123 assertions,
+Rust/OpenAPI/TS/validator, обе release ABI/unsafe, а также прежние prototype
+native/UI/Android shell/negative-cleanup проверки без сокращения матрицы.
+Перед merge проверены тот же head, CLEAN/MERGEABLE и отсутствие замечаний
+или запросов ревью. Merge — 2bbc0dbb703db8464c2fd70dc99a2e4677959b3a; ветка удалена
+локально/на GitHub, main обновлён, watch снят. Ограничения выше сохранены.
+Это успех конкретной ревизии и запусков; полная приёмка продукта не заявляется.

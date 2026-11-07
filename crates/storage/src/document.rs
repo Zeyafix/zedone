@@ -234,17 +234,33 @@ impl<'a> WriteContext<'a> {
         self.checked(result)
     }
 
-    pub(crate) fn flush(self) -> StorageResult<()> {
+    /// Flush one space inside the existing SQLite transaction, then release its
+    /// graph. This does not commit; an outer failure still rolls back all spaces.
+    pub(crate) fn flush_document(&mut self, space: &str) -> StorageResult<()> {
+        let result = (|| {
+            if self.failed {
+                return Err(StorageError::Unavailable);
+            }
+            if let Some(document) = self.read.documents.remove(space) {
+                let mut insert = self.read.connection.prepare(
+                    "INSERT INTO changes(space, hash, bytes) VALUES (?1, ?2, ?3) ON CONFLICT(space, hash) DO NOTHING",
+                )?;
+                for change in document.pending {
+                    insert.execute((space, change.hash().as_ref(), change.raw_bytes()))?;
+                }
+            }
+            Ok(())
+        })();
+        self.checked(result)
+    }
+
+    pub(crate) fn flush(mut self) -> StorageResult<()> {
         if self.failed {
             return Err(StorageError::Unavailable);
         }
-        let mut insert = self.read.connection.prepare(
-            "INSERT INTO changes(space, hash, bytes) VALUES (?1, ?2, ?3) ON CONFLICT(space, hash) DO NOTHING",
-        )?;
-        for (space, document) in self.read.documents {
-            for change in document.pending {
-                insert.execute((&space, change.hash().as_ref(), change.raw_bytes()))?;
-            }
+        let spaces: Vec<_> = self.read.documents.keys().cloned().collect();
+        for space in spaces {
+            self.flush_document(&space)?;
         }
         Ok(())
     }

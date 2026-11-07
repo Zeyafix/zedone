@@ -74,6 +74,7 @@ macro_rules! run {
     }};
 }
 mod completion;
+mod history;
 mod ordering;
 mod search;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {

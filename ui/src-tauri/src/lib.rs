@@ -73,10 +73,17 @@ impl Shell {
 
 pub async fn open_shell(directory: &Path) -> Shell {
     let service = if std::fs::create_dir_all(directory).is_ok() {
-        zedone_storage::Storage::open(directory.join("zedone.sqlite"))
-            .await
-            .ok()
-            .map(Service::new)
+        match zedone_storage::Storage::open(directory.join("zedone.sqlite")).await {
+            Ok(storage) => {
+                if storage.recover_editing_sessions().await.is_ok() {
+                    Some(Service::new(storage))
+                } else {
+                    let _ = storage.shutdown().await;
+                    None
+                }
+            }
+            Err(_) => None,
+        }
     } else {
         None
     };

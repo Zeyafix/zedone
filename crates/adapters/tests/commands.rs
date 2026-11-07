@@ -29,6 +29,9 @@ mod spaces;
 #[path = "commands/columns.rs"]
 mod columns;
 
+#[path = "commands/history.rs"]
+mod history;
+
 #[path = "commands/cards.rs"]
 mod cards;
 #[path = "commands/ordering.rs"]

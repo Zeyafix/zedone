@@ -1,4 +1,7 @@
 //! Card policy shared by every transport, inside the authorized transaction.
+use crate::card_history::{
+    self, AutosaveCard, BeginCardEditing, FinishCardEditing, RestoreCardText,
+};
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission},
     columns::ColumnStore,
@@ -153,6 +156,36 @@ impl Command for RestoreCard {
 }
 
 pub trait CardStore: ColumnStore {
+    fn begin_card_editing(
+        &mut self,
+        space: &str,
+        card: &str,
+        subject: &str,
+        session: &str,
+    ) -> CommandResult<()>;
+    fn autosave_card(
+        &mut self,
+        parameters: &AutosaveCard,
+        subject: &str,
+        command: &str,
+        now_ms: i64,
+    ) -> CommandResult<()>;
+    fn finish_card_editing(
+        &mut self,
+        space: &str,
+        card: &str,
+        subject: &str,
+        session: &str,
+    ) -> CommandResult<()>;
+    fn settle_card_history(&mut self, space: &str, card: &str, now_ms: i64) -> CommandResult<()>;
+    fn restore_card_text(
+        &mut self,
+        space: &str,
+        card: &str,
+        version: &str,
+        subject: &str,
+        command: &str,
+    ) -> CommandResult<()>;
     fn create_card(
         &mut self,
         parameters: &CreateCard,
@@ -279,6 +312,7 @@ pub fn history(
         request.id,
         p,
         |tx| {
+            tx.settle_card_history(&p.space, &p.card, card_history::now_ms(clock)?)?;
             let mut history = tx.card_history(&p.space, &p.card)?;
             if let Some(expected) = p.expected {
                 replay::require_current(expected, history.version)?;
@@ -340,6 +374,10 @@ pub fn list(
     )
 }
 enum Change<'a> {
+    BeginEditing,
+    Autosave(&'a AutosaveCard),
+    FinishEditing(&'a str),
+    RestoreText(&'a str),
     Edit(&'a EditCard),
     SetCompleted(bool),
     Trash,
@@ -377,6 +415,18 @@ fn change<C: Command<Output = CardSnapshot>>(
             parents(tx, space, &before.columns[0])?;
             let command = command_id(&request.id);
             match action {
+                Change::BeginEditing if before.state == SpaceState::Active => {
+                    tx.begin_card_editing(space, card, subject, &command)?;
+                }
+                Change::Autosave(p) if before.state == SpaceState::Active => {
+                    tx.autosave_card(p, subject, &command, card_history::now_ms(clock)?)?;
+                }
+                Change::FinishEditing(session) if before.state == SpaceState::Active => {
+                    tx.finish_card_editing(space, card, subject, session)?;
+                }
+                Change::RestoreText(version) if before.state == SpaceState::Active => {
+                    tx.restore_card_text(space, card, version, subject, &command)?;
+                }
                 Change::Edit(p) if before.state == SpaceState::Active => {
                     tx.edit_card(p, subject, &command)?
                 }
@@ -464,5 +514,89 @@ pub fn restore(
         request,
         (&p.space, &p.card, p.expected),
         Change::Restore,
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/card.begin_editing", operation_id = "card_begin_editing", request_body = CommandRequest<BeginCardEditing>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn begin_editing(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<BeginCardEditing>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.card, p.expected),
+        Change::BeginEditing,
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/card.autosave", operation_id = "card_autosave", request_body = CommandRequest<AutosaveCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn autosave(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<AutosaveCard>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    title(&p.title)?;
+    if !valid_id(&p.session) {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.card, p.expected),
+        Change::Autosave(p),
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/card.finish_editing", operation_id = "card_finish_editing", request_body = CommandRequest<FinishCardEditing>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn finish_editing(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<FinishCardEditing>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    if !valid_id(&p.session) {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.card, p.expected),
+        Change::FinishEditing(&p.session),
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/card.restore_text", operation_id = "card_restore_text", request_body = CommandRequest<RestoreCardText>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn restore_text(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<RestoreCardText>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    let parts: Vec<_> = p.text_version.split(':').collect();
+    if parts.len() != 2 || !parts.iter().all(|part| valid_id(part)) {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.card, p.expected),
+        Change::RestoreText(&p.text_version),
     )
 }

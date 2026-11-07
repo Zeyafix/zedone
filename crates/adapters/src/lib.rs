@@ -7,6 +7,7 @@ use serde_json::Value;
 use zedone_core::{
     access::Credential,
     access_commands::{self, InspectAccess, RevokeAccess},
+    card_history::{AutosaveCard, BeginCardEditing, FinishCardEditing, RestoreCardText},
     cards::{
         self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard,
         SetCardCompleted, TrashCard,
@@ -89,6 +90,10 @@ impl Service {
                 ReadCardHistory::NAME => run!(ReadCardHistory, cards::history),
                 ListCards::NAME => run!(ListCards, cards::list),
                 SearchCards::NAME => run!(SearchCards, search::search),
+                BeginCardEditing::NAME => run!(BeginCardEditing, cards::begin_editing),
+                AutosaveCard::NAME => run!(AutosaveCard, cards::autosave),
+                FinishCardEditing::NAME => run!(FinishCardEditing, cards::finish_editing),
+                RestoreCardText::NAME => run!(RestoreCardText, cards::restore_text),
                 EditCard::NAME => run!(EditCard, cards::edit),
                 SetCardCompleted::NAME => run!(SetCardCompleted, cards::set_completed),
                 TrashCard::NAME => run!(TrashCard, cards::trash),

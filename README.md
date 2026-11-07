@@ -1,5 +1,8 @@
 # ZeDone
 
+Для пользователей: [Quick Start для Windows 11](docs/user/quick-start-windows.md)
+— пробный запуск и первые действия; пользовательского выпуска пока нет.
+
 Для разработчиков: [Quick Start для Windows 11](docs/development/quick-start-windows.md).
 
 Технические прототипы: [подготовка и проверки P01](docs/development/prototypes.md).

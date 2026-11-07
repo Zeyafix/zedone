@@ -1,0 +1,258 @@
+<script setup lang="ts">
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
+import { newColumnId, newSpaceId } from "../../client/commands";
+import { createMutation, deliverMutation, errorMessage, forgetMutation, pendingCommands, read, type Column, type Mutation, type Pending, type Space } from "./workspace-api";
+
+const props = defineProps<{ ready: boolean }>();
+type Action = { kind: "space.create" } | { kind: "column.create"; space: string } | { kind: "space.rename" | "space.trash" | "space.restore"; target: Space } | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column } | { kind: "forget"; id: string };
+const labels: Record<Mutation | "forget", string> = {
+  "space.create": "Создать пространство", "column.create": "Создать колонку",
+  "space.rename": "Переименовать пространство", "column.rename": "Переименовать колонку",
+  "space.trash": "В корзину", "column.trash": "В корзину",
+  "space.restore": "Восстановить", "column.restore": "Восстановить", forget: "Убрать из списка",
+};
+const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];
+const selected = ref(routeSpace());
+const spaces = ref<Space[]>([]);
+const space = ref<Space>();
+const columns = ref<Column[]>([]);
+const showTrash = ref(false);
+const loading = ref(false);
+const busy = ref(false);
+const error = ref("");
+const notice = ref("");
+const pending = ref<Pending[]>([]);
+const storageError = ref(false);
+const action = ref<Action>();
+const dialogOpen = ref(false);
+const name = ref("");
+const formError = ref("");
+const titleInput = ref<HTMLInputElement>();
+const viewHeading = ref<HTMLElement>();
+let opener: HTMLElement | undefined;
+let generation = 0;
+const blocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready);
+const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename"));
+const title = (item: Space | Column) => item.names.length === 1 ? item.names[0] || "Без названия" : "Конфликт названий";
+const visibleSpaces = computed(() => spaces.value.filter(item => showTrash.value ? item.state === "trashed" : item.state !== "trashed"));
+const visibleColumns = computed(() => columns.value.filter(item => showTrash.value ? item.state === "trashed" : item.state !== "trashed"));
+const groups = computed(() => [
+  { label: "Конфликты названий", items: visibleSpaces.value.filter(item => item.names.length !== 1) },
+  { label: "Пространства", items: visibleSpaces.value.filter(item => item.names.length === 1) },
+].filter(group => group.items.length));
+const conflicts = (item: Space | Column) => item.names.length !== 1 || item.state === "conflicted" || "positions" in item && item.positions.length !== 1;
+
+async function loadPending() {
+  try { pending.value = await pendingCommands(); storageError.value = false; }
+  catch { storageError.value = true; }
+}
+async function refresh() {
+  const current = ++generation;
+  if (!props.ready) return;
+  loading.value = true;
+  error.value = "";
+  try {
+    // Await both even when one fails; no abandoned read can overwrite a newer view.
+    const results = await Promise.allSettled([
+      read("space.list", { include_trashed: true }),
+      selected.value ? read("space.read", { space: selected.value }) : Promise.resolve(undefined),
+      selected.value ? read("column.list", { space: selected.value, include_trashed: true }) : Promise.resolve(undefined),
+    ]);
+    if (current !== generation) return;
+    const failure = results.find(result => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
+    const [list, board, children] = results;
+    if (list?.status === "fulfilled") spaces.value = list.value!.spaces;
+    if (board?.status === "fulfilled") space.value = board.value;
+    if (children?.status === "fulfilled") columns.value = children.value?.columns ?? [];
+  } catch (cause) {
+    if (current !== generation) return;
+    spaces.value = []; space.value = undefined; columns.value = [];
+    error.value = errorMessage(cause);
+  } finally { if (current === generation) loading.value = false; }
+}
+async function routeChanged() {
+  const id = routeSpace();
+  if (id === selected.value) return;
+  selected.value = id;
+  showTrash.value = false;
+  space.value = undefined; columns.value = [];
+  await refresh();
+  await nextTick(); viewHeading.value?.focus();
+}
+watch(() => props.ready, ready => {
+  if (ready) { void refresh(); void loadPending(); }
+  else { generation++; loading.value = false; spaces.value = []; space.value = undefined; columns.value = []; }
+}, { immediate: true });
+onMounted(() => { window.addEventListener("hashchange", routeChanged); void loadPending(); });
+onUnmounted(() => { generation++; window.removeEventListener("hashchange", routeChanged); });
+
+async function open(next: Action, event: Event) {
+  opener = event.currentTarget as HTMLElement;
+  if (busy.value) return;
+  busy.value = true;
+  try {
+    // Freeze the fresh original version at dialog opening. Refresh never rebases it.
+    switch (next.kind) {
+      case "column.rename": case "column.trash": case "column.restore":
+        next = { kind: next.kind, target: await read("column.read", { space: next.target.space, column: next.target.column }) }; break;
+      case "space.rename": case "space.trash": case "space.restore":
+        next = { kind: next.kind, target: await read("space.read", { space: next.target.space }) }; break;
+    }
+    action.value = next; name.value = "target" in next ? next.target.names[0] ?? "" : "";
+    formError.value = ""; dialogOpen.value = true;
+  } catch (cause) { error.value = errorMessage(cause); }
+  finally { busy.value = false; }
+}
+function restoreFocus(event: Event) {
+  event.preventDefault();
+  if (opener?.isConnected && !opener.matches(":disabled")) opener.focus(); else viewHeading.value?.focus();
+}
+function initialFocus(event: Event) {
+  if (naming.value) { event.preventDefault(); titleInput.value?.focus(); titleInput.value?.select(); }
+}
+async function retry(id: string) {
+  if (busy.value) return;
+  busy.value = true; error.value = ""; notice.value = "";
+  try {
+    const result = await deliverMutation(id);
+    if (result.status === "completed") {
+      notice.value = "Действие подтверждено.";
+      dialogOpen.value = false;
+      await refresh();
+    } else {
+      const message = result.reason === "identity_changed"
+        ? "Учётная запись изменилась. Повтор возможен только от исходной учётной записи."
+        : result.response?.status === "error" ? errorMessage(new Error(result.response.error.code))
+          : "Результат неизвестен. Повторите исходное действие ниже; новый объект не создаётся.";
+      error.value = message; formError.value = message;
+    }
+  } catch { error.value = "Не удалось прочитать или сохранить очередь действий. Сохранённое действие не заменяется новым."; }
+  finally { await loadPending(); busy.value = false; }
+}
+async function submit() {
+  const current = action.value;
+  if (!current || busy.value) return;
+  if (current.kind === "forget") {
+    try { await forgetMutation(current.id); await loadPending(); dialogOpen.value = false; notice.value = "Действие убрано из списка. Уже принятое изменение этим не отменяется. Обновите данные перед новым действием."; }
+    catch { formError.value = "Убрать действие из списка не удалось."; }
+    return;
+  }
+  if (blocked.value) { formError.value = "Сначала проверьте незавершённое действие. Название осталось в форме."; return; }
+  busy.value = true; formError.value = ""; notice.value = "";
+  let id: string;
+  try {
+    switch (current.kind) {
+      case "space.create": id = await createMutation(current.kind, { space: newSpaceId(), name: name.value }); break;
+      case "column.create":
+        id = await createMutation(current.kind, { space: current.space, column: newColumnId(), name: name.value }); break;
+      case "space.rename": id = await createMutation(current.kind, { space: current.target.space, expected: current.target.version, name: name.value }); break;
+      case "space.trash": case "space.restore": id = await createMutation(current.kind, { space: current.target.space, expected: current.target.version }); break;
+      case "column.rename": id = await createMutation(current.kind, { space: current.target.space, column: current.target.column, expected: current.target.version, name: name.value }); break;
+      case "column.trash": case "column.restore": id = await createMutation(current.kind, { space: current.target.space, column: current.target.column, expected: current.target.version }); break;
+    }
+    await loadPending();
+  } catch (cause) {
+    formError.value = cause instanceof DOMException ? "Не удалось сохранить действие на устройстве. Запрос не отправлен; название осталось в форме." : errorMessage(cause);
+    busy.value = false; return;
+  }
+  busy.value = false;
+  await retry(id);
+}
+function pendingLabel(item: Pending) {
+  return labels[item.intention.operation as Mutation] ?? "Незавершённое действие";
+}
+function pendingName(item: Pending) {
+  const parameters: unknown = JSON.parse(item.intention.body).parameters;
+  return parameters && typeof parameters === "object" && "name" in parameters && typeof parameters.name === "string"
+    ? parameters.name || "Без названия" : "";
+}
+</script>
+
+<template>
+  <section class="spaces-view" aria-label="Управление пространствами" :aria-busy="loading || busy">
+    <div v-if="ready" class="view-toolbar">
+      <a v-if="selected" href="#/spaces">Все пространства</a>
+      <h2 v-else ref="viewHeading" tabindex="-1">{{ showTrash ? 'Корзина пространств' : 'Мои пространства' }}</h2>
+      <div class="view-actions">
+        <button :aria-pressed="showTrash" :disabled="busy" @click="showTrash = !showTrash">{{ showTrash ? 'Активные' : 'Корзина' }}</button>
+        <button :disabled="loading || busy" @click="refresh">Обновить список</button>
+        <button v-if="!selected && !showTrash" class="primary-button" :disabled="blocked" @click="open({ kind: 'space.create' }, $event)">Создать пространство</button>
+      </div>
+    </div>
+    <p v-if="notice" role="status">{{ notice }}</p>
+    <p v-if="error" role="alert" class="action-error">{{ error }}</p>
+    <p v-if="storageError" role="alert" class="action-error">Не удалось прочитать очередь действий на устройстве. Изменения недоступны, пока хранилище не заработает. <button @click="loadPending">Проверить хранилище</button></p>
+
+    <section v-if="pending.length" class="pending-panel" aria-labelledby="pending-title">
+      <h2 id="pending-title">Незавершённые действия</h2>
+      <p>Успех ещё не подтверждён. Повтор сохраняет исходные данные действия. После перезапуска проверка продолжается здесь.</p>
+      <ul class="pending-list"><li v-for="item in pending" :key="item.id">
+        <span>{{ pendingLabel(item) }}<template v-if="pendingName(item)">: {{ pendingName(item) }}</template></span>
+        <div class="view-actions"><button :disabled="busy || !ready" @click="retry(item.id)">Проверить результат</button>
+          <button :disabled="busy" @click="open({ kind: 'forget', id: item.id }, $event)">Убрать из списка</button></div>
+      </li></ul>
+    </section>
+
+    <template v-if="ready && !error">
+      <p v-if="loading" role="status">Обновляем данные…</p>
+      <template v-if="!selected">
+        <p v-if="!loading && !visibleSpaces.length" class="empty-view">{{ showTrash ? 'В корзине нет пространств.' : 'Пространств пока нет. Создайте первое для своих мыслей и дел.' }}</p>
+        <template v-for="group in groups" :key="group.label">
+        <h3 v-if="group.label === 'Конфликты названий' || groups.length > 1">{{ group.label }}</h3>
+        <ul class="space-list" :aria-label="group.label">
+          <li v-for="item in group.items" :key="item.space" class="space-row">
+            <div class="object-name"><a :href="`#/spaces/${item.space}`">{{ title(item) }}</a>
+              <p v-if="conflicts(item)" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
+              <p v-else class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без колонок' : 'Есть содержимое' }}</p>
+            </div>
+            <div class="view-actions">
+              <button v-if="item.state === 'active'" :disabled="blocked || conflicts(item)" @click="open({ kind: 'space.rename', target: item }, $event)">Переименовать</button>
+              <button :disabled="blocked || conflicts(item) || !item.empty" @click="open({ kind: item.state === 'trashed' ? 'space.restore' : 'space.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
+            </div>
+            <p v-if="!item.empty" class="object-note scope-note">{{ item.state === 'trashed' ? 'Восстановление' : 'Удаление' }} пространства с содержимым появится в следующем шаге.</p>
+          </li>
+        </ul>
+        </template>
+      </template>
+      <template v-else-if="space">
+        <div class="board-heading"><h2 ref="viewHeading" tabindex="-1">{{ title(space) }}</h2>
+          <p v-if="space.names.length !== 1">Варианты названия: {{ space.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения конфликта.</p>
+          <p v-if="space.state !== 'active'">{{ space.state === 'trashed' ? 'Пространство в корзине. Для изменений сначала восстановите его.' : 'Состояние пространства конфликтует. Изменения недоступны до разрешения.' }}</p>
+          <button v-if="space.state === 'active' && !showTrash" class="primary-button" :disabled="blocked || conflicts(space)" @click="open({ kind: 'column.create', space: space.space }, $event)">Создать колонку</button>
+        </div>
+        <p v-if="!loading && !visibleColumns.length" class="empty-view">{{ showTrash ? 'В корзине нет колонок.' : 'Колонок пока нет. Создайте колонку для одной темы.' }}</p>
+        <div class="column-board" role="region" aria-label="Колонки" tabindex="0">
+          <section v-for="item in visibleColumns" :key="item.column" class="column-panel" :aria-label="title(item)">
+            <h3>{{ title(item) }}</h3>
+            <p v-if="conflicts(item)" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
+            <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
+            <div class="column-actions">
+              <button v-if="item.state === 'active'" :disabled="blocked || space.state !== 'active' || conflicts(item)" @click="open({ kind: 'column.rename', target: item }, $event)">Переименовать</button>
+              <button :disabled="blocked || space.state !== 'active' || conflicts(item) || !item.empty" @click="open({ kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
+            </div>
+            <p v-if="!item.empty" class="object-note">Действие с содержимым появится в следующем шаге.</p>
+          </section>
+        </div>
+      </template>
+    </template>
+
+    <DialogRoot v-model:open="dialogOpen">
+      <DialogPortal><DialogOverlay class="dialog-overlay" />
+        <DialogContent class="action-dialog" @open-auto-focus="initialFocus" @close-auto-focus="restoreFocus">
+          <div class="dialog-header"><DialogTitle>{{ action ? labels[action.kind] : '' }}</DialogTitle><DialogClose data-workspace-dialog-close aria-label="Закрыть действие">Закрыть</DialogClose></div>
+          <DialogDescription v-if="action?.kind === 'forget'">Убирается только запись о проверке результата. Уже принятое изменение не отменяется. При неизвестном результате новое создание может привести к дубликату. Сначала проверьте текущее состояние.</DialogDescription>
+          <DialogDescription v-else-if="naming">Название можно изменить позже. Оно сохраняется только после подтверждения ядром.</DialogDescription>
+          <DialogDescription v-else>{{ action?.kind.endsWith('.trash') ? 'Объект попадёт в корзину. Его можно будет восстановить с прежним названием и местом.' : 'Объект вернётся из корзины с прежним названием и местом.' }} {{ action && 'target' in action ? title(action.target) : '' }}</DialogDescription>
+          <form @submit.prevent="submit">
+            <label v-if="naming" class="name-field">Название<input ref="titleInput" v-model="name" name="name" autocomplete="off" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">Можно оставить пустым.</span></label>
+            <p v-if="formError" role="alert" class="action-error">{{ formError }}</p>
+            <p v-if="pending.length && action?.kind !== 'forget'">Исходное действие сохранено. Закройте форму и проверьте его результат в списке незавершённых действий.</p>
+            <div class="dialog-actions"><DialogClose type="button">{{ pending.length ? 'К списку действий' : 'Отмена' }}</DialogClose><button type="submit" class="primary-button" :disabled="busy || (action?.kind !== 'forget' && blocked)">{{ busy ? 'Сохраняем…' : naming && action?.kind.endsWith('.rename') ? 'Сохранить название' : action ? labels[action.kind] : '' }}</button></div>
+          </form>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+  </section>
+</template>

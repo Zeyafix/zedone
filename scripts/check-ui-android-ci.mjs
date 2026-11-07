@@ -2,8 +2,10 @@
 // this driver deliberately refuses to run outside CI.
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { chromium } from "playwright";
-import { checkShell } from "./check-ui-android-scenarios.mjs";
+import { checkShell, checkWorkspaceTouch } from "./check-ui-android-scenarios.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
 const root = resolve(import.meta.dir, "..");
@@ -18,8 +20,9 @@ function device(...args) {
   return result.stdout.toString().trim();
 }
 let browser, port;
-try {
-  device("install", "-r", resolve(root, "ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"));
+const fixtureDirectory = await mkdtemp(resolve(tmpdir(), "zedone-shell-android-"));
+const remote = "/data/local/tmp/zedone-shell-ui-fixture";
+async function openWebView() {
   device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.DEFAULT", "-c", "android.intent.category.LAUNCHER", "-n", `${app}/.MainActivity`);
   let pid;
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -38,13 +41,56 @@ try {
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
   const page = browser.contexts()[0]?.pages()[0];
   assert.ok(page, "ZeDone WebView must be present");
+  return page;
+}
+async function disconnect() {
+  await browser?.close(); browser = undefined;
+  if (port) { device("forward", "--remove", `tcp:${port}`); port = undefined; }
+}
+async function dismissKeyboard() {
+  const shown = () => {
+    const state = device("shell", "dumpsys", "input_method");
+    const input = /\bmInputShown=(true|false)\b/.exec(state);
+    const view = /\bmIsInputViewShown=(true|false)\b/.exec(state);
+    assert.ok(input && view, "Android 13 must report native IME and input-view state");
+    // An active IME may have no input view (e.g. a hardware/test keyboard).
+    // Conversely, the service may retain its view after its window is hidden.
+    return input[1] === "true" && view[1] === "true";
+  };
+  if (!shown()) return;
+  device("shell", "input", "keyevent", "4");
+  const deadline = Date.now() + 5000;
+  while (shown()) {
+    assert.ok(Date.now() < deadline, "Native Back must hide the IME");
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  console.log("Android native Back hid the IME; checking form/board Back ordering next.");
+}
+try {
+  device("install", "-r", resolve(root, "ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"));
+  let page = await openWebView();
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await checkShell(page, () => device("shell", "input", "keyevent", "4"));
   assert.deepEqual(errors, [], "Shell must not raise page errors");
-  console.log("Android shell: local session IPC, menu/Back, theme light/dark/reset/reload and layout passed. Provisioned domain IPC remains a separate acceptance cell.");
-} finally {
-  await browser?.close();
-  if (port) device("forward", "--remove", `tcp:${port}`);
+  console.log("Android shell: unconfigured session IPC, menu/Back, theme light/dark/reset/reload and layout passed.");
+  await disconnect();
   device("shell", "am", "force-stop", app);
+  const fixture = Bun.spawnSync([resolve(root, "target/debug/examples/shell-fixture"), "--prepare", fixtureDirectory], { stdout: "pipe", stderr: "pipe" });
+  assert.equal(fixture.exitCode, 0, "Synthetic fixture preparation must succeed");
+  // This driver runs only on CI's newly owned AVD. Never run on local data.
+  device("shell", "run-as", app, "rm", "-rf", "product");
+  device("push", `${fixtureDirectory}/.`, remote);
+  device("shell", "run-as", app, "cp", "-r", remote, "product");
+  page = await openWebView();
+  page.on("pageerror", error => errors.push(error.message));
+  await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
+  assert.deepEqual(errors, [], "Domain UI must not raise page errors");
+} finally {
+  await disconnect();
+  device("shell", "am", "force-stop", app);
+  device("shell", "run-as", app, "rm", "-rf", "product");
+  device("shell", "rm", "-rf", remote);
+  assert.ok(fixtureDirectory.startsWith(resolve(tmpdir(), "zedone-shell-android-")));
+  await rm(fixtureDirectory, { recursive: true });
 }

@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from "reka-ui";
 import { checkConnection, type Connection } from "./connection";
 import { readTheme, saveTheme, type Theme } from "./appearance";
+import SpacesView from "./SpacesView.vue";
 
 type Page = "spaces" | "settings";
 const pageFromHash = (): Page => location.hash === "#/settings" ? "settings" : "spaces";
@@ -119,24 +120,25 @@ onUnmounted(() => {
           <p>{{ page === 'spaces' ? 'Мысли и дела, собранные по темам.' : 'Удобный вид на этом устройстве.' }}</p>
         </div>
 
-        <template v-if="page === 'spaces'">
-          <section class="connection-panel" aria-labelledby="connection-title" :aria-busy="connection === 'checking'">
+        <div v-show="page === 'spaces'">
+          <section class="connection-panel" :class="{ 'connection-panel-ready': connection === 'ready' }" aria-labelledby="connection-title" :aria-busy="connection === 'checking'">
             <span class="connection-indicator" :data-state="connection" aria-hidden="true"></span>
             <div class="connection-copy">
               <h2 id="connection-title">{{ connectionLabels[connection] }}</h2>
-              <p>{{ connectionDescriptions[connection] }}</p>
+              <p v-if="connection !== 'ready'">{{ connectionDescriptions[connection] }}</p>
               <button v-if="connection !== 'checking'" class="text-button" @click="probe">Проверить снова</button>
             </div>
           </section>
-          <section class="shell-note" aria-labelledby="shell-title">
+          <section v-if="connection !== 'ready'" class="shell-note" aria-labelledby="shell-title">
             <div class="space-symbol" aria-hidden="true"><span></span><span></span><span></span></div>
-            <h2 id="shell-title">Здесь будут ваши пространства</h2>
-            <p>Управление пространствами появится в следующем шаге разработки. Сейчас можно выбрать оформление и проверить локальный доступ.</p>
+            <h2 id="shell-title">Ваши пространства на этом устройстве</h2>
+            <p>Для просмотра и изменения пространств нужен действующий локальный доступ. Оформление доступно сейчас.</p>
             <a class="primary-link" href="#/settings" @click.prevent="navigate('settings')">Выбрать оформление</a>
           </section>
-        </template>
+          <SpacesView :ready="connection === 'ready'" />
+        </div>
 
-        <template v-else>
+        <template v-if="page === 'settings'">
           <section class="settings-section" aria-labelledby="appearance-title">
             <h2 id="appearance-title">Оформление</h2>
             <p id="theme-description">Настройка применяется к этому браузеру или приложению. Цвета системы учитываются автоматически в режиме «Как на устройстве».</p>

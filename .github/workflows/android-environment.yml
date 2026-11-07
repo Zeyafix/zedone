@@ -219,6 +219,8 @@ jobs:
           chmod +x ui/src-tauri/gen/android/gradlew
           bun scripts/build-ui-android.mjs x86_64
           bun scripts/build-ui-android.mjs aarch64
+          rust=$(jq -r .rust scripts/environment-versions.json)
+          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
       - name: Check host Automerge probe
         if: matrix.suite == 'prototype-native'
         working-directory: prototypes

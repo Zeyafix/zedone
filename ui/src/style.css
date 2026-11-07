@@ -45,6 +45,11 @@ h2 { margin: 0; font-weight: 600; font-size: 18px; line-height: 1.4; }
 .connection-indicator[data-state="ready"] { background: var(--accent); }
 .connection-indicator[data-state="denied"], .connection-indicator[data-state="unavailable"] { background: var(--error); }
 .connection-copy p { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
+.connection-panel-ready { padding: 8px 0; align-items: center; }
+.connection-panel-ready .connection-indicator { margin-top: 0; }
+.connection-panel-ready .connection-copy { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; }
+.connection-panel-ready h2 { font-size: 14px; }
+.connection-panel-ready .text-button { margin: 0; }
 .text-button { padding-left: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; margin-top: 4px; }
 .shell-note { margin: 56px 0 24px; padding: 0 22px; max-width: 650px; border-left: 2px solid var(--accent); }
 .shell-note p { margin: 10px 0 24px; color: var(--muted); }
@@ -76,6 +81,37 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .navigation-dialog { position: fixed; z-index: 11; top: max(16px, env(safe-area-inset-top)); right: 16px; left: 16px; max-width: 420px; margin-left: auto; background: var(--canvas); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
 .dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
 .dialog-header h2 { font-family: Georgia, serif; font-size: 24px; font-weight: 400; }
+.spaces-view { margin-top: 30px; }
+.view-toolbar, .space-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.view-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.view-toolbar h2 { margin-right: auto; }
+.primary-button { background: var(--accent); border-color: var(--accent); color: var(--canvas); }
+.space-list, .pending-list { padding: 0; margin: 20px 0; list-style: none; }
+.space-row { padding: 22px 0; border-top: 1px solid var(--border); }
+.space-row:last-child { border-bottom: 1px solid var(--border); }
+.object-name { min-width: 0; flex: 1 1 200px; }
+.object-name > a { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.object-note { color: var(--muted); font-size: 14px; margin: 8px 0 0; overflow-wrap: anywhere; }
+.scope-note { flex-basis: 100%; }
+.empty-view { padding: 28px 0; color: var(--muted); }
+.board-heading { margin: 26px 0 20px; }
+.board-heading h2 { margin-bottom: 16px; font-size: 26px; overflow-wrap: anywhere; }
+.column-board { display: flex; gap: 16px; overflow-x: auto; padding: 4px 4px 20px; scroll-snap-type: x proximity; }
+.column-panel { flex: 0 0 min(280px, 90%); min-width: 0; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 5px; padding: 18px; background: var(--surface); scroll-snap-align: start; }
+.column-panel h3 { margin: 0; overflow-wrap: anywhere; font-size: 18px; }
+.column-actions { display: grid; gap: 8px; margin-top: 28px; }
+.pending-panel { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 20px; margin: 24px 0; }
+.pending-panel p { font-size: 14px; color: var(--muted); }
+.pending-list li { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.action-error { color: var(--error); }
+.action-dialog { position: fixed; z-index: 11; inset: max(16px, env(safe-area-inset-top)) 16px auto; width: auto; max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); }
+.action-dialog > p { font-size: 14px; color: var(--muted); }
+.action-dialog .dialog-header { align-items: flex-start; }
+.action-dialog .dialog-header h2 { overflow-wrap: anywhere; }
+.name-field { display: grid; gap: 10px; margin: 24px 0; }
+.name-field input { width: 100%; min-width: 0; min-height: 46px; border: 1px solid var(--border); border-radius: 5px; padding: 10px; color: var(--ink); background: var(--surface); }
+.name-field span { font-size: 13px; color: var(--muted); }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 @media (max-width: 700px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail, .desktop-context { display: none; }

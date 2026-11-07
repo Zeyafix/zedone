@@ -549,7 +549,7 @@ async fn projection_is_scoped_causal_and_unknown_descendants_fail_closed() {
         ErrorCode::StaleState,
     );
     let secret = admin.credential().0.to_vec();
-    rejected(
+    assert_eq!(
         storage
             .transact(move |ctx| {
                 Ok(spaces::trash(
@@ -565,8 +565,11 @@ async fn projection_is_scoped_causal_and_unknown_descendants_fail_closed() {
                     ),
                 )?)
             })
-            .await,
-        ErrorCode::InvalidRequest,
+            .await
+            .unwrap()
+            .result
+            .state,
+        SpaceState::Trashed,
     );
 }
 

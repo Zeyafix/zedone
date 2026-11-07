@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use zedone_core::{
     command::CommandResult,
     error::{CommandError, ErrorCode},
-    spaces::{SpaceSnapshot, SpaceState, SpaceStore},
+    spaces::{SpaceContents, SpaceSnapshot, SpaceState, SpaceStore},
 };
 
 #[cfg(test)]
@@ -109,9 +109,18 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
     if strings(graph, "format")? != ["zedone.space.v1"] {
         return Err(invalid());
     }
+    if strings(graph, "lifecycle")? == ["purged"] {
+        return Err(CommandError {
+            code: ErrorCode::NotFound,
+        }
+        .into());
+    }
     let names = strings(graph, "name")?;
     let lifecycle = strings(graph, "lifecycle")?;
-    if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
+    if lifecycle
+        .iter()
+        .any(|s| s != "active" && s != "purged" && !valid_group(s))
+    {
         return Err(invalid());
     }
     let state = if lifecycle.len() != 1 {
@@ -133,6 +142,18 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
         state,
         deletion_groups,
         empty,
+        contents: if graph.keys(ROOT).all(|k| crate::columns::known_root(&k)) {
+            let projections = domain_projections(graph)?;
+            Some(SpaceContents {
+                columns: crate::columns::snapshots(graph, space)?,
+                cards: crate::cards::snapshots(graph, space, &projections)?,
+                tags: crate::tags::snapshots(graph, space, &projections)?
+                    .into_values()
+                    .collect(),
+            })
+        } else {
+            None
+        },
         version,
     })
 }
@@ -200,7 +221,9 @@ impl SpaceStore for WriteContext<'_> {
             .map_err(StorageError::from)?;
         let mut result = Vec::new();
         for space in spaces {
-            result.push(self.space_snapshot(&space)?);
+            if strings(self.read().document(&space)?, "lifecycle")? != ["purged"] {
+                result.push(self.space_snapshot(&space)?);
+            }
             self.read().release_document(&space);
         }
         Ok(result)

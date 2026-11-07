@@ -420,6 +420,8 @@ async fn deletion_is_atomic_removes_trash_assignments_and_recreation_has_new_ide
         req(
             10,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(4),
                 expected: c.version

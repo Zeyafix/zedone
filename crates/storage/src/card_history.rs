@@ -75,12 +75,7 @@ impl WriteContext<'_> {
     ) -> StorageResult<()> {
         let graph = self.read().document(space)?;
         let object = cards::object(graph, card)?;
-        let sequence = cards::history(graph, &object)?
-            .iter()
-            .map(|v| v.sequence)
-            .max()
-            .and_then(|s| s.checked_add(1))
-            .ok_or(StorageError::InvalidDatabase)?;
+        let sequence = cards::next_sequence(graph, card)?;
         let history = cards::map(graph, &object, "history")?;
         self.edit(space, |doc| {
             if replace_text {

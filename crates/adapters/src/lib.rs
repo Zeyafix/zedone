@@ -12,6 +12,7 @@ use zedone_core::{
         self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard,
         SetCardCompleted, TrashCard,
     },
+    cleanup::{self, ClearHistory, InspectHistory, InspectTrash, PurgeTrash},
     columns::{
         self, CreateColumn, ListColumns, ReadColumn, RenameColumn, RestoreColumn, TrashColumn,
     },
@@ -98,6 +99,10 @@ impl Service {
                 SetCardCompleted::NAME => run!(SetCardCompleted, cards::set_completed),
                 TrashCard::NAME => run!(TrashCard, cards::trash),
                 RestoreCard::NAME => run!(RestoreCard, cards::restore),
+                InspectTrash::NAME => run!(InspectTrash, cleanup::inspect_trash),
+                PurgeTrash::NAME => run!(PurgeTrash, cleanup::purge_trash),
+                InspectHistory::NAME => run!(InspectHistory, cleanup::inspect_history),
+                ClearHistory::NAME => run!(ClearHistory, cleanup::clear_history),
                 CreateTag::NAME => run!(CreateTag, tags::create),
                 ReadTag::NAME => run!(ReadTag, tags::read),
                 ListTags::NAME => run!(ListTags, tags::list),

@@ -383,6 +383,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/history.clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["history_clear"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/history.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["history_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.create": {
         parameters: {
             query?: never;
@@ -559,6 +591,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/trash.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trash_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/trash.purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trash_purge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -648,6 +712,11 @@ export interface components {
             sequence: number;
             subject: string;
             title: string;
+        };
+        ClearHistory: {
+            card?: string | null;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
         };
         ColumnList: {
             columns: components["schemas"]["ColumnSnapshot"][];
@@ -745,6 +814,39 @@ export interface components {
              */
             parameters: {
                 card: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ClearHistory: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card?: string | null;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
             };
@@ -1022,6 +1124,70 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_InspectHistory: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card?: string | null;
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_InspectTrash: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                selection: components["schemas"]["TrashSelection"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_ListCards: {
             id: [
                 number,
@@ -1210,6 +1376,39 @@ export interface components {
                 before?: string | null;
                 column: string;
                 expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_PurgeTrash: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                selection: components["schemas"]["TrashSelection"];
                 space: string;
             };
         };
@@ -1506,7 +1705,10 @@ export interface components {
             operation: string;
             parameters: {
                 card: string;
+                /** @description Omit to restore to the original active column. */
+                column?: string | null;
                 expected: components["schemas"]["StateVersion"];
+                expected_column?: components["schemas"]["StateVersion"] | null;
                 space: string;
             };
         };
@@ -1919,6 +2121,13 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_HistoryPreview: components["schemas"]["CommandSuccess_HistoryPreview"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -1948,6 +2157,13 @@ export interface components {
          *     a lost response or uncertain commit must never be converted to success.
          */
         CommandResponse_TagSnapshot: components["schemas"]["CommandSuccess_TagSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_TrashPreview: components["schemas"]["CommandSuccess_TrashPreview"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
          *     A success confirms the original completion, not the current object state.
@@ -2036,6 +2252,24 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_HistoryPreview: {
+            replayed: boolean;
+            result: {
+                /** @description None means every card in this space, including trash. */
+                card?: string | null;
+                entries: components["schemas"]["HistoryEntry"][];
+                /** Format: int64 */
+                removable_bytes: number;
+                space: string;
+                /**
+                 * Format: int64
+                 * @description Logical UTF-8 title/description bytes, not allocated database space.
+                 */
+                text_bytes: number;
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_SearchResults: {
             replayed: boolean;
             result: {
@@ -2054,8 +2288,8 @@ export interface components {
         CommandSuccess_SpaceSnapshot: {
             replayed: boolean;
             result: {
+                contents?: components["schemas"]["SpaceContents"] | null;
                 deletion_groups: string[];
-                /** @description This slice only trashes/restores spaces without domain content. */
                 empty: boolean;
                 /** @description All distinct current names; multiple names require conflict resolution. */
                 names: string[];
@@ -2080,6 +2314,20 @@ export interface components {
                 state: components["schemas"]["TagState"];
                 tag: string;
                 /** @description Includes causal assignment history, so deletion cannot expand silently. */
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_TrashPreview: {
+            replayed: boolean;
+            result: {
+                cards: components["schemas"]["CardSnapshot"][];
+                columns: components["schemas"]["ColumnSnapshot"][];
+                /** @description Stable object identities to resolve before preparing a new action. */
+                conflicts: string[];
+                includes_space: boolean;
+                selection: components["schemas"]["TrashSelection"];
+                space: string;
                 version: components["schemas"]["StateVersion"];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -2139,8 +2387,36 @@ export interface components {
             session: string;
             space: string;
         };
+        HistoryEntry: {
+            card: string;
+            /** @description Conservatively retain history of every card with unresolved conflicts. */
+            retained: boolean;
+            version: components["schemas"]["CardTextVersion"];
+        };
+        HistoryPreview: {
+            /** @description None means every card in this space, including trash. */
+            card?: string | null;
+            entries: components["schemas"]["HistoryEntry"][];
+            /** Format: int64 */
+            removable_bytes: number;
+            space: string;
+            /**
+             * Format: int64
+             * @description Logical UTF-8 title/description bytes, not allocated database space.
+             */
+            text_bytes: number;
+            version: components["schemas"]["StateVersion"];
+        };
         InspectAccess: {
             subject: string;
+        };
+        InspectHistory: {
+            card?: string | null;
+            space: string;
+        };
+        InspectTrash: {
+            selection: components["schemas"]["TrashSelection"];
+            space: string;
         };
         /**
          * @description Tauri framing preserves the original JSON string, including duplicate
@@ -2179,6 +2455,11 @@ export interface components {
             before?: string | null;
             column: string;
             expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
+        PurgeTrash: {
+            expected: components["schemas"]["StateVersion"];
+            selection: components["schemas"]["TrashSelection"];
             space: string;
         };
         /** @description Legacy integer positions remain valid in historical documents and receipts. */
@@ -2230,7 +2511,10 @@ export interface components {
         };
         RestoreCard: {
             card: string;
+            /** @description Omit to restore to the original active column. */
+            column?: string | null;
             expected: components["schemas"]["StateVersion"];
+            expected_column?: components["schemas"]["StateVersion"] | null;
             space: string;
         };
         RestoreCardText: {
@@ -2297,12 +2581,17 @@ export interface components {
             space: string;
             tag: string;
         };
+        SpaceContents: {
+            cards: components["schemas"]["CardSnapshot"][];
+            columns: components["schemas"]["ColumnSnapshot"][];
+            tags: components["schemas"]["TagSnapshot"][];
+        };
         SpaceList: {
             spaces: components["schemas"]["SpaceSnapshot"][];
         };
         SpaceSnapshot: {
+            contents?: components["schemas"]["SpaceContents"] | null;
             deletion_groups: string[];
-            /** @description This slice only trashes/restores spaces without domain content. */
             empty: boolean;
             /** @description All distinct current names; multiple names require conflict resolution. */
             names: string[];
@@ -2345,6 +2634,28 @@ export interface components {
             column: string;
             expected: components["schemas"]["StateVersion"];
             space: string;
+        };
+        TrashPreview: {
+            cards: components["schemas"]["CardSnapshot"][];
+            columns: components["schemas"]["ColumnSnapshot"][];
+            /** @description Stable object identities to resolve before preparing a new action. */
+            conflicts: string[];
+            includes_space: boolean;
+            selection: components["schemas"]["TrashSelection"];
+            space: string;
+            version: components["schemas"]["StateVersion"];
+        };
+        TrashSelection: {
+            /** @enum {string} */
+            kind: "all";
+        } | {
+            /** @enum {string} */
+            kind: "space";
+        } | {
+            cards: string[];
+            columns: string[];
+            /** @enum {string} */
+            kind: "objects";
         };
         TrashSpace: {
             expected: components["schemas"]["StateVersion"];
@@ -2911,6 +3222,52 @@ export interface operations {
             };
         };
     };
+    history_clear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ClearHistory"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_HistoryPreview"];
+                };
+            };
+        };
+    };
+    history_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectHistory"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_HistoryPreview"];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -3160,6 +3517,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    trash_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectTrash"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TrashPreview"];
+                };
+            };
+        };
+    };
+    trash_purge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_PurgeTrash"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TrashPreview"];
                 };
             };
         };

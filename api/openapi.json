@@ -826,6 +826,74 @@
         ]
       }
     },
+    "/v1/commands/history.clear": {
+      "post": {
+        "tags": [
+          "cleanup"
+        ],
+        "operationId": "history_clear",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ClearHistory"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_HistoryPreview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/history.inspect": {
+      "post": {
+        "tags": [
+          "cleanup"
+        ],
+        "operationId": "history_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectHistory"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_HistoryPreview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.create": {
       "post": {
         "tags": [
@@ -1199,6 +1267,74 @@
           }
         ]
       }
+    },
+    "/v1/commands/trash.inspect": {
+      "post": {
+        "tags": [
+          "cleanup"
+        ],
+        "operationId": "trash_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectTrash"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TrashPreview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/trash.purge": {
+      "post": {
+        "tags": [
+          "cleanup"
+        ],
+        "operationId": "trash_purge",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_PurgeTrash"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TrashPreview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1530,6 +1666,28 @@
         },
         "additionalProperties": false
       },
+      "ClearHistory": {
+        "type": "object",
+        "required": [
+          "space",
+          "expected"
+        ],
+        "properties": {
+          "card": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ColumnList": {
         "type": "object",
         "required": [
@@ -1724,6 +1882,53 @@
             "properties": {
               "card": {
                 "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ClearHistory": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "expected"
+            ],
+            "properties": {
+              "card": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "expected": {
                 "$ref": "#/components/schemas/StateVersion"
@@ -2105,6 +2310,90 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_InspectHistory": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space"
+            ],
+            "properties": {
+              "card": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectTrash": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "selection"
+            ],
+            "properties": {
+              "selection": {
+                "$ref": "#/components/schemas/TrashSelection"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ListCards": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2363,6 +2652,51 @@
               },
               "expected": {
                 "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_PurgeTrash": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "selection",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "selection": {
+                "$ref": "#/components/schemas/TrashSelection"
               },
               "space": {
                 "type": "string"
@@ -2772,8 +3106,25 @@
               "card": {
                 "type": "string"
               },
+              "column": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Omit to restore to the original active column."
+              },
               "expected": {
                 "$ref": "#/components/schemas/StateVersion"
+              },
+              "expected_column": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "space": {
                 "type": "string"
@@ -3331,6 +3682,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_HistoryPreview": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_HistoryPreview"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_SearchResults": {
         "oneOf": [
           {
@@ -3379,6 +3741,17 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_TagSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_TrashPreview": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_TrashPreview"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -3735,6 +4108,66 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_HistoryPreview": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space",
+              "entries",
+              "text_bytes",
+              "removable_bytes",
+              "version"
+            ],
+            "properties": {
+              "card": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "None means every card in this space, including trash."
+              },
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HistoryEntry"
+                }
+              },
+              "removable_bytes": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "space": {
+                "type": "string"
+              },
+              "text_bytes": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Logical UTF-8 title/description bytes, not allocated database space.",
+                "minimum": 0
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_SearchResults": {
         "type": "object",
         "required": [
@@ -3822,6 +4255,17 @@
               "version"
             ],
             "properties": {
+              "contents": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SpaceContents",
+                    "description": "Authoritative scope preview. None blocks lifecycle changes."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "deletion_groups": {
                 "type": "array",
                 "items": {
@@ -3829,8 +4273,7 @@
                 }
               },
               "empty": {
-                "type": "boolean",
-                "description": "This slice only trashes/restores spaces without domain content."
+                "type": "boolean"
               },
               "names": {
                 "type": "array",
@@ -3928,6 +4371,69 @@
               "version": {
                 "$ref": "#/components/schemas/StateVersion",
                 "description": "Includes causal assignment history, so deletion cannot expand silently."
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_TrashPreview": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space",
+              "selection",
+              "includes_space",
+              "columns",
+              "cards",
+              "conflicts",
+              "version"
+            ],
+            "properties": {
+              "cards": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardSnapshot"
+                }
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ColumnSnapshot"
+                }
+              },
+              "conflicts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Stable object identities to resolve before preparing a new action."
+              },
+              "includes_space": {
+                "type": "boolean"
+              },
+              "selection": {
+                "$ref": "#/components/schemas/TrashSelection"
+              },
+              "space": {
+                "type": "string"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
               }
             },
             "additionalProperties": false
@@ -4132,6 +4638,70 @@
         },
         "additionalProperties": false
       },
+      "HistoryEntry": {
+        "type": "object",
+        "required": [
+          "card",
+          "version",
+          "retained"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "retained": {
+            "type": "boolean",
+            "description": "Conservatively retain history of every card with unresolved conflicts."
+          },
+          "version": {
+            "$ref": "#/components/schemas/CardTextVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HistoryPreview": {
+        "type": "object",
+        "required": [
+          "space",
+          "entries",
+          "text_bytes",
+          "removable_bytes",
+          "version"
+        ],
+        "properties": {
+          "card": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "None means every card in this space, including trash."
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryEntry"
+            }
+          },
+          "removable_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "space": {
+            "type": "string"
+          },
+          "text_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Logical UTF-8 title/description bytes, not allocated database space.",
+            "minimum": 0
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
       "InspectAccess": {
         "type": "object",
         "required": [
@@ -4139,6 +4709,40 @@
         ],
         "properties": {
           "subject": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InspectHistory": {
+        "type": "object",
+        "required": [
+          "space"
+        ],
+        "properties": {
+          "card": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InspectTrash": {
+        "type": "object",
+        "required": [
+          "space",
+          "selection"
+        ],
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/TrashSelection"
+          },
+          "space": {
             "type": "string"
           }
         },
@@ -4272,6 +4876,26 @@
           },
           "expected": {
             "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PurgeTrash": {
+        "type": "object",
+        "required": [
+          "space",
+          "selection",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/TrashSelection"
           },
           "space": {
             "type": "string"
@@ -4490,8 +5114,25 @@
           "card": {
             "type": "string"
           },
+          "column": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omit to restore to the original active column."
+          },
           "expected": {
             "$ref": "#/components/schemas/StateVersion"
+          },
+          "expected_column": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "space": {
             "type": "string"
@@ -4751,6 +5392,35 @@
         },
         "additionalProperties": false
       },
+      "SpaceContents": {
+        "type": "object",
+        "required": [
+          "columns",
+          "cards",
+          "tags"
+        ],
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSnapshot"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnSnapshot"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagSnapshot"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "SpaceList": {
         "type": "object",
         "required": [
@@ -4777,6 +5447,17 @@
           "version"
         ],
         "properties": {
+          "contents": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SpaceContents",
+                "description": "Authoritative scope preview. None blocks lifecycle changes."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "deletion_groups": {
             "type": "array",
             "items": {
@@ -4784,8 +5465,7 @@
             }
           },
           "empty": {
-            "type": "boolean",
-            "description": "This slice only trashes/restores spaces without domain content."
+            "type": "boolean"
           },
           "names": {
             "type": "array",
@@ -4952,6 +5632,112 @@
           }
         },
         "additionalProperties": false
+      },
+      "TrashPreview": {
+        "type": "object",
+        "required": [
+          "space",
+          "selection",
+          "includes_space",
+          "columns",
+          "cards",
+          "conflicts",
+          "version"
+        ],
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSnapshot"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnSnapshot"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stable object identities to resolve before preparing a new action."
+          },
+          "includes_space": {
+            "type": "boolean"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/TrashSelection"
+          },
+          "space": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrashSelection": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "all"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "space"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "columns",
+              "cards",
+              "kind"
+            ],
+            "properties": {
+              "cards": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "objects"
+                ]
+              }
+            }
+          }
+        ]
       },
       "TrashSpace": {
         "type": "object",

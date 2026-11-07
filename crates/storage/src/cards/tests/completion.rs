@@ -223,6 +223,8 @@ async fn new_description_rejects_old_completion_but_read_history_and_other_card_
         req(
             10,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(9),
                 expected: trashed.version

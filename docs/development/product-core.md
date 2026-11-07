@@ -1,5 +1,25 @@
 # Разработка продуктового Rust-ядра
 
+P04.09.2–.4: [ADR-0051](../architecture/decisions/0051-trash-and-history-cleanup.md),
+[EV-075](../agent/verification/EV-075-trash-history-complete.md). SpaceSnapshot.contents
+показывает колонки/карточки/теги; space.trash/restore сохраняют прежние группы.
+card.restore поддерживает пару column/expected_column для отдельного
+восстановления. core::cleanup определяет область trash.inspect/purge и
+history.inspect/clear в той же авторизованной writer-транзакции, где проверяет
+expected и пишет receipt. Storage выполняет причинные root deletes и удаляет
+только известные ключи пользовательской истории; изменения графа, peers,
+receipts, права и внешние копии сохраняются. Очищенное пространство получает
+lifecycle=purged, не читается и не перечисляется. Старые ID не переиспользуются.
+
+История может стать пустой; следующий sequence вычисляется из технической
+проекции, включая очищенные записи. Пакетный card_histories декодирует проекцию
+один раз для области, без повторного разбора всего графа на каждую карточку.
+Pending series не завершается ручной очисткой. История спорной карточки либо
+карточки под спорным контейнером сохраняется целиком и помечается retained.
+Размер истории — логические UTF-8 байты пары текстов; очистка не гарантирует
+уменьшения файла базы. DDL/реестр v1 и зависимости не менялись. UI/обмен — P05/P06.
+
+
 P04.09.1 расширяет прежние `column.trash/restore` на группу карточек:
 [ADR-0050](../architecture/decisions/0050-column-trash-groups.md),
 [EV-074](../agent/verification/EV-074-column-trash-groups.md).

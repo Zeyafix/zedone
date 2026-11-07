@@ -762,6 +762,8 @@ async fn moved_card_lifecycle_and_edit_keep_the_whole_placement_and_historical_m
         req(
             6,
             RestoreCard {
+                column: None,
+                expected_column: None,
                 space: sid(1),
                 card: sid(9),
                 expected: trashed.version

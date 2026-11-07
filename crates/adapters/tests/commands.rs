@@ -33,6 +33,8 @@ mod columns;
 mod cards;
 #[path = "commands/ordering.rs"]
 mod ordering;
+#[path = "commands/tags.rs"]
+mod tags;
 
 fn key(access: &PendingAccess) -> String {
     access

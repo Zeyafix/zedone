@@ -199,7 +199,7 @@ fn active(state: SpaceState) -> CommandResult<()> {
         SpaceState::Trashed => Err(error(ErrorCode::InvalidRequest)),
     }
 }
-fn parents(tx: &mut impl CardStore, space: &str, column: &str) -> CommandResult<()> {
+pub(crate) fn parents(tx: &mut impl CardStore, space: &str, column: &str) -> CommandResult<()> {
     active(tx.space_snapshot(space)?.state)?;
     active(tx.column_snapshot(space, column)?.state)
 }

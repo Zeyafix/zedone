@@ -32,6 +32,7 @@ pub(crate) fn known_root(key: &str) -> bool {
     matches!(key, "format" | "name" | "lifecycle" | "history")
         || key.strip_prefix("column:").is_some_and(valid_id)
         || key.strip_prefix("card:").is_some_and(valid_id)
+        || key.strip_prefix("tag:").is_some_and(valid_id)
 }
 type Projection = BTreeMap<String, serde_json::Value>;
 struct Scope<'a> {

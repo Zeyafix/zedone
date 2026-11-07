@@ -36,7 +36,7 @@ for (const pkg of packages) {
   assert.equal(member.lints?.workspace, true, `${pkg.name} must inherit workspace lints`);
   assert.ok(!pkg.dependencies.some(dep => dep.name.startsWith("zedone-prototype-")));
   if (pkg.name === "zedone-core") {
-    assert.ok(pkg.dependencies.every(dep => ["serde", "serde_json", "utoipa"].includes(dep.name)), "Review core dependency boundaries before extending them");
+    assert.ok(pkg.dependencies.every(dep => ["serde", "serde_json", "utoipa", "icu_casemap", "icu_normalizer"].includes(dep.name)), "Review core dependency boundaries before extending them");
   }
 }
 

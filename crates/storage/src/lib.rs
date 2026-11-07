@@ -15,6 +15,7 @@ mod schema;
 pub mod snapshot;
 mod spaces;
 pub mod startup;
+mod tags;
 mod version;
 
 #[cfg(test)]

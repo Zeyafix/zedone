@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, newTagId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
 import validateResponse from "../api/validate-response.js";
 
 function fixture() {
@@ -14,6 +14,35 @@ function fixture() {
   return { values, storage, store: webIntentionStore(storage, "test") };
 }
 const parameters = { subject: "1".repeat(32) };
+
+test("tag intentions retain spelling, identities, explicit removal and both original versions", async () => {
+  const tag=newTagId(),space=newSpaceId(),card=newCardId();
+  expect(tag).toMatch(/^[a-f0-9]{32}$/);expect(newTagId()).not.toBe(tag);
+  const actions = [
+    ["tag.create",{space,tag,name:" Café Все Всё 😀 "}],
+    ["tag.rename",{space,tag,name:"Новое",expected:Array(32).fill(7)}],
+    ["tag.delete",{space,tag,expected:Array(32).fill(7)}],
+    ["card.set_tag",{space,tag,card,present:false,expected:Array(32).fill(7),expected_tag:Array(32).fill(8)}],
+  ] as const;
+  for(const [operation,params] of actions) {
+    const {store,storage}=fixture();
+    const id=await prepare("2".repeat(32),operation,params,store);
+    const saved=(await store.load(id))!.body;
+    expect((await new CommandClient(store,async()=>({status:"error",error:{code:"stale_state"}})).deliver(id)).status).toBe("pending");
+    const result=operation==="card.set_tag"
+      ? {space,card,columns:[newColumnId()],positions:[0],titles:["Task"],descriptions:[""],completed:[false],tags:[],state:"active" as const,deletion_groups:[],version:Array(32).fill(9)}
+      : {space,tag,names:["Новое"],state:operation==="tag.delete" ? "deleted" as const : "active" as const,version:Array(32).fill(9)};
+    const response:Response={status:"ok",replayed:true,result};
+    expect(validateResponse(response,operation)).toBe(true);
+    expect(validateResponse({...response,result:{...result,extra:true}},operation)).toBe(false);
+    expect(validateResponse(response,"tag.list")).toBe(false);
+    const sent:string[]=[];
+    const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject:"2".repeat(32),key:"approved"}));
+    expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+    expect(sent).toEqual([saved,saved]);expect(JSON.parse(saved).parameters).toEqual(params);
+    if(operation==="card.set_tag") {expect(JSON.parse(saved).parameters.present).toBe(false);expect(JSON.parse(saved).parameters.expected_tag[0]).toBe(8);}
+  }
+});
 const success: Response = { status: "ok", replayed: true, result: {
   subject: parameters.subject, scope: { kind: "administration" }, expires_at_unix_ms: null, revoked: true, version: Array(32).fill(1),
 } };

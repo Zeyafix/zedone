@@ -350,6 +350,40 @@
         ]
       }
     },
+    "/v1/commands/card.set_tag": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "card_set_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_SetCardTag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.trash": {
       "post": {
         "tags": [
@@ -814,6 +848,176 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/tag.create": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "tag_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CreateTag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/tag.delete": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "tag_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_DeleteTag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/tag.list": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "tag_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ListTags"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/tag.read": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "tag_read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ReadTag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/tag.rename": {
+      "post": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "tag_rename",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RenameTag"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagSnapshot"
                 }
               }
             }
@@ -1336,6 +1540,96 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_CreateTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag",
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_DeleteTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_EditCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -1538,6 +1832,47 @@
             "properties": {
               "include_trashed": {
                 "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ListTags": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "include_deleted"
+            ],
+            "properties": {
+              "include_deleted": {
+                "type": "boolean"
+              },
+              "space": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -1835,6 +2170,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ReadTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag"
+            ],
+            "properties": {
+              "space": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RenameColumn": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -1921,6 +2297,55 @@
                 "type": "string"
               },
               "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_RenameTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag",
+              "name",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
                 "type": "string"
               }
             },
@@ -2142,6 +2567,63 @@
                 "$ref": "#/components/schemas/StateVersion"
               },
               "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_SetCardTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card",
+              "tag",
+              "present",
+              "expected",
+              "expected_tag"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "expected_tag": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "present": {
+                "type": "boolean"
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
                 "type": "string"
               }
             },
@@ -2388,6 +2870,28 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_SpaceSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_TagList": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_TagList"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_TagSnapshot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_TagSnapshot"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -2823,6 +3327,87 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_TagList": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "tags"
+            ],
+            "properties": {
+              "tags": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TagSnapshot"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_TagSnapshot": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag",
+              "names",
+              "state",
+              "version"
+            ],
+            "properties": {
+              "names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "space": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/TagState"
+              },
+              "tag": {
+                "type": "string"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion",
+                "description": "Includes causal assignment history, so deletion cannot expand silently."
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_Value": {
         "type": "object",
         "required": [
@@ -2900,6 +3485,46 @@
             "type": "string"
           },
           "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag",
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeleteTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
             "type": "string"
           }
         },
@@ -3022,6 +3647,22 @@
         "properties": {
           "include_trashed": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListTags": {
+        "type": "object",
+        "required": [
+          "space",
+          "include_deleted"
+        ],
+        "properties": {
+          "include_deleted": {
+            "type": "boolean"
+          },
+          "space": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3200,6 +3841,22 @@
         },
         "additionalProperties": false
       },
+      "ReadTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag"
+        ],
+        "properties": {
+          "space": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "RenameColumn": {
         "type": "object",
         "required": [
@@ -3239,6 +3896,30 @@
             "type": "string"
           },
           "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RenameTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag",
+          "name",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "name": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
             "type": "string"
           }
         },
@@ -3335,6 +4016,38 @@
             "$ref": "#/components/schemas/StateVersion"
           },
           "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetCardTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "card",
+          "tag",
+          "present",
+          "expected",
+          "expected_tag"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "expected_tag": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
             "type": "string"
           }
         },
@@ -3445,6 +4158,61 @@
         "type": "string",
         "enum": [
           "ok"
+        ]
+      },
+      "TagList": {
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagSnapshot"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagSnapshot": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag",
+          "names",
+          "state",
+          "version"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "space": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TagState"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion",
+            "description": "Includes causal assignment history, so deletion cannot expand silently."
+          }
+        },
+        "additionalProperties": false
+      },
+      "TagState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "deleted",
+          "conflicted"
         ]
       },
       "TrashCard": {

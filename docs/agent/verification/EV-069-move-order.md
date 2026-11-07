@@ -9,7 +9,7 @@
 - Проверки: bun scripts/check-product.mjs, тот же --android, bun run ui:check, git diff --check.
 - Обратимость: новая move возвращает объект обратно. Исходные ID/expected сохраняются при повторе.
 - Отказы: stale/ABA, права, корзина, конфликт, чужое пространство и rollback без частичной записи.
-- Результат: verified локально. Следующий шаг: ревью/публикация по поручению, CI точного head и интеграция.
+- Результат: done, PR #63/head 4f7a063 merged 1d36d3a после семи SUCCESS. Следующий готовый шаг: P04.06, новая реализация не начата.
 
 Пара действие/обратное действие использует одну модель ранга и целого положения;
 совместимость, строгий контракт и проверки превышают ориентир 300 строк.
@@ -48,7 +48,7 @@ UI остаётся P05.05, продуктовый обмен/решение к�
 продуктовый обмен и решения конфликтов — P06. Физический arm64/release APK,
 полный масштаб/память и совместимость обмена со старым writer не принимаются.
 T07/A07/A35/A41 остаются partial; весь P04 не закрыт.
-Публикация/PR/новые CI/merge не выполнялись.
+P04.05 интегрирован через PR #63; полная продуктовая приёмка остаётся partial.
 
 ## Пять правил
 
@@ -92,5 +92,23 @@ HTTP/lifecycle/focus/themes/restart/stale/draft/unknown-outcome/отказы.
 существованию (без новой проверки всех якорей журнала).
 Машинные результаты только в игнорируемом docs/reports/p04-05-*-complete.log,
 p04-05-rank-final.log, p04-05-storage-final.log и p04-05-doc-links.json.
-Новых BUG/GAP/блокеров нет. P04.05 verified, не done: коммита/push/PR/новых CI/merge
-нет. Ревью/публикация — следующий шаг по поручению; P04.06 не начат.
+Новых BUG/GAP/блокеров нет. Локальная проверка предшествовала публикации; итоговая
+интеграция отражена ниже. P04.06 не начат.
+
+
+## Окончательная интеграция
+
+Точный head `4f7a0633e4f70a94d4f2cdbe25fd406dbc379d14` прошёл все семь checks:
+Windows/Linux, Android product-native/prototype-native/prototype-ui/shell и
+строгий aggregate. Запуски: [host](https://github.com/Zeyafix/zedone/actions/runs/42378309157),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42378309161).
+Raw logs подтвердили 208 Rust-тестов, 18 клиентских/151 assertions, обе release
+ABI, unsafe guards/контракт и прежний native/UI/cleanup охват.
+Перед merge подтверждены тот же head, CLEAN/MERGEABLE и отсутствие comments/
+reviews/review requests/inline comments. PR body содержит успешный CI и границы.
+По LOG-340 [PR #63](https://github.com/Zeyafix/zedone/pull/63) интегрирован в
+`1d36d3ad4c8b61bfd1b1299eb87f889d196b6485`; исходная ветка удалена локально/на
+GitHub, main обновлён, watch снят (LOG-341). Машинные факты/raw logs только
+в docs/reports/p04-05-pr63-merged.json и p04-05-ci-*-4f7a063.log.
+P04.05 done в API-охвате; следующий готовый шаг — P04.06. Публикуется только
+документальная фиксация принятого runtime, новой реализации/приёмки UI нет.

@@ -2,7 +2,7 @@
 
 Дата: 2026-11-07.
 
-Статус: реализовано и verified локально в API-объёме P04.09.2–.4; [EV-075](../../agent/verification/EV-075-trash-history-complete.md).
+Статус: реализовано и принято в API-объёме P04.09.2–.4, PR #75/ce44703; [EV-075](../../agent/verification/EV-075-trash-history-complete.md).
 Продуктовый договор §1.2/ADR-0013/0014 не меняется.
 
 ## Группы и восстановление

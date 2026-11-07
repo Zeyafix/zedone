@@ -3925,6 +3925,7 @@ const responseValidators = Object.freeze({
 "card.list": CommandResponse_CardList,
 "card.read": CommandResponse_CardSnapshot,
 "card.restore": CommandResponse_CardSnapshot,
+"card.set_completed": CommandResponse_CardSnapshot,
 "card.trash": CommandResponse_CardSnapshot,
 "column.create": CommandResponse_ColumnSnapshot,
 "column.list": CommandResponse_ColumnList,

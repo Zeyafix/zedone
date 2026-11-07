@@ -22,7 +22,8 @@ use utoipa::OpenApi;
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore,
-        cards::create, cards::read, cards::history, cards::list, cards::edit, cards::trash, cards::restore),
+        cards::create, cards::read, cards::history, cards::list, cards::edit,
+        cards::set_completed, cards::trash, cards::restore),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

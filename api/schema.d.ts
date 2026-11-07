@@ -127,6 +127,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.set_completed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_set_completed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.trash": {
         parameters: {
             query?: never;
@@ -1019,6 +1035,40 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_SetCardCompleted: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                completed: boolean;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_TrashCard: {
             id: [
                 number,
@@ -1407,6 +1457,12 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             subject: string;
         };
+        SetCardCompleted: {
+            card: string;
+            completed: boolean;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
         SpaceList: {
             spaces: components["schemas"]["SpaceSnapshot"][];
         };
@@ -1627,6 +1683,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_RestoreCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_set_completed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_SetCardCompleted"];
             };
         };
         responses: {

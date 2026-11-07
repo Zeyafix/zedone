@@ -396,6 +396,12 @@ Service декодирует конкретный Rust-тип и вызывае�
 [ADR-0039](../architecture/decisions/0039-command-adapters-and-delivery.md)
 закрепляет framing, origin, таймауты и явное продолжение.
 Product-check выполняет также клиентские failure/restart/timeout-тесты.
+`card.set_completed` (P04.04) использует тот же Service и общий обработчик
+мутаций карточки: ReadWrite, проверка всей card.version, активных родителей,
+конфликтов и корзины, затем запись только регистра completed. Явный bool
+позволяет и установить, и снять отметку. Noop не меняет card.version;
+receipt всё равно фиксируется атомарно. SQL-схема и формат card.v1 прежние.
+Поведение и границы проверок — [EV-068](../agent/verification/EV-068-card-completion.md).
 Android-проверка переносит native CLI вместе с test binaries в собственный
 удаляемый sandbox; child test проверяет настоящий процесс CLI на Android.
 

@@ -32,6 +32,72 @@ fn creation() -> String {
     )
 }
 #[tokio::test]
+async fn explicit_completion_and_undo_share_http_ipc_cli_receipts_across_restart() {
+    let (dir, storage, service, admin) = setup_cards().await;
+    let secret = key(&admin);
+    let created = post(&service, "card.create", &creation(), &secret).await;
+    let body = |id, completed: Value, version: &Value| {
+        request(
+            id,
+            "card.set_completed",
+            json!({"space":sid(1),"card":sid(3),"completed":completed,"expected":version}),
+        )
+    };
+    for value in [json!("true"), json!(1), Value::Null] {
+        let invalid = body(2, value, &created["result"]["version"]);
+        let denied = post(&service, "card.set_completed", &invalid, &secret).await;
+        assert_eq!(denied["error"]["code"], "invalid_request");
+        assert_eq!(cli(&dir, &secret, "card.set_completed", &invalid), denied);
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                &ipc::invoke(&service, "card.set_completed", &invalid, &secret).await
+            )
+            .unwrap(),
+            denied
+        );
+    }
+    let completion = body(2, json!(true), &created["result"]["version"]);
+    let done = post(&service, "card.set_completed", &completion, &secret).await;
+    assert_eq!(done["result"]["completed"], json!([true]));
+    let repeated: Value = serde_json::from_str(
+        &ipc::invoke(&service, "card.set_completed", &completion, &secret).await,
+    )
+    .unwrap();
+    assert_eq!(repeated["replayed"], true);
+    assert_eq!(
+        cli(&dir, &secret, "card.set_completed", &completion),
+        repeated
+    );
+    let undo = body(3, json!(false), &done["result"]["version"]);
+    let undone = cli(&dir, &secret, "card.set_completed", &undo);
+    assert_eq!(undone["result"]["completed"], json!([false]));
+    let stale = body(4, json!(true), &created["result"]["version"]);
+    let denied = post(&service, "card.set_completed", &stale, &secret).await;
+    assert_eq!(denied["error"]["code"], "stale_state");
+    assert_eq!(
+        serde_json::from_str::<Value>(
+            &ipc::invoke(&service, "card.set_completed", &stale, &secret).await
+        )
+        .unwrap(),
+        denied
+    );
+    assert_eq!(cli(&dir, &secret, "card.set_completed", &stale), denied);
+    storage.shutdown().await.unwrap();
+    assert_eq!(
+        cli(&dir, &secret, "card.set_completed", &completion),
+        repeated
+    );
+    assert_eq!(
+        cli(
+            &dir,
+            &secret,
+            "card.read",
+            &request(5, "card.read", json!({"space":sid(1),"card":sid(3)}))
+        )["result"],
+        undone["result"]
+    );
+}
+#[tokio::test]
 async fn card_lifecycle_and_history_share_receipts_across_http_ipc_cli_and_restart() {
     let (dir, storage, service, admin) = setup_cards().await;
     let secret = key(&admin);
@@ -173,6 +239,26 @@ async fn invalid_cards_and_readonly_and_revoked_receipts_are_denied_at_all_entri
     assert_eq!(
         serde_json::from_str::<Value>(&ipc::invoke(&service, "card.edit", &edit, &readonly).await)
             .unwrap(),
+        denied
+    );
+    let completion = request(
+        6,
+        "card.set_completed",
+        json!({"space":sid(1),"card":sid(3),"completed":true,"expected":created["result"]["version"]}),
+    );
+    assert_eq!(
+        post(&service, "card.set_completed", &completion, &readonly).await,
+        denied
+    );
+    assert_eq!(
+        cli(&dir, &readonly, "card.set_completed", &completion),
+        denied
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(
+            &ipc::invoke(&service, "card.set_completed", &completion, &readonly).await
+        )
+        .unwrap(),
         denied
     );
     let access = post(

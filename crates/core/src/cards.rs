@@ -116,6 +116,18 @@ impl Command for EditCard {
 }
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct SetCardCompleted {
+    pub space: String,
+    pub card: String,
+    pub completed: bool,
+    pub expected: StateVersion,
+}
+impl Command for SetCardCompleted {
+    const NAME: &'static str = "card.set_completed";
+    type Output = CardSnapshot;
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TrashCard {
     pub space: String,
     pub card: String,
@@ -154,6 +166,8 @@ pub trait CardStore: ColumnStore {
         command: &str,
     ) -> CommandResult<()>;
     fn set_card_lifecycle(&mut self, space: &str, card: &str, lifecycle: &str)
+    -> CommandResult<()>;
+    fn set_card_completed(&mut self, space: &str, card: &str, completed: bool)
     -> CommandResult<()>;
 }
 fn error(code: ErrorCode) -> CommandError {
@@ -319,6 +333,7 @@ pub fn list(
 }
 enum Change<'a> {
     Edit(&'a EditCard),
+    SetCompleted(bool),
     Trash,
     Restore,
 }
@@ -357,6 +372,11 @@ fn change<C: Command<Output = CardSnapshot>>(
                 Change::Edit(p) if before.state == SpaceState::Active => {
                     tx.edit_card(p, subject, &command)?
                 }
+                Change::SetCompleted(completed) if before.state == SpaceState::Active => {
+                    if before.completed != [completed] {
+                        tx.set_card_completed(space, card, completed)?;
+                    }
+                }
                 Change::Trash if before.state == SpaceState::Active => {
                     tx.set_card_lifecycle(space, card, &format!("trash:{subject}:{command}"))?
                 }
@@ -385,6 +405,23 @@ pub fn edit(
         request,
         (&p.space, &p.card, p.expected),
         Change::Edit(p),
+    )
+}
+#[utoipa::path(post, path = "/v1/commands/card.set_completed", operation_id = "card_set_completed", request_body = CommandRequest<SetCardCompleted>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn set_completed(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<SetCardCompleted>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.card, p.expected),
+        Change::SetCompleted(p.completed),
     )
 }
 #[utoipa::path(post, path = "/v1/commands/card.trash", operation_id = "card_trash", request_body = CommandRequest<TrashCard>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]

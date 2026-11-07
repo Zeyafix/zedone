@@ -72,6 +72,7 @@ macro_rules! run {
             .await
     }};
 }
+mod completion;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {
     assert_eq!(
         result.unwrap_err(),
@@ -521,6 +522,15 @@ async fn card_data_and_removed_membership_change_only_relevant_column_and_card_t
             ),
             ErrorCode::StaleState,
         );
+        rejected(
+            run!(
+                storage,
+                admin,
+                set_completed,
+                completion::request(80 + i as u8, true, before.version)
+            ),
+            ErrorCode::StaleState,
+        );
     }
     let before = fresh(&storage, &admin, 60, 9).await;
     storage
@@ -884,6 +894,15 @@ async fn conflicts_preserve_variants_and_block_every_ordinary_mutation() {
                         expected: conflicted.version
                     }
                 )
+            ),
+            ErrorCode::Conflict,
+        );
+        rejected(
+            run!(
+                storage,
+                admin,
+                set_completed,
+                completion::request(8, true, conflicted.version)
             ),
             ErrorCode::Conflict,
         );

@@ -366,6 +366,18 @@ impl CardStore for WriteContext<'_> {
         })();
         Ok(self.checked(result)?)
     }
+    fn set_card_completed(
+        &mut self,
+        space: &str,
+        card: &str,
+        completed: bool,
+    ) -> CommandResult<()> {
+        let object = object(self.read().document(space)?, card)?;
+        Ok(self.edit(space, |doc| {
+            doc.put(&object, "completed", completed)?;
+            Ok(())
+        })?)
+    }
     fn set_card_lifecycle(
         &mut self,
         space: &str,

@@ -282,6 +282,40 @@
         ]
       }
     },
+    "/v1/commands/card.set_completed": {
+      "post": {
+        "tags": [
+          "cards"
+        ],
+        "operationId": "card_set_completed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_SetCardCompleted"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.trash": {
       "post": {
         "tags": [
@@ -1871,6 +1905,55 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_SetCardCompleted": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card",
+              "completed",
+              "expected"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_TrashCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2937,6 +3020,30 @@
             "$ref": "#/components/schemas/StateVersion"
           },
           "subject": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetCardCompleted": {
+        "type": "object",
+        "required": [
+          "space",
+          "card",
+          "completed",
+          "expected"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "space": {
             "type": "string"
           }
         },

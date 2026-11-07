@@ -11,16 +11,16 @@ current_step: P05.02
 last_completed_stage: P02
 last_completed_step: P04.02
 active_work: "P05.02 / Codex / PR publication and conditional merge / feat/p05-02-space-column-ui"
-next_action: "P05.02 verified локально; разработчик поручил PR и merge/удаление ветки после успеха. Подготовить визуальные доказательства, опубликовать и проверить точный head; LOG-325."
+next_action: "PR #56: исправить CI Back при видимой IME, отправить в тот же PR и проверить точный head; merge/удаление ветки после успеха разрешены LOG-325. GAP-011/EV-066/LOG-326."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007]
+open_gaps: [GAP-007, GAP-011]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
-blocking_current_step: []
+blocking_current_step: [GAP-011]
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-325
+last_event: LOG-326
 ```
 
 P05.02 verified локально в feat/p05-02-space-column-ui от 8984ae6: общий UI жизненного цикла пустых пространств/колонок через прежний CommandClient/Service; Windows Chrome/Opera HTTP, Android Device IPC, отказ/перезапуск/повтор и две debug ABI проверены. EV-066/LOG-324. Исходные product/WebView восстановлены побайтово; синтетические данные/ключ удалены. Дополнительный повтор тёмной темы Android остановлен из-за двух отказов селектора Device; текущий срез принят в светлой теме, прежние темы EV-064 сохраняются. T08/A01 partial; PR/CI/merge не выполнялись.
@@ -437,6 +437,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 | --- | --- | --- | --- | --- |
 | GAP-009 | gap | resolved | P04.02 CI | Совмещённый native дважды исчерпал 10 минут на aada64a. Разделение product-native/prototype-native сохранило все команды/guards/лимиты; на 7e711ea все четыре Android suites и aggregate SUCCESS (run 42276553193). Охват завершения Android подтверждён; финальные checks следующего head по-прежнему обязательны. EV-065/LOG-320/321. |
 | GAP-010 | gap | resolved | P04.02 CI | Linux дважды достиг 10 минут при font download с Azure. Смена только mirrorlist одноразового runner на Ubuntu HTTPS archives сохранила signed sources и --with-deps chromium. Финальный 479c456 прошёл Linux/Windows и всю Android-матрицу, raw logs подтвердили HTTPS-загрузки; PR #54 merged 889d4b0. Будущая доступность/время не гарантируются. EV-065/LOG-321/322. |
+| GAP-011 | gap | in_progress | P05.02 CI | На PR #56/head 3567abf Android shell прошёл операции обоих контейнеров, но ожидал закрытия формы от первого Back при открытой IME; timeout в последнем сценарии. Aggregate правильно отказал. Штатная AOSP-клавиатура воспроизведена через Device: первый Back скрывает IME и сохраняет диалог, второй закрывает форму. CI теперь явно проверяет нативное скрытие видимой IME, затем прежние Back-условия. Локальные JS/actionlint/ShellCheck/desktop proof passed; закрытие после финальных Android CI нового head. EV-066/LOG-326. |
 | BUG-004 | bug | resolved | P03.05 | PR #47 head ac0a8c0: Windows CI отклонил standalone validator из-за преобразования LF→CRLF при Git checkout; правила новых generated JS/d.ts отсутствовали. Runtime-тесты прошли, Linux CI success. Воспроизведены оба отказа при core.autocrlf=true/core.eol=crlf; явные LF attributes сохраняют оба артефакта побайтово на Windows/Linux, check-types и 11 клиентских тестов passed. Runtime/генератор/артефакты не меняются; Закрыт: исправленный head 7dc69d7 прошёл все три Windows/Linux/Android CI и интегрирован PR #47 в f4bf4e1; LOG-294. EV-058/LOG-279 |
 | GAP-007 | gap | in_progress | — | Исходный Android main 41641087962 на f173064 упал при подключении WebView после restart; повтор attempt 2 тоже упал. CI.02 (ожидание page/диагностика) интегрирован PR #26 в d141d92, PR и main Windows/Linux/Android Actions passed, реальный restart/SQLite/отзыв ключа подтверждены. Первопричина и устранение всех периодических сбоев не доказаны; наблюдать новые отказы с диагностикой. Не блокирует P02.04.2; EV-031/LOG-211 |
 | GAP-008 | gap | resolved | P05.01/T08 | EV-064/LOG-306/308: DEFAULT исправил два отказа запуска; Device подтвердил повторные open/relaunch. После BUG-005 проверены мобильное меню/темы/system/Back и настоящий space.list IPC с отказами/повтором на изолированной синтетике. Исходный sandbox восстановлен, ключ/база fixture удалены. Локальный охват оболочки пройден; весь продуктовый T08/P05 и физический arm64 не принимаются. |
@@ -2933,3 +2934,12 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Ветка feat/p05-02-space-column-ui основана на 8984ae6; main/origin/main совпадают с базой, существующего PR нет. Применены ze-commit/ze-pr, просмотрен полный source/docs/CI diff; локальные EV-066/LOG-324 сохраняются, runtime после итоговых проверок не менялся. Author/committer используют GitHub noreply, локальные данные остаются вне Git.
 - Реальная пара base/final снимается вне репозитория на одинаковых синтетических пространствах/экране/теме. Базовая версия собрана из отдельного checkout 8984ae6; без подмены поведения. Браузерный snapshot для загрузки вложений дважды вернул timeout; DOM-доступ работает, секреты браузера не извлекаются.
 - P05.02 остаётся verified; PR/CI/merge ещё не завершены. Следующий шаг — публикация и проверки точного head. Все пять правил и ограничения EV-066 сохранены.
+
+### LOG-326 — 2026-11-07 — агент Codex, Android Back/IME в PR #56
+
+- PR #56/head 3567abf: product-native/prototype-native/prototype-ui и Linux SUCCESS; Windows при получении события ещё выполнялся. Android shell прошёл старые menu/темы/reload и прикладной жизненный цикл до последней проверки Back после открытия формы; 10-секундный timeout ожидания исчезновения диалога. Aggregate отказал из-за shell FAILURE, а не из-за собственного дефекта. GAP-011 in_progress; слепой rerun не выполняется.
+- Через Device воспроизведена штатная AOSP IME: первый Back скрывает клавиатуру, оставляя форму, второй закрывает форму. Тестовый IME без экранного представления не требует лишнего Back. Различие подтверждено native dumpsys и Device keyboard status: после скрытия сервис может сохранять mIsInputViewShown=true при mInputShown=false, поэтому CI проверяет оба флага. Изменений runtime/API/SQL/UI нет.
+- Драйвер отдельно скрывает только видимую IME нативным Back с ограниченным ожиданием, требует сохранения диалога, затем выполняет прежние проверки закрытия формы и возврата к списку. Нет дополнительных Back без проверки состояния, увеличения прежних таймаутов или ослабления assertions. Пользовательская/агентская/архитектурная документация уточняет порядок клавиатура → форма → доска.
+- JS syntax, actionlint с явным ShellCheck, desktop proof прежнего полного touch-сценария passed. Локальная Device-проверка механизма passed; исходные 23 product/WebView файла восстановлены набором/SHA-256, синтетическая база/ключ/staging удалены, исходный test IME восстановлен. Эмулятор до этой диагностики был выключен; Device вернул его в выключенное состояние. Новая CI-ревизия ещё не проверена.
+- Пять правил сохранены в срезе драйвера/docs: обратные операции и общий API/SQLite прежние, документация обновлена, платформенные проверки не удалены. Настоящая base/final пара PR доступна на GitHub и совпала SHA-256 после публикации; новые снимки не нужны, видимый UI не менялся. Применяются ze-commit/ze-pr.
+- Следующий шаг — коммит/push в тот же PR #56 и все финальные checks нового head, затем merge/удаление ветки по LOG-325. Watch сохраняется; работа не завершена.

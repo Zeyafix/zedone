@@ -47,6 +47,25 @@ async function disconnect() {
   await browser?.close(); browser = undefined;
   if (port) { device("forward", "--remove", `tcp:${port}`); port = undefined; }
 }
+async function dismissKeyboard() {
+  const shown = () => {
+    const state = device("shell", "dumpsys", "input_method");
+    const input = /\bmInputShown=(true|false)\b/.exec(state);
+    const view = /\bmIsInputViewShown=(true|false)\b/.exec(state);
+    assert.ok(input && view, "Android 13 must report native IME and input-view state");
+    // An active IME may have no input view (e.g. a hardware/test keyboard).
+    // Conversely, the service may retain its view after its window is hidden.
+    return input[1] === "true" && view[1] === "true";
+  };
+  if (!shown()) return;
+  device("shell", "input", "keyevent", "4");
+  const deadline = Date.now() + 5000;
+  while (shown()) {
+    assert.ok(Date.now() < deadline, "Native Back must hide the IME");
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  console.log("Android native Back hid the IME; checking form/board Back ordering next.");
+}
 try {
   device("install", "-r", resolve(root, "ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"));
   let page = await openWebView();
@@ -65,7 +84,7 @@ try {
   device("shell", "run-as", app, "cp", "-r", remote, "product");
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
-  await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"));
+  await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
   assert.deepEqual(errors, [], "Domain UI must not raise page errors");
 } finally {
   await disconnect();

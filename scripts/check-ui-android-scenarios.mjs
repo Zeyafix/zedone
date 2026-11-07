@@ -81,7 +81,7 @@ export async function checkShell(page, back) {
 }
 
 /** CI only: same built UI and real IPC/Service, touch instead of DOM clicks. */
-export async function checkWorkspaceTouch(page, back) {
+export async function checkWorkspaceTouch(page, back, dismissKeyboard = async () => {}) {
   const { visible, tap, fill } = await nativeControls(page);
   const dialog = '[role="dialog"]';
   const input = `${dialog} input[name="name"]`;
@@ -123,6 +123,10 @@ export async function checkWorkspaceTouch(page, back) {
   assert.equal(await page.evaluate(() => localStorage.length), 0);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await tap(".board-heading .primary-button", "Создать колонку");
+  await visible(dialog);
+  // Android gives the IME the first Back. Verify form/board navigation only
+  // after the native keyboard is hidden; dismissal must leave this form open.
+  await dismissKeyboard();
   await visible(dialog);
   await back();
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));

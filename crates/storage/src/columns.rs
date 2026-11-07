@@ -104,16 +104,7 @@ fn snapshot(
         SpaceState::Trashed
     };
     let deletion_groups = lifecycle.into_iter().filter(|s| s != "active").collect();
-    let mut positions = graph
-        .get_all(&object, "position")?
-        .into_iter()
-        .map(|(v, _)| v.as_u64().ok_or_else(invalid))
-        .collect::<StorageResult<Vec<_>>>()?;
-    if positions.is_empty() {
-        return Err(invalid());
-    }
-    positions.sort();
-    positions.dedup();
+    let positions = crate::ordering::ranks(graph, &object)?;
     let empty = scope.known_content
         && !scope.cards.occupied.contains(column)
         && graph
@@ -162,21 +153,21 @@ impl ColumnStore for WriteContext<'_> {
                 .into());
             }
             // Append after every existing position, including trash, so restore
-            // retains the original place. Explicit reorder belongs to P04.05.
-            let position = self
-                .columns(space)?
-                .iter()
-                .flat_map(|c| c.positions.iter())
-                .max()
-                .copied()
-                .map_or(Some(0), |last| last.checked_add(1))
-                .ok_or_else(invalid)?;
+            // retains the original place. Relative moves allocate dense paths.
+            let position = crate::ordering::append(
+                self.columns(space)?.into_iter().flat_map(|c| {
+                    c.positions
+                        .into_iter()
+                        .map(move |rank| (c.column.clone(), rank))
+                }),
+                column,
+            )?;
             self.edit(space, |doc| {
                 let object = doc.put_object(ROOT, key(column), ObjType::Map)?;
                 doc.put(&object, "format", "zedone.column.v1")?;
                 doc.put(&object, "name", name)?;
                 doc.put(&object, "lifecycle", "active")?;
-                doc.put(&object, "position", position)?;
+                crate::ordering::put_rank(doc, &object, &position)?;
                 Ok(())
             })?;
             Ok(self.column_snapshot(space, column)?)

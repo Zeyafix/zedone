@@ -6,6 +6,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tempfile::TempDir;
+use zedone_core::ordering::Rank::Legacy;
 use zedone_core::{
     access::{Clock, Credential, GrantScope, SpacePermission},
     cards::{
@@ -73,6 +74,7 @@ macro_rules! run {
     }};
 }
 mod completion;
+mod ordering;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {
     assert_eq!(
         result.unwrap_err(),
@@ -149,14 +151,14 @@ async fn lifecycle_history_replay_groups_and_restart_are_one_atomic_result() {
     let (dir, storage, admin) = setup().await;
     let first = run!(storage, admin, create, creation(1, 9)).unwrap().result;
     assert_eq!(first.titles, ["Ёж 空間 😀"]);
-    assert_eq!(first.positions, [0]);
+    assert_eq!(first.positions, [Legacy(0)]);
     assert_eq!(first.completed, [false]);
     assert!(first.tags.is_empty());
     let initial_versions = versions(&storage, 9).await;
     assert_eq!(initial_versions.len(), 1);
     assert_eq!(initial_versions[0].subject, admin.subject());
     let second = run!(storage, admin, create, creation(2, 8)).unwrap().result;
-    assert_eq!(second.positions, [1]);
+    assert_eq!(second.positions, [Legacy(1)]);
     let changed = run!(
         storage,
         admin,
@@ -844,7 +846,7 @@ async fn conflicts_preserve_variants_and_block_every_ordinary_mutation() {
             "description" => assert_eq!(conflicted.descriptions.len(), 2),
             "column" => assert_eq!(conflicted.columns, [sid(2), sid(3)]),
             "completed" => assert_eq!(conflicted.completed, [false, true]),
-            "position" => assert_eq!(conflicted.positions, [2, 3]),
+            "position" => assert_eq!(conflicted.positions, [Legacy(2), Legacy(3)]),
             _ => assert_eq!(conflicted.deletion_groups.len(), 2),
         }
         rejected(

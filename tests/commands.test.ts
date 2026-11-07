@@ -296,3 +296,28 @@ test("Rust-derived runtime validation rejects malformed nested results without a
   expect((await new CommandClient(store, async () => malformed).deliver(id)).status).toBe("pending");
   expect(await store.load(id)).toBeDefined();
 });
+
+
+test("relative moves preserve the original destination, anchor and version across lost replies and restart", async () => {
+  for (const operation of ["card.move", "column.move"] as const) {
+    const { store, storage } = fixture();
+    const space=newSpaceId(), column=newColumnId(), card=newCardId(), before=newCardId();
+    const params=operation === "card.move" ? {space,card,column,before,expected:Array(32).fill(7)} : {space,column,before,expected:Array(32).fill(7)};
+    const id=await prepare("2".repeat(32),operation,params,store);
+    const saved=(await store.load(id))!.body;
+    params.before=newCardId();params.expected[0]=8;
+    let calls=0;
+    expect((await new CommandClient(store,async()=>{calls++;return {status:"error",error:{code:"stale_state"}};}).deliver(id)).status).toBe("pending");
+    expect(calls).toBe(1);
+    const reopened=webIntentionStore(storage,"test");
+    const rank=[{digit:12,id:card}];
+    const result=operation === "card.move" ? {space,card,columns:[column],positions:[rank],placements:[{column,rank}],titles:["Task"],descriptions:[""],completed:[false],tags:[],state:"active" as const,deletion_groups:[],version:Array(32).fill(9)} : {space,column,names:["Column"],positions:[rank],state:"active" as const,deletion_groups:[],empty:true,version:Array(32).fill(9)};
+    const response:Response={status:"ok",replayed:true,result};
+    expect(validateResponse(response,operation)).toBe(true);
+    expect(validateResponse({...response,result:{...result,positions:[[{digit:"12",id:card}]]}},operation)).toBe(false);
+    const sent:string[]=[];
+    const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject:"2".repeat(32),key:"approved"}));
+    expect((await new CommandClient(reopened,transport).deliver(id)).status).toBe("completed");
+    expect(sent).toEqual([saved,saved]);expect(JSON.parse(saved).parameters.before).toBe(before);expect(JSON.parse(saved).parameters.expected[0]).toBe(7);
+  }
+});

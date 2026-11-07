@@ -1,7 +1,7 @@
 use super::spaces::{cli, setup_spaces, sid};
 use super::*;
 
-async fn setup_cards() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
+pub(super) async fn setup_cards() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
     let (dir, storage, service, admin) = setup_spaces().await;
     for (id, operation, params) in [
         (250, "space.create", json!({"space":sid(1),"name":"Board"})),
@@ -24,7 +24,7 @@ async fn setup_cards() -> (TempDir, Storage, Service, Arc<PendingAccess>) {
     }
     (dir, storage, service, admin)
 }
-fn creation() -> String {
+pub(super) fn creation() -> String {
     request(
         1,
         "card.create",

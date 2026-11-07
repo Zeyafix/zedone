@@ -19,7 +19,7 @@ pub struct ColumnSnapshot {
     pub state: SpaceState,
     pub deletion_groups: Vec<String>,
     /// All distinct position registers; conflicting values are never overwritten.
-    pub positions: Vec<u64>,
+    pub positions: Vec<crate::ordering::Rank>,
     /// Unknown/future contents block trash and restore until supported.
     pub empty: bool,
     pub version: StateVersion,
@@ -205,7 +205,13 @@ pub fn list(
             let mut columns = tx.columns(&p.space)?;
             columns.retain(|c| p.include_trashed || c.state != SpaceState::Trashed);
             // Concurrent appends may share a position. Identity is the stable tie-break.
-            columns.sort_by(|a, b| a.positions.cmp(&b.positions).then(a.column.cmp(&b.column)));
+            columns.sort_by(|a, b| {
+                a.positions
+                    .iter()
+                    .map(|r| r.key(&a.column))
+                    .cmp(b.positions.iter().map(|r| r.key(&b.column)))
+                    .then(a.column.cmp(&b.column))
+            });
             Ok(ColumnList { columns })
         },
     )

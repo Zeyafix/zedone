@@ -84,6 +84,19 @@ const SCHEMAS: &[Schema] = &[
         archive: V1_ARCHIVE,
         validate: Some(crate::clock::validate_v4),
     },
+    // Additive document encoding. Historical graphs and receipts stay intact.
+    Schema {
+        version: 5,
+        sql: concat!(
+            include_str!("schema/v1.sql"),
+            include_str!("schema/access-v2.sql"),
+            include_str!("schema/clock-v3.sql")
+        ),
+        seed: Some(crate::clock::seed),
+        upgrade: Some(|_| Ok(())),
+        archive: V1_ARCHIVE,
+        validate: Some(crate::clock::validate_v4),
+    },
 ];
 #[derive(Clone, Copy)]
 pub(crate) struct Registry(pub &'static [Schema]);

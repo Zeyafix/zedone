@@ -30,7 +30,10 @@ pub struct CardSnapshot {
     pub titles: Vec<String>,
     pub descriptions: Vec<String>,
     pub columns: Vec<String>,
-    pub positions: Vec<u64>,
+    pub positions: Vec<crate::ordering::Rank>,
+    /// Whole variants after a move; legacy documents and receipts omit these.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placements: Vec<crate::ordering::CardPlacement>,
     pub completed: Vec<bool>,
     pub tags: Vec<String>,
     pub state: SpaceState,
@@ -324,7 +327,12 @@ pub fn list(
             cards.sort_by(|a, b| {
                 a.columns
                     .cmp(&b.columns)
-                    .then(a.positions.cmp(&b.positions))
+                    .then(
+                        a.positions
+                            .iter()
+                            .map(|r| r.key(&a.card))
+                            .cmp(b.positions.iter().map(|r| r.key(&b.card))),
+                    )
                     .then(a.card.cmp(&b.card))
             });
             Ok(CardList { cards })

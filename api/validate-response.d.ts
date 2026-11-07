@@ -1,5 +1,5 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.revoke" | "card.create" | "card.edit" | "card.history" | "card.list" | "card.read" | "card.restore" | "card.set_completed" | "card.trash" | "column.create" | "column.list" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash";
+export type Operation = "access.inspect" | "access.revoke" | "card.create" | "card.edit" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.set_completed" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.revoke": components["schemas"]["CommandRequest_RevokeAccess"]["parameters"];
@@ -7,12 +7,14 @@ export type Parameters = {
   "card.edit": components["schemas"]["CommandRequest_EditCard"]["parameters"];
   "card.history": components["schemas"]["CommandRequest_ReadCardHistory"]["parameters"];
   "card.list": components["schemas"]["CommandRequest_ListCards"]["parameters"];
+  "card.move": components["schemas"]["CommandRequest_MoveCard"]["parameters"];
   "card.read": components["schemas"]["CommandRequest_ReadCard"]["parameters"];
   "card.restore": components["schemas"]["CommandRequest_RestoreCard"]["parameters"];
   "card.set_completed": components["schemas"]["CommandRequest_SetCardCompleted"]["parameters"];
   "card.trash": components["schemas"]["CommandRequest_TrashCard"]["parameters"];
   "column.create": components["schemas"]["CommandRequest_CreateColumn"]["parameters"];
   "column.list": components["schemas"]["CommandRequest_ListColumns"]["parameters"];
+  "column.move": components["schemas"]["CommandRequest_MoveColumn"]["parameters"];
   "column.read": components["schemas"]["CommandRequest_ReadColumn"]["parameters"];
   "column.rename": components["schemas"]["CommandRequest_RenameColumn"]["parameters"];
   "column.restore": components["schemas"]["CommandRequest_RestoreColumn"]["parameters"];

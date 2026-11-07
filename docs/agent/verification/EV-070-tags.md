@@ -108,3 +108,26 @@ Markdown по существованию (без повторной провер
 физический arm64, выпуск APK и полный масштаб/память не принимаются.
 T07/A20/A30/A32/A39/A40 остаются partial до соответствующих полных сценариев.
 Новых CI/PR/merge нет. Интеграция и полный P04 не объявляются завершёнными.
+
+## Продолжение публикации: PR #65
+
+[PR #65](https://github.com/Zeyafix/zedone/pull/65), head c05ca4d:
+Android run 42383316992 отменил product-native по превышению общего лимита 10m0s.
+Аннотация GitHub подтверждает причину. Его команды до отмены прошли, включая
+225 нативных тестов, обе release ABI, 14 unsafe guard, 19 client/183 assertions,
+контракт и negative-cleanup; статус job всё равно cancelled, aggregate failed.
+Это не прохождение финального CI. Остальные Android suites прошли.
+
+LOG-346 сохраняет лимит и убирает последовательное ожидание независимых client
+тестов перед нативной сборкой: оба набора выполняются параллельно, драйвер ждёт
+обоих и сохраняет ошибки через AggregateError. Нативные команды/их порядок,
+assertions, обе ABI и cleanup прежние; продуктовый runtime не меняется.
+Локальный полный `--android` с новым драйвером passed: 225 native Rust,
+19 client/183 assertions, обе release ABI/14 unsafe guard/контракт.
+Негативно проверены ожидание полного client-набора при раннем native-preflight
+failure и сохранение двух одновременных ошибок (искусственный client exit 7 и
+native-preflight). Синтаксис Bun/diff passed. Device/sandbox очищены.
+Host Windows/Linux первоначального head прошли. Runtime не менялся;
+CI нового head ожидается, merge не выполнялся.
+Raw logs только docs/reports/p04-06-ci-*-c05ca4d.log.
+Локальные логи только docs/reports/p04-06-driver-* и p04-06-android-parallel.log.

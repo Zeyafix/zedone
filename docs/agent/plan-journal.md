@@ -11,7 +11,7 @@ current_step: P04.06
 last_completed_stage: P02
 last_completed_step: P04.05
 active_work: null
-next_action: "P04.06 verified: публикация и условная интеграция поручены (LOG-345). Проверить CI точного head, замечания и конфликты; при успехе merge и удаление ветки. Следующий продуктовый шаг не начат."
+next_action: "PR #65: исходный Android product-native отменён по 10m0s. LOG-346: параллельный client/native product-драйвер прошёл локальную полную и негативную проверку с прежними лимитами; опубликовать исправление и дождаться всех CI нового head."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-345
+last_event: LOG-346
 ```
 
 P04.06 verified локально в API-срезе тегов и назначений: feat/p04-06-tags,
@@ -3158,3 +3158,31 @@ limitations: "Непроверенные части и связанные BUG/GA
   ещё не заявляются. Следующий шаг — коммит/публикация и проверки точного head,
   затем интеграция и удаление ветки при отсутствии блокеров. Новая реализация
   следующего продуктового шага не начата.
+
+### LOG-346 — 2026-11-07 — агент Codex, Android job timeout в PR #65
+
+- PR #65 head c05ca4d опубликован и наблюдается. Android run 42383316992:
+  product-native отменён; аннотация GitHub прямо подтверждает превышение 10m0s.
+  Все его 225 нативных тестов, обе release ABI/14 unsafe guard/контракт,
+  19 клиентских/183 assertions и negative-cleanup до отмены прошли.
+  Aggregate корректно отказал RESULT=cancelled; это не успешный CI check.
+  Прежние prototype-native/prototype-ui/shell и Linux passed, Windows ещё идёт.
+- Сохранён прежний лимит 10 минут с учётом LOG-310/315; увеличение не применяется.
+  Клиентские delivery-тесты ранее занимали отдельное последовательное ожидание
+  перед Rust/Android-сборками, хотя не владеют эмулятором или Cargo output.
+- Product-драйвер запускает client/native проверки параллельно и ждёт обе через
+  allSettled, сохраняя ошибки/сигналы/cleanup и все исходные команды/порядок Rust.
+  Изменения продукта/контракта/UI/зависимостей отсутствуют. Полный новый CI и
+  сокращение фактического ожидания ещё не заявляются; следующий шаг — локальная
+  проверка драйвера, публикация в PR #65 и все проверки нового точного head.
+- Новый драйвер passed локально: 225 native Rust-тестов Android x86_64,
+  19 client/183 assertions, обе release ABI/14 unsafe guard/контракт. При
+  раннем native-preflight failure все клиентские тесты завершились до итогового
+  отказа; искусственные одновременные client exit 7/native-preflight failure
+  сохранены оба. Синтаксис Bun и git diff --check passed. Bun отображает причины
+  AggregateError отдельно; это учтено при чтении негативных логов.
+- Эмулятор открыт и закрыт через Device, собственный sandbox удалён; состояние
+  возвращено к исходному выключенному. Логи только docs/reports/p04-06-driver-*
+  и p04-06-android-parallel.log. Initial host Windows/Linux CI также SUCCESS.
+  Runtime продукта/пять правил/ограничения EV-070 не менялись. Новый CI пока ждёт
+  публикации; ни первоначальный cancelled job, ни локальный успех не заменяют его.

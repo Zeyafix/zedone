@@ -136,10 +136,10 @@ if (mode !== "--write-openapi") {
       "Response validator types are stale; run --write-types");
   }
   run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
-  if (!mode || mode === "--android") run([process.execPath, "test", resolve(root, "tests/commands.test.ts")]);
+  if (!mode) run([process.execPath, "test", resolve(root, "tests/commands.test.ts")]);
 }
 
-if (mode === "--android") {
+async function checkAndroid() {
   const serial = env.ANDROID_SERIAL;
   assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
   assert.ok(env.ANDROID_HOME && env.NDK_HOME, "ANDROID_HOME and NDK_HOME required");
@@ -192,4 +192,21 @@ if (mode === "--android") {
     }
   }
   console.log("Android native tests/contract passed; both ABI builds and unsafe guards passed.");
+}
+
+if (mode === "--android") {
+  // Client delivery tests own no emulator or Cargo output. Run them during the
+  // native builds, but wait for BOTH results even when one check fails.
+  const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
+  console.log(`> ${command.join(" ")}`);
+  const clients = Bun.spawn(command, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+  const results = await Promise.allSettled([
+    clients.exited.then(code => {
+      assert.ok(!clients.signalCode, "Client tests interrupted");
+      assert.equal(code, 0, "Client tests failed");
+    }),
+    Promise.resolve().then(checkAndroid),
+  ]);
+  const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
+  if (errors.length) throw new AggregateError(errors, "Android product checks failed");
 }

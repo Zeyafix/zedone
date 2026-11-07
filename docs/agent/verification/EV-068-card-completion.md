@@ -12,8 +12,8 @@ dependencies_evidence: [P04.03/EV-067/PR58/2bbc0db]
 scope: [core card completion, storage completed register, Service HTTP/CLI/IPC, Rust-derived contract, tests, docs]
 checks: [bun scripts/check-product.mjs, bun scripts/check-product.mjs --android, bun run ui:check, bun run ui:build, git diff --check]
 reverse_and_failure: completed=false отменяет completed=true; stale/ABA, права, конфликт/корзина, rollback и неизвестный результат без повторного эффекта.
-result: verified_locally
-next: Ревью/публикация по поручению, CI точного head и интеграция; затем P04.05.
+result: done_merged_pr_61
+next: P04.05, явные перемещения и порядок; новая реализация не начата.
 ```
 
 Команда `card.set_completed` задаёт bool явно, использует общую version всей
@@ -77,7 +77,9 @@ UI через adb не управлялся. Собственный sandbox уд
 Перемещения проверены только доверенным fixture на общей модели и не приняты
 как публичная операция P04.05. Теги, серии истории, группы и продуктовый обмен,
 физический arm64 и release APK не принимаются. T07/A02/A07 остаются partial.
-PR/новые CI/интеграция не выполнялись.
+P04.04 интегрирован через [PR #61](https://github.com/Zeyafix/zedone/pull/61),
+head 60f4628, merge 4810735 после семи SUCCESS Windows/Linux/Android.
+Исходная ветка удалена локально/на GitHub; наблюдение снято, LOG-337.
 
 ## Пять правил
 
@@ -88,3 +90,20 @@ PR/новые CI/интеграция не выполнялись.
   UI карточки/APK/физический телефон вне текущей приёмки.
 - Источник истины: прежние SQLite/Automerge/card.v1 и Rust-derived контракт;
   клиент сохраняет только исходное намерение доставки.
+
+## Окончательная интеграция
+
+Точный head `60f46286df37b69df5df6cb52989c5fd10ce5605` прошёл все семь checks:
+Windows/Linux, Android product-native/prototype-native/prototype-ui/shell и
+строгий aggregate. Запуски: [host](https://github.com/Zeyafix/zedone/actions/runs/42373915466),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42373915494).
+Raw logs подтвердили 192 продуктовых Rust-теста, 17 клиентских/135 assertions,
+Rust/OpenAPI/TS/validator, обе release ABI/unsafe и прежний native/UI/cleanup охват.
+Перед merge проверены тот же head, CLEAN/MERGEABLE и отсутствие comments/reviews/
+review requests/inline comments. PR body обновлён успешным CI с сохранением границ.
+По LOG-336 PR #61 интегрирован в `48107354126c894c67ed3f7be5ceb9ae4c33f6eb`.
+Ветка feat/p04-04-card-completion удалена локально/на GitHub, main обновлён,
+watch снят. Машинные факты/raw logs только docs/reports/p04-04-pr61-merged.json
+и p04-04-ci-*-60f4628.log. Следующий готовый шаг — P04.05.
+Публикуется только документальная фиксация интегрированного runtime; новые
+runtime-проверки для неё не нужны. Полные критерии и ограничения выше сохранены.

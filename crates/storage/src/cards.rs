@@ -105,6 +105,7 @@ fn snapshot(
     space: &str,
     card: &str,
     projections: &BTreeMap<String, Projection>,
+    tag_snapshots: &BTreeMap<String, zedone_core::tags::TagSnapshot>,
 ) -> StorageResult<CardSnapshot> {
     let object = object(graph, card)?;
     if strings(graph, &object, "format")? != ["zedone.card.v1"]
@@ -154,20 +155,31 @@ fn snapshot(
         column_object(graph, column)?;
     }
     let completed = registers(graph, &object, "completed", |v| v.as_bool())?;
-    let tags_object = map(graph, &object, "tags")?;
+    let (_, assignments) = crate::tags::assignments(graph, &object)?;
     let mut tags = Vec::new();
-    for tag in graph.keys(&tags_object) {
-        if !valid_id(&tag) || registers(graph, &tags_object, &tag, |v| v.as_bool())? != [true] {
-            return Err(invalid());
+    let mut tags_conflicted = false;
+    let mut tag_projections = BTreeMap::new();
+    for (tag, values) in assignments {
+        if values.len() > 1 {
+            tags_conflicted = true;
         }
-        tags.push(tag);
+        if values.contains(&true) {
+            if tag_snapshots.contains_key(&tag) {
+                tags_conflicted |= crate::tags::blocks_card(graph, &tag)?;
+                tag_projections.insert(tag.clone(), projections.get(&format!("tag:{tag}")));
+            } else {
+                tags_conflicted = true;
+            }
+            tags.push(tag);
+        }
     }
     tags.sort();
     let lifecycle = strings(graph, &object, "lifecycle")?;
     if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
         return Err(invalid());
     }
-    let conflicted = placements.len() > 1
+    let conflicted = tags_conflicted
+        || placements.len() > 1
         || titles.len() != 1
         || descriptions.len() != 1
         || columns.len() != 1
@@ -187,7 +199,22 @@ fn snapshot(
         .filter(|(k, _)| !crate::columns::known_root(k))
         .collect();
     let projection = projections.get(&key(card)).ok_or_else(invalid)?;
-    let version = state_version(&("card.v1", space, card), &(projection, unknown))?;
+    let version = if tag_projections.is_empty() {
+        state_version(&("card.v1", space, card), &(projection, unknown))?
+    } else {
+        // A collision may involve another tag root; retaining all name roots
+        // prevents a conflict appearing and disappearing from reviving a token.
+        tag_projections.extend(
+            projections
+                .iter()
+                .filter(|(k, _)| k.strip_prefix("tag:").is_some_and(valid_id))
+                .map(|(k, v)| (k.clone(), Some(v))),
+        );
+        state_version(
+            &("card.v1", space, card),
+            &(projection, unknown, tag_projections),
+        )?
+    };
     map(graph, &object, "history")?;
     Ok(CardSnapshot {
         space: space.into(),
@@ -336,19 +363,22 @@ impl CardStore for WriteContext<'_> {
     fn card_snapshot(&mut self, space: &str, card: &str) -> CommandResult<CardSnapshot> {
         self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
-        Ok(snapshot(graph, space, card, &domain_projections(graph)?)?)
+        let projections = domain_projections(graph)?;
+        let tags = crate::tags::snapshots(graph, space, &projections)?;
+        Ok(snapshot(graph, space, card, &projections, &tags)?)
     }
     fn cards(&mut self, space: &str) -> CommandResult<Vec<CardSnapshot>> {
         self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
         let projections = domain_projections(graph)?;
+        let tags = crate::tags::snapshots(graph, space, &projections)?;
         let mut result = Vec::new();
         for root in graph.keys(ROOT) {
             if let Some(card) = root.strip_prefix("card:") {
                 if !valid_id(card) {
                     return Err(invalid().into());
                 }
-                result.push(snapshot(graph, space, card, &projections)?);
+                result.push(snapshot(graph, space, card, &projections, &tags)?);
             }
         }
         Ok(result)

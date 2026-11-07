@@ -15,6 +15,30 @@ function fixture() {
 }
 const parameters = { subject: "1".repeat(32) };
 
+test("search keeps its original query and scope on retry and validates nested results", async () => {
+  const { store } = fixture();
+  const space = newSpaceId(), card = newCardId();
+  const params = { query: " Café Straße % ", scope: { kind: "space" as const, space } };
+  const id = await prepare("2".repeat(32), "card.search", params, store);
+  const saved = (await store.load(id))!.body;
+  params.query = "";
+  const result = { spaces: [{ space: {space,names:["Board"],state:"active",deletion_groups:[],empty:false,version:Array(32).fill(1)}, hits: [{card:{space,card,columns:[newColumnId()],positions:[0],titles:["Café Straße %"],descriptions:[""],completed:[true],tags:[],state:"active",deletion_groups:[],version:Array(32).fill(2)},placement_conflict:false}]}] };
+  const response = {status:"ok",replayed:true,result};
+  expect(validateResponse(response,"card.search")).toBe(true);
+  expect(validateResponse(response,"card.list")).toBe(false);
+  expect(validateResponse({...response,result:{spaces:[{...result.spaces[0],hits:[{...result.spaces[0].hits[0],placement_conflict:"false"}]}]}},"card.search")).toBe(false);
+  const sent: string[] = [];
+  const transport = ipcTransport(async (_, args) => {
+    sent.push((args.invocation as {request:string}).request);
+    if (sent.length===1) throw new Error("lost reply");
+    return JSON.stringify(response);
+  }, async () => ({subject: "2".repeat(32), key: "approved"}));
+  expect((await new CommandClient(store,transport).deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([saved,saved]);
+  expect(JSON.parse(saved).parameters.query).toBe(" Café Straße % ");
+  expect(JSON.parse(saved).parameters.scope).toEqual({kind:"space",space});
+});
+
 test("tag intentions retain spelling, identities, explicit removal and both original versions", async () => {
   const tag=newTagId(),space=newSpaceId(),card=newCardId();
   expect(tag).toMatch(/^[a-f0-9]{32}$/);expect(newTagId()).not.toBe(tag);

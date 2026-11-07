@@ -8,8 +8,6 @@ use crate::{
     spaces::{SpaceState, valid_id},
     wire::{CommandRequest, CommandResponse},
 };
-use icu_casemap::CaseMapper;
-use icu_normalizer::{ComposingNormalizer, DecomposingNormalizer};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -17,11 +15,7 @@ use utoipa::ToSchema;
 /// decomposition handles combining Greek ypogegrammeni before case folding.
 /// Only the comparison key is normalized; never rewrite the entered spelling.
 pub fn name_key(name: &str) -> String {
-    let decomposed = DecomposingNormalizer::new_nfd().normalize(name.trim());
-    let folded = CaseMapper::new().fold_string(&decomposed);
-    ComposingNormalizer::new_nfc()
-        .normalize(&folded)
-        .into_owned()
+    crate::text::comparison_key(name.trim())
 }
 
 #[cfg(test)]

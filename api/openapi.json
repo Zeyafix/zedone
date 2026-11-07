@@ -316,6 +316,40 @@
         ]
       }
     },
+    "/v1/commands/card.search": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "card_search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_SearchCards"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SearchResults"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.set_completed": {
       "post": {
         "tags": [
@@ -2526,6 +2560,48 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_SearchCards": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "query",
+              "scope"
+            ],
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "scope": {
+                "$ref": "#/components/schemas/SearchScope",
+                "description": "Hosts map the active space to Space; clearing query never changes scope."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_SetCardCompleted": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2848,6 +2924,17 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_ColumnSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_SearchResults": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_SearchResults"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -3228,6 +3315,39 @@
               },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_SearchResults": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "spaces"
+            ],
+            "properties": {
+              "spaces": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SearchSpace"
+                },
+                "description": "Only spaces containing matches, in the same order as space.list."
               }
             },
             "additionalProperties": false
@@ -3992,6 +4112,126 @@
             "$ref": "#/components/schemas/StateVersion"
           },
           "subject": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchAllKind": {
+        "type": "string",
+        "enum": [
+          "all"
+        ]
+      },
+      "SearchAllScope": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SearchAllKind"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchCards": {
+        "type": "object",
+        "required": [
+          "query",
+          "scope"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/SearchScope",
+            "description": "Hosts map the active space to Space; clearing query never changes scope."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchHit": {
+        "type": "object",
+        "required": [
+          "card",
+          "placement_conflict"
+        ],
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSnapshot"
+          },
+          "placement_conflict": {
+            "type": "boolean",
+            "description": "These hits precede ordinary board positions inside their space."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchResults": {
+        "type": "object",
+        "required": [
+          "spaces"
+        ],
+        "properties": {
+          "spaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchSpace"
+            },
+            "description": "Only spaces containing matches, in the same order as space.list."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchScope": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SearchSpaceScope"
+          },
+          {
+            "$ref": "#/components/schemas/SearchAllScope"
+          }
+        ]
+      },
+      "SearchSpace": {
+        "type": "object",
+        "required": [
+          "space",
+          "hits"
+        ],
+        "properties": {
+          "hits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            }
+          },
+          "space": {
+            "$ref": "#/components/schemas/SpaceSnapshot",
+            "description": "All current names; len > 1 identifies the leading name-conflict group."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SearchSpaceKind": {
+        "type": "string",
+        "enum": [
+          "space"
+        ]
+      },
+      "SearchSpaceScope": {
+        "type": "object",
+        "required": [
+          "kind",
+          "space"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SearchSpaceKind"
+          },
+          "space": {
             "type": "string"
           }
         },

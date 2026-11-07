@@ -33,6 +33,8 @@ mod columns;
 mod cards;
 #[path = "commands/ordering.rs"]
 mod ordering;
+#[path = "commands/search.rs"]
+mod search;
 #[path = "commands/tags.rs"]
 mod tags;
 

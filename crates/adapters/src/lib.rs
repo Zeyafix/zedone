@@ -7,6 +7,9 @@ use serde_json::Value;
 use zedone_core::{
     access::Credential,
     access_commands::{self, InspectAccess, RevokeAccess},
+    cards::{
+        self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard, TrashCard,
+    },
     columns::{
         self, CreateColumn, ListColumns, ReadColumn, RenameColumn, RestoreColumn, TrashColumn,
     },
@@ -75,6 +78,13 @@ impl Service {
                 RenameColumn::NAME => run!(RenameColumn, columns::rename),
                 TrashColumn::NAME => run!(TrashColumn, columns::trash),
                 RestoreColumn::NAME => run!(RestoreColumn, columns::restore),
+                CreateCard::NAME => run!(CreateCard, cards::create),
+                ReadCard::NAME => run!(ReadCard, cards::read),
+                ReadCardHistory::NAME => run!(ReadCardHistory, cards::history),
+                ListCards::NAME => run!(ListCards, cards::list),
+                EditCard::NAME => run!(EditCard, cards::edit),
+                TrashCard::NAME => run!(TrashCard, cards::trash),
+                RestoreCard::NAME => run!(RestoreCard, cards::restore),
                 _ => Err(invalid()),
             }
         }

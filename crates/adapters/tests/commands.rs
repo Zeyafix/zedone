@@ -29,6 +29,9 @@ mod spaces;
 #[path = "commands/columns.rs"]
 mod columns;
 
+#[path = "commands/cards.rs"]
+mod cards;
+
 fn key(access: &PendingAccess) -> String {
     access
         .credential()

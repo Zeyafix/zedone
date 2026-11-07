@@ -29,6 +29,19 @@ fn projection(graph: &Automerge) -> StorageResult<BTreeMap<String, serde_json::V
 pub(crate) fn domain_projections(
     graph: &Automerge,
 ) -> StorageResult<BTreeMap<String, BTreeMap<String, serde_json::Value>>> {
+    projections(graph, false)
+}
+
+pub(crate) fn history_projections(
+    graph: &Automerge,
+) -> StorageResult<BTreeMap<String, BTreeMap<String, serde_json::Value>>> {
+    projections(graph, true)
+}
+
+fn projections(
+    graph: &Automerge,
+    history: bool,
+) -> StorageResult<BTreeMap<String, BTreeMap<String, serde_json::Value>>> {
     let mut parents = HashMap::new();
     let mut operations = Vec::new();
     for change in graph.get_changes(&[]) {
@@ -45,7 +58,9 @@ pub(crate) fn domain_projections(
     for (id, op) in operations {
         let mut object = &op.obj;
         let mut key = &op.key;
+        let mut root_child = None;
         while *object != ObjectId::Root {
+            root_child = Some(key);
             let (parent, parent_key) = parents.get(object).ok_or_else(invalid)?;
             object = parent;
             key = parent_key;
@@ -56,6 +71,15 @@ pub(crate) fn domain_projections(
         let Key::Map(name) = key else {
             return Err(invalid());
         };
+        // Text history is shared data, but changing only its bookkeeping must
+        // not invalidate a prepared edit or a container membership token.
+        let is_history = name
+            .strip_prefix("card:")
+            .is_some_and(crate::columns::valid_id)
+            && matches!(root_child, Some(Key::Map(field)) if field.as_str() == "history");
+        if is_history != history {
+            continue;
+        }
         result
             .entry(name.to_string())
             .or_insert_with(BTreeMap::new)

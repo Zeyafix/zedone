@@ -21,33 +21,39 @@ fn invalid() -> StorageError {
 fn key(column: &str) -> String {
     format!("column:{column}")
 }
-fn valid_id(id: &str) -> bool {
+pub(crate) fn valid_id(id: &str) -> bool {
     id.len() == 32
         && id != "00000000000000000000000000000000"
         && id
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
-fn known_root(key: &str) -> bool {
+pub(crate) fn known_root(key: &str) -> bool {
     matches!(key, "format" | "name" | "lifecycle" | "history")
         || key.strip_prefix("column:").is_some_and(valid_id)
+        || key.strip_prefix("card:").is_some_and(valid_id)
 }
 type Projection = BTreeMap<String, serde_json::Value>;
 struct Scope<'a> {
     unknown: BTreeMap<&'a str, &'a Projection>,
     known_content: bool,
+    cards: crate::cards::Memberships<'a>,
 }
-fn scope<'a>(graph: &Automerge, projections: &'a BTreeMap<String, Projection>) -> Scope<'a> {
-    Scope {
+fn scope<'a>(
+    graph: &Automerge,
+    projections: &'a BTreeMap<String, Projection>,
+) -> StorageResult<Scope<'a>> {
+    Ok(Scope {
         unknown: projections
             .iter()
             .filter(|(key, _)| !known_root(key))
             .map(|(key, value)| (key.as_str(), value))
             .collect(),
         known_content: graph.keys(ROOT).all(|key| known_root(&key)),
-    }
+        cards: crate::cards::memberships(graph, projections)?,
+    })
 }
-fn object(graph: &Automerge, column: &str) -> StorageResult<ObjId> {
+pub(crate) fn object(graph: &Automerge, column: &str) -> StorageResult<ObjId> {
     let values = graph.get_all(ROOT, key(column))?;
     if values.is_empty() {
         return Err(CommandError {
@@ -61,7 +67,7 @@ fn object(graph: &Automerge, column: &str) -> StorageResult<ObjId> {
     }
     Ok(values[0].1.clone())
 }
-fn strings(graph: &Automerge, object: &ObjId, key: &str) -> StorageResult<Vec<String>> {
+pub(crate) fn strings(graph: &Automerge, object: &ObjId, key: &str) -> StorageResult<Vec<String>> {
     let mut values = graph
         .get_all(object, key)?
         .into_iter()
@@ -109,12 +115,21 @@ fn snapshot(
     positions.sort();
     positions.dedup();
     let empty = scope.known_content
+        && !scope.cards.occupied.contains(column)
         && graph
             .keys(&object)
             .all(|k| matches!(k.as_str(), "format" | "name" | "lifecycle" | "position"));
     // Opaque root content could reference this column. Include its causal
     // history conservatively, including removal, until its schema is supported.
-    let version = state_version(&("column.v1", space, column), &(projection, &scope.unknown))?;
+    let version = if let Some(cards) = scope.cards.related.get(column) {
+        state_version(
+            &("column.v1", space, column),
+            &(projection, &scope.unknown, cards),
+        )?
+    } else {
+        // Keep the original token for columns which have never had cards.
+        state_version(&("column.v1", space, column), &(projection, &scope.unknown))?
+    };
     Ok(ColumnSnapshot {
         space: space.into(),
         column: column.into(),
@@ -172,7 +187,7 @@ impl ColumnStore for WriteContext<'_> {
         self.space_snapshot(space)?; // Validate the enclosing document format.
         let graph = self.read().document(space)?;
         let projections = domain_projections(graph)?;
-        let scope = scope(graph, &projections);
+        let scope = scope(graph, &projections)?;
         Ok(snapshot(
             graph,
             space,
@@ -186,7 +201,7 @@ impl ColumnStore for WriteContext<'_> {
         let graph = self.read().document(space)?;
         // Decode the graph once for the whole list, not once per column.
         let projections = domain_projections(graph)?;
-        let scope = scope(graph, &projections);
+        let scope = scope(graph, &projections)?;
         let mut result = Vec::new();
         for root in graph.keys(ROOT) {
             if let Some(column) = root.strip_prefix("column:") {

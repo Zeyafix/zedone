@@ -1,8 +1,15 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.revoke" | "column.create" | "column.list" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash";
+export type Operation = "access.inspect" | "access.revoke" | "card.create" | "card.edit" | "card.history" | "card.list" | "card.read" | "card.restore" | "card.trash" | "column.create" | "column.list" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.revoke": components["schemas"]["CommandRequest_RevokeAccess"]["parameters"];
+  "card.create": components["schemas"]["CommandRequest_CreateCard"]["parameters"];
+  "card.edit": components["schemas"]["CommandRequest_EditCard"]["parameters"];
+  "card.history": components["schemas"]["CommandRequest_ReadCardHistory"]["parameters"];
+  "card.list": components["schemas"]["CommandRequest_ListCards"]["parameters"];
+  "card.read": components["schemas"]["CommandRequest_ReadCard"]["parameters"];
+  "card.restore": components["schemas"]["CommandRequest_RestoreCard"]["parameters"];
+  "card.trash": components["schemas"]["CommandRequest_TrashCard"]["parameters"];
   "column.create": components["schemas"]["CommandRequest_CreateColumn"]["parameters"];
   "column.list": components["schemas"]["CommandRequest_ListColumns"]["parameters"];
   "column.read": components["schemas"]["CommandRequest_ReadColumn"]["parameters"];
@@ -16,6 +23,6 @@ export type Parameters = {
   "space.restore": components["schemas"]["CommandRequest_RestoreSpace"]["parameters"];
   "space.trash": components["schemas"]["CommandRequest_TrashSpace"]["parameters"];
 };
-export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"];
+export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_CardSnapshot"] | components["schemas"]["CommandResponse_CardHistory"] | components["schemas"]["CommandResponse_CardList"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"];
 export const operations: readonly Operation[];
 export default function validate(value: unknown, operation?: Operation): value is Response;

@@ -9,8 +9,10 @@ pub mod command;
 pub mod error;
 pub mod ordering;
 pub mod replay;
+pub mod search;
 pub mod spaces;
 pub mod tags;
+mod text;
 pub mod wire;
 
 use utoipa::OpenApi;
@@ -26,7 +28,8 @@ use utoipa::OpenApi;
         columns::trash, columns::restore, ordering::move_column, ordering::move_card,
         cards::create, cards::read, cards::history, cards::list, cards::edit,
         cards::set_completed, cards::trash, cards::restore,
-        tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag),
+        tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,
+        search::search),
     modifiers(&Security),
     components(schemas(
         error::CommandError,

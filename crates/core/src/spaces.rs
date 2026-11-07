@@ -115,6 +115,18 @@ pub trait SpaceStore: ReplayTransaction {
     fn set_space_lifecycle(&mut self, space: &str, lifecycle: &str) -> CommandResult<()>;
 }
 
+/// One ordering for the space list and search; never pick a conflicted name.
+pub(crate) fn sort_spaces(spaces: &mut [SpaceSnapshot]) {
+    spaces.sort_by_cached_key(|space| {
+        if space.names.len() > 1 {
+            (0, String::new(), String::new(), space.space.clone())
+        } else {
+            let name = space.names.first().cloned().unwrap_or_default();
+            (1, name.to_lowercase(), name, space.space.clone())
+        }
+    });
+}
+
 fn error(code: ErrorCode) -> CommandError {
     CommandError { code }
 }
@@ -193,15 +205,7 @@ pub fn list(
             spaces.retain(|space| {
                 request.parameters.include_trashed || space.state != SpaceState::Trashed
             });
-            // Name conflicts first, then Unicode lowercase, original spelling and ID.
-            spaces.sort_by_cached_key(|space| {
-                if space.names.len() > 1 {
-                    (0, String::new(), String::new(), space.space.clone())
-                } else {
-                    let name = space.names.first().cloned().unwrap_or_default();
-                    (1, name.to_lowercase(), name, space.space.clone())
-                }
-            });
+            sort_spaces(&mut spaces);
             Ok(SpaceList { spaces })
         },
     )?;

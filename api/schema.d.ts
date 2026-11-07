@@ -143,6 +143,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.set_completed": {
         parameters: {
             query?: never;
@@ -1405,6 +1421,39 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_SearchCards: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                query: string;
+                /** @description Hosts map the active space to Space; clearing query never changes scope. */
+                scope: components["schemas"]["SearchScope"];
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_SetCardCompleted: {
             id: [
                 number,
@@ -1643,6 +1692,13 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -1745,6 +1801,14 @@ export interface components {
                 space: string;
                 state: components["schemas"]["SpaceState"];
                 version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_SearchResults: {
+            replayed: boolean;
+            result: {
+                /** @description Only spaces containing matches, in the same order as space.list. */
+                spaces: components["schemas"]["SearchSpace"][];
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -1943,6 +2007,37 @@ export interface components {
         RevokeAccess: {
             expected: components["schemas"]["StateVersion"];
             subject: string;
+        };
+        /** @enum {string} */
+        SearchAllKind: "all";
+        SearchAllScope: {
+            kind: components["schemas"]["SearchAllKind"];
+        };
+        SearchCards: {
+            query: string;
+            /** @description Hosts map the active space to Space; clearing query never changes scope. */
+            scope: components["schemas"]["SearchScope"];
+        };
+        SearchHit: {
+            card: components["schemas"]["CardSnapshot"];
+            /** @description These hits precede ordinary board positions inside their space. */
+            placement_conflict: boolean;
+        };
+        SearchResults: {
+            /** @description Only spaces containing matches, in the same order as space.list. */
+            spaces: components["schemas"]["SearchSpace"][];
+        };
+        SearchScope: components["schemas"]["SearchSpaceScope"] | components["schemas"]["SearchAllScope"];
+        SearchSpace: {
+            hits: components["schemas"]["SearchHit"][];
+            /** @description All current names; len > 1 identifies the leading name-conflict group. */
+            space: components["schemas"]["SpaceSnapshot"];
+        };
+        /** @enum {string} */
+        SearchSpaceKind: "space";
+        SearchSpaceScope: {
+            kind: components["schemas"]["SearchSpaceKind"];
+            space: string;
         };
         SetCardCompleted: {
             card: string;
@@ -2223,6 +2318,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_SearchCards"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SearchResults"];
                 };
             };
         };

@@ -1,5 +1,5 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.revoke" | "card.create" | "card.edit" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename";
+export type Operation = "access.inspect" | "access.revoke" | "card.create" | "card.edit" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.revoke": components["schemas"]["CommandRequest_RevokeAccess"]["parameters"];
@@ -10,6 +10,7 @@ export type Parameters = {
   "card.move": components["schemas"]["CommandRequest_MoveCard"]["parameters"];
   "card.read": components["schemas"]["CommandRequest_ReadCard"]["parameters"];
   "card.restore": components["schemas"]["CommandRequest_RestoreCard"]["parameters"];
+  "card.search": components["schemas"]["CommandRequest_SearchCards"]["parameters"];
   "card.set_completed": components["schemas"]["CommandRequest_SetCardCompleted"]["parameters"];
   "card.set_tag": components["schemas"]["CommandRequest_SetCardTag"]["parameters"];
   "card.trash": components["schemas"]["CommandRequest_TrashCard"]["parameters"];
@@ -32,6 +33,6 @@ export type Parameters = {
   "tag.read": components["schemas"]["CommandRequest_ReadTag"]["parameters"];
   "tag.rename": components["schemas"]["CommandRequest_RenameTag"]["parameters"];
 };
-export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_CardSnapshot"] | components["schemas"]["CommandResponse_CardHistory"] | components["schemas"]["CommandResponse_CardList"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"] | components["schemas"]["CommandResponse_TagSnapshot"] | components["schemas"]["CommandResponse_TagList"];
+export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_CardSnapshot"] | components["schemas"]["CommandResponse_CardHistory"] | components["schemas"]["CommandResponse_CardList"] | components["schemas"]["CommandResponse_SearchResults"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"] | components["schemas"]["CommandResponse_TagSnapshot"] | components["schemas"]["CommandResponse_TagList"];
 export const operations: readonly Operation[];
 export default function validate(value: unknown, operation?: Operation): value is Response;

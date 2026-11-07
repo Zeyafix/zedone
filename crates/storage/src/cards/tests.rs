@@ -75,6 +75,7 @@ macro_rules! run {
 }
 mod completion;
 mod ordering;
+mod search;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {
     assert_eq!(
         result.unwrap_err(),

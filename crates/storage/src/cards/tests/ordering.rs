@@ -504,12 +504,10 @@ async fn expired_and_revoked_writers_cannot_move_or_replay_even_noops() {
 }
 
 #[tokio::test]
-async fn v4_upgrade_preserves_graph_tokens_and_receipts_and_rejects_old_writers() {
+async fn initial_schema_restart_preserves_graph_tokens_and_receipts() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("cards.db");
-    let mut startup = crate::startup::Startup::new(&path);
-    startup.registry = crate::schema::Registry(&crate::schema::REGISTRY.0[..4]);
-    let s = startup.automatic(None).await.unwrap();
+    let s = Storage::open(&path).await.unwrap();
     let a = Arc::new(PendingAccess::generate().unwrap());
     let b = a.clone();
     s.transact(move |ctx| {
@@ -522,7 +520,7 @@ async fn v4_upgrade_preserves_graph_tokens_and_receipts_and_rejects_old_writers(
                 250,
                 CreateSpace {
                     space: sid(1),
-                    name: "Legacy".into(),
+                    name: "Current".into(),
                 },
             ),
         )?;
@@ -536,7 +534,7 @@ async fn v4_upgrade_preserves_graph_tokens_and_receipts_and_rejects_old_writers(
                     CreateColumn {
                         space: sid(1),
                         column: sid(column),
-                        name: "Legacy".into(),
+                        name: "Current".into(),
                     },
                 ),
             )?;
@@ -559,19 +557,7 @@ async fn v4_upgrade_preserves_graph_tokens_and_receipts_and_rejects_old_writers(
         .await
         .unwrap();
     s.shutdown().await.unwrap();
-    assert_eq!(
-        Storage::open(&path).await.err(),
-        Some(StorageError::Unavailable)
-    );
-    let options = crate::startup::MigrationOptions {
-        folder: dir.path().to_owned(),
-        created_at_unix_ms: 10,
-        limits: crate::migration_backup::tests::LIMITS,
-    };
-    let s = crate::startup::Startup::new(&path)
-        .automatic(Some(options))
-        .await
-        .unwrap();
+    let s = Storage::open(&path).await.unwrap();
     assert_eq!(fresh(&s, &a, 2, 9).await, legacy);
     assert_eq!(
         s.transact(|ctx| Ok(ctx
@@ -590,12 +576,6 @@ async fn v4_upgrade_preserves_graph_tokens_and_receipts_and_rejects_old_writers(
     assert_eq!(replay.result, legacy);
     move_card!(s, a, movement(3, 9, 3, None, legacy.version)).unwrap();
     s.shutdown().await.unwrap();
-    let mut old = crate::startup::Startup::new(&path);
-    old.registry = crate::schema::Registry(&crate::schema::REGISTRY.0[..4]);
-    assert_eq!(
-        old.automatic(None).await.err(),
-        Some(StorageError::UnsupportedSchema)
-    );
 }
 
 #[tokio::test]

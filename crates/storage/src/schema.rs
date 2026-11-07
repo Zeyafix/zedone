@@ -6,7 +6,8 @@ use crate::{StorageError, StorageResult};
 
 const APPLICATION_ID: i64 = 0x5a45444e;
 
-// Append historical layouts here; never edit an existing version in place.
+// Until the full development plan is complete, evolve the single initial
+// schema in place. Historical transitions exist only in synthetic tests.
 pub(crate) struct Schema {
     pub version: i64,
     pub sql: &'static str,
@@ -29,89 +30,14 @@ pub(crate) const V1_ARCHIVE: ArchiveAdapter = ArchiveAdapter {
     spaces: crate::migration_backup::spaces_v1,
     capture: crate::snapshot::capture,
 };
-const SCHEMAS: &[Schema] = &[
-    Schema {
-        version: 1,
-        sql: include_str!("schema/v1.sql"),
-        seed: None,
-        upgrade: None,
-        archive: V1_ARCHIVE,
-        validate: None,
-    },
-    Schema {
-        version: 2,
-        sql: concat!(
-            include_str!("schema/v1.sql"),
-            include_str!("schema/access-v2.sql")
-        ),
-        seed: None,
-        upgrade: Some(|tx| {
-            tx.execute_batch(include_str!("schema/access-v2.sql"))?;
-            Ok(())
-        }),
-        // The space journal format is unchanged; installation access is absent
-        // from every space snapshot and included only in the full SQLite copy.
-        archive: V1_ARCHIVE,
-        validate: Some(crate::access::validate),
-    },
-    Schema {
-        version: 3,
-        sql: concat!(
-            include_str!("schema/v1.sql"),
-            include_str!("schema/access-v2.sql"),
-            include_str!("schema/clock-v3.sql")
-        ),
-        seed: Some(crate::clock::seed),
-        upgrade: Some(|tx| {
-            tx.execute_batch(include_str!("schema/clock-v3.sql"))?;
-            crate::clock::seed(tx)?;
-            Ok(())
-        }),
-        archive: V1_ARCHIVE,
-        validate: Some(crate::clock::validate),
-    },
-    // Same DDL, broader semantic invariant: administration and explicit space
-    // grants can coexist. Historical validators must keep rejecting that state.
-    Schema {
-        version: 4,
-        sql: concat!(
-            include_str!("schema/v1.sql"),
-            include_str!("schema/access-v2.sql"),
-            include_str!("schema/clock-v3.sql")
-        ),
-        seed: Some(crate::clock::seed),
-        upgrade: Some(|_| Ok(())),
-        archive: V1_ARCHIVE,
-        validate: Some(crate::clock::validate_v4),
-    },
-    // Additive document encoding. Historical graphs and receipts stay intact.
-    Schema {
-        version: 5,
-        sql: concat!(
-            include_str!("schema/v1.sql"),
-            include_str!("schema/access-v2.sql"),
-            include_str!("schema/clock-v3.sql")
-        ),
-        seed: Some(crate::clock::seed),
-        upgrade: Some(|_| Ok(())),
-        archive: V1_ARCHIVE,
-        validate: Some(crate::clock::validate_v4),
-    },
-    // Tag tombstones and explicit false assignments require a reader which
-    // preserves removal conflicts. Do not admit older writers to these graphs.
-    Schema {
-        version: 6,
-        sql: concat!(
-            include_str!("schema/v1.sql"),
-            include_str!("schema/access-v2.sql"),
-            include_str!("schema/clock-v3.sql")
-        ),
-        seed: Some(crate::clock::seed),
-        upgrade: Some(|_| Ok(())),
-        archive: V1_ARCHIVE,
-        validate: Some(crate::clock::validate_v4),
-    },
-];
+const SCHEMAS: &[Schema] = &[Schema {
+    version: 1,
+    sql: include_str!("schema/v1.sql"),
+    seed: Some(crate::clock::seed),
+    upgrade: None,
+    archive: V1_ARCHIVE,
+    validate: Some(crate::clock::validate),
+}];
 #[derive(Clone, Copy)]
 pub(crate) struct Registry(pub &'static [Schema]);
 pub(crate) const REGISTRY: Registry = Registry(SCHEMAS);

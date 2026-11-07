@@ -10,11 +10,7 @@ use zedone_core::{
 };
 
 use super::*;
-use crate::{
-    Storage,
-    migration_backup::tests::LIMITS,
-    startup::{MigrationOptions, Startup},
-};
+use crate::{Storage, migration_backup::tests::LIMITS};
 
 pub(super) struct TestClock(pub(super) u64);
 impl Clock for TestClock {
@@ -582,76 +578,6 @@ async fn malformed_or_unavailable_authority_and_unavailable_clock_never_fall_bac
         Some(StorageError::InvalidDatabase)
     );
     assert_eq!(fs::read(path).unwrap(), before);
-}
-
-#[tokio::test]
-async fn product_v1_migration_preserves_history_and_archives_without_inventing_access() {
-    let dir = TempDir::new().unwrap();
-    let path = dir.path().join("device.db");
-    let original = include_bytes!("../../tests/fixtures/schema-v1.sqlite");
-    fs::write(&path, original).unwrap();
-    assert_eq!(
-        Storage::open(&path).await.err(),
-        Some(StorageError::Unavailable)
-    );
-    assert_eq!(fs::read(&path).unwrap().as_slice(), original);
-    let options = MigrationOptions {
-        folder: dir.path().to_owned(),
-        created_at_unix_ms: 10,
-        limits: LIMITS,
-    };
-    let storage = Startup::new(&path)
-        .automatic(Some(options.clone()))
-        .await
-        .unwrap();
-    storage
-        .read(|ctx| {
-            assert!(ctx.recorded(b"old-command")?.is_some());
-            assert_eq!(
-                ctx.document("Историческое ../ 空間")?
-                    .get_actor()
-                    .to_bytes(),
-                &[0x31]
-            );
-            Ok(())
-        })
-        .await
-        .unwrap();
-    storage
-        .transact(|ctx| {
-            let count: i64 =
-                ctx.connection()
-                    .query_row("SELECT count(*) FROM access_principals", [], |r| r.get(0))?;
-            assert_eq!(count, 0, "migration does not grant anything");
-            ctx.bootstrap_access(&PendingAccess::generate()?)
-        })
-        .await
-        .unwrap();
-    storage.shutdown().await.unwrap();
-    let candidates: Vec<_> = fs::read_dir(dir.path())
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .filter(|p| p.join("manifest.json").is_file())
-        .collect();
-    assert_eq!(candidates.len(), 1);
-    let backup = rusqlite::Connection::open(candidates[0].join("database.sqlite")).unwrap();
-    assert_eq!(
-        backup
-            .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
-            .unwrap(),
-        1
-    );
-    assert!(backup.prepare("SELECT * FROM access_principals").is_err());
-    drop(backup);
-    let storage = Startup::new(&path).automatic(Some(options)).await.unwrap();
-    storage.shutdown().await.unwrap();
-    let connection = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(
-        connection
-            .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
-            .unwrap(),
-        crate::schema::REGISTRY.current().version
-    );
 }
 
 #[tokio::test]

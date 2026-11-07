@@ -43,11 +43,6 @@ pub(crate) fn validate(connection: &Connection) -> StorageResult<()> {
     validate_clock(connection)
 }
 
-pub(crate) fn validate_v4(connection: &Connection) -> StorageResult<()> {
-    crate::access::validate_v4(connection)?;
-    validate_clock(connection)
-}
-
 fn validate_clock(connection: &Connection) -> StorageResult<()> {
     let count: i64 = connection.query_row(
         "SELECT count(*) FROM access_clock WHERE singleton = 1 AND observed_ms >= 0",

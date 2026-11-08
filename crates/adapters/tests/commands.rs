@@ -37,6 +37,8 @@ mod history;
 
 #[path = "commands/cards.rs"]
 mod cards;
+#[path = "commands/offline.rs"]
+mod offline;
 #[path = "commands/ordering.rs"]
 mod ordering;
 #[path = "commands/search.rs"]

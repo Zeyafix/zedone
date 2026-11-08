@@ -8,7 +8,7 @@ const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun, "Use pinned Bun");
 const mode = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android"].includes(mode));
+assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android", "--android-native", "--android-arm64"].includes(mode));
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 
@@ -152,7 +152,10 @@ async function checkAndroid() {
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
   const tools = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin`);
   const linker = resolve(tools, `clang${suffix}`);
-  for (const target of ["x86_64-linux-android", "aarch64-linux-android"]) {
+  const targets = mode === "--android-native" ? ["x86_64-linux-android"]
+    : mode === "--android-arm64" ? ["aarch64-linux-android"]
+    : ["x86_64-linux-android", "aarch64-linux-android"];
+  for (const target of targets) {
     const prefix = `CARGO_TARGET_${target.replaceAll("-", "_").toUpperCase()}`;
     const lower = target.replaceAll("-", "_");
     const extraEnv = {
@@ -191,10 +194,14 @@ async function checkAndroid() {
       device("shell", "rm", "-r", remote);
     }
   }
-  console.log("Android native tests/contract passed; both ABI builds and unsafe guards passed.");
+  console.log(mode === "--android-native"
+    ? "Android native tests/contract passed; x86_64 ABI build and unsafe guards passed."
+    : mode === "--android-arm64"
+      ? "Android arm64 ABI build and unsafe guards passed."
+      : "Android native tests/contract passed; both ABI builds and unsafe guards passed.");
 }
 
-if (mode === "--android") {
+if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
   // Client delivery tests own no emulator or Cargo output. Run them during the
   // native builds, but wait for BOTH results even when one check fails.
   const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];

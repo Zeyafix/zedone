@@ -1,5 +1,16 @@
 # Разработка продуктового Rust-ядра
 
+P04.10 сводит автономные прикладные сценарии: [матрица EV-076](../agent/verification/EV-076-offline-acceptance.md).
+`crates/adapters/tests/commands/offline.rs` входит в прежний target `commands`
+и штатные Windows/Linux/Android product-check без отдельного runner.
+Первые выполнения чередуют Axum router, IPC и настоящий CLI; после restart
+повторяются исходные запросы и сравниваются свежие снимки/история. Сбой worker
+не подтверждает успех; исправлять expected внутри старого ID запрещено.
+SQL/checkpoint/process-stop проверки остаются в storage, где доступны закрытые
+fault seams: ради приёмки тестовые возможности не открываются в публичном API.
+Синтетические базы и ключи принадлежат TempDir/Android sandbox; рабочие данные
+установки не используются. UI/обмен проверяются отдельно в P05/P06.
+
 P04.09.2–.4: [ADR-0051](../architecture/decisions/0051-trash-and-history-cleanup.md),
 [EV-075](../agent/verification/EV-075-trash-history-complete.md). SpaceSnapshot.contents
 показывает колонки/карточки/теги; space.trash/restore сохраняют прежние группы.

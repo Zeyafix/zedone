@@ -43,6 +43,7 @@ function run(cmd, capture = false) {
 const cargo = (args, capture = false) => run(["cargo", `+${versions.rust}`, ...args], capture);
 
 if (!mode) {
+  run([process.execPath, "scripts/check-android-ci-suites.mjs"]);
   for (const args of checks) cargo(args);
   run([process.execPath, "scripts/check-automerge.mjs"]);
 }

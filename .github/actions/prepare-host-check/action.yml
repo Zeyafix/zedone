@@ -1,0 +1,97 @@
+name: Prepare host check
+description: Install pinned tools and locked dependencies for a host suite.
+inputs:
+  suite:
+    description: all, product, prototype or shell
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install pinned Rust and read JavaScript runtime versions
+      id: versions
+      shell: pwsh
+      env:
+        SUITE: ${{ inputs.suite }}
+      run: |
+        if ($env:SUITE -notin @('all', 'product', 'prototype', 'shell')) { throw 'Unknown host suite.' }
+        $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
+        rustup toolchain install $versions.rust --profile minimal --component rustfmt --component clippy
+        if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+        "rust=$($versions.rust)" >> $env:GITHUB_OUTPUT
+        "bun=$($versions.bun)" >> $env:GITHUB_OUTPUT
+        "node=$($versions.node)" >> $env:GITHUB_OUTPUT
+        $workspaces = switch ($env:SUITE) {
+          'all' { ". -> target`nprototypes -> target" }
+          'product' { '. -> target' }
+          'prototype' { 'prototypes -> target' }
+          'shell' { 'ui/src-tauri -> ../../target' }
+        }
+        "workspaces<<WORKSPACES" >> $env:GITHUB_OUTPUT
+        $workspaces >> $env:GITHUB_OUTPUT
+        "WORKSPACES" >> $env:GITHUB_OUTPUT
+    - name: Restore Rust dependencies and build cache
+      uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      env:
+        RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+      with:
+        prefix-key: zedone-rust-v1
+        # Keep the Linux namespace. Each split suite owns a separate cache:
+        # parallel main jobs must not publish incomplete subsets to one key.
+        shared-key: ${{ inputs.suite == 'all' && 'prototype-host' || format('prototype-host-{0}', inputs.suite) }}
+        workspaces: ${{ steps.versions.outputs.workspaces }}
+        cache-bin: false
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: ${{ steps.versions.outputs.bun }}
+        no-cache: true
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ steps.versions.outputs.node }}
+        package-manager-cache: false
+    - name: Fetch locked Rust dependencies
+      shell: pwsh
+      env:
+        SUITE: ${{ inputs.suite }}
+        RUST_VERSION: ${{ steps.versions.outputs.rust }}
+      run: |
+        $manifests = switch ($env:SUITE) {
+          'all' { @('prototypes/Cargo.toml', 'Cargo.toml', 'ui/src-tauri/Cargo.toml') }
+          'product' { @('Cargo.toml') }
+          'prototype' { @('prototypes/Cargo.toml') }
+          'shell' { @('ui/src-tauri/Cargo.toml') }
+        }
+        foreach ($manifest in $manifests) {
+          cargo "+$env:RUST_VERSION" fetch --locked --manifest-path $manifest
+          if ($LASTEXITCODE -ne 0) { throw "Dependency fetch failed: $manifest" }
+        }
+    - name: Install locked product and shell JavaScript dependencies
+      if: inputs.suite != 'prototype'
+      shell: pwsh
+      run: |
+        bun install --frozen-lockfile --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'Product JavaScript dependency installation failed.' }
+    - name: Use Ubuntu HTTPS mirrors for browser dependencies
+      if: runner.os == 'Linux' && inputs.suite != 'product'
+      shell: bash
+      run: |
+        # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
+        test -f /etc/apt/apt-mirrors.txt
+        printf '%s\n' \
+          $'https://archive.ubuntu.com/ubuntu/\tpriority:1' \
+          $'https://security.ubuntu.com/ubuntu/\tpriority:2' \
+          | sudo tee /etc/apt/apt-mirrors.txt
+    - name: Install locked prototype JavaScript dependencies
+      if: inputs.suite == 'all' || inputs.suite == 'prototype'
+      shell: pwsh
+      working-directory: prototypes
+      run: |
+        bun install --frozen-lockfile
+        if ($LASTEXITCODE -ne 0) { throw 'JavaScript dependency installation failed.' }
+    - name: Install test browser and OS dependencies
+      if: inputs.suite != 'product'
+      shell: pwsh
+      working-directory: ${{ inputs.suite == 'shell' && '.' || 'prototypes' }}
+      run: |
+        bun node_modules/playwright/cli.js install --with-deps chromium
+        if ($LASTEXITCODE -ne 0) { throw 'Test browser installation failed.' }

@@ -30,7 +30,7 @@ P03.02 добавляет те же тесты атомарного хранен
 
 P05.01 добавляет `ui/**` в paths. Shell — отдельный Cargo workspace, но его
 штатные драйверы используют общий с ядром корневой `target/`.
-Windows/Linux после прежних проверок выполняют `bun run ui:check`: общий UI,
+Windows/Linux выполняют `bun run ui:check`: общий UI,
 host framing/security и реальные команды через HTTP в Chromium. Android
 собирает debug APK обеих ABI, а последний CI emulator callback проверяет
 сеанс/навигацию/темы/Back в новом APK. Локально этот драйвер запрещён — требуется
@@ -94,10 +94,58 @@ P04.10 разделяет продукт по ABI между двумя hosts: d
 Android jobs завершились в прежнем лимите. Это наблюдение одного запуска
 с кэшем, не гарантия будущего или холодного времени.
 
-Сохраняются прежние host budgets: Linux 10 минут, Windows 20. Повышение Linux
-до 20 отклонено разработчиком. Вместо него shell не собирает Android-only
-tauri-build при host-проверке и переиспользует product Cargo output, сокращая
-дублирующую компиляцию. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
+Сохраняются прежние host budgets: Linux 10 минут, каждый Windows suite 20.
+Цель ожидания Windows ≤10 минут не заменяет бюджет холодной сборки.
+Повышение Linux до 20 отклонено разработчиком. Shell не собирает Android-only
+tauri-build при host-проверке. На последовательном Linux он переиспользует
+product Cargo output; отдельный Windows shell runner использует собственный
+кэш корневого target. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
+
+### Параллельные Windows host-проверки
+
+`Prototype foundation` выполняет три Windows jobs на отдельных `windows-2025`
+runners с `fail-fast: false`. Они используют прежние команды целиком:
+
+| Suite | Команда | Подготовка |
+| --- | --- | --- |
+| `product` | `bun scripts/check-product.mjs` из корня | Корневые Cargo/JS-зависимости; браузер не требуется |
+| `prototype` | `bun run check` из `prototypes/` | Cargo/JS прототипа и Playwright Chromium с OS-зависимостями |
+| `shell` | `bun run ui:check` из корня | Cargo workspace `ui/src-tauri`, корневые JS и Playwright Chromium с OS-зависимостями |
+
+Подготовка вынесена в локальный composite action
+[prepare-host-check](../../.github/actions/prepare-host-check/action.yml).
+Он читает закреплённые версии из `environment-versions.json`, проверяет имя
+набора и ошибки CLI, устанавливает только нужные зависимости. Изменение
+action входит в paths обоих событий. Режим `all` сохраняет для Linux
+последовательность product → prototype → shell и прежний Rust namespace/paths.
+Браузер теперь готовится до первого набора; команды самих проверок не меняются.
+Android workflow и его dispatcher не затронуты.
+
+Прежний required check `check (windows-2025)` сохранён как aggregate:
+`needs: windows-checks`, `if: always()`, результат матрицы должен быть ровно
+`success`. `failure`, `cancelled`, `skipped` и отсутствие результата
+не принимаются как успех. Aggregate работает на Ubuntu с лимитом 1 минута;
+он проверяет результат Windows runners и не подменяет платформу исполнения
+тестов. Check Linux по-прежнему называется `check (ubuntu-24.04)`.
+
+У Windows suites отдельные Rust namespaces `prototype-host-product`,
+`prototype-host-prototype`, `prototype-host-shell`. Каждый сохраняется только
+своим успешным main job: разные подмножества не конкурируют за один immutable
+key. Кэшируются registry/git и target выбранного workspace. Shell metadata
+учитывает собственные `ui/src-tauri/Cargo.toml`/`Cargo.lock`, а физический
+output остаётся общим корневым `target/`, как в штатном драйвере.
+Новые Windows namespaces сначала холодные; прежний общий Windows архив
+автоматически в них не переносится. PR-запись кэша не включается.
+
+Цель CI.04 — ≤10 минут **от старта workflow до завершения Windows aggregate**,
+включая очередь runners, подготовку и post/cache steps. Короткая длительность
+самого aggregate не является ускорением. Сумму job time считать отдельно:
+повторная подготовка и восстановление кэшей могут увеличить runner-минуты.
+Сравнивать cold/warm запуски одного SHA с одинаковым охватом; rerun
+неуспешной части не заменяет измерение полного запуска.
+Исходный PR #78: 19:29 при полном Rust cache hit. Разделение реализовано,
+но достижение цели ещё требует нового CI; локальные проверки и ограничения —
+[EV-079](../agent/verification/EV-079-parallel-windows-checks.md).
 
 При подготовке браузера Linux использует HTTPS-архивы archive.ubuntu.com
 и security.ubuntu.com вместо Azure HTTP mirror в `/etc/apt/apt-mirrors.txt`.
@@ -110,8 +158,9 @@ Windows этот шаг не выполняет. Сам факт смены зе
 Исходная схема списка зеркал подтверждена
 [скриптом GitHub runner-images](https://github.com/actions/runner-images/blob/c74a28e5f8943ae6a39cac7c3701dd6bd0a2ea51/images/ubuntu/scripts/build/configure-apt-sources.sh).
 
-Набор cache paths возвращён к корневому и прототипному target, включая Android
-workflow. Добавление третьего физического target в PR меняло версию архива:
+Для последовательного Linux и Android набор cache paths остаётся корневым
+и прототипным target. Добавление третьего физического target в прежнем PR
+меняло версию архива:
 GitHub учитывает [пути и compression tool в cache version](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-key-matching).
 Поэтому одинакового restore-prefix было недостаточно для прежнего архива main.
 Возврат прежнего набора путей устраняет это различие. В PR #52 head `3943831`
@@ -123,7 +172,7 @@ fingerprints, пропуска compilation/tests или PR-записи кэше
 
 | Кэш | Состав и ключ | Владелец |
 | --- | --- | --- |
-| Rust | Registry/git и зависимости корневого `target` продукта/оболочки и `prototypes/target`; host/Android разделены, учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
+| Rust | Registry/git и зависимости выбранных `target`: Linux/Android — корневой и прототипный, Windows — отдельно по suite; учитываются OS/архитектура, Rust/окружение, Cargo manifests/lockfile; Android дополнительно разделён по NDK | Swatinem/rust-cache, SHA v2.9.3 |
 | Tauri CLI | Только `$RUNNER_TEMP/zedone-tauri-cli/bin/cargo-tauri`; точный ключ OS/архитектура/Rust/tauri_cli, без широкого restore fallback | actions/cache restore/save, SHA v5.1.0 |
 | Gradle | Зависимости и wrapper из Gradle User Home; ключ по environment-versions.json, Cargo.lock и файлам вложенного Gradle-проекта | Уже используемый actions/setup-java, `cache: gradle` |
 

@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, prototype-native, prototype-ui, shell]
+        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -180,7 +180,7 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite == 'product-native' || matrix.suite == 'shell'
+        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)

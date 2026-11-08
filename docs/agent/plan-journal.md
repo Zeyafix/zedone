@@ -10,17 +10,17 @@ current_stage_state: in_progress
 current_step: P04.10
 last_completed_stage: P02
 last_completed_step: P04.09
-active_work: "P04.10 verified локально, включая перекрытие Android arm64 build/native execution и оба отказа; EV-076/LOG-373."
-next_action: "Опубликовать проверенный runner в PR #77 и проверить новый CI окончательного head; merge/удаление ветки только после полного успеха."
+active_work: "P04.10 verified локально: изолированные ABI-срезы и полная прежняя команда; BUG-008 ждёт CI, EV-076/LOG-375."
+next_action: "Опубликовать проверенную изоляцию jobs в PR #77; закрыть BUG-008 и выполнить merge/удаление ветки только по полному успешному новому head."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
-open_bugs: []
+open_bugs: [BUG-008]
 open_gaps: [GAP-007, GAP-012]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
-blocking_current_stage: []
-blocking_current_step: []
+blocking_current_stage: [BUG-008]
+blocking_current_step: [BUG-008]
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-373
+last_event: LOG-375
 ```
 
 P04.10 verified локально: [EV-076](verification/EV-076-offline-acceptance.md),
@@ -28,12 +28,11 @@ P04.10 verified локально: [EV-076](verification/EV-076-offline-acceptanc
 сценария дополняют прежнюю матрицу автономных операций, актуальности/ABA,
 повторов и restart через HTTP/IPC/настоящий CLI. По 273 Rust-теста Windows/
 нативного Android, 23 client/239 assertions, обе release ABI/21 unsafe guard/
-контракт passed. Runtime/схема/зависимости не менялись. Новых BUG/GAP нет.
-PR #77/head dfda95d опубликован: Windows/Linux и прежние Android UI/native
-наборы passed, product-native дважды отменён по лимиту 10 минут. Проверенный
-локально runner теперь перекрывает arm64 build и native execution; оба отказа
-проверены отдельно (LOG-372/373). Далее — публикация исправления и новый CI;
-merge не выполнялся.
+контракт passed. Runtime/схема/зависимости не менялись. Открыт CI BUG-008.
+PR #77/head a344278: после прежних 504/таймаутов общий CPU host вызвал отказ
+guard поиска; перекрытие отменено. Раздельные product-native/product-arm64 jobs,
+полный последовательный режим и их маршрутизация проверены локально
+(LOG-374/375). Далее — публикация исправления и новый CI; merge не выполнялся.
 Полные T07/A и P04 пока не объявлены принятыми; UI P05/обмен P06 остаются впереди.
 Нижеследующие сводки описывают прежние ревизии.
 
@@ -549,6 +548,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| BUG-008 | bug | in_progress | P04.10 CI | PR #77/a344278: совместные arm64 compilation/native execution на CI привели к превышению неизменного timing guard поиска (40 секунд при guard 30); 219 storage tests passed/1 failed. Локальная проверка не выявила нагрузку host. Исправление: прежний последовательный полный runner, отдельные CI product-native/product-arm64 hosts; обе ABI/14 guards/все native tests и лимиты сохранены. Закрыть по успешному полному CI нового head с search probe и обоими ABI-срезами; до этого merge заблокирован. EV-076/LOG-374. |
 | GAP-009 | gap | resolved | P04.02 CI | Совмещённый native дважды исчерпал 10 минут на aada64a. Разделение product-native/prototype-native сохранило все команды/guards/лимиты; на 7e711ea все четыре Android suites и aggregate SUCCESS (run 42276553193). Охват завершения Android подтверждён; финальные checks следующего head по-прежнему обязательны. EV-065/LOG-320/321. |
 | GAP-010 | gap | resolved | P04.02 CI | Linux дважды достиг 10 минут при font download с Azure. Смена только mirrorlist одноразового runner на Ubuntu HTTPS archives сохранила signed sources и --with-deps chromium. Финальный 479c456 прошёл Linux/Windows и всю Android-матрицу, raw logs подтвердили HTTPS-загрузки; PR #54 merged 889d4b0. Будущая доступность/время не гарантируются. EV-065/LOG-321/322. |
 | GAP-011 | gap | resolved | P05.02 CI | PR #56/head 3567abf ожидал закрытия формы от первого Back при видимой IME. После проверки обоих нативных флагов драйвер отдельно подтверждает скрытие клавиатуры и сохранение диалога, затем прежний Back формы/доски. Финальный head 0d6646f прошёл все семь checks; raw log подтвердил native IME dismissal и весь domain IPC сценарий. PR #56 merged 5e8005d. EV-066/LOG-326/327. |
@@ -3587,3 +3587,18 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Негативные пробы в одноразовых локальных копиях: неверный arm64 build target и отдельный throw внутри native sandbox. Оба exit 1 без ложного успеха; при arm64-отказе завершились все native tests, при native-отказе завершились arm64 release/guards; в обоих случаях выполнены cleanup и клиентские тесты. Публичных fault seams не добавлено.
 - SHA-256 runner 49cf70c2c0453aa4fd8758f60bebec629a4b55b94606407cb30d75dbbd0c44cc соответствует проверенному файлу. Node syntax/diff checks passed; Device выключил эмулятор в исходное состояние. Исходный offline.rs не менялся. Логи/fixture-копии/результаты — только docs/reports/p04-10-runner-*.
 - Документация EV-076/CI/передача актуализированы. Пять правил в API-объёме сохраняются: обратимость/согласованные исключения очистки, общий API, docs, Windows/Android и единая модель; runner не меняет продуктового поведения. P04.10 verified локально; готовится дополнительный коммит в PR #77 по разрешению LOG-371. Успех Windows/Linux/прежних Android jobs на dfda95d не является успехом нового head. Новый CI/merge ещё не выполнены; лимит 10 минут не объявляется достигнутым до его проверки.
+
+### LOG-374 — 2026-11-08 — агент Codex, изоляция Android native timing guards
+
+- На a344278 Android product-native завершил обе release ABI/14 unsafe guards, но storage test search_thousand_card_probe превысил прежний guard 30 секунд (40 секунд) при одновременной arm64-компиляции; 219 storage tests passed, 1 failed. Sandbox cleanup и ожидание arm64 выполнились. Локальные положительные пробы не выявили конкуренцию за ресурсы CI; этот head не принят. Shell отдельно отменён по 10 минутам после основных UI-сценариев; Linux/prototype-native/prototype-ui passed, Windows пока выполняется.
+- Оптимизация совместного CPU-нагруженного исполнения отменяется. Полный локальный --android снова последователен, две новые явные команды выбирают полный x86_64 native-срез либо arm64 release/guards. CI получает отдельный product-arm64 runner; product-native исполняет x86_64 без соседней компиляции. Standalone/default/native dispatcher сохраняют прежние полные команды.
+- Все 273 native tests, guard поиска 30 секунд, обе release ABI/14 unsafe guards, client/контракт/SDK/environment/negative-cleanup и лимиты 10 минут сохраняются. Строгий aggregate ждёт все пять наборов. Добавляется один runner с собственными SDK/AVD; растёт суммарное runner-время, соблюдение общего лимита подтверждает новый CI. Cache namespace/paths/единственный writer product-native сохранены; новые зависимости/данные/продуктовые правила не меняются.
+- До публикации — полная локальная Android-проверка, оба явных ABI-среза и проверка всех маршрутов dispatcher/строгого отказа. P04.10 in_progress в части runner; merge/удаление ветки по LOG-371 ожидают полного нового CI.
+
+### LOG-375 — 2026-11-08 — агент Codex, изолированные ABI-срезы verified локально
+
+- Полный --android и оба --android-native/--android-arm64 завершились exit 0 через штатный Device. Полный и x86_64-срез выполнили все 273 native tests; полный режим проверил обе release ABI/14 guards, каждый срез — свою ABI/7 guards. Каждый запуск завершил 23 client/239 assertions и контракт/типы; нативные sandbox очищены, эмулятор выключен Device в исходное состояние.
+- Multiset всех Cargo-команд полного режима совпал с прежним последовательным прогоном; объединение target-команд срезов равно полному набору. Неизвестный product mode отклонён до Cargo. Runtime/поисковый guard/API/схема/зависимости не менялись. Порог 30 секунд и CI-лимит 10 минут не увеличивались.
+- В штатный host-check добавлен тест реального dispatcher со stub только запуска дочерней команды: семь маршрутов, default/native обратная совместимость, unknown/extra args и остановка с исходным exit code/при signal passed. Node syntax и YAML parse/проверка всех пяти обязательных suites/strict aggregate/environment/negative-cleanup/одного cache writer passed; все 98 определений критериев сохранены.
+- Проверенный SHA-256 runner c03e137a8c1ebb207ec745b655a1849e33b1e373aeca9fa9eaeeb1efe298941b; после прогонов менялись только docs. Логи/машинные сведения/хеши остаются docs/reports/p04-10-isolated-*. Пять правил в API-объёме сохраняются; новых продуктовых действий нет.
+- P04.10 verified локально; BUG-008 in_progress до полного CI нового head. Дополнительный product-arm64 runner увеличивает общее машинное время; соблюдение 10 минут новым CI не предполагается. Публикация/интеграция в рамках LOG-371, merge и удаление ветки только после успеха всех восьми checks и проверки замечаний/конфликтов.

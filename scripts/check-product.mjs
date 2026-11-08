@@ -8,7 +8,7 @@ const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun, "Use pinned Bun");
 const mode = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android"].includes(mode));
+assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android", "--android-native", "--android-arm64"].includes(mode));
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 
@@ -152,72 +152,56 @@ async function checkAndroid() {
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
   const tools = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin`);
   const linker = resolve(tools, `clang${suffix}`);
-  function targetEnv(target) {
+  const targets = mode === "--android-native" ? ["x86_64-linux-android"]
+    : mode === "--android-arm64" ? ["aarch64-linux-android"]
+    : ["x86_64-linux-android", "aarch64-linux-android"];
+  for (const target of targets) {
     const prefix = `CARGO_TARGET_${target.replaceAll("-", "_").toUpperCase()}`;
     const lower = target.replaceAll("-", "_");
-    return {
+    const extraEnv = {
       [`CC_${lower}`]: linker,
       [`AR_${lower}`]: resolve(tools, `llvm-ar${suffix}`),
       [`CFLAGS_${lower}`]: `--target=${target}33`,
       [`${prefix}_LINKER`]: linker,
       [`${prefix}_RUSTFLAGS`]: `-C link-arg=--target=${target}33`,
     };
-  }
-  const target = "x86_64-linux-android";
-  const extraEnv = targetEnv(target);
-  run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
-  await checkUnsafe(["--target", target], extraEnv);
-  const result = run(cargo(["test", "--workspace", "--all-features", "--no-run", "--message-format=json", "--target", target, ...locked]), { extraEnv, capture: true });
-  const tests = result.stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line))
-    .filter(item => item.reason === "compiler-artifact" && item.profile.test && item.executable);
-  assert.ok(tests.length > 0, "Expected native test binaries");
-
-  // No other Cargo command runs during device tests. Build the other ABI on
-  // the host while the emulator executes the already prepared x86_64 binaries.
-  // Keep both outcomes, including cleanup, even if either branch fails.
-  const armTarget = "aarch64-linux-android";
-  const armEnv = targetEnv(armTarget);
-  const command = cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", armTarget, ...locked]);
-  console.log(`> ${command.join(" ")}`);
-  const armBuild = Bun.spawn(command, {
-    cwd: root, env: { ...env, ...armEnv }, stdin: "ignore", stdout: "inherit", stderr: "inherit",
-  });
-  const results = await Promise.allSettled([
-    armBuild.exited.then(async code => {
-      assert.ok(!armBuild.signalCode, "Android arm64 build interrupted");
-      assert.equal(code, 0, "Android arm64 build failed");
-      await checkUnsafe(["--target", armTarget], armEnv);
-    }),
-    Promise.resolve().then(() => {
-      const remote = `/data/local/tmp/zedone-product-${randomUUID()}`;
-      device("shell", "mkdir", remote);
-      try {
-        device("push", resolve(root, `target/${target}/release/zedone`), `${remote}/zedone`);
-        device("shell", "chmod", "700", `${remote}/zedone`);
-        for (const [index, test] of tests.entries()) {
-          const executable = `${remote}/test-${index}`;
-          device("push", test.executable, executable);
-          device("shell", "chmod", "700", executable);
-          // tempfile and crash-child fixtures must stay in our removable sandbox.
-          const output = device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, executable);
-          console.log(output);
-          assert.ok(output.includes("test result: ok."));
-        }
-        device("push", resolve(root, `target/${target}/release/export-contract`), `${remote}/export-contract`);
-        device("shell", "chmod", "700", `${remote}/export-contract`);
-        assert.equal(device("shell", `${remote}/export-contract`), generated.toString(), "Android and host contracts differ");
-      } finally {
-        assert.match(remote, /^\/data\/local\/tmp\/zedone-product-[a-f0-9-]+$/);
-        device("shell", "rm", "-r", remote);
+    run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
+    await checkUnsafe(["--target", target], extraEnv);
+    if (target !== "x86_64-linux-android") continue;
+    const result = run(cargo(["test", "--workspace", "--all-features", "--no-run", "--message-format=json", "--target", target, ...locked]), { extraEnv, capture: true });
+    const tests = result.stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line))
+      .filter(item => item.reason === "compiler-artifact" && item.profile.test && item.executable);
+    assert.ok(tests.length > 0, "Expected native test binaries");
+    const remote = `/data/local/tmp/zedone-product-${randomUUID()}`;
+    device("shell", "mkdir", remote);
+    try {
+      device("push", resolve(root, `target/${target}/release/zedone`), `${remote}/zedone`);
+      device("shell", "chmod", "700", `${remote}/zedone`);
+      for (const [index, test] of tests.entries()) {
+        const executable = `${remote}/test-${index}`;
+        device("push", test.executable, executable);
+        device("shell", "chmod", "700", executable);
+        // tempfile and crash-child fixtures must stay in our removable sandbox.
+        const output = device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, executable);
+        console.log(output);
+        assert.ok(output.includes("test result: ok."));
       }
-    }),
-  ]);
-  const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
-  if (errors.length) throw new AggregateError(errors, "Android native execution or arm64 checks failed");
-  console.log("Android native tests/contract passed; both ABI builds and unsafe guards passed.");
+      device("push", resolve(root, `target/${target}/release/export-contract`), `${remote}/export-contract`);
+      device("shell", "chmod", "700", `${remote}/export-contract`);
+      assert.equal(device("shell", `${remote}/export-contract`), generated.toString(), "Android and host contracts differ");
+    } finally {
+      assert.match(remote, /^\/data\/local\/tmp\/zedone-product-[a-f0-9-]+$/);
+      device("shell", "rm", "-r", remote);
+    }
+  }
+  console.log(mode === "--android-native"
+    ? "Android native tests/contract passed; x86_64 ABI build and unsafe guards passed."
+    : mode === "--android-arm64"
+      ? "Android arm64 ABI build and unsafe guards passed."
+      : "Android native tests/contract passed; both ABI builds and unsafe guards passed.");
 }
 
-if (mode === "--android") {
+if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
   // Client delivery tests own no emulator or Cargo output. Run them during the
   // native builds, but wait for BOTH results even when one check fails.
   const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];

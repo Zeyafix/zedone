@@ -147,6 +147,16 @@ output остаётся общим корневым `target/`, как в шта�
 но достижение цели ещё требует нового CI; локальные проверки и ограничения —
 [EV-079](../agent/verification/EV-079-parallel-windows-checks.md).
 
+Первый запуск `addb9c4` выявил Windows shell timeout после reload доски
+(GAP-014). Host UI driver теперь при отказе выводит текущий hash, заголовки,
+alerts/statuses, имена region, busy-state и последние 30 read outcomes
+(HTTP/status/error/count без содержимого объектов); API ошибки и сетевые отказы
+записываются при возникновении. Вывод относится только к синтетической
+установке драйвера; credentials, headers и persisted command bodies не
+записываются. Исходный отказ повторно выбрасывается, cleanup сохраняется.
+Повтор теста, увеличение timeout и ослабление assertions не добавлены;
+пять успешных локальных workspace-прогонов не доказывают устранение причины.
+
 При подготовке браузера Linux использует HTTPS-архивы archive.ubuntu.com
 и security.ubuntu.com вместо Azure HTTP mirror в `/etc/apt/apt-mirrors.txt`.
 В PR #54 два запуска исчерпали 10 минут при загрузке 21.1 MB шрифтов с Azure

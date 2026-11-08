@@ -97,3 +97,35 @@ P05.04/P03.06 не начаты.
 Первое измерение выполняется с холодными Windows suite-кэшами;
 main-only политика записи сохраняется. Успех и время записываются только
 после завершения полного запуска.
+
+Создан [draft PR #79](https://github.com/Zeyafix/zedone/pull/79), head
+`addb9c473ed43b5a350a4780da93078d2f367b49`, commit
+`ci: let Windows checks run independently`.
+[Host run 42514091137](https://github.com/Zeyafix/zedone/actions/runs/42514091137)
+стартовал 2026-11-08 19:15:13 UTC; Linux и три Windows suites ожидаются.
+Это pending, не успешный результат; отсчёт до завершения Windows aggregate.
+
+### Отказ первого запуска: GAP-014
+
+Windows shell job `128833197769` завершился failure в 19:21:28 UTC:
+сборка/Clippy/3 native tests/Chromium прошли, но `check-ui-workspace.mjs:64`
+после reload не увидел region «Разобрать» за прежние 10 секунд. Это не ошибка
+установки зависимостей; причина timeout по исходному логу не доказана.
+На свежем локальном UI/fixture пять полных workspace-сценариев с тем же
+Playwright Chromium `156.0.8078.4` прошли. Отказ не объявлен исправленным.
+Исходный лог сохранён в `docs/reports/ci-04/shell-addb9c4-failed.log`,
+воспроизведение — `workspace-reproduction.log`.
+
+Host browser driver дополнен диагностикой API error.code/сетевых ошибок и
+read-only состояния страницы при отказе. Credentials/headers/command bodies
+не выводятся; исходная ошибка выбрасывается и cleanup сохраняется.
+Сохраняются только последние 30 read outcomes (HTTP/status/error/count),
+без содержимого объектов. Полный локальный `ui:check` прошёл на Windows:
+Node 26.8.1 с явным override базы 24.22.1, штатный Playwright Chromium,
+fmt/Clippy/3 shell tests/build, workspace/cards/editor/appearance/delivery.
+Контрольный искусственный отказ подтвердил вывод состояния/error.code,
+границу 30 outcomes, отсутствие credential/header fields и ненулевой exit;
+это проверка диагностики, а не воспроизведение GAP-014.
+Таймауты/ожидания/проверки прежние, автоматический повтор не добавлен.
+GAP-014 зарегистрирован отдельно от прежнего GAP-013; следующий полный CI
+должен либо подтвердить весь набор, либо дать состояние для диагностики.

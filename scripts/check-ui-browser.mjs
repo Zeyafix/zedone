@@ -13,6 +13,8 @@ const suffix = process.platform === "win32" ? ".exe" : "";
 const target = resolve(process.env.CARGO_TARGET_DIR || resolve(root, "target"));
 const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix}`), "--serve", directory], { stdout: "pipe", stderr: "inherit" });
 let browser;
+let diagnosticPage;
+let diagnosticReads;
 try {
   const reader = fixture.stdout.getReader();
   let address = "";
@@ -32,9 +34,25 @@ try {
     console.log(`UI browser: ${browser.version()}`);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "light" });
     const page = await context.newPage();
+    diagnosticPage = page;
+    const reads = [];
+    diagnosticReads = reads;
     const errors = [];
     const external = [];
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.message); console.error("UI page error:", error.message); });
+    page.on("response", async response => {
+      const path = new URL(response.url()).pathname;
+      if (!path.startsWith("/v1/commands/")) return;
+      const body = await response.json().catch(() => undefined);
+      if (/\/(space\.(list|read)|column\.list|card\.list)$/.test(path)) {
+        reads.push({ path, http: response.status(), status: body?.status, error: body?.error?.code,
+          count: body?.result?.spaces?.length ?? body?.result?.columns?.length ?? body?.result?.cards?.length,
+          state: body?.result?.state });
+        if (reads.length > 30) reads.shift();
+      }
+      if (body?.status === "error") console.error("UI API error:", path, body.error?.code);
+    });
+    page.on("requestfailed", request => console.error("UI request failed:", new URL(request.url()).pathname, request.failure()?.errorText));
     page.on("request", request => { if (!request.url().startsWith(url)) external.push(request.url()); });
     await page.goto(url);
     await page.getByRole("heading", { name: "Доступ подтверждён", exact: true }).waitFor();
@@ -117,6 +135,21 @@ try {
     browser = undefined;
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");
   }
+} catch (error) {
+  // This driver owns a synthetic installation. Record rendered state and API
+  // error codes, never credentials, headers or persisted intention bodies.
+  if (diagnosticPage && !diagnosticPage.isClosed()) {
+    const state = await diagnosticPage.evaluate(() => ({
+      hash: location.hash,
+      headings: [...document.querySelectorAll("h1,h2,h3")].map(el => el.textContent),
+      alerts: [...document.querySelectorAll('[role="alert"]')].map(el => el.textContent),
+      statuses: [...document.querySelectorAll('[role="status"]')].map(el => el.textContent),
+      regions: [...document.querySelectorAll('[role="region"]')].map(el => el.getAttribute("aria-label")),
+      busy: document.querySelector(".spaces-view")?.getAttribute("aria-busy"),
+    })).catch(cause => ({ unavailable: cause.message }));
+    console.error("UI failure state:", JSON.stringify({ ...state, reads: diagnosticReads }));
+  }
+  throw error;
 } finally {
   await browser?.close();
   fixture.kill();

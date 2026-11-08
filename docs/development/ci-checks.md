@@ -136,8 +136,19 @@ Android workflow и его dispatcher не затронуты.
 key. Кэшируются registry/git и target выбранного workspace. Shell metadata
 учитывает собственные `ui/src-tauri/Cargo.toml`/`Cargo.lock`, а физический
 output остаётся общим корневым `target/`, как в штатном драйвере.
-Новые Windows namespaces сначала холодные; прежний общий Windows архив
-автоматически в них не переносится. PR-запись кэша не включается.
+Перед первым restore нового Windows namespace выполняется metadata-only
+lookup собственного архива. Если его нет, `actions/cache/restore` читает
+прежний общий main-архив с namespace `prototype-host` до подготовки
+`rust-cache`; затем обычный suite restore/save работает как прежде.
+У lookup и fallback только restore, PR-запись кэша не включается. При наличии
+собственного архива старый лишний раз не скачивается. Отсутствие обоих
+архивов оставляет обычную холодную сборку без пропуска проверок.
+Для старого архива передаются прежние четыре абсолютных пути, в прежнем
+порядке: Cargo registry/git, корневой target, prototype target; Zstd и
+Windows-only archive version должны совпасть. Это чтение старых зависимостей,
+а не перенос результата тестов: Cargo проверяет units, а все команды идут
+с прежними флагами и версиями. Совпадение archive version проверено по API/
+алгоритму toolkit; настоящий restore ещё требует нового CI.
 
 Цель CI.04 — ≤10 минут **от старта workflow до завершения Windows aggregate**,
 включая очередь runners, подготовку и post/cache steps. Короткая длительность
@@ -183,6 +194,17 @@ alerts/statuses, имена region, busy-state и последние 30 read out
 записываются. Исходный отказ повторно выбрасывается, cleanup сохраняется.
 Повтор теста, увеличение timeout и ослабление assertions не добавлены;
 пять успешных локальных workspace-прогонов не доказывают устранение причины.
+
+В attempt 2 `2fa85ed` обнаружен другой отказ после reload: read-only
+`space.list` вернул `unavailable`, UI корректно показал недоступность ядра
+и отключил retry. Источник ошибки ещё не доказан. Только у синтетического
+debug-fixture включается `ZEDONE_CLOCK_DIAGNOSTICS=1`: Rust выводит локальную
+категорию `StorageError`, а при срабатывании прежнего fail-closed clock guard —
+calendar/observed milliseconds. В release этот код не компилируется;
+штатный CLI/product-check выполняется без диагностического флага.
+Запись stderr best-effort, без SQL/путей/ключей/command bodies; ошибка записи
+не заменяет исходную командную ошибку. Авторизация, clock policy и API-ответы
+не меняются, retry/поблажка для часов не добавлены.
 
 При подготовке браузера Linux использует HTTPS-архивы archive.ubuntu.com
 и security.ubuntu.com вместо Azure HTTP mirror в `/etc/apt/apt-mirrors.txt`.

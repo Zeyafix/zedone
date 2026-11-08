@@ -65,7 +65,21 @@ impl Service {
                             Ok($handler(ctx, &Credential(&secret), clock, &request)?)
                         })
                         .await
-                        .map_err(CommandError::from)?;
+                        .map_err(|error| {
+                            #[cfg(debug_assertions)]
+                            if std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
+                                == Some(std::ffi::OsStr::new("1"))
+                            {
+                                use std::io::Write;
+                                // StorageError contains only local categories,
+                                // never SQL, paths, credentials or request data.
+                                let _ = writeln!(
+                                    std::io::stderr().lock(),
+                                    "Storage command failed: operation={operation} category={error:?}"
+                                );
+                            }
+                            CommandError::from(error)
+                        })?;
                     value(execution)
                 }};
             }

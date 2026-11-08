@@ -9,10 +9,10 @@ branch: ci/parallel-windows-checks
 goal: "Сократить ожидание Windows host-check до 10 минут без сокращения охвата."
 requirements: [T16, T17]
 dependencies_evidence: ["CI.01/EV-028 merged", "CI.03/EV-064 merged", "P05.03/EV-078 PR #78 merged"]
-scope: ["Prototype foundation workflow", "общая подготовка host suites", "разделение host driver прототипа и диагностика test driver", "CI docs и журнал"]
+scope: ["Prototype foundation workflow и read-only миграция cache", "общая подготовка host suites", "разделение host driver и диагностика test/debug Rust", "CI docs и журнал"]
 checks: ["actionlint", "YAML и сохранение команд/paths/permissions", "настоящие shell-границы подготовки и aggregate с подставными внешними CLI", "cold/warm GitHub Actions — ожидаются"]
 reverse_and_failure: "Возврат последовательного workflow через Git; failure/cancelled/skipped не дают успешного aggregate; fail-fast false сохраняет диагностику остальных suites."
-result: "verified локально; цель времени и интеграция ожидают GitHub Actions"
+result: "in_progress: attempt 1 passed за 13:54, attempt 2 failed; cache migration/debug diagnostics проверены локально, новый CI ожидается"
 next: "После публикации проверить точный head полным CI и измерить cold/warm время до aggregate; CI.04 остаётся in_progress."
 ```
 
@@ -47,8 +47,10 @@ Composite action содержит закреплённые версии/CLI и �
 свой Cargo workspace, корневые JS-зависимости и Chromium ставятся отдельно.
 Playwright `--with-deps` сохранён; Media Foundation не пропускается.
 У каждого Windows suite свой namespace/cache target и единственный main
-writer. Linux использует прежние namespace/paths. Новые Windows кэши холодные
-до успешного main-запуска; перенос старого архива и PR-запись не добавлены.
+writer. Linux использует прежние namespace/paths. До появления собственного
+Windows suite-cache добавлен read-only fallback к прежнему main-архиву
+через lookup/restore; PR-запись не добавлена. Историю холодных запусков
+и условия миграционного restore читать в результатах ниже.
 Бюджеты Linux 10/Windows 20 минут сохранены; aggregate имеет бюджет 1 минуту.
 
 ## Локальная проверка
@@ -186,3 +188,119 @@ targets/features, семь unsafe guards, OpenAPI/types/tsc. Лог
 `product-overlap-local.log` показывает клиентские тесты во время native tests,
 а не после них. Android native/ABI исполнение обновлённого общего helper
 ожидает нового CI; его порядок/объём внутри Android ветки не менялся.
+
+### Новый полный CI
+
+Опубликован head `2fa85ed892422ce66651c1896cdfc4fa5b396f73`, commit
+`ci: run independent host checks at the same time`.
+Новые [host run 42516607788](https://github.com/Zeyafix/zedone/actions/runs/42516607788)
+и [Android run 42516607820](https://github.com/Zeyafix/zedone/actions/runs/42516607820)
+стартовали 2026-11-08 19:45:17 UTC. Все исходные suites и оба strict aggregate
+ожидаются, результат pending. Не принимать старые частичные успехи за CI
+этого head. Windows отсчитывать от 19:45:17 UTC до завершения его aggregate.
+
+### Полный первый результат 2fa85ed: проверки прошли, цель времени — нет
+
+Все 12 checks точного head `2fa85ed` SUCCESS с первой попытки: оба
+workflow/aggregate и все исходные native/ABI/HTTP/UI/environment/cleanup
+наборы. Raw logs подтвердили по 273 product Rust tests на Windows/Linux/
+Android, 23 client tests/239 assertions, семь host/каждой Android ABI unsafe
+guards, OpenAPI/types и новый routing/pairing guard. Prototype Windows —
+175 tests, Linux — 177 (Unix-specific tests). Windows/Linux UI прошли на
+Node baseline 24.22.1; весь Android APK/IPC/lifecycle и обе ABI passed.
+GAP-014 не повторился; причина первого отказа всё ещё не доказана.
+
+| Измерение attempt 1 | Фактическое время |
+| --- | --- |
+| Windows product job | 8:00 |
+| Windows prototype-native job | 7:06 |
+| Windows prototype-ui job | 13:45 |
+| Windows shell job | 8:43 |
+| Windows aggregate: собственный job | 0:04 |
+| От старта workflow до Windows aggregate | **13:54**, 19:45:17–19:59:11 UTC |
+| Сумма четырёх Windows jobs | 37:34 (без aggregate на Ubuntu) |
+| Linux job | 9:11 |
+| Android workflow до aggregate | 9:34 |
+
+Цель ≤10 минут **не достигнута**. Считать короткие 4 секунды aggregate
+ускорением нельзя. Все четыре Windows cache namespaces действительно
+холодные; Linux восстановил прежний полный cache hit. В prototype-ui
+подготовка заняла 9:46: Rust install 1:46, Rust cache action до «No cache»
+2:47, Media Foundation около 4:13; собственные release/HTTP/UI/guards
+заняли около 3:34. Остальные Windows preparation — 1:00/1:07/4:32.
+Длительная подготовка требует отдельного повторного измерения; нельзя
+считать её ни гарантированно разовой, ни устранённой без фактов.
+
+Запрошен полный rerun **всех шести host jobs** того же run/head, старт
+20:01:46 UTC; это проверка вариативности холодной подготовки, без изменения
+исходников, PR cache policy и охвата. Android уже полностью прошёл на том
+же head, повтор его независимого workflow не требуется. Attempt 1 и его
+13:54 сохраняются в сравнении; повтор ещё pending. Номер новой попытки и
+итог подтвердить по Actions API. Сырые результаты — `host-2fa85ed-attempt1.log`,
+`android-2fa85ed-attempt1.log`, `host-jobs-2fa85ed.json`,
+`android-jobs-2fa85ed.json`, `prototype-ui-2fa85ed.log` в локальном отчёте.
+
+### Attempt 2: read-only unavailable и новая диагностика
+
+Повтор head `2fa85ed` завершился failure. Windows product/native/UI/shell:
+10:45/7:45/8:18/**5:40 failure**, Linux passed за 9:17; Windows aggregate
+failed в 20:12:40 UTC, 10:54 от старта 20:01:46. Это не успешный замер
+≤10 минут. В product release compilation заняла 5:22 без suite-cache.
+
+Shell job `128845078197` прошёл первый board reload, затем в сценарии
+потерянного ответа после следующего reload `space.list` вернул HTTP 200/
+`status:error/error.code:unavailable`. UI показал «Не удалось связаться с ядром»
+и правильно отключил «Проверить результат»; ожидание click на строке 111
+истекло. Это другая точка отказа, чем первый region timeout GAP-014;
+совпадение первопричин не доказано. Лог теперь содержит API/DOM состояние.
+
+Причина `unavailable` требует storage-категории. Добавлен только opt-in
+debug trace `ZEDONE_CLOCK_DIAGNOSTICS=1`: Service пишет безопасную категорию
+`StorageError`, clock — calendar/observed milliseconds при существующем
+fail-closed отказе. Вывод best-effort stderr без ключей/SQL/paths/request data;
+ошибка stderr не меняет командный результат. В release код не компилируется,
+в UI flag получает только отдельный синтетический fixture. Время/авторизация/
+clock policy ADR-0038/публичные ответы и прежние тесты не ослаблены.
+
+Локальные результаты:
+
+- Ограниченная проба: 10 000 настоящих `Storage::timed_transact` с системными часами
+  прошли за 8.925 секунды; гипотеза часов не подтверждена, причина CI не объявлена.
+- Все 10 существующих clock-policy tests passed с trace выключенным и включённым;
+  контролируемый rollback/frozen case выдал trace и прежний unavailable.
+- Полный UI-check с fixture trace passed на Node baseline 24.22.1/Chromium,
+  включая native tests/Clippy/build/workspace/cards/editor/history/delivery.
+- Первый локальный product-check был ошибочно запущен с флагом у всего процесса:
+  13 CLI assertions пустого stderr не прошли. Это ошибочная конфигурация контроля,
+  не принимаемая за passed. Тесты не менялись; флаг ограничен fixture-процессом.
+- Новый полный product-check в штатном окружении passed: все 273 Rust tests,
+  23 client/239 assertions, release all-targets/features, семь unsafe guards,
+  OpenAPI/types/tsc. Стандартный stderr/ответы CLI сохранены.
+
+Сырые логи — `shell-2fa85ed-attempt2-failed.log`,
+`host-jobs-2fa85ed-attempt2.json`, `product-2fa85ed-attempt2.log`,
+`clock-probe.log`, `clock-policy-diagnostics-tests.log`,
+`clock-policy-diagnostics-enabled.log`, `ui-backend-diagnostics-local.log`,
+`product-backend-diagnostics-local.log` (ошибочная конфигурация),
+`product-backend-diagnostics-default-env.log` — только в локальном отчёте.
+
+### Read-only миграция кэша
+
+API подтвердил, что прежний main-архив
+`zedone-rust-v1-prototype-host-Windows_NT-x64-af717f4b-427390d8` размером
+1 039 083 211 байт ещё доступен. Новые Windows namespaces пока пусты и
+по main-only policy не прогреваются в PR. Добавлен metadata-only lookup
+собственного suite-архива; при его отсутствии legacy restore читает main
+перед `rust-cache`, чтобы подготовка metadata/сборка могли использовать
+прежние зависимости. Собственный архив найден — fallback пропускается;
+оба отсутствуют — обычная холодная сборка. Ни один новый шаг не записывает кэш.
+
+Четыре абсолютных legacy paths и их порядок совпадают со старым `rust-cache`.
+Локально воспроизведён algorithm toolkit: с `zstd-without-long/windows-only/1.0`
+получена archive version
+`6370e326445db9dd1478b2f0415651db5229daabe7957f68172909d37f07b335`,
+точно равная версии старого архива из API. PowerShell outputs, lookup/fallback
+условия (Windows/Linux, все suites, архив есть/нет), pinned restore-only actions
+и workflow/composite actionlint passed. Это не подмена проверки: все прежние
+Cargo команды/флаги/версии/проверки freshness сохраняются. Настоящий restore,
+время и весь CI нового диагностического head ещё ожидаются; цель не принята.

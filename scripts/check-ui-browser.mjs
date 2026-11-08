@@ -11,7 +11,9 @@ const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
 const suffix = process.platform === "win32" ? ".exe" : "";
 const target = resolve(process.env.CARGO_TARGET_DIR || resolve(root, "target"));
-const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix}`), "--serve", directory], { stdout: "pipe", stderr: "inherit" });
+const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix}`), "--serve", directory], {
+  stdout: "pipe", stderr: "inherit", env: { ...process.env, ZEDONE_CLOCK_DIAGNOSTICS: "1" },
+});
 let browser;
 let diagnosticPage;
 let diagnosticReads;

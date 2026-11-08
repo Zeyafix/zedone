@@ -69,6 +69,19 @@ impl Clock for TransactionClock<'_> {
         // Backward movement below any previously observed calendar time fails
         // closed. A monotonic floor also prevents extending running operations.
         if wall < self.observed.get() {
+            #[cfg(debug_assertions)]
+            if std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
+                == Some(std::ffi::OsStr::new("1"))
+            {
+                use std::io::Write;
+                // Explicit debug diagnostics only; never change the clock or
+                // turn a failed stderr write into a different command result.
+                let _ = writeln!(
+                    std::io::stderr().lock(),
+                    "Trusted clock rejected calendar: wall_ms={wall} observed_ms={}",
+                    self.observed.get()
+                );
+            }
             return Err(unavailable());
         }
         let instant = Instant::now();

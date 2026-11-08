@@ -30,6 +30,34 @@ runs:
         "workspaces<<WORKSPACES" >> $env:GITHUB_OUTPUT
         $workspaces >> $env:GITHUB_OUTPUT
         "WORKSPACES" >> $env:GITHUB_OUTPUT
+        if ($env:RUNNER_OS -eq 'Windows' -and $env:SUITE -ne 'all') {
+          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $env:USERPROFILE '.cargo' }
+          $registryPath = Join-Path $cargoHome 'registry'
+          $cargoGitPath = Join-Path $cargoHome 'git'
+          $rootTarget = Join-Path $env:GITHUB_WORKSPACE 'target'
+          $prototypeTarget = Join-Path $env:GITHUB_WORKSPACE 'prototypes/target'
+          $suiteTarget = if ($env:SUITE -like 'prototype-*') { $prototypeTarget } else { $rootTarget }
+          # Absolute paths and their order match rust-cache's archive version.
+          @('cache-paths<<CACHE_PATHS', $registryPath, $cargoGitPath, $suiteTarget, 'CACHE_PATHS',
+            'legacy-cache-paths<<LEGACY_PATHS', $registryPath, $cargoGitPath,
+            $rootTarget, $prototypeTarget, 'LEGACY_PATHS') >> $env:GITHUB_OUTPUT
+        }
+    - name: Look up the Windows suite cache
+      if: runner.os == 'Windows' && inputs.suite != 'all'
+      id: suite-cache
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ steps.versions.outputs.cache-paths }}
+        key: zedone-host-lookup-${{ github.run_id }}-${{ inputs.suite }}
+        restore-keys: zedone-rust-v1-prototype-host-${{ inputs.suite }}-Windows_NT-x64-
+        lookup-only: true
+    - name: Restore the legacy main cache for a new Windows suite
+      if: runner.os == 'Windows' && inputs.suite != 'all' && steps.suite-cache.outputs.cache-matched-key == ''
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ steps.versions.outputs.legacy-cache-paths }}
+        key: zedone-host-legacy-lookup-${{ github.run_id }}-${{ inputs.suite }}
+        restore-keys: zedone-rust-v1-prototype-host-Windows_NT-x64-
     - name: Restore Rust dependencies and build cache
       uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       env:

@@ -1,40 +1,76 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
-import { newColumnId, newSpaceId } from "../../client/commands";
-import { createMutation, deliverMutation, errorMessage, forgetMutation, pendingCommands, read, type Column, type Mutation, type Pending, type Space } from "./workspace-api";
+import { newCardId, newColumnId, newSpaceId } from "../../client/commands";
+import { createMutation, deliverMutation, errorMessage, forgetMutation, pendingCommands, read, type Card, type Column, type Mutation, type Pending, type Space } from "./workspace-api";
+import CardsList from "./CardsList.vue";
+import CardEditor from "./CardEditor.vue";
+import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./editor-drafts";
+import { pendingChanged } from "./workspace-api";
 
 const props = defineProps<{ ready: boolean }>();
-type Action = { kind: "space.create" } | { kind: "column.create"; space: string } | { kind: "space.rename" | "space.trash" | "space.restore"; target: Space } | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column } | { kind: "forget"; id: string };
-const labels: Record<Mutation | "forget", string> = {
+type Action =
+  | { kind: "space.create" }
+  | { kind: "column.create"; space: string }
+  | { kind: "space.rename" | "space.trash" | "space.restore"; target: Space }
+  | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column }
+  | { kind: "card.create"; space: string; column: string }
+  | { kind: "card.read" | "card.trash" | "card.restore"; target: Card }
+  | { kind: "forget" | "forget-draft"; id: string };
+const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string> = {
   "space.create": "Создать пространство", "column.create": "Создать колонку",
   "space.rename": "Переименовать пространство", "column.rename": "Переименовать колонку",
   "space.trash": "В корзину", "column.trash": "В корзину",
   "space.restore": "Восстановить", "column.restore": "Восстановить", forget: "Убрать из списка",
+  "card.create": "Создать карточку", "card.read": "Карточка", "card.trash": "В корзину", "card.restore": "Восстановить",
+  "card.begin_editing": "Начать редактирование", "card.autosave": "Сохранить карточку", "card.finish_editing": "Завершить редактирование", "card.set_completed": "Изменить выполнение",
+  "forget-draft": "Удалить черновик",
 };
 const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];
 const selected = ref(routeSpace());
 const spaces = ref<Space[]>([]);
 const space = ref<Space>();
 const columns = ref<Column[]>([]);
+const cards = ref<Card[]>([]);
 const showTrash = ref(false);
+const showCardTrash = ref(false);
 const loading = ref(false);
 const busy = ref(false);
 const error = ref("");
 const notice = ref("");
 const pending = ref<Pending[]>([]);
+const drafts = ref<EditorDraft[]>([]);
+const recovering = ref<string>();
+const editor = ref<InstanceType<typeof CardEditor>>();
 const storageError = ref(false);
 const action = ref<Action>();
 const dialogOpen = ref(false);
 const name = ref("");
+const description = ref("");
 const formError = ref("");
 const titleInput = ref<HTMLInputElement>();
 const viewHeading = ref<HTMLElement>();
 let opener: HTMLElement | undefined;
 let generation = 0;
+let localGeneration = 0, lastUrl = location.href, pendingUrl: string | undefined;
 const blocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready);
 const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename"));
 const title = (item: Space | Column) => item.names.length === 1 ? item.names[0] || "Без названия" : "Конфликт названий";
+const cardTitle = (item: Card) => item.titles.length === 1 ? item.titles[0] : "Конфликт заголовков";
+const visibleCards = computed(() => cards.value.filter(item => showCardTrash.value ? item.state === "trashed" : item.state !== "trashed"));
+const cardGroups = computed(() => {
+  const activeColumns = new Set(columns.value.filter(item => item.state !== "trashed").map(item => item.column));
+  const byColumn = new Map<string, Card[]>(), unplaced: Card[] = [];
+  for (const card of visibleCards.value) {
+    const id = card.columns.length === 1 ? card.columns[0] : undefined;
+    if (!id || !activeColumns.has(id)) { unplaced.push(card); continue; }
+    const group = byColumn.get(id) ?? [];
+    group.push(card); byColumn.set(id, group);
+  }
+  return { byColumn, unplaced };
+});
+const columnCards = (id: string) => cardGroups.value.byColumn.get(id) ?? [];
+const unplacedCards = computed(() => cardGroups.value.unplaced);
 const visibleSpaces = computed(() => spaces.value.filter(item => showTrash.value ? item.state === "trashed" : item.state !== "trashed"));
 const visibleColumns = computed(() => columns.value.filter(item => showTrash.value ? item.state === "trashed" : item.state !== "trashed"));
 const groups = computed(() => [
@@ -44,8 +80,12 @@ const groups = computed(() => [
 const conflicts = (item: Space | Column) => item.names.length !== 1 || item.state === "conflicted" || "positions" in item && item.positions.length !== 1;
 
 async function loadPending() {
-  try { pending.value = await pendingCommands(); storageError.value = false; }
-  catch { storageError.value = true; }
+  const current = ++localGeneration;
+  try {
+    const queue = await pendingCommands(), saved = listDrafts();
+    if (current !== localGeneration) return;
+    pending.value = queue; drafts.value = saved; storageError.value = false;
+  } catch { if (current === localGeneration) storageError.value = true; }
 }
 async function refresh() {
   const current = ++generation;
@@ -58,40 +98,81 @@ async function refresh() {
       read("space.list", { include_trashed: true }),
       selected.value ? read("space.read", { space: selected.value }) : Promise.resolve(undefined),
       selected.value ? read("column.list", { space: selected.value, include_trashed: true }) : Promise.resolve(undefined),
+      selected.value ? read("card.list", { space: selected.value, include_trashed: true }) : Promise.resolve(undefined),
     ]);
     if (current !== generation) return;
     const failure = results.find(result => result.status === "rejected");
     if (failure?.status === "rejected") throw failure.reason;
-    const [list, board, children] = results;
+    const [list, board, children, notes] = results;
     if (list?.status === "fulfilled") spaces.value = list.value!.spaces;
     if (board?.status === "fulfilled") space.value = board.value;
     if (children?.status === "fulfilled") columns.value = children.value?.columns ?? [];
+    if (notes?.status === "fulfilled") cards.value = notes.value?.cards ?? [];
   } catch (cause) {
     if (current !== generation) return;
-    spaces.value = []; space.value = undefined; columns.value = [];
+    spaces.value = []; space.value = undefined; columns.value = []; cards.value = [];
     error.value = errorMessage(cause);
   } finally { if (current === generation) loading.value = false; }
 }
 async function routeChanged() {
+  if (dialogOpen.value && editor.value) {
+    pendingUrl = location.href;
+    history.replaceState(history.state, "", lastUrl);
+    void changeDialog(false); return;
+  }
+  lastUrl = location.href;
   const id = routeSpace();
   if (id === selected.value) return;
   selected.value = id;
   showTrash.value = false;
-  space.value = undefined; columns.value = [];
+  showCardTrash.value = false;
+  space.value = undefined; columns.value = []; cards.value = [];
   await refresh();
   await nextTick(); viewHeading.value?.focus();
 }
 watch(() => props.ready, ready => {
   if (ready) { void refresh(); void loadPending(); }
-  else { generation++; loading.value = false; spaces.value = []; space.value = undefined; columns.value = []; }
+  else { generation++; loading.value = false; spaces.value = []; space.value = undefined; columns.value = []; cards.value = []; }
 }, { immediate: true });
-onMounted(() => { window.addEventListener("hashchange", routeChanged); void loadPending(); });
-onUnmounted(() => { generation++; window.removeEventListener("hashchange", routeChanged); });
+onMounted(() => {
+  window.addEventListener("hashchange", routeChanged, true);
+  for (const event of [pendingChanged, draftsChanged, "storage"]) window.addEventListener(event, loadPending);
+  void loadPending();
+});
+onUnmounted(() => {
+  generation++; localGeneration++; window.removeEventListener("hashchange", routeChanged, true);
+  for (const event of [pendingChanged, draftsChanged, "storage"]) window.removeEventListener(event, loadPending);
+});
+
+function editorClosed() {
+  dialogOpen.value = false;
+  if (pendingUrl) {
+    const destination = pendingUrl; pendingUrl = undefined;
+    history.replaceState(history.state, "", destination); window.dispatchEvent(new HashChangeEvent("hashchange"));
+  }
+}
+async function changeDialog(value: boolean) {
+  if (value) { dialogOpen.value = true; return; }
+  if (!editor.value || await editor.value.requestClose()) editorClosed();
+}
+async function openDraft(item: EditorDraft, event: Event) {
+  if (busy.value) return;
+  opener = event.currentTarget as HTMLElement; busy.value = true;
+  const current = generation;
+  try {
+    const target = await read("card.read", { space: item.space, card: item.card });
+    if (current !== generation) return;
+    action.value = { kind: "card.read", target }; recovering.value = item.id; dialogOpen.value = true;
+  } catch (cause) { error.value = errorMessage(cause); }
+  finally { busy.value = false; }
+}
 
 async function open(next: Action, event: Event) {
   opener = event.currentTarget as HTMLElement;
   if (busy.value) return;
   busy.value = true;
+  recovering.value = undefined;
+  const current = generation;
   try {
     // Freeze the fresh original version at dialog opening. Refresh never rebases it.
     switch (next.kind) {
@@ -99,10 +180,14 @@ async function open(next: Action, event: Event) {
         next = { kind: next.kind, target: await read("column.read", { space: next.target.space, column: next.target.column }) }; break;
       case "space.rename": case "space.trash": case "space.restore":
         next = { kind: next.kind, target: await read("space.read", { space: next.target.space }) }; break;
+      case "card.read": case "card.trash": case "card.restore":
+        next = { kind: next.kind, target: await read("card.read", { space: next.target.space, card: next.target.card }) }; break;
     }
-    action.value = next; name.value = "target" in next ? next.target.names[0] ?? "" : "";
+    if (current !== generation || !props.ready) return;
+    action.value = next; name.value = "target" in next && "names" in next.target ? next.target.names[0] ?? "" : "";
+    description.value = "";
     formError.value = ""; dialogOpen.value = true;
-  } catch (cause) { error.value = errorMessage(cause); }
+  } catch (cause) { if (current === generation) error.value = errorMessage(cause); }
   finally { busy.value = false; }
 }
 function restoreFocus(event: Event) {
@@ -133,13 +218,15 @@ async function retry(id: string) {
 }
 async function submit() {
   const current = action.value;
-  if (!current || busy.value) return;
-  if (current.kind === "forget") {
-    try { await forgetMutation(current.id); await loadPending(); dialogOpen.value = false; notice.value = "Действие убрано из списка. Уже принятое изменение этим не отменяется. Обновите данные перед новым действием."; }
-    catch { formError.value = "Убрать действие из списка не удалось."; }
+  if (!current || current.kind === "card.read" || busy.value) return;
+  if (current.kind === "forget" || current.kind === "forget-draft") {
+    try {
+      if (current.kind === "forget-draft") await discardDraft(current.id); else await forgetMutation(current.id);
+      await loadPending(); dialogOpen.value = false; notice.value = "Запись убрана. Уже принятое изменение этим не отменяется. Обновите данные перед новым действием.";
+    } catch (cause) { formError.value = errorMessage(cause); }
     return;
   }
-  if (blocked.value) { formError.value = "Сначала проверьте незавершённое действие. Название осталось в форме."; return; }
+  if (blocked.value) { formError.value = "Сначала проверьте незавершённое действие. Введённые данные остались в форме."; return; }
   busy.value = true; formError.value = ""; notice.value = "";
   let id: string;
   try {
@@ -147,6 +234,10 @@ async function submit() {
       case "space.create": id = await createMutation(current.kind, { space: newSpaceId(), name: name.value }); break;
       case "column.create":
         id = await createMutation(current.kind, { space: current.space, column: newColumnId(), name: name.value }); break;
+      case "card.create":
+        id = await createMutation(current.kind, { space: current.space, column: current.column, card: newCardId(), title: name.value, description: description.value }); break;
+      case "card.trash": case "card.restore":
+        id = await createMutation(current.kind, { space: current.target.space, card: current.target.card, expected: current.target.version }); break;
       case "space.rename": id = await createMutation(current.kind, { space: current.target.space, expected: current.target.version, name: name.value }); break;
       case "space.trash": case "space.restore": id = await createMutation(current.kind, { space: current.target.space, expected: current.target.version }); break;
       case "column.rename": id = await createMutation(current.kind, { space: current.target.space, column: current.target.column, expected: current.target.version, name: name.value }); break;
@@ -154,7 +245,7 @@ async function submit() {
     }
     await loadPending();
   } catch (cause) {
-    formError.value = cause instanceof DOMException ? "Не удалось сохранить действие на устройстве. Запрос не отправлен; название осталось в форме." : errorMessage(cause);
+    formError.value = cause instanceof DOMException ? "Не удалось сохранить действие на устройстве. Запрос не отправлен; введённые данные остались в форме." : errorMessage(cause);
     busy.value = false; return;
   }
   busy.value = false;
@@ -165,8 +256,9 @@ function pendingLabel(item: Pending) {
 }
 function pendingName(item: Pending) {
   const parameters: unknown = JSON.parse(item.intention.body).parameters;
-  return parameters && typeof parameters === "object" && "name" in parameters && typeof parameters.name === "string"
-    ? parameters.name || "Без названия" : "";
+  if (!parameters || typeof parameters !== "object") return "";
+  if ("title" in parameters && typeof parameters.title === "string") return parameters.title;
+  return "name" in parameters && typeof parameters.name === "string" ? parameters.name || "Без названия" : "";
 }
 </script>
 
@@ -184,6 +276,15 @@ function pendingName(item: Pending) {
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     <p v-if="storageError" role="alert" class="action-error">Не удалось прочитать очередь действий на устройстве. Изменения недоступны, пока хранилище не заработает. <button @click="loadPending">Проверить хранилище</button></p>
+    <section v-if="drafts.length" class="pending-panel" aria-label="Черновики карточек">
+      <h2>Черновики карточек</h2><p>Это локальный ввод, а не подтверждение сохранения карточки.</p>
+      <ul class="pending-list"><li v-for="item in drafts" :key="item.id">
+        <span>{{ item.title || 'Без заголовка' }}</span><div class="view-actions">
+          <button :disabled="busy || !ready" @click="openDraft(item, $event)">Открыть черновик</button>
+          <button :disabled="busy" @click="open({ kind: 'forget-draft', id: item.id }, $event)">Удалить черновик</button>
+        </div>
+      </li></ul>
+    </section>
 
     <section v-if="pending.length" class="pending-panel" aria-labelledby="pending-title">
       <h2 id="pending-title">Незавершённые действия</h2>
@@ -221,13 +322,23 @@ function pendingName(item: Pending) {
           <p v-if="space.names.length !== 1">Варианты названия: {{ space.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения конфликта.</p>
           <p v-if="space.state !== 'active'">{{ space.state === 'trashed' ? 'Пространство в корзине. Для изменений сначала восстановите его.' : 'Состояние пространства конфликтует. Изменения недоступны до разрешения.' }}</p>
           <button v-if="space.state === 'active' && !showTrash" class="primary-button" :disabled="blocked || conflicts(space)" @click="open({ kind: 'column.create', space: space.space }, $event)">Создать колонку</button>
+          <button v-if="!showTrash" :aria-pressed="showCardTrash" :disabled="busy" @click="showCardTrash = !showCardTrash">{{ showCardTrash ? 'Активные карточки' : 'Корзина карточек' }}</button>
         </div>
+        <section v-if="!showTrash && unplacedCards.length" aria-label="Карточки вне активных колонок">
+          <h3>Карточки вне активных колонок</h3><p class="object-note">Положение конфликтует или колонка в корзине. Карточки доступны для просмотра.</p>
+          <CardsList :cards="unplacedCards" :blocked="busy" readonly @open="open" />
+        </section>
         <p v-if="!loading && !visibleColumns.length" class="empty-view">{{ showTrash ? 'В корзине нет колонок.' : 'Колонок пока нет. Создайте колонку для одной темы.' }}</p>
         <div class="column-board" role="region" aria-label="Колонки" tabindex="0">
           <section v-for="item in visibleColumns" :key="item.column" class="column-panel" :aria-label="title(item)">
             <h3>{{ title(item) }}</h3>
             <p v-if="conflicts(item)" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
             <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
+            <template v-if="!showTrash">
+              <CardsList :cards="columnCards(item.column)" :blocked="busy" :readonly="blocked || space.state !== 'active' || conflicts(item)" @open="open" />
+              <p v-if="showCardTrash && !columnCards(item.column).length" class="object-note">В корзине нет карточек этой колонки.</p>
+              <button v-if="!showCardTrash" class="create-card" :disabled="blocked || space.state !== 'active' || conflicts(item)" @click="open({ kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>
+            </template>
             <div class="column-actions">
               <button v-if="item.state === 'active'" :disabled="blocked || space.state !== 'active' || conflicts(item)" @click="open({ kind: 'column.rename', target: item }, $event)">Переименовать</button>
               <button :disabled="blocked || space.state !== 'active' || conflicts(item) || !item.empty" @click="open({ kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
@@ -238,18 +349,23 @@ function pendingName(item: Pending) {
       </template>
     </template>
 
-    <DialogRoot v-model:open="dialogOpen">
+    <DialogRoot :open="dialogOpen" @update:open="changeDialog">
       <DialogPortal><DialogOverlay class="dialog-overlay" />
         <DialogContent class="action-dialog" @open-auto-focus="initialFocus" @close-auto-focus="restoreFocus">
           <div class="dialog-header"><DialogTitle>{{ action ? labels[action.kind] : '' }}</DialogTitle><DialogClose data-workspace-dialog-close aria-label="Закрыть действие">Закрыть</DialogClose></div>
           <DialogDescription v-if="action?.kind === 'forget'">Убирается только запись о проверке результата. Уже принятое изменение не отменяется. При неизвестном результате новое создание может привести к дубликату. Сначала проверьте текущее состояние.</DialogDescription>
+          <DialogDescription v-else-if="action?.kind === 'forget-draft'">Удаляется только локальный ввод. Сохранённая карточка и уже отправленные действия останутся.</DialogDescription>
+          <DialogDescription v-else-if="action?.kind === 'card.read'">Изменяйте текст и отмечайте выполненные дела.</DialogDescription>
+          <DialogDescription v-else-if="action?.kind === 'card.create'">Добавьте мысль или дело в эту колонку. Заголовок обязателен, описание можно оставить пустым.</DialogDescription>
           <DialogDescription v-else-if="naming">Название можно изменить позже. Оно сохраняется только после подтверждения ядром.</DialogDescription>
-          <DialogDescription v-else>{{ action?.kind.endsWith('.trash') ? 'Объект попадёт в корзину. Его можно будет восстановить с прежним названием и местом.' : 'Объект вернётся из корзины с прежним названием и местом.' }} {{ action && 'target' in action ? title(action.target) : '' }}</DialogDescription>
-          <form @submit.prevent="submit">
-            <label v-if="naming" class="name-field">Название<input ref="titleInput" v-model="name" name="name" autocomplete="off" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">Можно оставить пустым.</span></label>
+          <DialogDescription v-else>{{ action?.kind.endsWith('.trash') ? 'Объект попадёт в корзину. Его можно будет восстановить с прежним названием и местом.' : 'Объект вернётся из корзины с прежним названием и местом.' }} {{ action && 'target' in action ? 'titles' in action.target ? cardTitle(action.target) : title(action.target) : '' }}</DialogDescription>
+          <CardEditor v-if="action?.kind === 'card.read'" ref="editor" :card="action.target" :ready="ready" :draft-id="recovering" @changed="refresh" @close="editorClosed" @stay="pendingUrl = undefined" />
+          <form v-else @submit.prevent="submit">
+            <label v-if="naming" class="name-field">{{ action?.kind === 'card.create' ? 'Заголовок' : 'Название' }}<input ref="titleInput" v-model="name" name="name" :aria-label="action?.kind === 'card.create' ? 'Заголовок' : 'Название'" autocomplete="off" :required="action?.kind === 'card.create'" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">{{ action?.kind === 'card.create' ? 'Пустой заголовок не сохраняется.' : 'Можно оставить пустым.' }}</span></label>
+            <label v-if="action?.kind === 'card.create'" class="name-field">Описание<textarea v-model="description" name="description" rows="6" :readonly="busy || pending.length > 0" /></label>
             <p v-if="formError" role="alert" class="action-error">{{ formError }}</p>
             <p v-if="pending.length && action?.kind !== 'forget'">Исходное действие сохранено. Закройте форму и проверьте его результат в списке незавершённых действий.</p>
-            <div class="dialog-actions"><DialogClose type="button">{{ pending.length ? 'К списку действий' : 'Отмена' }}</DialogClose><button type="submit" class="primary-button" :disabled="busy || (action?.kind !== 'forget' && blocked)">{{ busy ? 'Сохраняем…' : naming && action?.kind.endsWith('.rename') ? 'Сохранить название' : action ? labels[action.kind] : '' }}</button></div>
+            <div class="dialog-actions"><DialogClose type="button">{{ pending.length ? 'К списку действий' : 'Отмена' }}</DialogClose><button type="submit" class="primary-button" :disabled="busy || (action?.kind !== 'forget' && action?.kind !== 'forget-draft' && blocked)">{{ busy ? 'Сохраняем…' : naming && action?.kind.endsWith('.rename') ? 'Сохранить название' : action ? labels[action.kind] : '' }}</button></div>
           </form>
         </DialogContent>
       </DialogPortal>

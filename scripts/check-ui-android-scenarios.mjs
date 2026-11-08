@@ -122,6 +122,7 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   await visible(".column-panel h3", "Разобрать");
   assert.equal(await page.evaluate(() => localStorage.length), 0);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await checkCardsTouch(page, dismissKeyboard);
   await tap(".board-heading .primary-button", "Создать колонку");
   await visible(dialog);
   // Android gives the IME the first Back. Verify form/board navigation only
@@ -134,4 +135,104 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   await visible(".space-row a", "Мысли");
   assert.equal(await page.evaluate(() => document.querySelector(".space-row .view-actions button:last-child").disabled), true);
   console.log("Android domain IPC: space/column create/rename/reverse/trash/restore, reload, focus/Back and protected nonempty space passed.");
+}
+
+/** Same IPC/Service, including the card's reverse action, on the CI AVD. */
+async function checkCardsTouch(page, dismissKeyboard) {
+  const { visible, tap, fill } = await nativeControls(page);
+  const dialog = '[role="dialog"]';
+  await tap(".create-card", "Создать карточку");
+  await fill(`${dialog} input[name="name"]`, "Разобрать мысли");
+  await fill(`${dialog} textarea`, "Строка один\n<b>Буквальный текст</b>");
+  await tap(`${dialog} button[type="submit"]`, "Создать карточку");
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  await tap(".card-title", "Разобрать мысли");
+  await visible(".card-content p", "Строка один\n<b>Буквальный текст</b>");
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".card-content b").length), 0);
+  await tap("[data-workspace-dialog-close]", "Закрыть");
+  await tap(".card-note > button:last-child", "В корзину");
+  await tap(`${dialog} button[type="submit"]`, "В корзину");
+  await page.waitForFunction(() => !document.querySelector('.card-note'));
+  await tap('.board-heading button[aria-pressed="false"]', "Корзина карточек");
+  await tap(".card-note > button:last-child", "Восстановить");
+  await tap(`${dialog} button[type="submit"]`, "Восстановить");
+  await page.waitForFunction(() => !document.querySelector('.card-note'));
+  await tap('.board-heading button[aria-pressed="true"]', "Активные карточки");
+  await page.reload(); await visible(".card-title", "Разобрать мысли");
+  assert.equal(await page.evaluate(() => localStorage.length), 0);
+  assert.equal(await page.evaluate(() => document.querySelector('.column-actions button:last-child').disabled), true);
+  await tap(".create-card", "Создать карточку");
+  await fill(`${dialog} input[name="name"]`, "   ");
+  await fill(`${dialog} textarea`, "Ввод при отказе");
+  await tap(`${dialog} button[type="submit"]`, "Создать карточку");
+  await visible(`${dialog} [role="alert"]`);
+  assert.equal(await page.evaluate(() => document.querySelector('[role="dialog"] textarea').value), "Ввод при отказе");
+  await dismissKeyboard();
+  await tap("[data-workspace-dialog-close]", "Закрыть");
+  await tap(".pending-list li button:last-child", "Убрать из списка");
+  await tap(`${dialog} button[type="submit"]`, "Убрать из списка");
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  assert.equal(await page.evaluate(() => localStorage.length), 0);
+  await tap(".view-toolbar .view-actions button:nth-child(2)", "Обновить список");
+  await visible(".card-title", "Разобрать мысли");
+  console.log("Android card IPC: creation/read/literal description/trash/restore/reload, nonempty column protection and rejected-title draft passed.");
+  await checkEditorTouch(page, dismissKeyboard);
+}
+
+/** Real host commands inspect the UI's effects, without reaching into Vue state. */
+async function checkEditorTouch(page, dismissKeyboard) {
+  const { visible, tap, fill } = await nativeControls(page);
+  const api = (operation, parameters) => page.evaluate(async ({ operation, parameters }) => {
+    const request = JSON.stringify({ id: Array.from(crypto.getRandomValues(new Uint8Array(16))), operation, parameters });
+    let response;
+    if (window.__TAURI_INTERNALS__) {
+      const session = await window.__TAURI_INTERNALS__.invoke("shell_session");
+      response = JSON.parse(await window.__TAURI_INTERNALS__.invoke("zedone_command", { invocation: { operation, request }, credential: session.credential.key }));
+    } else {
+      const session = await (await fetch("/host/session")).json();
+      response = await (await fetch(`/v1/commands/${operation}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.credential.key}` }, body: request })).json();
+    }
+    if (response.status !== "ok") throw new Error(`${operation}: ${response.error?.code}`);
+    return response.result;
+  }, { operation, parameters });
+  const space = await page.evaluate(() => location.hash.split("/").at(-1));
+  const card = (await api("card.list", { space, include_trashed: false })).cards[0].card;
+  const current = () => api("card.read", { space, card });
+  const history = () => api("card.history", { space, card, limit: 100, after: null, expected: null });
+  const saved = () => page.waitForFunction(() => Array.from(document.querySelectorAll('.card-editor [role="status"]')).some(el => el.textContent === "Сохранено"));
+  const close = async () => {
+    await dismissKeyboard(); await tap("[data-workspace-dialog-close]", "Закрыть");
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  };
+  const initial = (await history()).versions.length;
+  await tap(".card-title", "Разобрать мысли"); await tap("[data-editor-edit]", "Редактировать");
+  await visible('input[name="card-title"]'); await saved();
+  await fill('input[name="card-title"]', "Редактор карточки");
+  await fill('textarea[name="card-description"]', "Сохранено вместе\n<b>Обычный текст</b>"); await saved();
+  assert.equal((await current()).descriptions[0], "Сохранено вместе\n<b>Обычный текст</b>");
+  await tap('.card-editor button[aria-pressed="false"]', "Отметить выполненной");
+  await visible('.card-editor button[aria-pressed="true"]', "Снять отметку выполнения");
+  assert.deepEqual((await current()).completed, [true]);
+  await tap('.card-editor button[aria-pressed="true"]', "Снять отметку выполнения");
+  await visible('.card-editor button[aria-pressed="false"]', "Отметить выполненной");
+  assert.deepEqual((await current()).completed, [false]); await close();
+  assert.equal((await history()).versions.length, initial + 1);
+  assert.equal((await history()).versions.at(-1).title, "Редактор карточки");
+
+  await tap(".card-title", "Редактор карточки"); await tap("[data-editor-edit]", "Редактировать"); await saved();
+  const version = (await current()).version;
+  await fill('input[name="card-title"]', "   "); await fill('textarea[name="card-description"]', "Остаться черновиком");
+  await visible('.card-editor [role="status"]', "Заголовок обязателен. Последняя сохранённая запись не изменена.");
+  await dismissKeyboard(); await tap("[data-workspace-dialog-close]", "Закрыть");
+  await visible("[data-editor-keep-draft]", "Закрыть, сохранив ввод");
+  assert.deepEqual((await current()).version, version);
+  await tap("[data-editor-keep-draft]", "Закрыть, сохранив ввод");
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
+  await tap('section[aria-label="Черновики карточек"] button:first-child', "Открыть черновик");
+  await visible('textarea[name="card-description"]');
+  assert.equal(await page.evaluate(() => document.querySelector('textarea[name="card-description"]').value), "Остаться черновиком");
+  await fill('input[name="card-title"]', "Восстановленный ввод"); await saved(); await close();
+  assert.equal((await current()).titles[0], "Восстановленный ввод");
+  assert.equal(await page.evaluate(() => localStorage.length), 0);
+  console.log("Android editor: paired autosave/history, completion/reverse, invalid-title guard and durable draft recovery passed through UI and shared commands.");
 }

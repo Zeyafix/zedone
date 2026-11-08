@@ -14,7 +14,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 280px; }
-button, input { font: inherit; }
+button, input, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button, .primary-link { min-height: 44px; border: 1px solid var(--border); border-radius: 7px; padding: 10px 16px; background: var(--surface); color: var(--ink); cursor: pointer; }
 button:disabled { cursor: wait; opacity: .7; }
@@ -109,7 +109,19 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .action-dialog .dialog-header { align-items: flex-start; }
 .action-dialog .dialog-header h2 { overflow-wrap: anywhere; }
 .name-field { display: grid; gap: 10px; margin: 24px 0; }
-.name-field input { width: 100%; min-width: 0; min-height: 46px; border: 1px solid var(--border); border-radius: 5px; padding: 10px; color: var(--ink); background: var(--surface); }
+.name-field input, .name-field textarea { width: 100%; min-width: 0; min-height: 46px; border: 1px solid var(--border); border-radius: 5px; padding: 10px; color: var(--ink); background: var(--surface); }
+.name-field textarea { resize: vertical; }
+.cards-list { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 12px; }
+.card-note { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 5px; background: var(--canvas); }
+.card-title { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font-weight: 600; overflow-wrap: anywhere; }
+.card-excerpt { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 14px; max-height: 6em; overflow: hidden; margin: 10px 0; }
+.card-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.card-content h3 { margin-top: 24px; }
+.card-content p { max-width: 72ch; }
+.create-card { width: 100%; margin-top: 12px; }
+.comparison-panel { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 16px; margin-top: 20px; overflow-wrap: anywhere; }
+.comparison-panel button { margin: 6px 8px 0 0; }
+.draft-discard { margin-top: 24px; }
 .name-field span { font-size: 13px; color: var(--muted); }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 @media (max-width: 700px) {

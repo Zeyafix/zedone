@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { checkWorkspace } from "./check-ui-workspace.mjs";
+import { checkCards } from "./check-ui-cards.mjs";
+import { checkEditor } from "./check-ui-editor.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -39,6 +41,8 @@ try {
     if (process.env.UI_SCREENSHOT_DIRECTORY) await page.screenshot({ path: resolve(process.env.UI_SCREENSHOT_DIRECTORY, "shell-desktop.png"), fullPage: true });
     assert.equal(await page.evaluate(() => localStorage.length), 0, "no cached notes, rights, keys or lists");
     await checkWorkspace(page, url, JSON.parse(originalSession.toString()));
+    await checkCards(page, url, JSON.parse(originalSession.toString()));
+    await checkEditor(page, url, JSON.parse(originalSession.toString()));
     await page.getByRole("link", { name: "Настройки", exact: true }).click();
     await page.getByRole("heading", { level: 1, name: "Настройки" }).waitFor();
     await page.getByRole("radio", { name: "Тёмная", exact: true }).check();

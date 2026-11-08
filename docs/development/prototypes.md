@@ -85,12 +85,19 @@ peer `^5.x`; более новый major не подставляется авт�
 Драйвер создаёт отдельный временный профиль; пользовательский профиль не используется.
 
 Workflow [Prototype foundation](../../.github/workflows/prototype-foundation.yml)
-вызывает ту же команду на Windows и Linux. Наличие workflow не означает успешный
+вызывает полный `bun run check` на Linux. Windows выполняет два независимых
+среза из `prototypes/`: `bun run check --host-native` (fmt/Clippy/tests,
+debug restart-пробник и контракты) и `bun run check --host-ui` (прежняя полная
+release-сборка workspace, Node/Vue/Vite/HTTP и проверки Android-драйверов).
+Их объединение сохраняет все команды полного запуска ровно по одному разу;
+это проверяет штатный `bun scripts/check-host-ci-suites.mjs`, который входит
+в full/native. Режимы генерации/проверки артефактов сохраняют прежний смысл.
+Наличие workflow не означает успешный
 запуск Actions и не проверяет APK или Android WebView.
 Автозапуск — PR и push в `main` с подходящими paths; ручной запуск доступен
 для выбранной ветки. Раздельные кэши Rust host/Android и подготовка инструментов
 описаны в [проверках CI](ci-checks.md); все части `bun run check` сохраняются.
-Полный job ограничен 20 минутами на Windows и 10 на Linux. Бюджет Windows
+Каждый Windows срез ограничен 20 минутами, полный Linux job — 10. Бюджет Windows
 учитывает установку закреплённого toolchain и холодные debug/release-сборки:
 в PR #17 прежние 10 минут прервали два прогона перед завершением UI-проверок
 без ошибки приложения. Тайм-ауты команд/сетевых/браузерных сценариев внутри

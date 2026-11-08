@@ -79,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product, prototype, shell]
+        suite: [product, prototype-native, prototype-ui, shell]
     runs-on: windows-2025
     # Keep the previous cold-build budget until the split has been measured.
     # The warm workflow target is 10 minutes, not the sum of these job budgets.
@@ -97,10 +97,14 @@ jobs:
       - name: Check product boundaries, contract and unsafe rejection
         if: matrix.suite == 'product'
         run: bun scripts/check-product.mjs
-      - name: Check Rust, generated contracts, Vue and HTTP in Chromium
-        if: matrix.suite == 'prototype'
+      - name: Check prototype Rust, restart probe and generated contracts
+        if: matrix.suite == 'prototype-native'
         working-directory: prototypes
-        run: bun run check
+        run: bun run check --host-native
+      - name: Check prototype release, Vue and HTTP in Chromium
+        if: matrix.suite == 'prototype-ui'
+        working-directory: prototypes
+        run: bun run check --host-ui
       - name: Check shared UI shell and real product HTTP in Chromium
         if: matrix.suite == 'shell'
         run: bun run ui:check

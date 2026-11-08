@@ -103,13 +103,14 @@ product Cargo output; отдельный Windows shell runner используе
 
 ### Параллельные Windows host-проверки
 
-`Prototype foundation` выполняет три Windows jobs на отдельных `windows-2025`
+`Prototype foundation` выполняет четыре Windows jobs на отдельных `windows-2025`
 runners с `fail-fast: false`. Они используют прежние команды целиком:
 
 | Suite | Команда | Подготовка |
 | --- | --- | --- |
 | `product` | `bun scripts/check-product.mjs` из корня | Корневые Cargo/JS-зависимости; браузер не требуется |
-| `prototype` | `bun run check` из `prototypes/` | Cargo/JS прототипа и Playwright Chromium с OS-зависимостями |
+| `prototype-native` | `bun run check --host-native` из `prototypes/` | Cargo/JS прототипа; fmt/Clippy/tests, debug restart-пробник и генерируемые контракты; браузер не требуется |
+| `prototype-ui` | `bun run check --host-ui` из `prototypes/` | Cargo/JS прототипа и Playwright Chromium с OS-зависимостями; прежняя release-сборка workspace, Vue/Vite/HTTP и Android driver guards |
 | `shell` | `bun run ui:check` из корня | Cargo workspace `ui/src-tauri`, корневые JS и Playwright Chromium с OS-зависимостями |
 
 Подготовка вынесена в локальный composite action
@@ -129,7 +130,8 @@ Android workflow и его dispatcher не затронуты.
 тестов. Check Linux по-прежнему называется `check (ubuntu-24.04)`.
 
 У Windows suites отдельные Rust namespaces `prototype-host-product`,
-`prototype-host-prototype`, `prototype-host-shell`. Каждый сохраняется только
+`prototype-host-prototype-native`, `prototype-host-prototype-ui`,
+`prototype-host-shell`. Каждый сохраняется только
 своим успешным main job: разные подмножества не конкурируют за один immutable
 key. Кэшируются registry/git и target выбранного workspace. Shell metadata
 учитывает собственные `ui/src-tauri/Cargo.toml`/`Cargo.lock`, а физический
@@ -146,6 +148,31 @@ output остаётся общим корневым `target/`, как в шта�
 Исходный PR #78: 19:29 при полном Rust cache hit. Разделение реализовано,
 но достижение цели ещё требует нового CI; локальные проверки и ограничения —
 [EV-079](../agent/verification/EV-079-parallel-windows-checks.md).
+
+Первоначальные три Windows suites оставляли холодный prototype слишком
+долгим: на `addb9c4` он исполнялся более 14 минут до отмены новым head,
+а HTTP/UI часть ещё не началась. Поэтому prototype разделён ещё раз.
+`--host-native` выполняет debug tests/Automerge/контракты; `--host-ui`
+владеет прежней полной release-сборкой и browser-набором. Default
+`bun run check` сохраняет прежние команды и порядок плюс новый routing guard.
+`check-host-ci-suites.mjs` исполняет настоящий драйвер на подставной границе
+CLI/import/write: объединение двух срезов равно полному набору команд
+ровно по одному разу; legacy modes, неверные аргументы и остановка при
+ошибке/сигнале также проверяются. Guard входит в full/native host-check.
+Холодное время новых четырёх suites ещё требует нового полного CI.
+
+На диагностическом `654f6ce` последовательный Linux job также исчерпал
+10 минут: сценарии редактора успели пройти, но финальное завершение уже
+было отменено бюджетом. Лимит сохранён. Независимые 23 client delivery-теста
+продукта теперь выполняются параллельно Rust-проверкам и на host, как прежде
+на Android; это убирает около 25 секунд последовательного ожидания из
+наблюдавшегося Linux запуска. Общий `checkWithClients` ждёт оба результата
+через `Promise.allSettled` и сохраняет все ошибки в `AggregateError`.
+Routing guard проверяет оба порядка завершения, одновременные отказы и
+сигнал клиента: ранний отказ не оставляет вторую сторону без ожидания.
+Тесты не используют Cargo output/AVD; правила контракта/типы/unsafe и сами
+Rust/клиентские команды сохранены. Это изменение драйвера проверки,
+а не фоновые операции приложения.
 
 Первый запуск `addb9c4` выявил Windows shell timeout после reload доски
 (GAP-014). Host UI driver теперь при отказе выводит текущий hash, заголовки,

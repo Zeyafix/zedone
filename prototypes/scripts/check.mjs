@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 const mode = Bun.argv[2];
-if (Bun.argv.length > 3 || (mode && !["--write-openapi", "--check-openapi", "--write-types", "--check-types"].includes(mode))) {
-  console.error("Expected no arguments, --write-openapi, --check-openapi, --write-types or --check-types.");
+if (Bun.argv.length > 3 || (mode && !["--write-openapi", "--check-openapi", "--write-types", "--check-types", "--host-native", "--host-ui"].includes(mode))) {
+  console.error("Expected no arguments, --write-openapi, --check-openapi, --write-types, --check-types, --host-native or --host-ui.");
   process.exit(1);
 }
 
@@ -41,54 +41,63 @@ function run(cmd, capture = false) {
 }
 
 const cargo = (args, capture = false) => run(["cargo", `+${versions.rust}`, ...args], capture);
+const hostNative = mode === "--host-native";
+const hostUi = mode === "--host-ui";
 
-if (!mode) {
+if (!mode || hostNative) {
+  run([process.execPath, "scripts/check-host-ci-suites.mjs"]);
   run([process.execPath, "scripts/check-android-ci-suites.mjs"]);
-  for (const args of checks) cargo(args);
+  // The UI slice owns the exact release build from the full sequence. Native
+  // tests and the restart probe use debug artifacts, on a separate runner.
+  for (const args of checks) if (!hostNative || args[0] !== "build") cargo(args);
   run([process.execPath, "scripts/check-automerge.mjs"]);
 }
+if (hostUi) cargo(checks.at(-1));
 
-// Capture first: compilation or generation failure must leave the artifact intact.
-const generated = cargo([
-  "run", "--quiet", "--locked", "--offline", "--bin", "generate-openapi",
-], true);
-const artifact = Bun.file(resolve(root, "openapi.json"));
-if (mode === "--write-openapi") {
-  await Bun.write(artifact, generated);
-  console.log("Generated openapi.json from Rust; review its diff.");
-} else {
-  if (!(await artifact.exists()) || !generated.equals(Buffer.from(await artifact.arrayBuffer()))) {
-    console.error("openapi.json is missing or stale. Run bun run generate:openapi and review the diff.");
-    process.exit(1);
+async function checkContracts() {
+  // Capture first: compilation or generation failure must leave the artifact intact.
+  const generated = cargo([
+    "run", "--quiet", "--locked", "--offline", "--bin", "generate-openapi",
+  ], true);
+  const artifact = Bun.file(resolve(root, "openapi.json"));
+  if (mode === "--write-openapi") {
+    await Bun.write(artifact, generated);
+    console.log("Generated openapi.json from Rust; review its diff.");
+  } else {
+    if (!(await artifact.exists()) || !generated.equals(Buffer.from(await artifact.arrayBuffer()))) {
+      console.error("openapi.json is missing or stale. Run bun run generate:openapi and review the diff.");
+      process.exit(1);
+    }
+    console.log("OpenAPI matches Rust.");
   }
-  console.log("OpenAPI matches Rust.");
-}
 
-if (!mode || mode.endsWith("types")) {
-  // Import the generator API in this Bun process: no CLI shebang/Node fallback.
-  const { default: openapiTS, astToString } = await import("openapi-typescript");
-  const types = astToString(await openapiTS(JSON.parse(generated.toString())));
-  const command = JSON.parse(generated.toString()).paths["/prototype/echo"].post.operationId;
-  const ipc = `// Generated from Rust/OpenAPI; do not edit.\nexport const echoCommand = ${JSON.stringify(command)} as const;\n`;
-  const storageCommand = JSON.parse(generated.toString()).paths["/prototype/storage"].post.operationId;
-  const qrCommand = JSON.parse(generated.toString()).paths["/prototype/qr"].post.operationId;
-  const invitationCommand = JSON.parse(generated.toString()).paths["/prototype/invitation"].post.operationId;
-  const commands = ipc + `export const storageCommand = ${JSON.stringify(storageCommand)} as const;\n`
-    + `export const qrCommand = ${JSON.stringify(qrCommand)} as const;\n`
-    + `export const invitationCommand = ${JSON.stringify(invitationCommand)} as const;\n`;
-  const ipcFile = Bun.file(resolve(root, "client/ipc-command.ts"));
-  const typesFile = Bun.file(resolve(root, "client/api.d.ts"));
-  if (mode === "--write-types") {
-    await Bun.write(typesFile, types);
-    await Bun.write(ipcFile, commands);
-    console.log("Generated client/api.d.ts and client/ipc-command.ts from OpenAPI; review their diff.");
-  } else if (!(await typesFile.exists()) || await typesFile.text() !== types || !(await ipcFile.exists()) || await ipcFile.text() !== commands) {
-    console.error("client/api.d.ts or client/ipc-command.ts is missing or stale. Run bun run generate:types and review the diff.");
-    process.exit(1);
+  if (!mode || hostNative || mode.endsWith("types")) {
+    // Import the generator API in this Bun process: no CLI shebang/Node fallback.
+    const { default: openapiTS, astToString } = await import("openapi-typescript");
+    const types = astToString(await openapiTS(JSON.parse(generated.toString())));
+    const command = JSON.parse(generated.toString()).paths["/prototype/echo"].post.operationId;
+    const ipc = `// Generated from Rust/OpenAPI; do not edit.\nexport const echoCommand = ${JSON.stringify(command)} as const;\n`;
+    const storageCommand = JSON.parse(generated.toString()).paths["/prototype/storage"].post.operationId;
+    const qrCommand = JSON.parse(generated.toString()).paths["/prototype/qr"].post.operationId;
+    const invitationCommand = JSON.parse(generated.toString()).paths["/prototype/invitation"].post.operationId;
+    const commands = ipc + `export const storageCommand = ${JSON.stringify(storageCommand)} as const;\n`
+      + `export const qrCommand = ${JSON.stringify(qrCommand)} as const;\n`
+      + `export const invitationCommand = ${JSON.stringify(invitationCommand)} as const;\n`;
+    const ipcFile = Bun.file(resolve(root, "client/ipc-command.ts"));
+    const typesFile = Bun.file(resolve(root, "client/api.d.ts"));
+    if (mode === "--write-types") {
+      await Bun.write(typesFile, types);
+      await Bun.write(ipcFile, commands);
+      console.log("Generated client/api.d.ts and client/ipc-command.ts from OpenAPI; review their diff.");
+    } else if (!(await typesFile.exists()) || await typesFile.text() !== types || !(await ipcFile.exists()) || await ipcFile.text() !== commands) {
+      console.error("client/api.d.ts or client/ipc-command.ts is missing or stale. Run bun run generate:types and review the diff.");
+      process.exit(1);
+    }
   }
 }
+if (!hostUi) await checkContracts();
 
-if (!mode) {
+if (!mode || hostUi) {
   // vue-tsc patches the CommonJS loader through fs.readFileSync; Bun bypasses it.
   const nodeVersion = run(["node", "--version"], true).toString().trim();
   if (nodeVersion !== `v${versions.node}`) {

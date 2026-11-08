@@ -2,7 +2,7 @@ name: Prepare host check
 description: Install pinned tools and locked dependencies for a host suite.
 inputs:
   suite:
-    description: all, product, prototype or shell
+    description: all, product, prototype-native, prototype-ui or shell
     required: true
 runs:
   using: composite
@@ -13,7 +13,7 @@ runs:
       env:
         SUITE: ${{ inputs.suite }}
       run: |
-        if ($env:SUITE -notin @('all', 'product', 'prototype', 'shell')) { throw 'Unknown host suite.' }
+        if ($env:SUITE -notin @('all', 'product', 'prototype-native', 'prototype-ui', 'shell')) { throw 'Unknown host suite.' }
         $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
         rustup toolchain install $versions.rust --profile minimal --component rustfmt --component clippy
         if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
@@ -23,7 +23,8 @@ runs:
         $workspaces = switch ($env:SUITE) {
           'all' { ". -> target`nprototypes -> target" }
           'product' { '. -> target' }
-          'prototype' { 'prototypes -> target' }
+          'prototype-native' { 'prototypes -> target' }
+          'prototype-ui' { 'prototypes -> target' }
           'shell' { 'ui/src-tauri -> ../../target' }
         }
         "workspaces<<WORKSPACES" >> $env:GITHUB_OUTPUT
@@ -58,7 +59,8 @@ runs:
         $manifests = switch ($env:SUITE) {
           'all' { @('prototypes/Cargo.toml', 'Cargo.toml', 'ui/src-tauri/Cargo.toml') }
           'product' { @('Cargo.toml') }
-          'prototype' { @('prototypes/Cargo.toml') }
+          'prototype-native' { @('prototypes/Cargo.toml') }
+          'prototype-ui' { @('prototypes/Cargo.toml') }
           'shell' { @('ui/src-tauri/Cargo.toml') }
         }
         foreach ($manifest in $manifests) {
@@ -66,13 +68,13 @@ runs:
           if ($LASTEXITCODE -ne 0) { throw "Dependency fetch failed: $manifest" }
         }
     - name: Install locked product and shell JavaScript dependencies
-      if: inputs.suite != 'prototype'
+      if: inputs.suite == 'all' || inputs.suite == 'product' || inputs.suite == 'shell'
       shell: pwsh
       run: |
         bun install --frozen-lockfile --ignore-scripts
         if ($LASTEXITCODE -ne 0) { throw 'Product JavaScript dependency installation failed.' }
     - name: Use Ubuntu HTTPS mirrors for browser dependencies
-      if: runner.os == 'Linux' && inputs.suite != 'product'
+      if: runner.os == 'Linux' && (inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell')
       shell: bash
       run: |
         # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
@@ -82,14 +84,14 @@ runs:
           $'https://security.ubuntu.com/ubuntu/\tpriority:2' \
           | sudo tee /etc/apt/apt-mirrors.txt
     - name: Install locked prototype JavaScript dependencies
-      if: inputs.suite == 'all' || inputs.suite == 'prototype'
+      if: inputs.suite == 'all' || inputs.suite == 'prototype-native' || inputs.suite == 'prototype-ui'
       shell: pwsh
       working-directory: prototypes
       run: |
         bun install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw 'JavaScript dependency installation failed.' }
     - name: Install test browser and OS dependencies
-      if: inputs.suite != 'product'
+      if: inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell'
       shell: pwsh
       working-directory: ${{ inputs.suite == 'shell' && '.' || 'prototypes' }}
       run: |

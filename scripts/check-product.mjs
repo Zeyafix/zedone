@@ -26,6 +26,22 @@ function run(command, { cwd = root, extraEnv = {}, capture = false, failure = fa
 }
 const cargo = args => ["cargo", `+${versions.rust}`, ...args];
 const locked = ["--locked", "--offline"];
+async function checkWithClients(checkNative, label) {
+  // Delivery tests own neither Cargo output nor an emulator. Await both sides
+  // even on failure, so no child is abandoned and neither error is hidden.
+  const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
+  console.log(`> ${command.join(" ")}`);
+  const clients = Bun.spawn(command, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+  const results = await Promise.allSettled([
+    clients.exited.then(code => {
+      assert.ok(!clients.signalCode, "Client tests interrupted");
+      assert.equal(code, 0, "Client tests failed");
+    }),
+    Promise.resolve().then(checkNative),
+  ]);
+  const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
+  if (errors.length) throw new AggregateError(errors, label);
+}
 const metadata = JSON.parse(run(cargo(["metadata", "--no-deps", "--format-version", "1", ...locked]), { capture: true }).stdout);
 const packages = metadata.packages.filter(pkg => metadata.workspace_members.includes(pkg.id));
 const manifest = Bun.TOML.parse(await Bun.file(resolve(root, "Cargo.toml")).text());
@@ -72,13 +88,15 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
 }
 
 if (!mode) {
-  for (const args of [
-    ["fmt", "--all", "--", "--check"],
-    ["clippy", "--workspace", "--all-targets", "--all-features", ...locked, "--", "-D", "warnings"],
-    ["test", "--workspace", "--all-features", ...locked],
-    ["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked],
-  ]) run(cargo(args));
-  await checkUnsafe();
+  await checkWithClients(async () => {
+    for (const args of [
+      ["fmt", "--all", "--", "--check"],
+      ["clippy", "--workspace", "--all-targets", "--all-features", ...locked, "--", "-D", "warnings"],
+      ["test", "--workspace", "--all-features", ...locked],
+      ["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked],
+    ]) run(cargo(args));
+    await checkUnsafe();
+  }, "Host product checks failed");
 }
 
 const generated = run(cargo(["run", "--quiet", "--bin", "export-contract", ...locked]), { capture: true }).stdout;
@@ -136,7 +154,6 @@ if (mode !== "--write-openapi") {
       "Response validator types are stale; run --write-types");
   }
   run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
-  if (!mode) run([process.execPath, "test", resolve(root, "tests/commands.test.ts")]);
 }
 
 async function checkAndroid() {
@@ -202,18 +219,5 @@ async function checkAndroid() {
 }
 
 if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
-  // Client delivery tests own no emulator or Cargo output. Run them during the
-  // native builds, but wait for BOTH results even when one check fails.
-  const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
-  console.log(`> ${command.join(" ")}`);
-  const clients = Bun.spawn(command, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
-  const results = await Promise.allSettled([
-    clients.exited.then(code => {
-      assert.ok(!clients.signalCode, "Client tests interrupted");
-      assert.equal(code, 0, "Client tests failed");
-    }),
-    Promise.resolve().then(checkAndroid),
-  ]);
-  const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
-  if (errors.length) throw new AggregateError(errors, "Android product checks failed");
+  await checkWithClients(checkAndroid, "Android product checks failed");
 }

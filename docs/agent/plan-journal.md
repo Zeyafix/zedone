@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P04.10
 last_completed_stage: P02
 last_completed_step: P04.09
-active_work: "P04.10 verified локально: сводная API-проверка Windows/Android, EV-076; ожидает интеграции."
-next_action: "По поручению разработчика: коммит/PR P04.10, проверка финального CI/замечаний, при успехе merge и удаление ветки; EV-076/LOG-371."
+active_work: "P04.10 verified локально, включая перекрытие Android arm64 build/native execution и оба отказа; EV-076/LOG-373."
+next_action: "Опубликовать проверенный runner в PR #77 и проверить новый CI окончательного head; merge/удаление ветки только после полного успеха."
 passed_acceptance: [T03, T05, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-371
+last_event: LOG-373
 ```
 
 P04.10 verified локально: [EV-076](verification/EV-076-offline-acceptance.md),
@@ -29,7 +29,11 @@ P04.10 verified локально: [EV-076](verification/EV-076-offline-acceptanc
 повторов и restart через HTTP/IPC/настоящий CLI. По 273 Rust-теста Windows/
 нативного Android, 23 client/239 assertions, обе release ABI/21 unsafe guard/
 контракт passed. Runtime/схема/зависимости не менялись. Новых BUG/GAP нет.
-Далее — интеграция ветки; commit/push/PR/новый CI/merge не выполнялись.
+PR #77/head dfda95d опубликован: Windows/Linux и прежние Android UI/native
+наборы passed, product-native дважды отменён по лимиту 10 минут. Проверенный
+локально runner теперь перекрывает arm64 build и native execution; оба отказа
+проверены отдельно (LOG-372/373). Далее — публикация исправления и новый CI;
+merge не выполнялся.
 Полные T07/A и P04 пока не объявлены принятыми; UI P05/обмен P06 остаются впереди.
 Нижеследующие сводки описывают прежние ревизии.
 
@@ -3570,3 +3574,16 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Сверены полный diff, EV-076 и результаты Windows/нативного Android: по 273 Rust-теста, 23 client/239 assertions, обе release ABI/21 unsafe guard/контракт. SHA-256 offline.rs a13557c58ca91fcc1c39429ab88c31b3ae47de01e13b1d2a8fc33ef38967d98b совпадает с проверенным файлом; runtime/контракт/схема/зависимости не менялись. Повтор полной локальной матрицы без новых изменений не требуется.
 - main/bde8b29 совпадает с origin/main; существующего PR ветки нет. Сверены исходные определения 98 критериев, ссылки/fences/diff и noreply. Видимый UI не меняется, media не требуются.
 - Следующее действие — коммит/PR, полный CI и проверка замечаний/конфликтов; merge/удаление ветки только при успехе. P04.10 остаётся verified; полные T07/A/UI/обмен сохраняют границы EV-076.
+
+### LOG-372 — 2026-11-08 — агент Codex, исправление CI runner P04.10
+
+- PR #77/head dfda95d: ранние попытки упали до тестов на HTTP 504 Bun/JDK. После возобновления Windows/Linux и Android prototype-native/prototype-ui/shell passed. Две полные попытки product-native отменены по лимиту 10m0s (GitHub annotations): первая на arm64 release, вторая внутри arm64 unsafe после обеих release-сборок. Все 273 native tests и контракт прошли; оставшиеся проверки и общий Android check не приняты.
+- Вместо третьего одинакового повтора arm64 release перекрывается с независимым исполнением уже подготовленных x86_64 native tests. Драйвер ждёт обе работы и объединяет ошибки; sandbox очищается finally. Все исходные команды/ABI/14 guards/client/контракт/cleanup и лимит сохранены; runtime/схема/зависимости не меняются.
+- Сопутствующая правка runner необходима для полной приёмки P04.10; scope PR дополняется ею. До публикации требуется положительный Android-прогон и негативные пробы сбоя каждой параллельной работы; соответствующие прежние результаты не подтверждают новую оркестрацию. P04.10 in_progress, merge/удаление ветки по LOG-371 только после полного успешного финального CI.
+
+### LOG-373 — 2026-11-08 — агент Codex, Android runner verified локально
+
+- Исправленный runner прошёл полный Android product-check: exit 0, 273 native tests, 23 client/239 assertions, обе release ABI/14 Android unsafe guards/контракт/типы/cleanup. Все Cargo-команды и параметры совпали с прежней матрицей как multiset; изменён порядок независимых работ. Продуктовый код/API/схема/зависимости/CI-бюджеты прежние.
+- Негативные пробы в одноразовых локальных копиях: неверный arm64 build target и отдельный throw внутри native sandbox. Оба exit 1 без ложного успеха; при arm64-отказе завершились все native tests, при native-отказе завершились arm64 release/guards; в обоих случаях выполнены cleanup и клиентские тесты. Публичных fault seams не добавлено.
+- SHA-256 runner 49cf70c2c0453aa4fd8758f60bebec629a4b55b94606407cb30d75dbbd0c44cc соответствует проверенному файлу. Node syntax/diff checks passed; Device выключил эмулятор в исходное состояние. Исходный offline.rs не менялся. Логи/fixture-копии/результаты — только docs/reports/p04-10-runner-*.
+- Документация EV-076/CI/передача актуализированы. Пять правил в API-объёме сохраняются: обратимость/согласованные исключения очистки, общий API, docs, Windows/Android и единая модель; runner не меняет продуктового поведения. P04.10 verified локально; готовится дополнительный коммит в PR #77 по разрешению LOG-371. Успех Windows/Linux/прежних Android jobs на dfda95d не является успехом нового head. Новый CI/merge ещё не выполнены; лимит 10 минут не объявляется достигнутым до его проверки.

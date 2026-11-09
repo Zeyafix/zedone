@@ -330,7 +330,11 @@ failed в самом первом `checkShell:78`: h2#connection-title «Дос�
 Причина startup отказа не доказана; HTTP 504 в логе нет.
 
 Все 13 checks c286cc4 завершены: 10 SUCCESS, shell/Android aggregate FAILURE,
-Linux CANCELLED. Prototype-ui нового head SUCCESS, но Linux job
+Linux CANCELLED. Отложенное уведомление дополнительно проверено по raw log
+aggregate `129275165351`: единственная проверка `test "$RESULT" = success`
+получила `RESULT=failure` и штатно вернула exit 1; отдельной новой ошибки
+в этом job нет. Старые runs не перезапускались, текущий PR уже на dd84aac.
+Prototype-ui нового head SUCCESS, но Linux job
 [129269963345](https://github.com/Zeyafix/zedone/actions/runs/42649010871/job/129269963345)
 15:52:26–16:02:29 UTC CANCELLED около 10m budget. Все его steps, включая
 настоящий product/prototype/shell HTTP/UI и post cleanup, отмечены SUCCESS;
@@ -355,3 +359,121 @@ Android/host routing guards и diff check passed. Новый native APK/Device
 для diagnostics-only правки не запускался; native результат нужен из CI.
 GAP-017 resolved, GAP-018/019/020 открыты; merge/delete ожидают успешный
 exact-head CI. Продукт, API/DDL, визуальный UI и четыре материала PR прежние.
+
+## Startup diagnostics опубликованы — LOG-447
+
+Commit `dd84aac7bd008ed054372770fe97f8333394fbf3`
+`test(android): keep startup failure evidence before cleanup` опубликован
+в прежний PR #82 и сразу linked. Семь связанных paths включают сборщик,
+Android catch, host assertions и scoped docs/evidence; пять посторонних
+dirty docs и прежние записи журнала/очереди сохранены вне индекса.
+98 определений/статусов критериев сверены с HEAD и не менялись.
+
+PR body прочитан обратно: exact head, OPEN/non-draft/MERGEABLE,
+comments/reviews нет; английские разделы/credit, две rendered картинки
+и два rendered видео сохранены. Новый CI ожидается, GAP-018/019/020
+не закрыты, native startup причина пока неизвестна. Наблюдение прежнее;
+merge/delete только после всех 13 SUCCESS и readiness exact head.
+
+## Native shell passed, неполная матрица — LOG-448 / GAP-021
+
+На exact head dd84aac уведомление о трёх SUCCESS не означает полный CI:
+Android product-native/shell и Windows prototype-native — единственные
+check-runs/jobs. Оба workflow [Android](https://github.com/Zeyafix/zedone/actions/runs/42671776541)
+и [host](https://github.com/Zeyafix/zedone/actions/runs/42671776980)
+завершены FAILURE. Jobs/attempts/check-suite APIs подтверждают лишь 2+1,
+Check-run annotations/approvals/pending deployments пусты; workflow-level
+annotations прочитаны далее LOG-449. Десять ожидаемых checks,
+включая aggregates, отсутствуют; причина неизвестна (GAP-021).
+Workflow source и матрицы относительно base не изменены.
+
+[Native shell 129348401899](https://github.com/Zeyafix/zedone/actions/runs/42671776541/job/129348401899)
+SUCCESS за 8:28. Raw log pr82-shell-dd84aac.log подтверждает первый экран,
+rename/reverse и весь workspace/card/editor/history/completion/draft,
+native IME/Back, moves/inverse/immutable state и Markdown/UI edit/agent
+reverse; negative compiler/version/cleanup тоже passed. GAP-018 resolved
+в scope selector. Прежняя startup причина c286cc4 неизвестна, хотя новый
+native запуск прошёл без продуктового изменения; GAP-020 пока сохраняется.
+
+Целый rerun обоих workflows на том же dd84aac запрошен успешно (attempt 2).
+Продукт/assertions/таймауты/job budgets прежние, source push нет.
+PR OPEN/non-draft/MERGEABLE/CLEAN, comments/reviews отсутствуют; merge/delete
+ожидают всех 13 успешных checks нового полного attempt. GAP-019/020/021
+пока открыты, GAP-017 resolved сохраняется. Старые failures/cancellations
+не подменяются этим частичным успехом.
+
+## Внешний серверный отказ Actions — LOG-449
+
+Полный attempt 2 не остался pending: оба workflow COMPLETED/FAILURE,
+jobs API total_count=0. Android 18:24:42–18:26:24 UTC, host
+18:24:44–18:26:25 UTC. Исходники/assertions/лимиты не менялись,
+дополнительных повторов нет; merge/delete не выполнены.
+
+Workflow-level annotations прямо сообщают Internal server error:
+
+| Workflow | Attempt | Correlation ID | Источник |
+| --- | --- | --- | --- |
+| Android | 1 | b65c5176-e7ae-4128-afd8-153599f07675 | [run](https://github.com/Zeyafix/zedone/actions/runs/42671776541/attempts/1) |
+| Android | 2 | c5447217-e8f5-4610-bfea-04eff56b578c | [run](https://github.com/Zeyafix/zedone/actions/runs/42671776541/attempts/2) |
+| Host | 1 | 2e2a5fc1-d422-45b8-ad75-9918550d6ad0 | [run](https://github.com/Zeyafix/zedone/actions/runs/42671776980/attempts/1) |
+| Host | 2 | 21cf8551-9302-433d-92a0-52a1fef30808 | [run](https://github.com/Zeyafix/zedone/actions/runs/42671776980/attempts/2) |
+
+GAP-021 — подтверждённый внешний blocker сервиса Actions; глубинная причина
+внутри GitHub неизвестна. Три успешных runtime jobs первого attempt,
+в том числе весь native shell, сохраняют доказательства; они не заменяют
+весь набор из 13. PR body обновлён, передача возвращается разработчику
+с выключением watch, linked PR и feature-ветка сохраняются. После
+восстановления сервиса требуется полный exact-head CI перед порученным
+merge/delete. Продуктовая P05.05 не done; GAP-019/020/021 ещё открыты.
+
+unwatch_pull_request подтвердил wasWatching=true, watching=false;
+PR остаётся linked/open, ветка сохранена, передача возвращена в inbox.
+
+## Возобновление после mitigation — LOG-450
+
+По новому поручению разработчика проверен прежний exact head dd84aac:
+PR OPEN/non-draft/MERGEABLE/CLEAN, comments/reviews нет, source прежний.
+[GitHub Status](https://www.githubstatus.com/api/v2/summary.json)
+сообщил mitigation Actions/Checks API в 18:43:24 UTC, monitoring и
+Actions operational. Полный rerun после этого принят обоими workflows.
+
+Attempt 3 [Android](https://github.com/Zeyafix/zedone/actions/runs/42671776541/attempts/3)
+и [host](https://github.com/Zeyafix/zedone/actions/runs/42671776980/attempts/3)
+IN_PROGRESS, conclusion=null. Jobs APIs подтверждают все 6 Android suites,
+Linux и 4 Windows suites; оба aggregates ожидаются после матриц. Старые
+server failures/частичный native успех сохраняются, pending не считается
+приёмкой. Код, assertions, workflow и budgets прежние, нового source push нет.
+Наблюдение возобновляется; merge/delete только после всех 13 SUCCESS и
+readiness exact head. GAP-019/020/021 ещё открыты, P05.05 не done.
+
+## Linux timeout / parallel suites — LOG-451
+
+dd84aac attempt 3: все 13 checks завершены — 12 SUCCESS и Linux CANCELLED.
+Весь Android, обе ABI, shell IPC/IME/Back/moves/Markdown и все Windows
+suites/aggregate прошли. GAP-021 resolved: полная матрица восстановлена.
+[Linux annotation](https://github.com/Zeyafix/zedone/actions/runs/42671776980/attempts/3)
+явно сообщает превышение 10m; job 129370060660 шёл 19:02:49–19:13:05 UTC.
+Подготовка 1:18, product 3:47, prototype 2:31 passed, shell отменён
+после 2:34. Лог pr82-linux-dd84aac-attempt3.log показывает editor/moves
+успех до отмены, но не весь shell/Markdown/shared touch; он не принимается.
+
+Linux разделён на те же 4 host suites, которые уже использует Windows.
+Required check (ubuntu-24.04) сохранён как независимый strict aggregate.
+Все команды/guards/assertions, сценарные и job budgets (Linux 10m,
+Windows 20m, aggregates 1m), triggers/permissions/concurrency сохранены.
+Android workflow и продуктовый код не изменяются. Теперь ожидаются 17 checks:
+14 runtime suites и 3 aggregates. Read-only cache fallback распространён
+на Linux с прежними legacy paths/порядком и отдельным platform prefix;
+suite namespaces/main-only save прежние, all compatibility сохранена.
+Linux main cache по API существует (1 092 562 747 bytes); реальный
+restore/save/время нового head ещё не доказаны, runner-минуты могут вырасти.
+
+Локально passed: постоянные host/Android guards; реальное PowerShell
+выполнение setup для 10 OS/suite комбинаций и отказы invalid/rustup;
+реальные bash aggregates для success/failure/cancelled/skipped/missing;
+отрицательные контроли удаления suite и слабого gate; actionlint workflow
+и composite; syntax/diff. Проверено совпадение Windows jobs, triggers,
+permissions/concurrency и неизменённой подготовки вне cache migration.
+Весь product/UI набор локально не повторялся для orchestration-only diff;
+весь exact-head native/UI/ABI CI нужен до merge/delete. Новый успех и
+ускорение не заявляются; GAP-019/020 открыты, полные критерии partial.

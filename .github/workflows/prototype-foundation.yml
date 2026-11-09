@@ -50,12 +50,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  linux-checks:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04]
-    runs-on: ${{ matrix.os }}
+        suite: [product, prototype-native, prototype-ui, shell]
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
       run:
@@ -66,14 +66,34 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/prepare-host-check
         with:
-          suite: all
+          suite: ${{ matrix.suite }}
       - name: Check product boundaries, contract and unsafe rejection
+        if: matrix.suite == 'product'
         run: bun scripts/check-product.mjs
-      - name: Check Rust, generated contracts, Vue and HTTP in Chromium
+      - name: Check prototype Rust, restart probe and generated contracts
+        if: matrix.suite == 'prototype-native'
         working-directory: prototypes
-        run: bun run check
+        run: bun run check --host-native
+      - name: Check prototype release, Vue and HTTP in Chromium
+        if: matrix.suite == 'prototype-ui'
+        working-directory: prototypes
+        run: bun run check --host-ui
       - name: Check shared UI shell and real product HTTP in Chromium
+        if: matrix.suite == 'shell'
         run: bun run ui:check
+
+  # Preserve the required Linux check; a green subset cannot pass it.
+  linux:
+    name: check (ubuntu-24.04)
+    needs: linux-checks
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every Linux suite
+        env:
+          RESULT: ${{ needs.linux-checks.result }}
+        run: test "$RESULT" = success
 
   windows-checks:
     strategy:

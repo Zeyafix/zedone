@@ -30,8 +30,11 @@ runs:
         "workspaces<<WORKSPACES" >> $env:GITHUB_OUTPUT
         $workspaces >> $env:GITHUB_OUTPUT
         "WORKSPACES" >> $env:GITHUB_OUTPUT
-        if ($env:RUNNER_OS -eq 'Windows' -and $env:SUITE -ne 'all') {
-          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $env:USERPROFILE '.cargo' }
+        if ($env:RUNNER_OS -in @('Windows', 'Linux') -and $env:SUITE -ne 'all') {
+          $profilePath = if ($env:RUNNER_OS -eq 'Windows') { $env:USERPROFILE } else { $env:HOME }
+          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $profilePath '.cargo' }
+          $cachePlatform = if ($env:RUNNER_OS -eq 'Windows') { 'Windows_NT' } else { 'Linux' }
+          "cache-platform=$cachePlatform" >> $env:GITHUB_OUTPUT
           $registryPath = Join-Path $cargoHome 'registry'
           $cargoGitPath = Join-Path $cargoHome 'git'
           $rootTarget = Join-Path $env:GITHUB_WORKSPACE 'target'
@@ -42,29 +45,29 @@ runs:
             'legacy-cache-paths<<LEGACY_PATHS', $registryPath, $cargoGitPath,
             $rootTarget, $prototypeTarget, 'LEGACY_PATHS') >> $env:GITHUB_OUTPUT
         }
-    - name: Look up the Windows suite cache
-      if: runner.os == 'Windows' && inputs.suite != 'all'
+    - name: Look up the host suite cache
+      if: (runner.os == 'Windows' || runner.os == 'Linux') && inputs.suite != 'all'
       id: suite-cache
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ${{ steps.versions.outputs.cache-paths }}
         key: zedone-host-lookup-${{ github.run_id }}-${{ inputs.suite }}
-        restore-keys: zedone-rust-v1-prototype-host-${{ inputs.suite }}-Windows_NT-x64-
+        restore-keys: zedone-rust-v1-prototype-host-${{ inputs.suite }}-${{ steps.versions.outputs.cache-platform }}-x64-
         lookup-only: true
-    - name: Restore the legacy main cache for a new Windows suite
-      if: runner.os == 'Windows' && inputs.suite != 'all' && steps.suite-cache.outputs.cache-matched-key == ''
+    - name: Restore the legacy main cache for a new host suite
+      if: (runner.os == 'Windows' || runner.os == 'Linux') && inputs.suite != 'all' && steps.suite-cache.outputs.cache-matched-key == ''
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ${{ steps.versions.outputs.legacy-cache-paths }}
         key: zedone-host-legacy-lookup-${{ github.run_id }}-${{ inputs.suite }}
-        restore-keys: zedone-rust-v1-prototype-host-Windows_NT-x64-
+        restore-keys: zedone-rust-v1-prototype-host-${{ steps.versions.outputs.cache-platform }}-x64-
     - name: Restore Rust dependencies and build cache
       uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       env:
         RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
       with:
         prefix-key: zedone-rust-v1
-        # Keep the Linux namespace. Each split suite owns a separate cache:
+        # Keep the legacy all namespace. Each split suite owns a separate cache:
         # parallel main jobs must not publish incomplete subsets to one key.
         shared-key: ${{ inputs.suite == 'all' && 'prototype-host' || format('prototype-host-{0}', inputs.suite) }}
         workspaces: ${{ steps.versions.outputs.workspaces }}

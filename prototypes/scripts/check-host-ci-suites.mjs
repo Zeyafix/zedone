@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { runInNewContext } from "node:vm";
 
 // Exercise the real driver, replacing only process/import/write boundaries.
 // Never launch Cargo, a browser, another guard or an artifact rewrite here.
@@ -116,4 +117,58 @@ const interrupted = makePair({ spawn() { return { exited: Promise.resolve(0), si
   { execPath: "fixture-bun" }, resolve, productRoot, {}, assert, { log() {} });
 await assert.rejects(interrupted(async () => {}, "signal control"), error =>
   error instanceof AggregateError && /Client tests interrupted/.test(error.errors[0].message));
-console.log("Host CI routing/pairing: exact full/slice coverage, debug/release ownership, legacy modes, failures/signals, overlap and draining both outcomes passed.");
+
+// The workflow must actually select every slice and reject incomplete matrices.
+const workflow = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/workflows/prototype-foundation.yml")).text());
+const suites = ["product", "prototype-native", "prototype-ui", "shell"];
+const expectedSteps = [
+  ["matrix.suite == 'product'", "bun scripts/check-product.mjs", "."],
+  ["matrix.suite == 'prototype-native'", "bun run check --host-native", "prototypes"],
+  ["matrix.suite == 'prototype-ui'", "bun run check --host-ui", "prototypes"],
+  ["matrix.suite == 'shell'", "bun run ui:check", "."],
+];
+for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "windows-2025", 20]]) {
+  const job = workflow.jobs[`${os}-checks`];
+  assert.deepEqual(job.strategy.matrix.suite, suites);
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.equal(job["runs-on"], runner);
+  assert.equal(job["timeout-minutes"], budget);
+  assert.equal(job.defaults.run.shell, "pwsh");
+  assert.equal(job.steps.find(step => step.uses === "./.github/actions/prepare-host-check").with.suite, "${{ matrix.suite }}");
+  assert.deepEqual(job.steps.filter(step => step.run).map(step => [step.if, step.run, step["working-directory"] || "."]), expectedSteps);
+  const gate = workflow.jobs[os];
+  assert.equal(gate.name, `check (${runner})`);
+  assert.equal(gate.needs, `${os}-checks`);
+  assert.equal(gate.if, "always()");
+  assert.equal(gate["timeout-minutes"], 1);
+  assert.equal(gate.steps.length, 1);
+  assert.equal(gate.steps[0].env.RESULT, "${{ needs." + os + "-checks.result }}");
+  assert.equal(gate.steps[0].run, 'test "$RESULT" = success');
+}
+assert.ok(!JSON.stringify(workflow).includes("continue-on-error"));
+
+const preparation = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/actions/prepare-host-check/action.yml")).text());
+const restores = preparation.runs.steps.filter(step => step.uses?.startsWith("actions/cache/restore@"));
+assert.equal(restores.length, 2);
+assert.equal(restores[0].with["lookup-only"], true);
+assert.equal(restores[0].with["restore-keys"], "zedone-rust-v1-prototype-host-${{ inputs.suite }}-${{ steps.versions.outputs.cache-platform }}-x64-");
+assert.equal(restores[1].with["restore-keys"], "zedone-rust-v1-prototype-host-${{ steps.versions.outputs.cache-platform }}-x64-");
+assert.equal(restores[1].with.path, "${{ steps.versions.outputs.legacy-cache-paths }}");
+for (const os of ["Windows", "Linux", "macOS"]) {
+  for (const suite of ["all", ...suites]) {
+    for (const matchedKey of ["", "existing-suite-key"]) {
+      const context = { runner: { os }, inputs: { suite }, matchedKey };
+      const fallback = restores[1].if.replace("steps.suite-cache.outputs.cache-matched-key", "matchedKey");
+      assert.equal(runInNewContext(fallback, context), os !== "macOS" && suite !== "all" && matchedKey === "");
+      assert.equal(runInNewContext(restores[0].if, context), os !== "macOS" && suite !== "all");
+    }
+  }
+}
+const cache = preparation.runs.steps.find(step => step.uses?.startsWith("Swatinem/rust-cache@"));
+assert.equal(cache.with["save-if"], "${{ github.ref == 'refs/heads/main' }}");
+const cacheExpression = cache.with["shared-key"].replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+const cacheNames = ["all", ...suites].map(suite => runInNewContext(cacheExpression, {
+  inputs: { suite }, format: (pattern, value) => pattern.replace("{0}", value),
+}));
+assert.deepEqual(cacheNames, ["prototype-host", ...suites.map(suite => `prototype-host-${suite}`)]);
+console.log("Host CI routing/pairing/workflow: exact full/slice coverage, both OS matrices/strict gates, cache owners/fallback, legacy modes and failure draining passed.");

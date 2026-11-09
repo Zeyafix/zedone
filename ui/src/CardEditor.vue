@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import MarkdownView from "../../client/MarkdownView";
 import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending } from "./workspace-api";
@@ -259,7 +260,10 @@ defineExpose({ requestClose });
   <div class="card-editor">
     <div v-if="!editing" class="card-content">
       <h3 v-for="text in snapshot.titles" :key="text">{{ text }}</h3>
-      <p v-for="text in snapshot.descriptions" :key="text">{{ text || 'Без описания' }}</p>
+      <template v-for="text in snapshot.descriptions" :key="text">
+        <MarkdownView v-if="text" :source="text" label="Описание карточки" />
+        <p v-else>Без описания</p>
+      </template>
     </div>
     <template v-else-if="draft">
       <label class="name-field">Заголовок<input ref="titleInput" :value="draft.title" name="card-title" aria-label="Заголовок" :aria-invalid="!validTitle" :readonly="!ready || closing" @input="update('title', $event)" @compositionstart="compositionStart" @compositionend="compositionEnd" /></label>

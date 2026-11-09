@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
+import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -63,6 +64,16 @@ try {
     await checkWorkspace(page, url, JSON.parse(originalSession.toString()));
     await checkCards(page, url, JSON.parse(originalSession.toString()));
     await checkEditor(page, url, JSON.parse(originalSession.toString()));
+    // This dedicated context observes the deliberate external image/link requests.
+    assert.deepEqual(external, []);
+    const markdownContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark" });
+    try {
+      const markdownPage = await markdownContext.newPage();
+      markdownPage.on("pageerror", error => errors.push(error.message));
+      await markdownPage.goto(url);
+      await checkCardMarkdown(markdownPage);
+      assert.equal(await markdownPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    } finally { await markdownContext.close(); }
     await page.getByRole("link", { name: "Настройки", exact: true }).click();
     await page.getByRole("heading", { level: 1, name: "Настройки" }).waitFor();
     await page.getByRole("radio", { name: "Тёмная", exact: true }).check();

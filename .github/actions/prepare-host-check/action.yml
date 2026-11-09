@@ -95,8 +95,8 @@ runs:
           cargo "+$env:RUST_VERSION" fetch --locked --manifest-path $manifest
           if ($LASTEXITCODE -ne 0) { throw "Dependency fetch failed: $manifest" }
         }
-    - name: Install locked product and shell JavaScript dependencies
-      if: inputs.suite == 'all' || inputs.suite == 'product' || inputs.suite == 'shell'
+    - name: Install locked product, shell and shared viewer JavaScript dependencies
+      if: inputs.suite == 'all' || inputs.suite == 'product' || inputs.suite == 'shell' || inputs.suite == 'prototype-ui'
       shell: pwsh
       run: |
         bun install --frozen-lockfile --ignore-scripts

@@ -40,8 +40,10 @@ export async function checkCards(page, url, session) {
   const text = 'Первая строка\n<img src="https://example.invalid/no-request" onerror="alert(1)">\n[Ссылка](https://example.invalid/)';
   await create("Первая мысль", text); await dialog.waitFor({ state: "hidden" });
   await button("Первая мысль").click();
-  assert.equal(await dialog.locator(".card-content p").textContent(), text);
-  assert.equal(await dialog.locator("img, a, script").count(), 0, "description is literal text");
+  assert.match(await dialog.locator(".markdown-content").textContent(), /<img src=/);
+  assert.equal(await dialog.locator("img, script").count(), 0, "raw HTML stays literal");
+  assert.equal(await dialog.locator(".markdown-content a").getAttribute("href"), "https://example.invalid/");
+  assert.deepEqual((await list())[0].descriptions, [text], "source remains exact Markdown");
   await page.keyboard.press("Escape");
   assert.equal(await button("Первая мысль").evaluate(el => el === document.activeElement), true);
   await create("Вторая мысль"); await dialog.waitFor({ state: "hidden" });

@@ -5,7 +5,8 @@ import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright";
-import { checkShell, checkWorkspaceTouch } from "./check-ui-android-scenarios.mjs";
+import { checkShell, checkWorkspaceTouch, nativeControls } from "./check-ui-android-scenarios.mjs";
+import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
 const root = resolve(import.meta.dir, "..");
@@ -85,6 +86,32 @@ try {
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
   await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
+  const { tap, fill } = await nativeControls(page);
+  await checkCardMarkdown(page, { tap, fill, dismissKeyboard, external: async (url, click) => {
+    for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
+      await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), forbidden));
+    }
+    await page.evaluate(() => {
+      const original = window.ipc;
+      window.ipc = { postMessage(message) {
+        if (JSON.parse(message).cmd === "plugin:opener|open_url") { window.ipc = original; throw new Error("Injected opener failure"); }
+        original.postMessage(message);
+      } };
+    });
+    await click(); await page.waitForFunction(() => document.querySelector(".markdown-link-error"));
+    const component = device("shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.VIEW", "-d", url).split("\n").at(-1).trim();
+    assert.ok(component.includes("/") && !component.startsWith(app));
+    await click();
+    const deadline = Date.now() + 10000;
+    for (;;) {
+      const activity = device("shell", "dumpsys", "activity", "activities");
+      if (activity.includes(url) && activity.split("\n").some(line => /topResumedActivity=|ResumedActivity:/.test(line) && line.includes(component))) break;
+      assert.ok(Date.now() < deadline, "External browser must receive exact URL");
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER", "-n", `${app}/.MainActivity`);
+    await page.waitForFunction(() => document.querySelector(".markdown-content") && !document.querySelector(".markdown-link-error"));
+  } });
   assert.deepEqual(errors, [], "Domain UI must not raise page errors");
 } finally {
   await disconnect();

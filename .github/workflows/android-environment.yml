@@ -189,6 +189,9 @@ jobs:
           else
             cargo "+$rust" fetch --locked
           fi
+      - name: Prepare locked shared viewer dependencies
+        if: matrix.suite == 'prototype-ui'
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Prepare locked prototype dependencies and contracts
         if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui'
         working-directory: prototypes

@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 
 export interface RemoteImage { url?: string; alt: string; title?: string }
 
-// No base URL: relative paths and other URI schemes stay inert in this prototype.
+// No base URL: only absolute HTTP/HTTPS addresses are activated by the viewer.
 export function httpUrl(value: string): string | undefined {
   try {
     const url = new URL(value);

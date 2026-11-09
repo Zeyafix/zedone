@@ -31,4 +31,5 @@ assert.equal(manifest.exitCode, 0);
 for (const value of ["app.zedone.local", "MainActivity", "android.intent.category.LAUNCHER", "android.intent.category.DEFAULT"]) {
   assert.ok(manifest.stdout.toString().includes(value), `APK manifest missing ${value}`);
 }
+assert.match(manifest.stdout.toString(), /android:usesCleartextTraffic[^\n]*0xffffffff/, "Explicit HTTP images must work in debug and release");
 console.log("APK manifest identity and launch categories verified.");

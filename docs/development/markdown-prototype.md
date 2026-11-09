@@ -1,8 +1,10 @@
 # Markdown P01.07
 
 Срез показывает ответ существующего Rust echo через общий компонент
-`client/MarkdownView.ts`. Источник — точный текст HTTP/IPC, а не HTML или состояние
-загрузки. Продуктовые операции сохранения/чтения карточек остаются в P04/P05.
+`client/MarkdownView.ts` из корня репозитория (перенос P05.04, без копии
+профиля). Источник — точный текст HTTP/IPC, а не HTML или состояние
+загрузки. Продуктовый просмотр описания подключён в P05.04; этот срез
+по-прежнему проверяет синтетический echo.
 Пользовательский сценарий: [просмотр](../user/prototype-markdown.md).
 
 ## Конфигурация
@@ -43,7 +45,8 @@ remote-origin capabilities и остальных команд плагина. CS
 
 ## Проверка
 
-После `cargo fetch --locked` и `bun install --frozen-lockfile` в `prototypes/`:
+После `bun install --frozen-lockfile --ignore-scripts` в корне для общего
+viewer, затем `cargo fetch --locked` и `bun install --frozen-lockfile` в `prototypes/`:
 
 ```powershell
 bun run check

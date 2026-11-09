@@ -20,6 +20,7 @@ on:
       - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
+      - '.github/actions/prepare-host-check/**'
   pull_request:
     paths:
       - 'prototypes/**'
@@ -38,6 +39,7 @@ on:
       - '.gitattributes'
       - 'scripts/environment-versions.json'
       - '.github/workflows/prototype-foundation.yml'
+      - '.github/actions/prepare-host-check/**'
   workflow_dispatch:
 
 permissions:
@@ -52,10 +54,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025, ubuntu-24.04]
+        os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    # Preserve the existing host budgets; optimize repeated compilation instead.
-    timeout-minutes: ${{ matrix.os == 'windows-2025' && 20 || 10 }}
+    timeout-minutes: 10
     defaults:
       run:
         shell: pwsh
@@ -63,68 +64,60 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install pinned Rust and read JavaScript runtime versions
-        id: versions
-        run: |
-          $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
-          rustup toolchain install $versions.rust --profile minimal --component rustfmt --component clippy
-          if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
-          "rust=$($versions.rust)" >> $env:GITHUB_OUTPUT
-          "bun=$($versions.bun)" >> $env:GITHUB_OUTPUT
-          "node=$($versions.node)" >> $env:GITHUB_OUTPUT
-      - name: Restore Rust dependencies and build cache
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        env:
-          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+      - uses: ./.github/actions/prepare-host-check
         with:
-          prefix-key: zedone-rust-v1
-          shared-key: prototype-host
-          workspaces: |
-            . -> target
-            prototypes -> target
-          cache-bin: false
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ steps.versions.outputs.bun }}
-          no-cache: true
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ steps.versions.outputs.node }}
-          package-manager-cache: false
-      - name: Fetch locked Rust dependencies
-        run: |
-          $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
-          cargo "+$($versions.rust)" fetch --locked --manifest-path prototypes/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { throw 'Dependency fetch failed.' }
-          cargo "+$($versions.rust)" fetch --locked
-          if ($LASTEXITCODE -ne 0) { throw 'Product dependency fetch failed.' }
-          cargo "+$($versions.rust)" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { throw 'Shell dependency fetch failed.' }
+          suite: all
       - name: Check product boundaries, contract and unsafe rejection
-        run: |
-          bun install --frozen-lockfile --ignore-scripts
-          if ($LASTEXITCODE -ne 0) { throw 'Product JavaScript dependency installation failed.' }
-          bun scripts/check-product.mjs
-      - name: Use Ubuntu HTTPS mirrors for browser dependencies
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
-          test -f /etc/apt/apt-mirrors.txt
-          printf '%s\n' \
-            $'https://archive.ubuntu.com/ubuntu/\tpriority:1' \
-            $'https://security.ubuntu.com/ubuntu/\tpriority:2' \
-            | sudo tee /etc/apt/apt-mirrors.txt
-      - name: Install locked JavaScript dependencies and test browser
-        working-directory: prototypes
-        run: |
-          bun install --frozen-lockfile
-          if ($LASTEXITCODE -ne 0) { throw 'JavaScript dependency installation failed.' }
-          bun node_modules/playwright/cli.js install --with-deps chromium
-          if ($LASTEXITCODE -ne 0) { throw 'Test browser installation failed.' }
+        run: bun scripts/check-product.mjs
       - name: Check Rust, generated contracts, Vue and HTTP in Chromium
         working-directory: prototypes
         run: bun run check
       - name: Check shared UI shell and real product HTTP in Chromium
         run: bun run ui:check
+
+  windows-checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [product, prototype-native, prototype-ui, shell]
+    runs-on: windows-2025
+    # Keep the previous cold-build budget until the split has been measured.
+    # The warm workflow target is 10 minutes, not the sum of these job budgets.
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-host-check
+        with:
+          suite: ${{ matrix.suite }}
+      - name: Check product boundaries, contract and unsafe rejection
+        if: matrix.suite == 'product'
+        run: bun scripts/check-product.mjs
+      - name: Check prototype Rust, restart probe and generated contracts
+        if: matrix.suite == 'prototype-native'
+        working-directory: prototypes
+        run: bun run check --host-native
+      - name: Check prototype release, Vue and HTTP in Chromium
+        if: matrix.suite == 'prototype-ui'
+        working-directory: prototypes
+        run: bun run check --host-ui
+      - name: Check shared UI shell and real product HTTP in Chromium
+        if: matrix.suite == 'shell'
+        run: bun run ui:check
+
+  # Preserve the required check name. Only a complete successful matrix passes.
+  windows:
+    name: check (windows-2025)
+    needs: windows-checks
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every Windows suite
+        env:
+          RESULT: ${{ needs.windows-checks.result }}
+        run: test "$RESULT" = success

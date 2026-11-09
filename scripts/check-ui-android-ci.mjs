@@ -5,7 +5,9 @@ import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright";
-import { checkShell, checkWorkspaceTouch } from "./check-ui-android-scenarios.mjs";
+import { checkShell, checkWorkspaceTouch, nativeControls } from "./check-ui-android-scenarios.mjs";
+import { checkCardMarkdown } from "./check-ui-markdown.mjs";
+import { waitForWebViewTarget } from "../prototypes/scripts/android-webview-target.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
 const root = resolve(import.meta.dir, "..");
@@ -24,24 +26,40 @@ const fixtureDirectory = await mkdtemp(resolve(tmpdir(), "zedone-shell-android-"
 const remote = "/data/local/tmp/zedone-shell-ui-fixture";
 async function openWebView() {
   device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.DEFAULT", "-c", "android.intent.category.LAUNCHER", "-n", `${app}/.MainActivity`);
-  let pid;
-  for (let attempt = 0; attempt < 60; attempt++) {
-    pid = device("shell", "pidof", app);
-    if (/^\d+$/.test(pid)) {
-      const sockets = device("shell", "cat", "/proc/net/unix");
-      if (sockets.includes(`webview_devtools_remote_${pid}`)) break;
+  // Socket, discoverable target and Playwright page are separate milestones.
+  // Share the previous 60 x 250 ms readiness budget across all three.
+  const deadline = Date.now() + 15000;
+  async function until(read, description) {
+    while (Date.now() < deadline) {
+      const value = await read();
+      if (value) return value;
+      await new Promise(resolve => setTimeout(resolve, Math.min(250, Math.max(0, deadline - Date.now()))));
     }
-    await new Promise(resolve => setTimeout(resolve, 250));
+    throw new Error(`Timed out: ${description}`);
   }
-  assert.match(pid || "", /^\d+$/);
+  const pid = await until(() => {
+    const pid = device("shell", "pidof", app);
+    return /^\d+$/.test(pid) && device("shell", "cat", "/proc/net/unix").includes(`webview_devtools_remote_${pid}`) && pid;
+  }, "ZeDone WebView debugging socket");
   port = device("forward", "tcp:0", `localabstract:webview_devtools_remote_${pid}`);
   assert.match(port, /^\d+$/);
-  // WebView has no desktop browser context/download management. Preserve its
-  // settings instead of sending Playwright's default browser overrides.
-  browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true });
-  const page = browser.contexts()[0]?.pages()[0];
-  assert.ok(page, "ZeDone WebView must be present");
-  return page;
+  const endpoint = `http://127.0.0.1:${port}`;
+  try {
+    await waitForWebViewTarget(endpoint, until);
+    // Preserve WebView settings; desktop context/download overrides do not apply.
+    browser = await chromium.connectOverCDP(endpoint, { timeout: Math.max(1, deadline - Date.now()), noDefaults: true });
+    return await until(() => browser.contexts().flatMap(context => context.pages()).find(page => !page.isClosed()), "ZeDone WebView page");
+  } catch (error) {
+    for (const [label, collect] of [
+      ["WebView targets", async () => (await fetch(`${endpoint}/json/list`, { signal: AbortSignal.timeout(1000) })).text()],
+      ["Playwright pages", () => JSON.stringify(browser?.contexts().map(context => context.pages().map(page => ({ url: page.url(), closed: page.isClosed() }))))],
+      ["Android lifecycle log", () => device("logcat", "-d", "-t", "80", "-v", "brief", "chromium:W", "AndroidRuntime:E", "ActivityManager:I", "*:S")],
+    ]) {
+      try { console.error(`${label}: ${String(await collect()).slice(0, 8000)}`); }
+      catch { console.error(`${label}: unavailable`); }
+    }
+    throw error;
+  }
 }
 async function disconnect() {
   await browser?.close(); browser = undefined;
@@ -85,6 +103,32 @@ try {
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
   await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
+  const { tap, fill, visible } = await nativeControls(page);
+  await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
+    for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
+      await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), forbidden));
+    }
+    await page.evaluate(() => {
+      const original = window.ipc;
+      window.ipc = { postMessage(message) {
+        if (JSON.parse(message).cmd === "plugin:opener|open_url") { window.ipc = original; throw new Error("Injected opener failure"); }
+        original.postMessage(message);
+      } };
+    });
+    await click(); await page.waitForFunction(() => document.querySelector(".markdown-link-error"));
+    const component = device("shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.VIEW", "-d", url).split("\n").at(-1).trim();
+    assert.ok(component.includes("/") && !component.startsWith(app));
+    await click();
+    const deadline = Date.now() + 10000;
+    for (;;) {
+      const activity = device("shell", "dumpsys", "activity", "activities");
+      if (activity.includes(url) && activity.split("\n").some(line => /topResumedActivity=|ResumedActivity:/.test(line) && line.includes(component))) break;
+      assert.ok(Date.now() < deadline, "External browser must receive exact URL");
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER", "-n", `${app}/.MainActivity`);
+    await page.waitForFunction(() => document.querySelector(".markdown-content") && !document.querySelector(".markdown-link-error"));
+  } });
   assert.deepEqual(errors, [], "Domain UI must not raise page errors");
 } finally {
   await disconnect();

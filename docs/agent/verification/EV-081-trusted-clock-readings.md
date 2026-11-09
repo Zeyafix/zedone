@@ -110,3 +110,46 @@ clock fix. Оба Android ABI/native tests/UI проверит штатный CI
 Старые development базы не мигрируют и не сбрасываются; несовместимый layout
 отклоняется без записи. FIX.01 verified локально, не done; GAP-014 не resolved
 до полного CI/интеграции. PR #80 остаётся открытым и неизменённым.
+
+## Публикация — LOG-429
+
+[PR #81](https://github.com/Zeyafix/zedone/pull/81), head
+8bb5faf09d9d21ac557ffd1d3b5de410758964af, создан из отдельной ветки от main
+и сразу linked. Title/body/head/base прочитаны обратно, comments/reviews нет.
+Полный CI из 12 checks ожидается; локальные результаты выше не объявляются
+native Android проверкой. После успеха всех checks проверить готовность
+и выполнить порученный merge/delete; при новом HTTP 504 остановиться без retry.
+PR #80 проверен read-only: OPEN, прежний head 131f068, без новых изменений.
+
+## Полный CI и интеграция — LOG-430
+
+Все 12 checks точного head 8bb5faf09d9d21ac557ffd1d3b5de410758964af SUCCESS:
+[host Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/42609516539),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42609516436).
+Native Android подтвердил 279 Rust tests, включая five clock regressions,
+23 client/239 assertions, оба product release ABI/guards. Android shell
+подтвердил обе debug APK/manifest, настоящий IPC/editor/history/completion/
+inverse/draft/restart и negative version/compiler/cleanup; прежние prototype
+native/UI проверки также passed. Windows shell и общий Linux набор прошли.
+
+Перед merge повторно проверены base/head, CLEAN/MERGEABLE/non-draft,
+отсутствие comments/reviews/review comments и все завершённые SUCCESS.
+Watch выключен. PR #81 merged 2026-11-09 11:42:25 UTC, merge
+c04cf3c309637a8a85ddcf04c4e779b3de11e50f. Git подтвердил вхождение checked
+head и равенство деревьев. Main fast-forward, feature-ветка удалена локально
+без force-delete и на GitHub. Три post-publication working documents
+сохранились побайтово при переключении, затем актуализированы этой записью.
+
+FIX.01 done, GAP-014 resolved: исправлен воспроизводимый механизм смешения
+calendar и projection с согласованными safeguards. Первопричина дрейфа ОС
+runner не объявляется установленной. Реальный календарный rollback всё ещё
+Unavailable; trusted OS/offline/sleep/whole-database rollback ограничения
+сохраняются. Физический arm64/local Device заново не запускались; native
+результат относится к штатному CI AOSP x86_64 и arm64 compilation.
+
+Все пять правил соблюдены в указанном охвате: обратные UI-действия, общий
+API человека/агента, user/agent/developer/ADR docs, Windows/Android CI и
+единый authoritative clock row. Все 98 критериев/статусы и прочие GAP
+сохраняют прежние границы. PR #80 остаётся открытым на 131f068 и неизменённым.
+Новой реализации/нового source push после проверки нет; post-merge CI отдельно
+не объявляется прошедшим. Дальнейшие действия только по новому поручению.

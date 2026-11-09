@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { echo } from "./echo";
 import Storage from "./Storage.vue";
 import Board from "./Board.vue";
-import MarkdownView from "./MarkdownView";
+import MarkdownView from "../../ui/src/markdown/MarkdownView";
 import Qr from "./Qr.vue";
 import InvitationInput from "./InvitationInput.vue";
 import HttpSession from "./HttpSession.vue";
@@ -46,7 +46,7 @@ function clear() {
     </form>
     <p v-if="error" role="alert">{{ error }}</p>
     <pre v-if="result !== undefined" role="status" aria-label="Ответ">{{ result }}</pre>
-    <MarkdownView v-if="result !== undefined" :key="result" :source="result" />
+    <MarkdownView v-if="result !== undefined" :key="result" :source="result" content-id="markdown-content" />
     <Qr />
     <InvitationInput />
     <HttpSession />

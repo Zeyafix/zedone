@@ -33,12 +33,12 @@ function hide() {
       <img v-if="active && !failed" :key="attempt" :src="image.url" :alt="image.alt" :title="image.title"
         referrerpolicy="no-referrer" @load="loaded = true" @error="failed = true" />
     </template>
-    <span v-else> — Этот адрес изображения не поддерживается в прототипе.</span>
+    <span v-else> — Поддерживаются только абсолютные адреса HTTP/HTTPS.</span>
   </span>
 </template>
 
 <style scoped>
-.remote-image { display: inline-block; max-width: 100%; padding: 0.25rem; border: 1px solid #888; }
+.remote-image { display: inline-block; max-width: 100%; padding: 0.25rem; border: 1px solid currentColor; }
 button { margin: 0.25rem; padding: 0.5rem; }
 img { display: block; max-width: 100%; height: auto; }
 </style>

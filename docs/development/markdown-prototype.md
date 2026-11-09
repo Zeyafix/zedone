@@ -1,8 +1,10 @@
 # Markdown P01.07
 
 Срез показывает ответ существующего Rust echo через общий компонент
-`client/MarkdownView.ts`. Источник — точный текст HTTP/IPC, а не HTML или состояние
-загрузки. Продуктовые операции сохранения/чтения карточек остаются в P04/P05.
+`ui/src/markdown/MarkdownView.ts` из корня репозитория (перенос P05.04, без копии
+профиля). Источник — точный текст HTTP/IPC, а не HTML или состояние
+загрузки. Продуктовый просмотр описания подключён в P05.04; этот срез
+по-прежнему проверяет синтетический echo.
 Пользовательский сценарий: [просмотр](../user/prototype-markdown.md).
 
 ## Конфигурация
@@ -12,7 +14,7 @@
 дополнительный `@types/markdown-it` не нужен. Lock-файлы фиксируют транзитивные
 зависимости. Общие Rust/Bun/Node/JDK/NDK не меняются.
 
-`client/markdown.ts` использует пресет `commonmark` и явный `html: false`.
+`ui/src/markdown/markdown.ts` использует пресет `commonmark` и явный `html: false`.
 Основание профиля — CommonMark **0.31.2**, заявленный markdown-it
 ([история версий](https://github.com/markdown-it/markdown-it/blob/15.0.3/CHANGELOG.md)).
 Нет расширений таблиц/чекбоксов, linkify, typographer и подсветки кода.
@@ -43,7 +45,8 @@ remote-origin capabilities и остальных команд плагина. CS
 
 ## Проверка
 
-После `cargo fetch --locked` и `bun install --frozen-lockfile` в `prototypes/`:
+После `bun install --frozen-lockfile --ignore-scripts` в корне для общего
+viewer, затем `cargo fetch --locked` и `bun install --frozen-lockfile` в `prototypes/`:
 
 ```powershell
 bun run check

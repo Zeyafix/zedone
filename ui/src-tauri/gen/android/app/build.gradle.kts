@@ -18,7 +18,9 @@ android {
     compileSdk = 37
     namespace = "app.zedone.local"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        // HTTP images are an explicit, per-image user action (ADR-0006).
+        // The WebView CSP still limits connections to the local IPC bridge.
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "app.zedone.local"
         minSdk = 24
         targetSdk = 37
@@ -27,7 +29,6 @@ android {
     }
     buildTypes {
         getByName("debug") {
-            manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false

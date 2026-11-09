@@ -3,28 +3,35 @@
 ## Текущий статус
 
 ```yaml
-updated: 2026-11-08
+updated: 2026-11-09
 development_state: implementation
-current_stage: P05
+current_stage: P03
 current_stage_state: in_progress
-current_step: P05.03
+current_step: FIX.01
 last_completed_stage: P04
 last_completed_step: P04.10
-active_work: "Публикация и интеграция P05.03 по поручению разработчика; EV-078/LOG-381."
-next_action: "Открыть PR feat/p05-03-card-editor → main, проверить точный head/полный CI/замечания/конфликты; при успехе merge и удаление ветки. Затем P05.04; P03.06 также готов."
+active_work: "FIX.01/GAP-014 verified локально: разделение отметок, 279 Rust/23 client/Windows UI passed; подготовка самостоятельного PR, EV-081/LOG-428."
+next_action: "Опубликовать отдельный PR и проверить полный Windows/Linux/Android CI. Merge/delete только при успехе; #80 открыт и неизменён. При новом HTTP 504 остановиться без retry."
 passed_acceptance: [T03, T05, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-014]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
-blocking_current_step: []
+blocking_current_step: [GAP-014]
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-381
+last_event: LOG-428
 ```
 
-Разработчик поручил PR, при успехе merge и удаление ветки (LOG-381).
-Подготовка публикации начата; новый CI и интеграция ещё ожидаются.
+Разработчик выделил GAP-014 в отдельный PR; FIX.01 выполняется от main
+8e87273, независимо от открытого [PR #80](https://github.com/Zeyafix/zedone/pull/80).
+EV-081/LOG-427: разработчик разрешил разделить календарную отметку для
+обнаружения отката и effective время для expiry. Код, стартовая схема v1,
+эталон и ADR обновлены; red/green регрессия, 15 clock tests с trace OFF/ON,
+полный product-check и Windows ui:check passed. Android CI ещё не запускался;
+FIX.01 verified локально, не done, GAP-014 не закрыт до интеграции/полного CI.
+P05.04 не принимается этой работой; исходные незакоммиченные записи #80
+сохранены в его рабочем каталоге. Нижеследующие сводки — прежние ревизии.
 
 Весь P05.03/.1–.3 реализован и verified локально в feat/p05-03-card-editor,
 база 67c8e12 с исходным verified .1. [EV-078](verification/EV-078-card-editor.md)/
@@ -580,6 +587,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
 | GAP-013 | gap | in_progress | P05.10 CI | Старый PR #77/a344278 Windows check упал в lost-reply fixture: backend status:error, код ошибки не записан, затем timeout unknown-result alert. Три полных локальных UI-прогона с диагностикой прошли; на финальном d3f98eb этот же Windows UI-сценарий и все восемь checks SUCCESS. Исходная причина и отсутствие периодических отказов не доказаны. Наблюдать повтор с error.code; не блокирует автономную API-приёмку P04/T07, UI T08 остаётся partial. EV-076/LOG-376. |
+| GAP-014 | gap | in_progress | FIX.01 | Windows shell PR #80/131f068: space.read/card.list unavailable при raw wall на 1ms ниже observed и неубывающих samples. Настоящий TransactionClock воспроизводит отказ при строго растущем календаре: общая отметка повышена монотонной проекцией; происхождение дрейфа ОС не доказано. Разработчик разрешил разделить persisted calendar/effective; код/DDL/эталон/ADR обновлены, 14 clock tests passed с реальным rollback/expiry/restart/workers/error/panic охватом. Полные Windows/native Android ещё не приняты; EV-081/LOG-427, PR #80 открыт и неизменён. |
 | BUG-008 | bug | resolved | P04.10 CI | Общие arm64 compilation/native execution на a344278 превысили guard поиска 30 секунд; локальная проверка этого не выявила. Исправлено: полный runner последователен, CI product-native/product-arm64 изолированы на разных hosts. На d3f98eb все 273 native tests (включая поиск), обе ABI/14 guards, полный UI/environment/negative-cleanup и все восемь checks SUCCESS; PR #77 интегрирован в 67c8e12. Guard и 10-минутные бюджеты сохранены; дополнительные runner-время/будущие cold-run сроки не гарантируются. EV-076/LOG-374–376. |
 | GAP-009 | gap | resolved | P04.02 CI | Совмещённый native дважды исчерпал 10 минут на aada64a. Разделение product-native/prototype-native сохранило все команды/guards/лимиты; на 7e711ea все четыре Android suites и aggregate SUCCESS (run 42276553193). Охват завершения Android подтверждён; финальные checks следующего head по-прежнему обязательны. EV-065/LOG-320/321. |
 | GAP-010 | gap | resolved | P04.02 CI | Linux дважды достиг 10 минут при font download с Azure. Смена только mirrorlist одноразового runner на Ubuntu HTTPS archives сохранила signed sources и --with-deps chromium. Финальный 479c456 прошёл Linux/Windows и всю Android-матрицу, raw logs подтвердили HTTPS-загрузки; PR #54 merged 889d4b0. Будущая доступность/время не гарантируются. EV-065/LOG-321/322. |
@@ -3683,3 +3691,24 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Исходные четыре документа результата P04 выделены без изменения прежних текстов в commit 3b5b3e1 docs: record completed offline acceptance. Полный P05.03/.1–.3 остаётся одним связным feature commit с тестами/документацией. Runtime-исходники совпали с финальными SHA-256 EV-078; Rust/API/DDL/зависимости прежние.
 - Реальная статическая пара Before/After снята с изолированного base 67c8e12 и финального UI при одинаковом Service-наборе Daily/Мысли/карточка, viewport 1280×900 и светлой теме. Все PR media вне репозитория, загрузка — вложения GitHub; посторонняя issue не создавалась. Новых анимаций/переходов нет.
 - P05.03/.1–.3 сохраняют verified до интеграции. Следующий шаг — публикация подготовленного PR, полный новый CI точного head и проверка готовности; затем merge/удаление ветки при успехе. После интеграции актуализировать EV/очередь/журнал доказательствами; P05.04 и P03.06 не начаты.
+
+### LOG-426 — 2026-11-09 — агент Codex, FIX.01: механизм GAP-014 и граница договора
+
+- По решению разработчика создан отдельный worktree/ветка fix/trusted-clock-readings от main 8e87273. PR #80/131f068 остаётся открытым и не меняется. Его семь dirty документов, включая более поздние LOG-382–425, сохранены в исходном каталоге; в clock diff не перенесены. Сводки этой базы до LOG-381 исторические, не означают отмену последующих интеграций.
+- Настоящая логика TransactionClock детерминированно воспроизвела Unavailable при строго растущем raw calendar: первый raw=1000000, effective=1000010, второй raw=1000009. Новое желаемое assertion чтения падает при разнице ровно 1ms с общей отметкой. Это доказывает смешение raw и монотонной проекции в проверке, но не первопричину расхождения часов ОС runner. Пять миллионов непосредственных реальных Windows чтений локально прошли без отказов; CI trace остаётся действительным.
+- Все десять исходных Windows clock tests passed, frozen Bun install passed. Product source/DDL/API/tests не менялись, это ещё не исправление. Сырые std-only probes и результаты только в игнорируемом docs/reports/fix-clock/. EV-081/очередь/текущий статус отражают FIX.01, определения и статусы приёмки не меняются.
+- ADR-0038 и frozen-wall assertion прямо требуют прежнего отказа ниже общей observed отметки. До изменения договора запрошено явное решение: разделить persisted календарную отметку обнаружения отката и effective время expiry либо сохранить строгий отказ. Предложенный вариант сохраняет реальный rollback/refusal/монотонное истечение/долговечный expiry и общий транзакционный источник; это пока предложение, не принятое поведение. Далее ответ разработчика, затем реализация/Windows/native Android CI и отдельный PR. Commit/push/новый PR/merge не выполнялись, GAP-014/FIX.01 не закрыты.
+
+### LOG-427 — 2026-11-09 — агент Codex, разрешено разделение отметок времени
+
+- Разработчик явно выбрал «Разделить отметки времени»: календарный откат — по сохранённой календарной отметке, expiry — по отдельному эффективному времени; истёкшие права не оживают и frozen wall не останавливает истечение. Это разрешает уточнение ADR-0038 и замену прежнего frozen-wall unavailable assertion на AccessDenied по монотонному сроку.
+- Добавленный regression test на baseline воспроизвёл отказ Unavailable при строго растущем календаре на 1ms ниже проекции. После исправления все 14 clock tests passed, включая новый red/green test, реальный 1ms rollback, frozen/expiry/restart, два workers с независимыми опорами и rebase по persisted effective, обе отметки при ошибке/панике без частичной работы. Остальные прежние security assertions сохранены.
+- В одной строке access_clock теперь calendar_ms/effective_ms, seed=(0,0), invariant effective>=calendar>=0. Обе отметки читаются под writer lock и сохраняются внешней транзакцией. Стартовая v1/синтетический эталон обновлены по ADR-0047; прежний layout отклоняется без записи, миграции/сброса нет. Все прочие строки/DDL/metadata эталона проверены неизменными. Первый полный product-check выявил забытый ожидаемый SHA эталона; SHA актуализирован по новому файлу, assertion сохранён, полный повтор выполняется.
+- Обновлены ADR/development/user/agent docs. Product-check/Windows shell ещё не приняты, Android CI не запускался; FIX.01/GAP-014 не закрыты. Команды используют только synthetic data, исходный рабочий каталог #80 и его семь dirty docs не менялись. Далее полная проверка и отдельный PR, без новых UI/Markdown/QR/CI изменений.
+
+### LOG-428 — 2026-11-09 — агент Codex, FIX.01 verified локально
+
+- Полный финальный product-check passed: 279 Rust tests (226 storage, 29 adapters commands, 17 core, 7 contract), 23 client/239 assertions, fmt/Clippy, all-target/all-feature release, 7 отказов unsafe, OpenAPI/types/strict contract tsc. Исправлен только ожидаемый hash нового fixture; остальные данные эталона/политика совместимости сохранены. Исходный неуспешный hash-check остаётся в локальном отчёте, не объявляется прошедшим. До публикации дополнена проверка frozen-calendar expiry именно на финальном commit gate: данные/receipt откатились, обе отметки сохранились; полный product-check выполнен заново.
+- Полный Windows ui:check passed на Node baseline 24.22.1/Chromium 156.0.8078.4: Vue types/build, Clippy/3 shell tests/host fixture, настоящий HTTP lifecycle/container/card/editor/history/completion/inverse, IME, lost reply/exact replay, stale/denial/durable draft, visibility/second tab/30s boundary и темы/reload. Все 15 clock tests отдельно passed с diagnostics ON, обычные OFF — полный product-check. No tolerance/retry/timeouts/assertions weakening.
+- Docs links/fences/diff, сохранность всех 98 определений/статусов и прежних событий журнала passed. User/agent/development/ADR отражают разрешённый договор. Обратные UI-действия и общий API проверены, единственный authoritative набор времени — одна SQLite строка двух разных по смыслу отметок. Локальный Android Device/физический arm64 не запускались для внутреннего исправления; native тесты/ABI/UI подтвердит штатный CI нового PR.
+- FIX.01 verified локально, не done; GAP-014 открыт до успешного CI/интеграции. Исходный каталог #80 сохранил ту же ветку/head и семь dirty документов. Новых возможностей UI/Markdown/QR/зависимостей/CI нет. Далее самостоятельный PR от main, все checks точного head, merge/delete только при успехе. При новом HTTP 504 остановиться без retry; #80 не изменять.

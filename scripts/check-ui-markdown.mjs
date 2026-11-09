@@ -103,6 +103,7 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     const edited = "**После ошибки**\n\n![Новое](https://markdown.invalid/new.png)";
     await input('textarea[name="card-description"]', edited);
     await page.waitForFunction(() => Array.from(document.querySelectorAll('.card-editor [role="status"]')).some(el => el.textContent === "Сохранено"));
+    assert.deepEqual((await current()).descriptions, [edited], "saved status must confirm the exact UI edit before closing");
     await close(); await click(".card-title");
     await page.waitForFunction(() => document.querySelector(".markdown-content strong")?.textContent === "После ошибки");
     assert.deepEqual((await current()).descriptions, [edited]);
@@ -120,5 +121,23 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     }
     await close();
     console.log("Card Markdown: CommonMark/HTML/XSS, exact API source, external link, opt-in image/hide/failure/retry, completion/reverse, reload, UI edit and agent reverse passed.");
+  } catch (error) {
+    // Inspect the failed scenario before its owner disconnects and cleans data.
+    // Never retry an action or replace the original assertion with diagnostics.
+    try {
+      const view = await page.evaluate(() => ({
+        hash: location.hash, visibility: document.visibilityState,
+        dialog: !!document.querySelector('[role="dialog"]'),
+        headings: Array.from(document.querySelectorAll("h1, h2, h3"), el => el.textContent),
+        statuses: Array.from(document.querySelectorAll('[role="status"], [role="alert"]'), el => el.textContent),
+        description: document.querySelector('textarea[name="card-description"]')?.value,
+        strong: Array.from(document.querySelectorAll(".markdown-content strong"), el => el.textContent),
+        focused: document.activeElement?.getAttribute("name") || document.activeElement?.tagName,
+      }));
+      console.error(`Card Markdown failure view: ${JSON.stringify(view)}`);
+    } catch { console.error("Card Markdown failure view: unavailable"); }
+    try { console.error(`Card Markdown failure saved descriptions: ${JSON.stringify((await current()).descriptions)}`); }
+    catch { console.error("Card Markdown failure saved descriptions: unavailable"); }
+    throw error;
   } finally { page.off("request", observe); await page.context().unroute(`${origin}/**`, fixture); }
 }

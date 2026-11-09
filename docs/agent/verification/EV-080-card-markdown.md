@@ -328,3 +328,36 @@ docs/reports/p05-04/verify-shell-webview-connection.mjs, без запуска �
 JS syntax, docs links/fences/98 критериев/сохранность dirty docs и diff checks.
 Product source/API/clock policy прежние; Device локально заново не запускался.
 Native подтверждение ожидания page остаётся задачей нового полного CI.
+
+## Android Markdown после UI-правки — LOG-420 / GAP-016
+
+Head e469ff3: все одиннадцать остальных checks SUCCESS, включая Windows
+shell/aggregate и Android shell-arm64 с negative preflight. [Shell Android
+129102210052](https://github.com/Zeyafix/zedone/actions/runs/42600120819/job/129102210052)
+failed на check-ui-markdown.mjs:107: прежнее ожидание strong «После ошибки»
+истекло через 10000ms после UI-правки, закрытия и повторного открытия карточки.
+Это самостоятельный timeout, не отмена общим 10m budget: весь job завершился
+через 8:04. Environment, обе подготовки shell, начальный IPC/menu/Back/themes,
+restart и полный card/editor/history/completion/draft набор до Markdown passed.
+Нового HTTP 504 в полном shell логе нет.
+
+[Android aggregate 129105751709](https://github.com/Zeyafix/zedone/actions/runs/42600120819/job/129105751709)
+корректно failed с RESULT=failure; собственной иной ошибки нет.
+Старое ожидание page после CDP на этом запуске прошло, но GAP-007 не закрывается
+по одному успеху. GAP-015 остаётся открытым до успешного полного shell job;
+нехватка времени не объявляется причиной нового отказа. GAP-016 фиксирует
+неподтверждённую native UI-правку Markdown и блокирует интеграцию.
+
+Исходный лог не содержит DOM/card snapshot на момент отказа. Теперь после
+статуса «Сохранено», до закрытия, общий сценарий дополнительно требует точный
+edited исходник через card.read. При любом отказе перед штатной очисткой
+записываются synthetic DOM state (наличие диалога, заголовки/status/strong,
+textarea/focus/visibility) и сохранённые descriptions через тот же API.
+Диагностика не повторяет действия, не ослабляет assertions/10000ms/job budget
+и не заменяет исходную ошибку. Исправление продукта пока не заявляется.
+
+Локально полный общий Markdown-сценарий с новой проверкой passed на desktop/light
+и mobile/dark с настоящим native touch/visibility adapter в host Chromium.
+Это не Android Device acceptance. Product source/API/clock policy прежние;
+Device для диагностической правки заново не запускался. Новый CI должен
+подтвердить сценарий либо дать evidence для точечного исправления GAP-016.

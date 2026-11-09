@@ -188,12 +188,18 @@ Playwright `Browser.setDownloadBehavior` даёт protocol error. Режим с�
 
 ## Описание карточки: P05.04
 
-Сохранённое описание в CardEditor использует общий client/MarkdownView.ts,
-client/markdown.ts и client/RemoteImage.vue, перенесённые из проверенного
+Сохранённое описание в CardEditor использует общий ui/src/markdown/MarkdownView.ts,
+ui/src/markdown/markdown.ts и ui/src/markdown/RemoteImage.vue, перенесённые из проверенного
 прототипа P01.07. Прототип импортирует тот же модуль; runtime продукта от
 prototypes не зависит. Профиль/версии прежние: markdown-it 15.0.3, CommonMark
 0.31.2, html:false, DOMPurify 3.4.17. Заголовок/редактор/сверка и краткий текст
 на доске показывают исходник. HTML/права/версии/история не сохраняются в viewer.
+
+UI-модуль расположен внутри ui/src, отдельно от client/commands.ts общего
+API-клиента. Строгий tsconfig.contract.json продолжает проверять все client/**/*.ts
+обычным tsc, без Vue/WebView-зависимостей и специальных исключений. Общий viewer
+проверяют оба Vue-проекта через импорт, включая прототип; обходы проверок
+деклараций зависимостей и фиктивные объявления .vue не используются.
 
 Image renderer создаёт инертные маркеры до DOMPurify; разрешённый HTTP/HTTPS
 URL остаётся вне HTML. Только отдельная кнопка создаёт img с no-referrer.

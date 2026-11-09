@@ -8,7 +8,7 @@ base_revision: "8e87273; шесть исходных dirty docs сохранен
 goal: "Сохранённое описание карточки безопасно отображается как CommonMark на Windows/Android"
 requirements: [T08, A50, ADR-0006]
 dependencies_evidence: ["P05.03: PR #78/2f54349, EV-078", "P01.07: PR #14/21e329d, EV-020"]
-scope: ["общий client Markdown viewer из прототипа", "CardEditor", "CSP/Android Opener", "закреплённые зависимости", "проверки и документация P05.04"]
+scope: ["общий UI Markdown viewer из прототипа", "CardEditor", "CSP/Android Opener", "закреплённые зависимости", "проверки и документация P05.04"]
 checks: ["bun run ui:check", "прежний прототип Markdown", "debug APK x86_64/aarch64", "Android Device: настоящий IPC/ссылки/изображения/ошибка/повтор"]
 reverse_and_failure: "Обычная обратная правка Markdown, скрытие изображения, повтор загрузки; ошибка не меняет данные/редактор"
 result: "verified локально; публикация feat/p05-04-card-markdown поручена, новый CI и интеграция ожидаются"
@@ -89,3 +89,52 @@ P05.05; независимо также готов P03.06. Новая реали
 В PR входят реализация и документация P05.04. Существующие незакоммиченные
 записи предыдущих интеграций в журнале/очереди/EV-077–079/CI docs сохранены
 в рабочем дереве и не включаются в этот commit.
+
+## PR — LOG-400
+
+[PR #80](https://github.com/Zeyafix/zedone/pull/80), head
+86c0e7fa79dde3bd3c845c43867178764f377daa, создан через gh CLI с четырьмя
+вложениями через --attach. Body/HTML/head прочитаны обратно: две картинки, два
+видео, корректные разделы и generation credit, локальных ссылок не осталось.
+Реальные base/final материалы вне Git просмотрены; видео 1920×1080 подтверждены
+ffprobe. Новый Windows/Linux/Android CI выполняется; merge/delete ещё не выполнены.
+
+## Первый Android CI — LOG-401
+
+Head 86c0e7f: Android shell job 129013382120 остановлен HTTP 504 в setup-java
+при скачивании закреплённого JDK до сборки и тестов. Полный workflow
+42572674754 ещё выполняется; GitHub отклонил повтор job HTTP 403 до его
+завершения. Код не менялся, исходный отказ сохраняется. Следующее действие —
+после завершения повторить failed shell/aggregate на том же head, затем
+проверить все checks. CI/merge не объявляются успешными.
+
+## Исправление области проверки типов — LOG-402
+
+Head 86c0e7f: Linux и оба product Android jobs отказали в обычном
+tsc tsconfig.contract.json: общий viewer в client/**/*.ts захватил Vue/Tauri
+за пределами API-контракта (TS2307 .vue, TS2550 asyncDispose). Это отдельная
+ошибка размещения модуля; JDK HTTP 504 из LOG-401 остаётся инфраструктурным
+отказом. Локальный product-check не был выполнен в первом срезе — пробел
+первоначальной проверки признаётся, успешный ui:check его не заменял.
+
+Три файла без изменений содержимого перенесены в ui/src/markdown. Продукт
+и прототип импортируют один viewer, client/ остаётся API-клиентом.
+Конфигурация строгого контрактного tsc, assertions и лимиты не изменены;
+исключения файлов/skipLibCheck/фиктивные объявления .vue не добавлялись.
+Повторные сборки/типы и проверки фиксируются ниже перед публикацией.
+
+### Проверки переноса — LOG-403
+
+Полный product-check passed: 273 Rust tests, 23 client/239 assertions,
+release всех targets/features, 7 unsafe guards, OpenAPI/types/обычный tsc.
+Полный ui:check passed в Chrome/Opera на Node baseline 24.22.1; три shell
+integration tests и прежние editor/fault/Markdown сценарии сохранены.
+Прототип vue-tsc/Vite/полный check:http и обе debug ABI passed.
+Проверки docs/98 критериев/CI routing guards/diff passed.
+
+Три перенесённых файла совпали с 86c0e7f; API/Rust/зависимости/конфигурации
+проверки типов не менялись. Новый After screenshot побайтово совпал с
+размещённым материалом PR, новые вложения не нужны. Device-проверки выше
+относятся к первоначальному срезу; повторное локальное управление Device
+для перемещения неизменённых файлов не выполнялось. Новые APK собраны,
+полный Android CI нового head ещё ожидается.

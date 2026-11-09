@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { echo } from "./echo";
 import Storage from "./Storage.vue";
 import Board from "./Board.vue";
-import MarkdownView from "../../client/MarkdownView";
+import MarkdownView from "../../ui/src/markdown/MarkdownView";
 import Qr from "./Qr.vue";
 import InvitationInput from "./InvitationInput.vue";
 import HttpSession from "./HttpSession.vue";

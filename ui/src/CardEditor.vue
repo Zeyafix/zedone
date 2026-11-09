@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import MarkdownView from "../../client/MarkdownView";
+import MarkdownView from "./markdown/MarkdownView";
 import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending } from "./workspace-api";

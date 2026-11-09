@@ -129,8 +129,8 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   assert.equal(await page.evaluate(() => document.querySelector(".space-row a").getAttribute("href")), spaceHref);
   await tap(".space-row a", "Мысли");
   await named(".board-heading .primary-button", "Разобрать", "Создать колонку");
-  await named(".column-panel .column-actions button:first-child", "Сделать", "Сохранить название");
-  await named(".column-panel .column-actions button:first-child", "Разобрать", "Сохранить название");
+  await named(".column-panel .rename-column", "Сделать", "Сохранить название");
+  await named(".column-panel .rename-column", "Разобрать", "Сохранить название");
   await confirm(".column-panel .column-actions button:last-child", "В корзину");
   await tap('.view-toolbar button[aria-pressed="false"]', "Корзина");
   await confirm(".column-panel .column-actions button:last-child", "Восстановить");

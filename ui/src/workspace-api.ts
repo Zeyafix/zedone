@@ -8,7 +8,7 @@ export type Space = Schemas["SpaceSnapshot"];
 export type Column = Schemas["ColumnSnapshot"];
 export type Card = Schemas["CardSnapshot"];
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
-export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore"}`> | EditorMutation;
+export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation;
 export const pendingChanged = "zedone:pending";
 type Reads = {
   "space.list": Schemas["SpaceList"];

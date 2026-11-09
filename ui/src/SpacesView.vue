@@ -5,6 +5,7 @@ import { newCardId, newColumnId, newSpaceId } from "../../client/commands";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, pendingCommands, read, type Card, type Column, type Mutation, type Pending, type Space } from "./workspace-api";
 import CardsList from "./CardsList.vue";
 import CardEditor from "./CardEditor.vue";
+import BoardView from "./BoardView.vue";
 import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./editor-drafts";
 import { pendingChanged } from "./workspace-api";
 
@@ -25,6 +26,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "card.create": "Создать карточку", "card.read": "Карточка", "card.trash": "В корзину", "card.restore": "Восстановить",
   "card.begin_editing": "Начать редактирование", "card.autosave": "Сохранить карточку", "card.finish_editing": "Завершить редактирование", "card.set_completed": "Изменить выполнение",
   "forget-draft": "Удалить черновик",
+  "card.move": "Переместить карточку", "column.move": "Переместить колонку",
 };
 const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];
 const selected = ref(routeSpace());
@@ -36,6 +38,7 @@ const showTrash = ref(false);
 const showCardTrash = ref(false);
 const loading = ref(false);
 const busy = ref(false);
+const moving = ref(false);
 const error = ref("");
 const notice = ref("");
 const pending = ref<Pending[]>([]);
@@ -53,7 +56,8 @@ const viewHeading = ref<HTMLElement>();
 let opener: HTMLElement | undefined;
 let generation = 0;
 let localGeneration = 0, lastUrl = location.href, pendingUrl: string | undefined;
-const blocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready);
+const boardBlocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready || loading.value);
+const blocked = computed(() => boardBlocked.value || moving.value);
 const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename"));
 const title = (item: Space | Column) => item.names.length === 1 ? item.names[0] || "Без названия" : "Конфликт названий";
 const cardTitle = (item: Card) => item.titles.length === 1 ? item.titles[0] : "Конфликт заголовков";
@@ -156,7 +160,7 @@ async function changeDialog(value: boolean) {
   if (!editor.value || await editor.value.requestClose()) editorClosed();
 }
 async function openDraft(item: EditorDraft, event: Event) {
-  if (busy.value) return;
+  if (busy.value || moving.value) return;
   opener = event.currentTarget as HTMLElement; busy.value = true;
   const current = generation;
   try {
@@ -169,7 +173,7 @@ async function openDraft(item: EditorDraft, event: Event) {
 
 async function open(next: Action, event: Event) {
   opener = event.currentTarget as HTMLElement;
-  if (busy.value) return;
+  if (busy.value || moving.value) return;
   busy.value = true;
   recovering.value = undefined;
   const current = generation;
@@ -198,7 +202,7 @@ function initialFocus(event: Event) {
   if (naming.value) { event.preventDefault(); titleInput.value?.focus(); titleInput.value?.select(); }
 }
 async function retry(id: string) {
-  if (busy.value) return;
+  if (busy.value || moving.value) return;
   busy.value = true; error.value = ""; notice.value = "";
   try {
     const result = await deliverMutation(id);
@@ -263,13 +267,13 @@ function pendingName(item: Pending) {
 </script>
 
 <template>
-  <section class="spaces-view" aria-label="Управление пространствами" :aria-busy="loading || busy">
+  <section class="spaces-view" aria-label="Управление пространствами" :aria-busy="loading || busy || moving">
     <div v-if="ready" class="view-toolbar">
       <a v-if="selected" href="#/spaces">Все пространства</a>
       <h2 v-else ref="viewHeading" tabindex="-1">{{ showTrash ? 'Корзина пространств' : 'Мои пространства' }}</h2>
       <div class="view-actions">
-        <button :aria-pressed="showTrash" :disabled="busy" @click="showTrash = !showTrash">{{ showTrash ? 'Активные' : 'Корзина' }}</button>
-        <button :disabled="loading || busy" @click="refresh">Обновить список</button>
+        <button :aria-pressed="showTrash" :disabled="busy || moving" @click="showTrash = !showTrash">{{ showTrash ? 'Активные' : 'Корзина' }}</button>
+        <button :disabled="loading || busy || moving" @click="refresh">Обновить список</button>
         <button v-if="!selected && !showTrash" class="primary-button" :disabled="blocked" @click="open({ kind: 'space.create' }, $event)">Создать пространство</button>
       </div>
     </div>
@@ -280,8 +284,8 @@ function pendingName(item: Pending) {
       <h2>Черновики карточек</h2><p>Это локальный ввод, а не подтверждение сохранения карточки.</p>
       <ul class="pending-list"><li v-for="item in drafts" :key="item.id">
         <span>{{ item.title || 'Без заголовка' }}</span><div class="view-actions">
-          <button :disabled="busy || !ready" @click="openDraft(item, $event)">Открыть черновик</button>
-          <button :disabled="busy" @click="open({ kind: 'forget-draft', id: item.id }, $event)">Удалить черновик</button>
+          <button :disabled="busy || moving || !ready" @click="openDraft(item, $event)">Открыть черновик</button>
+          <button :disabled="busy || moving" @click="open({ kind: 'forget-draft', id: item.id }, $event)">Удалить черновик</button>
         </div>
       </li></ul>
     </section>
@@ -291,8 +295,8 @@ function pendingName(item: Pending) {
       <p>Успех ещё не подтверждён. Повтор сохраняет исходные данные действия. После перезапуска проверка продолжается здесь.</p>
       <ul class="pending-list"><li v-for="item in pending" :key="item.id">
         <span>{{ pendingLabel(item) }}<template v-if="pendingName(item)">: {{ pendingName(item) }}</template></span>
-        <div class="view-actions"><button :disabled="busy || !ready" @click="retry(item.id)">Проверить результат</button>
-          <button :disabled="busy" @click="open({ kind: 'forget', id: item.id }, $event)">Убрать из списка</button></div>
+        <div class="view-actions"><button :disabled="busy || moving || !ready" @click="retry(item.id)">Проверить результат</button>
+          <button :disabled="busy || moving" @click="open({ kind: 'forget', id: item.id }, $event)">Убрать из списка</button></div>
       </li></ul>
     </section>
 
@@ -322,30 +326,14 @@ function pendingName(item: Pending) {
           <p v-if="space.names.length !== 1">Варианты названия: {{ space.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения конфликта.</p>
           <p v-if="space.state !== 'active'">{{ space.state === 'trashed' ? 'Пространство в корзине. Для изменений сначала восстановите его.' : 'Состояние пространства конфликтует. Изменения недоступны до разрешения.' }}</p>
           <button v-if="space.state === 'active' && !showTrash" class="primary-button" :disabled="blocked || conflicts(space)" @click="open({ kind: 'column.create', space: space.space }, $event)">Создать колонку</button>
-          <button v-if="!showTrash" :aria-pressed="showCardTrash" :disabled="busy" @click="showCardTrash = !showCardTrash">{{ showCardTrash ? 'Активные карточки' : 'Корзина карточек' }}</button>
+          <button v-if="!showTrash" :aria-pressed="showCardTrash" :disabled="busy || moving" @click="showCardTrash = !showCardTrash">{{ showCardTrash ? 'Активные карточки' : 'Корзина карточек' }}</button>
         </div>
         <section v-if="!showTrash && unplacedCards.length" aria-label="Карточки вне активных колонок">
           <h3>Карточки вне активных колонок</h3><p class="object-note">Положение конфликтует или колонка в корзине. Карточки доступны для просмотра.</p>
           <CardsList :cards="unplacedCards" :blocked="busy" readonly @open="open" />
         </section>
         <p v-if="!loading && !visibleColumns.length" class="empty-view">{{ showTrash ? 'В корзине нет колонок.' : 'Колонок пока нет. Создайте колонку для одной темы.' }}</p>
-        <div class="column-board" role="region" aria-label="Колонки" tabindex="0">
-          <section v-for="item in visibleColumns" :key="item.column" class="column-panel" :aria-label="title(item)">
-            <h3>{{ title(item) }}</h3>
-            <p v-if="conflicts(item)" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
-            <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
-            <template v-if="!showTrash">
-              <CardsList :cards="columnCards(item.column)" :blocked="busy" :readonly="blocked || space.state !== 'active' || conflicts(item)" @open="open" />
-              <p v-if="showCardTrash && !columnCards(item.column).length" class="object-note">В корзине нет карточек этой колонки.</p>
-              <button v-if="!showCardTrash" class="create-card" :disabled="blocked || space.state !== 'active' || conflicts(item)" @click="open({ kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>
-            </template>
-            <div class="column-actions">
-              <button v-if="item.state === 'active'" :disabled="blocked || space.state !== 'active' || conflicts(item)" @click="open({ kind: 'column.rename', target: item }, $event)">Переименовать</button>
-              <button :disabled="blocked || space.state !== 'active' || conflicts(item) || !item.empty" @click="open({ kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
-            </div>
-            <p v-if="!item.empty" class="object-note">Действие с содержимым появится в следующем шаге.</p>
-          </section>
-        </div>
+        <BoardView :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :blocked="boardBlocked || dialogOpen" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
       </template>
     </template>
 

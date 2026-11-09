@@ -94,17 +94,17 @@ P04.10 разделяет продукт по ABI между двумя hosts: d
 Android jobs завершились в прежнем лимите. Это наблюдение одного запуска
 с кэшем, не гарантия будущего или холодного времени.
 
-Сохраняются прежние host budgets: Linux 10 минут, каждый Windows suite 20.
+Сохраняются прежние host budgets: каждый Linux suite 10 минут, Windows suite 20.
 Цель ожидания Windows ≤10 минут не заменяет бюджет холодной сборки.
 Повышение Linux до 20 отклонено разработчиком. Shell не собирает Android-only
-tauri-build при host-проверке. На последовательном Linux он переиспользует
-product Cargo output; отдельный Windows shell runner использует собственный
-кэш корневого target. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
+tauri-build при host-проверке. Отдельный shell runner каждой ОС использует
+собственный кэш корневого target. Набор fmt/Clippy/tests/release/контракт/UI не сокращается.
 
-### Параллельные Windows host-проверки
+### Параллельные host-проверки Windows и Linux
 
-`Prototype foundation` выполняет четыре Windows jobs на отдельных `windows-2025`
-runners с `fail-fast: false`. Они используют прежние команды целиком:
+`Prototype foundation` выполняет по четыре jobs на отдельных `windows-2025`
+и `ubuntu-24.04` runners с `fail-fast: false`. Обе ОС используют одинаковые
+наборы; прежние команды сохраняются целиком:
 
 | Suite | Команда | Подготовка |
 | --- | --- | --- |
@@ -117,26 +117,27 @@ runners с `fail-fast: false`. Они используют прежние ком
 [prepare-host-check](../../.github/actions/prepare-host-check/action.yml).
 Он читает закреплённые версии из `environment-versions.json`, проверяет имя
 набора и ошибки CLI, устанавливает только нужные зависимости. Изменение
-action входит в paths обоих событий. Режим `all` сохраняет для Linux
-последовательность product → prototype → shell и прежний Rust namespace/paths.
+action входит в paths обоих событий. Режим `all` сохраняет для совместимости
+последовательность product → prototype → shell и прежний Rust namespace/paths;
+workflow обеих ОС использует четыре отдельных suite.
 Браузер теперь готовится до первого набора; команды самих проверок не меняются.
 Android workflow и его dispatcher не затронуты.
 
-Прежний required check `check (windows-2025)` сохранён как aggregate:
-`needs: windows-checks`, `if: always()`, результат матрицы должен быть ровно
-`success`. `failure`, `cancelled`, `skipped` и отсутствие результата
-не принимаются как успех. Aggregate работает на Ubuntu с лимитом 1 минута;
-он проверяет результат Windows runners и не подменяет платформу исполнения
-тестов. Check Linux по-прежнему называется `check (ubuntu-24.04)`.
+Прежние required checks `check (windows-2025)` и `check (ubuntu-24.04)`
+сохранены как отдельные aggregates с `needs: windows-checks`/`linux-checks`
+и `if: always()`. Результат всей матрицы соответствующей ОС должен быть ровно
+`success`: `failure`, `cancelled`, `skipped` и отсутствие результата
+не принимаются как успех. Aggregates работают на Ubuntu с лимитом 1 минута
+и проверяют результат своих runners, сохраняя независимость двух ОС.
 
-У Windows suites отдельные Rust namespaces `prototype-host-product`,
+У suites каждой ОС отдельные Rust namespaces `prototype-host-product`,
 `prototype-host-prototype-native`, `prototype-host-prototype-ui`,
 `prototype-host-shell`. Каждый сохраняется только
 своим успешным main job: разные подмножества не конкурируют за один immutable
 key. Кэшируются registry/git и target выбранного workspace. Shell metadata
 учитывает собственные `ui/src-tauri/Cargo.toml`/`Cargo.lock`, а физический
 output остаётся общим корневым `target/`, как в штатном драйвере.
-Перед первым restore нового Windows namespace выполняется metadata-only
+Перед первым restore нового namespace выбранной ОС выполняется metadata-only
 lookup собственного архива. Если его нет, `actions/cache/restore` читает
 прежний общий main-архив с namespace `prototype-host` до подготовки
 `rust-cache`; затем обычный suite restore/save работает как прежде.
@@ -145,10 +146,24 @@ lookup собственного архива. Если его нет, `actions/c
 архивов оставляет обычную холодную сборку без пропуска проверок.
 Для старого архива передаются прежние четыре абсолютных пути, в прежнем
 порядке: Cargo registry/git, корневой target, prototype target; Zstd и
-Windows-only archive version должны совпасть. Это чтение старых зависимостей,
+archive version соответствующей платформы должны совпасть. Это чтение старых зависимостей,
 а не перенос результата тестов: Cargo проверяет units, а все команды идут
 с прежними флагами и версиями. Совпадение archive version проверено по API/
-алгоритму toolkit; настоящий restore ещё требует нового CI.
+алгоритму toolkit для Windows; настоящий restore ещё требует нового CI.
+
+Linux fallback использует префикс `Linux-x64`, Windows — прежний
+`Windows_NT-x64`. Реальный Linux restore/save и время нового разделения
+требуют подтверждения CI; локальные проверки их не заменяют.
+
+Linux разделён в P05.05 после повторного исчерпания последовательного
+10-минутного бюджета PR #82. На `dd84aac` attempt 3 остальные 12 checks
+прошли, Linux был отменён во время shell UI-набора; GitHub явно указал
+job timeout. Каждый новый Linux suite сохраняет лимит 10 минут, проверок
+и сценарных timeout изменений нет. Новый полный PR-набор содержит 17 checks:
+14 suites и три обязательных aggregates. Ускорение/холодное время и новый
+head не принимаются до фактического CI; подготовка отдельных runners может
+увеличить суммарные runner-минуты. Доказательства и ограничения —
+[EV-082](../agent/verification/EV-082-board-moves-ui.md).
 
 Цель CI.04 — ≤10 минут **от старта workflow до завершения Windows aggregate**,
 включая очередь runners, подготовку и post/cache steps. Короткая длительность

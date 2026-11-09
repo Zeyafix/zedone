@@ -11,9 +11,9 @@ dependencies_evidence: ["P05.03: PR #78/2f54349, EV-078", "P01.07: PR #14/21e329
 scope: ["общий UI Markdown viewer из прототипа", "CardEditor", "CSP/Android Opener", "закреплённые зависимости", "проверки и документация P05.04"]
 checks: ["bun run ui:check", "прежний прототип Markdown", "debug APK x86_64/aarch64", "Android Device: настоящий IPC/ссылки/изображения/ошибка/повтор"]
 reverse_and_failure: "Обычная обратная правка Markdown, скрытие изображения, повтор загрузки; ошибка не меняет данные/редактор"
-result: "verified локально; публикация feat/p05-04-card-markdown поручена, новый CI и интеграция ожидаются"
+result: "PR #80 открыт: 2a0a13f — 11 SUCCESS, Android shell/aggregate failed; driver stability verified на host, новый native CI ожидается"
 evidence: ["Windows UI/HTTP", "Android Device/IPC", "обе debug ABI", "сохранность sandbox", "прототип/типы/CI guards"]
-next: "Создать PR, проверить весь новый CI; при успехе merge и удаление ветки. Затем P05.05"
+next: "Опубликовать touch stability fix, проверить весь новый CI; при успехе merge и удаление ветки. Затем P05.05"
 ```
 
 ## Граница
@@ -443,3 +443,50 @@ Clock implementation/product-core docs совпадают с проверенн�
 UI/Markdown источники и существующие медиа визуального diff не менялись;
 локальная Device-проверка выше сохраняет охват неизменённого viewer.
 Полный новый CI/ABI/native UI ещё ожидается; старые failures сохраняются.
+
+## Обновлённый PR — LOG-433
+
+Опубликован merge head 2a0a13fb515498c9cb8d21000754de51dd1cd0b4 в PR #80,
+base c04cf3c, MERGEABLE, comments/reviews отсутствуют. Body/точный head/base
+прочитаны обратно; итоговое описание убирает устаревшие утверждения о часах
+и сохраняет реальные два изображения/два видео. UI sources и visual diff
+не менялись при интеграции clock fix. Полный новый CI из 13 checks выполняется;
+локальные результаты выше не заменяют native Android или exact-head CI.
+Исходное поручение merge/delete после успеха сохраняется. При новом HTTP 504
+выключить watch и остановиться без retry/merge. P05.04 пока не done.
+
+## GAP-016: повторное открытие и native touch — LOG-434
+
+[Android shell 2a0a13f](https://github.com/Zeyafix/zedone/actions/runs/42615811577/job/129155266651)
+за 8:03 прошёл lifecycle/editor/restart и exact card.read после UI-правки,
+затем получил 10000ms timeout ожидаемого strong. Диагностика показывает
+dialog=false, отсутствие strong и точный сохранённый edited исходник.
+Повторное открытие не состоялось; ошибка сохранения/рендера не доказана.
+[Android aggregate](https://github.com/Zeyafix/zedone/actions/runs/42615811577/job/129159029060)
+выполнил только строгую проверку RESULT=failure, самостоятельного отказа нет.
+Все 13 checks завершены: 11 SUCCESS, эти два failure. Новых HTTP 504 нет.
+
+Драйвер native touch прежде снимал координаты один раз. Изолированный host
+regression с настоящим CDP touch, движущейся кнопкой и задержкой доставки
+на один кадр дал red: 0 clicks вместо одного. После ожидания одинаковой
+геометрии того же элемента/viewport на двух frames и окончания ancestor
+aria-busy этот regression green; он также требует ровно один touch и ждёт
+pending refresh. Проверки visibility/enabled/hit target остаются; всё ожидание
+в прежних 10s. Повторов действий, DOM click и подмены DOM API нет.
+Точный timing CI не установлен; native подтверждение нового head необходимо.
+
+Постоянный regression включён в штатный host ui:check. Полный Windows
+ui:check на Node baseline 24.22.1 passed, включая types/build/Clippy/три
+shell tests, lifecycle/editor/history/delivery/IME/draft/completion/inverse
+и CommonMark. Отдельный общий Markdown сценарий desktop/light и
+mobile/dark/native touch adapters passed. Android/host routing guards и
+JS syntax passed. Локальный Device заново не запускался: это host proof.
+Продуктовые исходники/API/DDL/часы и workflow/job budgets не менялись;
+полный product-check на этих harness-only изменениях не повторялся после
+279 Rust/23 client и успешного Windows/native product CI 2a0a13f.
+
+Четыре посторонних dirty docs и исходные критерии/события сохранены.
+Обратные действия/common API/docs/saved-source проверены в host scope;
+паритет Windows/Android для нового драйвера ожидает native CI. P05.04 не done,
+GAP-015/016 не закрыты. Далее публикация нового head и все checks; merge/delete
+только при успехе, новый HTTP 504 — остановка без retry.

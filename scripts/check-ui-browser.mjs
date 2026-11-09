@@ -7,6 +7,7 @@ import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
+import { checkNativeControls } from "./check-ui-native-controls.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -35,6 +36,7 @@ try {
   for (const executablePath of paths) {
     browser = await chromium.launch({ executablePath, headless: true });
     console.log(`UI browser: ${browser.version()}`);
+    await checkNativeControls(browser);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "light" });
     const page = await context.newPage();
     diagnosticPage = page;

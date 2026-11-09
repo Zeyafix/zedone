@@ -19,21 +19,38 @@ export async function nativeControls(page) {
     }, { selector, text });
   }
   async function tap(selector, text) {
+    const deadline = Date.now() + 10000;
     await visible(selector, text);
-    await page.waitForFunction(selector => {
+    const position = await page.waitForFunction(function stableTarget({ selector, text }) {
       const element = document.querySelector(selector);
-      return element && !element.disabled;
-    }, selector);
-    const { x, y } = await page.evaluate(selector => {
-      const element = document.querySelector(selector);
-      if (element.disabled) throw new Error(`Disabled control: ${selector}`);
+      if (!element || element.disabled || element.closest('[aria-busy="true"]')
+          || text !== undefined && element.textContent.trim() !== text) {
+        stableTarget.previous = undefined;
+        return false;
+      }
       element.scrollIntoView({ block: "center" });
       const box = element.getBoundingClientRect();
+      const geometry = [box.x, box.y, box.width, box.height, innerWidth, innerHeight, scrollX, scrollY,
+        visualViewport?.width, visualViewport?.height, visualViewport?.offsetLeft, visualViewport?.offsetTop];
+      const previous = stableTarget.previous;
+      // Playwright polls on animation frames. Keep state on this private
+      // predicate function, without modifying the application's DOM or globals.
+      stableTarget.previous = { element, geometry };
+      if (previous?.element !== element || !geometry.every((value, index) => value === previous.geometry[index])) return false;
+      if (box.width <= 0 || box.height <= 0) return false;
+      for (let current = element; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.display === "none" || style.visibility !== "visible" || style.opacity === "0" || current.getAttribute("aria-hidden") === "true") return false;
+      }
       const x = box.x + box.width / 2, y = box.y + box.height / 2;
       const target = document.elementFromPoint(x, y);
-      if (!target || !element.contains(target)) throw new Error(`Covered control: ${selector}`);
+      if (!target || !element.contains(target)) return false;
       return { x, y };
-    }, selector);
+    }, { selector, text }, { timeout: Math.max(1, deadline - Date.now()) });
+    let coordinates;
+    try { coordinates = await position.jsonValue(); }
+    finally { await position.dispose(); }
+    const { x, y } = coordinates;
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   }

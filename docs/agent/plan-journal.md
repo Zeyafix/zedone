@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P05.04
 last_completed_stage: P04
 last_completed_step: FIX.01
-active_work: "PR #80: включение main c04cf3c/clock fix, конфликты разрешены, локальная проверка и новый CI ожидаются; EV-080/LOG-431."
-next_action: "Завершить проверки объединённого кода, commit/push и все 13 checks. Merge/delete только при успехе; новый HTTP 504 — остановка без retry."
+active_work: "PR #80: 2a0a13f — 11 SUCCESS, Android shell/aggregate failed; native touch stability исправлен и verified на host, новый CI ожидается. EV-080/LOG-434."
+next_action: "Опубликовать исправление native touch, оценить все checks нового head; merge/delete только при успехе. При новом HTTP 504 выключить watch и остановиться без retry."
 passed_acceptance: [T03, T05, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-015, GAP-016]
@@ -20,14 +20,16 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: [GAP-015, GAP-016]
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-432
+last_event: LOG-434
 ```
 
-PR #80 возобновлён: main c04cf3c/FIX.01 включается в feature-ветку.
-Конфликты разрешены сохранением проверенных clock implementation/docs;
-product-check и Windows UI объединённого кода passed. Новый полный CI
-ещё ожидается, P05.04 не done. Прежние рабочие записи сохранены отдельно;
-нижеследующие сводки описывают прежние ревизии.
+PR #80 включает main c04cf3c/FIX.01. На 2a0a13f — 11 SUCCESS,
+Android shell/aggregate failed: точный source сохранён, dialog не открылся.
+Потеря касания на движущемся target воспроизведена host regression;
+stable geometry/aria-busy driver и полный Windows ui:check passed.
+Новый native CI ожидается, GAP-015/016 открыты. Merge/delete только
+после успеха, новый HTTP 504 — остановка без retry. Прежние dirty записи
+сохранены отдельно; нижеследующие сводки описывают прежние ревизии.
 
 
 Разработчик выделил GAP-014 в отдельный PR; FIX.01 выполняется от main
@@ -596,7 +598,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 | GAP-013 | gap | in_progress | P05.10 CI | Старый PR #77/a344278 Windows check упал в lost-reply fixture: backend status:error, код ошибки не записан, затем timeout unknown-result alert. Три полных локальных UI-прогона с диагностикой прошли; на финальном d3f98eb этот же Windows UI-сценарий и все восемь checks SUCCESS. Исходная причина и отсутствие периодических отказов не доказаны. Наблюдать повтор с error.code; не блокирует автономную API-приёмку P04/T07, UI T08 остаётся partial. EV-076/LOG-376. |
 | GAP-014 | gap | resolved | FIX.01 | Разделены calendar rollback и effective expiry по явному решению разработчика; детерминированная 1ms regression red→green, 15 clock tests OFF/ON, 279 Rust/23 client/оба Android ABI/Windows и IPC UI passed. PR #81/head 8bb5faf merged c04cf3c после 12 SUCCESS; ветка удалена, EV-081/LOG-430. Устранён доказанный механизм смешения отметок; первопричина дрейфа ОС runner не объявляется установленной. Реальный raw rollback остаётся отказом, доверие к ОС/ограничения offline/sleep прежние. PR #80 открыт и неизменён, другие GAP не закрываются. |
 | GAP-015 | gap | in_progress | P05.04 | Android shell e6306c3 дважды отменён общим budget 10m: первый job 129024561717 успел пройти сценарии/cleanup, повтор 129029057738 прерван в Markdown. JDK HTTP 504 не повторился; SDK/cache и последовательные ABI оставили недостаточный UI budget. x86_64/UI и arm64 build разделяются на обязательные jobs с тем же timeout/охватом; полный новый CI ожидается. EV-080/LOG-413. |
-| GAP-016 | gap | in_progress | P05.04 | e469ff3 Android shell 129102210052 после passed restart/editor получил 10000ms timeout strong «После ошибки» после UI-правки/закрытия/reopen. Job 8:04, не отменён; остальные 11 checks SUCCESS. На момент отказа нет DOM/card evidence; добавлены точная сверка card.read до закрытия и synthetic DOM/API диагностика без retries/ослабления assertions. Причина не доказана, новый native CI ожидается; EV-080/LOG-420. Блокирует интеграцию PR #80. |
+| GAP-016 | gap | in_progress | P05.04 | Android shell 2a0a13f/129155266651: точный edited исходник подтверждён card.read, но после close/reopen dialog=false и strong отсутствует; 10000ms timeout, job 8:03. Host regression воспроизвёл потерю единственного касания на движущемся target. Driver ждёт stable geometry/viewport и окончания aria-busy, без retry/DOM click/увеличения бюджета. Полный Windows ui:check и общий Markdown/native adapter passed; конкретный CI timing не доказан, новый native CI ожидается. EV-080/LOG-434. Блокирует интеграцию PR #80. |
 | BUG-008 | bug | resolved | P04.10 CI | Общие arm64 compilation/native execution на a344278 превысили guard поиска 30 секунд; локальная проверка этого не выявила. Исправлено: полный runner последователен, CI product-native/product-arm64 изолированы на разных hosts. На d3f98eb все 273 native tests (включая поиск), обе ABI/14 guards, полный UI/environment/negative-cleanup и все восемь checks SUCCESS; PR #77 интегрирован в 67c8e12. Guard и 10-минутные бюджеты сохранены; дополнительные runner-время/будущие cold-run сроки не гарантируются. EV-076/LOG-374–376. |
 | GAP-009 | gap | resolved | P04.02 CI | Совмещённый native дважды исчерпал 10 минут на aada64a. Разделение product-native/prototype-native сохранило все команды/guards/лимиты; на 7e711ea все четыре Android suites и aggregate SUCCESS (run 42276553193). Охват завершения Android подтверждён; финальные checks следующего head по-прежнему обязательны. EV-065/LOG-320/321. |
 | GAP-010 | gap | resolved | P04.02 CI | Linux дважды достиг 10 минут при font download с Azure. Смена только mirrorlist одноразового runner на Ubuntu HTTPS archives сохранила signed sources и --with-deps chromium. Финальный 479c456 прошёл Linux/Windows и всю Android-матрицу, raw logs подтвердили HTTPS-загрузки; PR #54 merged 889d4b0. Будущая доступность/время не гарантируются. EV-065/LOG-321/322. |
@@ -3747,3 +3749,17 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Полный product-check объединённого дерева passed: 279 Rust tests, 23 client/239 assertions, release/all targets/features, 7 unsafe guards и прежние OpenAPI/types/strict contract. Полный ui:check на Node baseline 24.22.1/Chromium passed, включая прежние lifecycle/editor/history/completion/IME/черновики/доставку и CommonMark. Общий Markdown сценарий отдельно passed desktop/light и mobile/dark/native touch/visibility adapters; это host proof, не новая Android Device приёмка.
 - Android/host routing guards и actionlint passed. Четыре посторонних dirty docs восстановлены побайтово; исходные 98 критериев/статусы и события журнала сохранены, добавлены FIX.01/LOG-426–430; очередь меняет только FIX.01/P05.04, EV-080 сохраняет исходные записи. В commit включается только текущая передача/состояние P05.04 и FIX.01, старые посторонние dirty записи остаются unstaged.
 - Clock source/product-core docs точно совпадают с main c04cf3c; UI исходники/сценарии/ABI workflow прежние относительно 131f068. Старые real media #80 сохраняют смысл, визуальный diff не менялся. Runtime проверка Android/обе ABI ожидаются в новом CI, локальный Device заново не запускался для clock-only base integration. Новый commit/push ещё ожидаются; P05.04/GAP-015/016 не закрыты. При новом HTTP 504 остановиться без retry/merge.
+
+### LOG-433 — 2026-11-09 — агент Codex, обновлённый #80 опубликован
+
+- Merge commit 2a0a13fb515498c9cb8d21000754de51dd1cd0b4 опубликован в PR #80 и сразу linked. Base c04cf3c, MERGEABLE, comments/reviews нет. В diff относительно main нет clock implementation/product-core изменений. При подготовке index журнал/очередь включили только текущую передачу P05.04/FIX.01 и её события; старые посторонние working records остались unstaged. Временный собственный stash удалён только после восстановления/проверки, полные backup/patch сохранены вне Git.
+- Body переписан по итоговому diff и прочитан обратно: title прежний, Summary/UI Changes/Changes/Testing/credit, два изображения/два видео сохранены; явно указано, что материалы сняты до clock-only обновления базы, UI sources/визуальный diff не менялись. Текущие локальные проверки и pending native CI разделены, старые отказы сохранены в EV-080.
+- Все 13 новых checks ещё ожидаются; старый failure 131f068 не подменяет новый результат. P05.04/GAP-015/016 не закрыты, GAP-014 resolved по отдельному #81. Далее оценить exact head CI и readiness, затем исходный merge/delete только при успехе. При новом HTTP 504 остановиться без retry/merge и выключить watch.
+
+### LOG-434 — 2026-11-09 — агент Codex, GAP-016: потерянное открытие и устойчивое касание
+
+- На head 2a0a13f все 13 checks завершены: 11 SUCCESS, Android shell 129155266651 failed и Android aggregate 129159029060 корректно повторил RESULT=failure. Shell занял 8:03, не отменён по 10m budget; clock/Windows и другие Android suites passed, новых HTTP 504 нет. Полные логи сохранены вне Git. Merge/delete/retry CI не выполнялись.
+- Перед отказом card.read подтвердил точный edited Markdown; диагностика после timeout показывает dialog=false, strong отсутствует и тот же сохранённый текст. Это несостоявшееся повторное открытие, а не доказанная потеря source или ошибка Markdown renderer. Старый драйвер измерял координаты один раз без ожидания layout/refresh. Host fixture с настоящим CDP touch, движущейся кнопкой и задержкой доставки в один кадр воспроизвёл потерю касания (0 clicks вместо 1); конкретный timing CI остаётся не доказан.
+- Перед единственным native touch теперь проверяются окончание ancestor aria-busy, одинаковая геометрия того же элемента/viewport на двух последовательных frames, visibility/enabled/hit target. Ожидание входит в прежние 10s, retries/DOM click/подмены DOM API нет. Постоянный regression в штатном host ui:check также проверяет pending refresh и ровно одно касание на действие. Native assertions, saved-source проверка, workflow/job бюджеты и продуктовые исходники не ослаблялись.
+- Полный Windows ui:check на Node baseline 24.22.1/Chromium passed: types/build/Clippy/три shell tests, настоящий HTTP lifecycle/editor/history/IME/drafts/delivery/completion/inverse и Markdown, плюс новый touch regression. Общий Markdown сценарий desktop/light и mobile/dark/native adapters прошёл отдельно. Routing guards Android/host и JS syntax passed. Это host proof; локальный Android Device заново не запускался, native/ABI результат должен дать новый CI. Product Rust/API/DDL/часы не менялись после прошедших 279 Rust/23 client на 2a0a13f, повтор полного product-check для harness-only правки не выполнялся.
+- Четыре посторонних dirty docs сохраняются побайтово; определения/статусы 98 критериев и прежняя история не меняются. EV-080/development/очередь актуализированы в scope P05.04. P05.04 verified, не done, GAP-015/016 пока открыты. Следующий шаг — commit/push в #80, затем все checks нового head и merge/delete только при успехе. При новом HTTP 504 выключить watch и остановиться без retry.

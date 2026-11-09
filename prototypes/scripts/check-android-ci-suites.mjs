@@ -65,10 +65,11 @@ for (const [target, owner] of [["x86_64", "shell"], ["aarch64", "shell-arm64"]])
 }
 const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
 assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell"]);
-for (const name of ["Prepare emulator runtime and KVM", "Check Android environment"]) {
-  const step = jobs.steps.find(step => step.name === name);
-  assert.deepEqual(suites.filter(suite => enabled(step, suite)), suites.filter(suite => suite !== "shell-arm64"));
-}
+const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
+assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), suites,
+  "Every compiler-failure preflight needs emulator libraries and KVM access");
+const environment = jobs.steps.find(step => step.name === "Check Android environment");
+assert.deepEqual(suites.filter(suite => enabled(environment, suite)), suites.filter(suite => suite !== "shell-arm64"));
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");
 assert.ok(enabled(dependencies, "shell-arm64"));
 assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == shell-arm64"));

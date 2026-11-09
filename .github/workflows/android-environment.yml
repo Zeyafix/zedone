@@ -233,7 +233,8 @@ jobs:
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
-        if: matrix.suite != 'shell-arm64'
+        # The build-only job also runs the shared compiler-failure preflight,
+        # which checks emulator dependencies and KVM before invoking rustc.
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libpulse0

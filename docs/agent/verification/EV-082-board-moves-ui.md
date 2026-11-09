@@ -287,7 +287,10 @@ test selectors/host coverage. Материалы PR остаются приме�
 ## Итог первого CI / GAP-019 — LOG-444
 
 Все 13 результатов `ce14756`: 10 SUCCESS, Android shell FAILURE,
-prototype-ui CANCELLED, Android aggregate FAILURE. Prototype-ui job
+prototype-ui CANCELLED, Android aggregate FAILURE. Отложенное уведомление
+перепроверено: aggregate `129262178491` штатно отклонил `RESULT=failure`;
+самостоятельной новой ошибки его log не содержит. PR уже на `c286cc4`,
+новые suites выполняются; старые failed jobs не перезапускались. Prototype-ui job
 `129256154235` шёл 15:29:04–15:39:10 UTC при прежнем 10m budget:
 `Check Android environment`, negative compiler/version/cleanup и disk usage
 завершены SUCCESS, отменён post-step Rust cache action. Raw log подтверждает
@@ -303,3 +306,52 @@ GAP-018 остаётся in_progress до нового native подтвержд
 и очереди остаются unstaged. Изображения/видео PR прежние: UI class marker
 не имеет CSS-правил и не меняет видимый интерфейс. Новый CI ещё не запущен,
 merge/delete не выполнялись.
+
+## Rename fix опубликован — LOG-445
+
+Commit `c286cc4aa74f2b7cc4a09ee665b26714cc9db1d0`
+`test(ui): select column rename without relying on button order` опубликован
+в том же [PR #82](https://github.com/Zeyafix/zedone/pull/82).
+Восемь связанных paths содержат marker, два selectors, общий host helper
+и evidence/docs; прежние dirty записи остаются unstaged. PR body прочитан
+обратно: новый точный head, прежние четыре attachments/English credit,
+локальные red→green/full suite и исходные CI failure/cancellation разделены
+с pending новым CI. Одиннадцать suites IN_PROGRESS, два aggregate ожидаются.
+GAP-018/019 пока не закрыты; все 13 SUCCESS и readiness обязательны перед
+порученным merge/delete. Source push после этого не добавлялся.
+
+## Первый экран c286cc4 — GAP-020 / LOG-446
+
+Android shell job [129269999734](https://github.com/Zeyafix/zedone/actions/runs/42649010874/job/129269999734)
+failed в самом первом `checkShell:78`: h2#connection-title «Доступ не настроен»
+не стал видимым за прежние 10s. До rename/domain/moves этот прогон не дошёл;
+подтверждения исправления GAP-018 из него не следует. Raw log сохранён
+как `pr82-shell-c286cc4.log`, артефактов состояния страницы у run нет.
+Причина startup отказа не доказана; HTTP 504 в логе нет.
+
+Все 13 checks c286cc4 завершены: 10 SUCCESS, shell/Android aggregate FAILURE,
+Linux CANCELLED. Prototype-ui нового head SUCCESS, но Linux job
+[129269963345](https://github.com/Zeyafix/zedone/actions/runs/42649010871/job/129269963345)
+15:52:26–16:02:29 UTC CANCELLED около 10m budget. Все его steps, включая
+настоящий product/prototype/shell HTTP/UI и post cleanup, отмечены SUCCESS;
+сырой log заканчивается штатной очисткой. Источник cancellation не доказан,
+весь job не объявляется successful, GAP-019 остаётся открыт. Workflow,
+лимиты и cache policy не меняются, старые CI runs не rerun.
+
+Перед штатной очисткой Android driver теперь собирает read-only DOM/IPC
+snapshot, текущий этап, последние page errors и ограниченный error log.
+Проекция session допускает только status, не credentials; 1s на session,
+3s на весь snapshot. Сбой диагностики не заменяет первоначальный test error.
+Повторы ввода, подмена UI/ответов, увеличение исходных timeouts не добавлены.
+Настоящие configured/unconfigured host Service проверяются постоянным
+ui:check. Отдельный локальный Chromium-контроль подтвердил native projection,
+sync/async rejection, оба deadline и closed page; synthetic key не попал
+в результат. Это проверка сборщика, не новая native Android приёмка.
+
+Полный Opera/Chrome ui:check диагностического дерева passed:
+`pr82-startup-diagnostics-ui.log`, exit 0, оба полных набора, shared workspace
+touch и configured/unconfigured проекция без credential key. JS syntax,
+Android/host routing guards и diff check passed. Новый native APK/Device
+для diagnostics-only правки не запускался; native результат нужен из CI.
+GAP-017 resolved, GAP-018/019/020 открыты; merge/delete ожидают успешный
+exact-head CI. Продукт, API/DDL, визуальный UI и четыре материала PR прежние.

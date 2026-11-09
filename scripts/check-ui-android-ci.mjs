@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 import { checkShell, checkWorkspaceTouch, nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
+import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
 import { waitForWebViewTarget } from "../prototypes/scripts/android-webview-target.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
@@ -85,15 +86,18 @@ async function dismissKeyboard() {
   }
   console.log("Android native Back hid the IME; checking form/board Back ordering next.");
 }
+let page, stage = "install";
+const errors = [];
 try {
   device("install", "-r", resolve(root, "ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"));
-  let page = await openWebView();
-  const errors = [];
+  stage = "unconfigured-shell";
+  page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
   await checkShell(page, () => device("shell", "input", "keyevent", "4"));
   assert.deepEqual(errors, [], "Shell must not raise page errors");
   console.log("Android shell: unconfigured session IPC, menu/Back, theme light/dark/reset/reload and layout passed.");
   await disconnect();
+  stage = "prepare-fixture";
   device("shell", "am", "force-stop", app);
   const fixture = Bun.spawnSync([resolve(root, "target/debug/examples/shell-fixture"), "--prepare", fixtureDirectory], { stdout: "pipe", stderr: "pipe" });
   assert.equal(fixture.exitCode, 0, "Synthetic fixture preparation must succeed");
@@ -103,9 +107,12 @@ try {
   device("shell", "run-as", app, "cp", "-r", remote, "product");
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
+  stage = "workspace";
   await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
   const { tap, fill, visible } = await nativeControls(page);
+  stage = "moves";
   await checkBoardMoves(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
+  stage = "markdown";
   await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
     for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
       await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), forbidden));
@@ -132,6 +139,12 @@ try {
     await page.waitForFunction(() => document.querySelector(".markdown-content") && !document.querySelector(".markdown-link-error"));
   } });
   assert.deepEqual(errors, [], "Domain UI must not raise page errors");
+} catch (error) {
+  // Capture before disconnect/cleanup destroys the native failure state.
+  console.error("Android shell failure state:", JSON.stringify({ stage, ...await shellDiagnosticState(page), pageErrors: errors.slice(-5) }));
+  try { console.error("Android shell error log:", device("logcat", "-d", "-t", "80", "-v", "brief", "chromium:E", "AndroidRuntime:E", "*:S").slice(0, 8000)); }
+  catch { console.error("Android shell error log: unavailable"); }
+  throw error;
 } finally {
   await disconnect();
   device("shell", "am", "force-stop", app);

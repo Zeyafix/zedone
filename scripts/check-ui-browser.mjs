@@ -11,6 +11,7 @@ import { checkNativeControls } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
+import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -72,6 +73,10 @@ try {
     page.on("request", request => { if (!request.url().startsWith(url)) external.push(request.url()); });
     await page.goto(url);
     await page.getByRole("heading", { name: "Доступ подтверждён", exact: true }).waitFor();
+    const configuredDiagnostic = await shellDiagnosticState(page);
+    assert.equal(configuredDiagnostic.session, "configured");
+    assert.equal(configuredDiagnostic.connection, "Доступ подтверждён");
+    assert.ok(!JSON.stringify(configuredDiagnostic).includes(JSON.parse(originalSession.toString()).key), "diagnostics must not expose credentials");
     if (process.env.UI_SCREENSHOT_DIRECTORY) await page.screenshot({ path: resolve(process.env.UI_SCREENSHOT_DIRECTORY, "shell-desktop.png"), fullPage: true });
     assert.equal(await page.evaluate(() => localStorage.length), 0, "no cached notes, rights, keys or lists");
     await checkWorkspace(page, url, JSON.parse(originalSession.toString()));
@@ -133,6 +138,9 @@ try {
     await rename(sessionPath, `${sessionPath}.saved`);
     await page.getByRole("button", { name: "Проверить снова", exact: true }).click();
     await page.getByRole("heading", { name: "Доступ не настроен", exact: true }).waitFor();
+    const unconfiguredDiagnostic = await shellDiagnosticState(page);
+    assert.equal(unconfiguredDiagnostic.session, "unconfigured");
+    assert.equal(unconfiguredDiagnostic.connection, "Доступ не настроен");
     await rename(`${sessionPath}.saved`, sessionPath);
     const invalid = JSON.parse(originalSession.toString());
     invalid.key = "0".repeat(64);

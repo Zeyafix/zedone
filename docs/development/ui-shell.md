@@ -336,3 +336,18 @@ host-набора `check-ui-workspace-touch.mjs` вызывает тот же п
 Escape/history адаптируют только закрытие диалога/переход доски для host,
 а настоящие системные действия сохраняются в Android CI. Таймауты,
 проверки видимости/геометрии/hit target/одного касания не меняются.
+
+При отказе Android shell драйвер до disconnect/force-stop/cleanup сохраняет
+этап сценария, URL/readyState, наличие Vue mount и Tauri bridge, connection
+heading/aria-busy, ограниченный список headings/alerts/scripts и page errors.
+`check-ui-diagnostics.mjs` читает только статус `shell_session` (либо
+`/host/session` в host-проверке): configured/unconfigured/unavailable,
+invalid/rejected/timeout. Ключи и полный session object не возвращаются;
+поля ввода и persisted intentions не читаются. Ожидание статуса ограничено
+1s, всей диагностики — 3s; исходная ошибка пробрасывается после сбора.
+Дополнительно читаются последние error-level Chromium/AndroidRuntime logs
+этой синтетической CI-установки. Диагностика не повторяет действия и не меняет
+таймауты/assertions сценария или job budget. Host-набор проверяет настоящий
+configured/unconfigured Service и отсутствие credential key в проекции.
+Причина первого native startup отказа c286cc4 пока не доказана —
+[EV-082, GAP-020](../agent/verification/EV-082-board-moves-ui.md#первый-экран-c286cc4--gap-020--log-446).

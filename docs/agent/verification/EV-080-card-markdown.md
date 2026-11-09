@@ -193,3 +193,44 @@ debug fixture проверены. Публичные DTO/схема/полити
 и лимиты не менялись. Native Android CI новых ожиданий ещё ожидается;
 clock rejection не объявляется исправленным. Device заново не запускался
 для изменения тестового ожидания/opt-in debug trace.
+
+## Head e6306c3 — LOG-410
+
+Опубликован e6306c3842ba7827f58640b20473ea2abacaf309. Новый полный CI ожидается.
+Исправлен native Android wait, расширена только opt-in debug диагностика
+часов; время/доступ не ослаблены, причина GAP-014 пока не доказана.
+Условие остановки при повторном HTTP 504 сохраняется.
+
+## Первый e6306c3 CI и единичный повтор — LOG-412
+
+Десять checks SUCCESS, включая Windows shell. Android shell 129024561717
+отменён общим лимитом job 10m0s, подтверждённым check annotation; aggregate
+129027841660 корректно failed. При этом обе ABI, полный настоящий Android
+Markdown/IPC/editor/Back/отказы/cleanup и все записанные steps success.
+Это не whole-job успех: исходный cancelled результат сохраняется.
+HTTP 504 не повторился. На том же head запрошен ровно один повтор shell
+и зависимого aggregate, без изменения таймаутов/assertions/охвата/политики
+кэша. Итог повторного job ещё ожидается; GAP-014 не объявляется исправленным.
+
+## Повтор timeout и разделение ABI — LOG-413 / GAP-015
+
+Единичный повтор shell 129029057738 на e6306c3 снова cancelled по общему
+budget 10m0s; теперь отмена пришла внутри Markdown, до negative cleanup step.
+SDK setup 2:23/cache 0:51/последовательные ABI+host 4:05 оставили недостаточный
+runtime budget. Новый HTTP 504 не зарегистрирован. Оба исходных результата
+сохранены; дальнейших слепых повторов нет. Aggregate 129032523058 failed.
+
+Shell x86_64/host fixture/полный IPC/UI набор и arm64 APK build разделены на
+независимые обязательные jobs. Общий Android aggregate требует всех шести
+suites; каждый job сохраняет 10m. Runtime/KVM запускается в прежних пяти
+suites, build-only shell-arm64 не запускает эмулятор; negative compiler/
+version/cleanup guards сохранены во всех. Source/build scripts/версии/cache
+writers/permissions/assertions не менялись. Один дополнительный runner
+повторяет подготовку; суммарная стоимость не измерялась, новый CI ожидается.
+
+Штатные routing guards проверили точное владение обеими ABI, lockfile/JS
+подготовку, runtime boundary, обязательность aggregate и прежние failures/
+signals/default/native modes. Тела настоящих Bash build/dependency steps
+проверены на CLI-фикстурах для обеих новых suites; actionlint/host guard/diff
+passed. Локальные product/UI/обе ABI из LOG-409 сохраняют охват неизменённых
+исходников; нужны все 13 checks нового head. GAP-014 не объявляется исправленным.

@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell]
+        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -85,7 +85,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell') && 'gradle' || '' }}
+          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell' || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -180,11 +180,11 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell'
+        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || matrix.suite == 'shell-arm64'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)
-          if [[ '${{ matrix.suite }}' == shell ]]; then
+          if [[ '${{ matrix.suite }}' == shell || '${{ matrix.suite }}' == shell-arm64 ]]; then
             cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
           else
             cargo "+$rust" fetch --locked
@@ -216,19 +216,24 @@ jobs:
         if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: bun run android:build aarch64
-      - name: Build product UI shell for both Android ABIs
+      - name: Build x86_64 UI shell and host fixture for device checks
         if: matrix.suite == 'shell'
         run: |
           chmod +x ui/src-tauri/gen/android/gradlew
           bun scripts/build-ui-android.mjs x86_64
-          bun scripts/build-ui-android.mjs aarch64
           rust=$(jq -r .rust scripts/environment-versions.json)
           CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
+      - name: Build arm64 UI shell on a separate runner
+        if: matrix.suite == 'shell-arm64'
+        run: |
+          chmod +x ui/src-tauri/gen/android/gradlew
+          bun scripts/build-ui-android.mjs aarch64
       - name: Check host Automerge probe
         if: matrix.suite == 'prototype-native'
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
+        if: matrix.suite != 'shell-arm64'
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libpulse0
@@ -239,6 +244,7 @@ jobs:
           sudo udevadm settle --timeout=10
           test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
+        if: matrix.suite != 'shell-arm64'
         run: |
           shellcheck scripts/check-android-environment.sh
           bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'

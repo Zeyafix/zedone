@@ -1,5 +1,5 @@
 //! The clock and command share a writer lock. Failed work rolls back to a
-//! savepoint while its observed time survives in the enclosing transaction.
+//! savepoint while its calendar and effective time survive in the transaction.
 use std::{
     cell::Cell,
     panic::AssertUnwindSafe,
@@ -34,7 +34,7 @@ pub(crate) fn millis(time: SystemTime) -> CommandResult<i64> {
 }
 
 pub(crate) fn seed(tx: &rusqlite::Transaction<'_>) -> StorageResult<()> {
-    tx.execute("INSERT INTO access_clock VALUES (1, 0)", [])?;
+    tx.execute("INSERT INTO access_clock VALUES (1, 0, 0)", [])?;
     Ok(())
 }
 
@@ -45,7 +45,8 @@ pub(crate) fn validate(connection: &Connection) -> StorageResult<()> {
 
 fn validate_clock(connection: &Connection) -> StorageResult<()> {
     let count: i64 = connection.query_row(
-        "SELECT count(*) FROM access_clock WHERE singleton = 1 AND observed_ms >= 0",
+        "SELECT count(*) FROM access_clock
+         WHERE singleton = 1 AND calendar_ms >= 0 AND effective_ms >= calendar_ms",
         [],
         |r| r.get(0),
     )?;
@@ -59,16 +60,17 @@ fn validate_clock(connection: &Connection) -> StorageResult<()> {
 pub struct TransactionClock<'a> {
     source: &'a dyn Fn() -> CommandResult<SystemTime>,
     timeline: &'a std::sync::Mutex<Option<(Instant, i64)>>,
-    observed: Cell<i64>,
+    calendar: Cell<i64>,
+    effective: Cell<i64>,
     deadline: Cell<Option<SystemTime>>,
 }
 
 impl Clock for TransactionClock<'_> {
     fn now(&self) -> CommandResult<SystemTime> {
         let wall = millis((self.source)()?)?;
-        // Backward movement below any previously observed calendar time fails
-        // closed. A monotonic floor also prevents extending running operations.
-        if wall < self.observed.get() {
+        // Detect actual calendar rollback, not drift below a monotonic projection.
+        // The independent effective floor still limits access on a frozen wall.
+        if wall < self.calendar.get() {
             #[cfg(debug_assertions)]
             if std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
                 == Some(std::ffi::OsStr::new("1"))
@@ -78,8 +80,9 @@ impl Clock for TransactionClock<'_> {
                 // turn a failed stderr write into a different command result.
                 let _ = writeln!(
                     std::io::stderr().lock(),
-                    "Trusted clock rejected calendar: wall_ms={wall} observed_ms={}",
-                    self.observed.get()
+                    "Trusted clock rejected calendar: wall_ms={wall} calendar_ms={} effective_ms={}",
+                    self.calendar.get(),
+                    self.effective.get()
                 );
             }
             return Err(unavailable());
@@ -99,13 +102,14 @@ impl Clock for TransactionClock<'_> {
             }
             None => wall,
         };
-        let now = wall.max(projected);
-        if timeline.is_none() || wall > projected {
-            // Rebase forward jumps; otherwise a later frozen wall clock could
-            // extend access until the old monotonic anchor caught up.
+        let now = wall.max(projected).max(self.effective.get());
+        if timeline.is_none() || now > projected {
+            // Also rebase a persisted floor advanced by another worker. Starting
+            // below that floor could freeze effective time until it caught up.
             *timeline = Some((instant, now));
         }
-        self.observed.set(now);
+        self.calendar.set(wall);
+        self.effective.set(now);
         UNIX_EPOCH
             .checked_add(Duration::from_millis(now as u64))
             .ok_or_else(unavailable)
@@ -150,15 +154,16 @@ impl Storage {
         self.run(move |connection| {
             let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
             registry.check_version(&tx)?;
-            let persisted: i64 = tx.query_row(
-                "SELECT observed_ms FROM access_clock WHERE singleton = 1",
+            let (calendar, effective): (i64, i64) = tx.query_row(
+                "SELECT calendar_ms, effective_ms FROM access_clock WHERE singleton = 1",
                 [],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
             let clock = TransactionClock {
                 source: &source,
                 timeline: &anchor,
-                observed: Cell::new(persisted),
+                calendar: Cell::new(calendar),
+                effective: Cell::new(effective),
                 deadline: Cell::new(None),
             };
             // Take an initial reading even for denied or failed work. Malformed
@@ -178,8 +183,9 @@ impl Storage {
             }
             tx.execute_batch("RELEASE command_work")?;
             tx.execute(
-                "UPDATE access_clock SET observed_ms = max(observed_ms, ?1) WHERE singleton = 1",
-                [clock.observed.get()],
+                "UPDATE access_clock SET calendar_ms = max(calendar_ms, ?1),
+                    effective_ms = max(effective_ms, ?2) WHERE singleton = 1",
+                [clock.calendar.get(), clock.effective.get()],
             )?;
             tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
             outcome

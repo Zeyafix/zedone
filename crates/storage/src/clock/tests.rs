@@ -447,22 +447,50 @@ async fn a_queued_operation_uses_time_after_waiting_on_the_writer() {
 }
 
 #[test]
+fn advancing_calendar_below_the_monotonic_projection_remains_available() {
+    let raw = Cell::new(1_000_000_u64);
+    let wall = || Ok(UNIX_EPOCH + Duration::from_millis(raw.get()));
+    let timeline = std::sync::Mutex::new(Some((
+        Instant::now() - Duration::from_millis(10),
+        1_000_000,
+    )));
+    let clock = TransactionClock {
+        source: &wall,
+        timeline: &timeline,
+        calendar: Cell::new(0),
+        effective: Cell::new(0),
+        deadline: Cell::new(None),
+    };
+    let effective = millis(clock.now().unwrap()).unwrap();
+    raw.set((effective - 1) as u64);
+    assert!(raw.get() > 1_000_000, "calendar strictly advanced");
+    assert!(millis(clock.now().unwrap()).unwrap() >= effective);
+    raw.set(raw.get() - 1);
+    assert_eq!(clock.now(), Err(unavailable()), "real rollback still fails");
+}
+
+#[test]
 fn forward_jump_rebases_the_monotonic_floor_and_a_frozen_wall_cannot_extend_access() {
     let timeline = std::sync::Mutex::new(Some((Instant::now() - Duration::from_secs(1), 10)));
     let wall = || Ok(UNIX_EPOCH + Duration::from_millis(1_000_000));
     let clock = TransactionClock {
         source: &wall,
         timeline: &timeline,
-        observed: Cell::new(0),
+        calendar: Cell::new(0),
+        effective: Cell::new(0),
         deadline: Cell::new(None),
     };
     clock.now().unwrap();
     assert_eq!(timeline.lock().unwrap().unwrap().1, 1_000_000);
     *timeline.lock().unwrap() = Some((Instant::now() - Duration::from_secs(10), 1_000_000));
     assert!(clock.now().unwrap() >= UNIX_EPOCH + Duration::from_millis(1_010_000));
-    assert!(
-        clock.now().is_err(),
-        "frozen calendar is behind observed monotonic time"
+    assert!(clock.now().unwrap() >= UNIX_EPOCH + Duration::from_millis(1_010_000));
+    assert_eq!(
+        clock.check_expiry(Some(UNIX_EPOCH + Duration::from_millis(1_005_000))),
+        Err(CommandError {
+            code: ErrorCode::AccessDenied
+        }),
+        "a frozen calendar cannot extend access past the monotonic deadline"
     );
 }
 
@@ -487,4 +515,211 @@ async fn independent_workers_recheck_the_same_watermark_and_corruption_fails_sta
         Storage::open(&path).await.err(),
         Some(StorageError::InvalidDatabase)
     );
+}
+
+async fn clock_marks(storage: &Storage) -> (i64, i64) {
+    storage
+        .run(|connection| {
+            Ok(connection.query_row(
+                "SELECT calendar_ms, effective_ms FROM access_clock",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?)
+        })
+        .await
+        .unwrap()
+}
+
+fn fixed_source(wall: u64) -> impl Fn() -> CommandResult<SystemTime> + Send + 'static {
+    move || Ok(UNIX_EPOCH + Duration::from_millis(wall))
+}
+
+#[tokio::test]
+async fn monotonic_expiry_on_frozen_calendar_survives_restart() {
+    let (dir, storage, admin, _) = setup().await;
+    let member = Arc::new(PendingAccess::generate().unwrap());
+    let (a, m) = (admin.clone(), member.clone());
+    storage
+        .timed_with_source(fixed_source(1_000_000), move |ctx, clock| {
+            ctx.issue_access(
+                &a.credential(),
+                clock,
+                &m,
+                &GrantScope::Administration,
+                Some(UNIX_EPOCH + Duration::from_millis(1_050_000)),
+            )
+        })
+        .await
+        .unwrap();
+    *storage.clock_anchor.lock().unwrap() =
+        Some((Instant::now() - Duration::from_secs(60), 1_000_000));
+    let key = member.credential().0.to_vec();
+    let expired = storage
+        .timed_with_source(fixed_source(1_000_000), move |ctx, clock| {
+            Ok(with_authorized(
+                ctx,
+                &Credential(&key),
+                &[RequiredAccess::ManageAccess],
+                clock,
+                |_, _| -> CommandResult<()> { panic!("expired work must not run") },
+            )?)
+        })
+        .await;
+    assert_eq!(
+        expired,
+        Err(StorageError::Rejected(CommandError {
+            code: ErrorCode::AccessDenied,
+        }))
+    );
+    let before = clock_marks(&storage).await;
+    assert_eq!(before.0, 1_000_000);
+    assert!(before.1 >= 1_060_000);
+    storage.shutdown().await.unwrap();
+    let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
+    let key = member.credential().0.to_vec();
+    assert_eq!(
+        storage
+            .timed_with_source(fixed_source(1_000_000), move |ctx, clock| {
+                // Equal calendar time is valid, but does not revive the key.
+                Ok(with_authorized(
+                    ctx,
+                    &Credential(&key),
+                    &[RequiredAccess::ManageAccess],
+                    clock,
+                    |_, _| -> CommandResult<()> { panic!("restart must not revive access") },
+                )?)
+            })
+            .await,
+        expired
+    );
+    assert!(clock_marks(&storage).await.1 >= before.1);
+    assert_eq!(
+        storage
+            .timed_with_source(fixed_source(999_999), |_, _| -> StorageResult<()> {
+                panic!("calendar rollback must fail before work")
+            })
+            .await,
+        Err(StorageError::Rejected(unavailable()))
+    );
+}
+
+#[tokio::test]
+async fn frozen_calendar_expiry_at_commit_rolls_back_work_but_keeps_effective_time() {
+    let (_dir, storage, _, _) = setup().await;
+    assert_eq!(
+        storage
+            .timed_with_source(fixed_source(1_000_000), |ctx, clock| {
+                clock.check_expiry(Some(UNIX_EPOCH + Duration::from_millis(1_050_000)))?;
+                ctx.edit("a", |tx| {
+                    tx.put(ROOT, "title", "must roll back at the final gate")?;
+                    Ok(())
+                })?;
+                ctx.record(
+                    b"frozen-expiry",
+                    &crate::RecordedResult {
+                        request: vec![1],
+                        result: vec![2],
+                    },
+                )?;
+                *clock.timeline.lock().unwrap() =
+                    Some((Instant::now() - Duration::from_secs(60), 1_000_000));
+                Ok(())
+            })
+            .await,
+        Err(StorageError::Rejected(CommandError {
+            code: ErrorCode::AccessDenied,
+        }))
+    );
+    let marks = clock_marks(&storage).await;
+    assert_eq!(marks.0, 1_000_000);
+    assert!(marks.1 >= 1_060_000);
+    storage
+        .read(|ctx| {
+            assert!(ctx.document("a")?.get(ROOT, "title")?.is_none());
+            assert!(ctx.recorded(b"frozen-expiry")?.is_none());
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn independent_workers_preserve_both_marks_and_rebase_effective_time() {
+    let (dir, storage, _, _) = setup().await;
+    let other = Storage::open(dir.path().join("device.db")).await.unwrap();
+    *storage.clock_anchor.lock().unwrap() =
+        Some((Instant::now() - Duration::from_secs(20), 1_000_000));
+    storage
+        .timed_with_source(fixed_source(1_000_000), |_, _| Ok(()))
+        .await
+        .unwrap();
+    let first = clock_marks(&storage).await;
+    assert_eq!(first.0, 1_000_000);
+    assert!(first.1 >= 1_020_000);
+    other
+        .timed_with_source(fixed_source(1_000_009), |_, _| Ok(()))
+        .await
+        .unwrap();
+    assert!(other.clock_anchor.lock().unwrap().unwrap().1 >= first.1);
+    *other.clock_anchor.lock().unwrap() = Some((Instant::now() - Duration::from_secs(2), first.1));
+    other
+        .timed_with_source(fixed_source(1_000_009), |_, _| Ok(()))
+        .await
+        .unwrap();
+    let second = clock_marks(&other).await;
+    assert_eq!(second.0, 1_000_009);
+    assert!(second.1 >= first.1 + 2_000);
+    storage
+        .timed_with_source(fixed_source(1_000_009), |_, _| Ok(()))
+        .await
+        .unwrap();
+    assert!(storage.clock_anchor.lock().unwrap().unwrap().1 >= second.1);
+    assert_eq!(
+        other
+            .timed_with_source(fixed_source(1_000_008), |_, _| -> StorageResult<()> {
+                panic!("another worker must observe calendar rollback")
+            })
+            .await,
+        Err(StorageError::Rejected(unavailable()))
+    );
+}
+
+#[tokio::test]
+async fn failure_and_panic_preserve_separate_marks_without_partial_work() {
+    for panic in [false, true] {
+        let (dir, storage, _, _) = setup().await;
+        *storage.clock_anchor.lock().unwrap() =
+            Some((Instant::now() - Duration::from_secs(20), 1_000_000));
+        assert!(
+            storage
+                .timed_with_source(
+                    fixed_source(1_000_009),
+                    move |ctx, _| -> StorageResult<()> {
+                        ctx.edit("a", |tx| {
+                            tx.put(ROOT, "title", "discard")?;
+                            Ok(())
+                        })?;
+                        if panic {
+                            panic!("controlled failure with a separated effective floor");
+                        }
+                        Err(StorageError::Unavailable)
+                    }
+                )
+                .await
+                .is_err()
+        );
+        let marks = clock_marks(&storage).await;
+        assert_eq!(marks.0, 1_000_009);
+        assert!(marks.1 >= 1_020_000);
+        storage.shutdown().await.unwrap();
+        let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
+        storage
+            .timed_with_source(fixed_source(1_000_009), move |ctx, clock| {
+                assert!(ctx.read().document("a")?.get(ROOT, "title")?.is_none());
+                assert!(millis(clock.now()?)? >= marks.1);
+                Ok(())
+            })
+            .await
+            .unwrap();
+    }
 }

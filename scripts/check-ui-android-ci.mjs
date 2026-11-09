@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { chromium } from "playwright";
 import { checkShell, checkWorkspaceTouch, nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
+import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { waitForWebViewTarget } from "../prototypes/scripts/android-webview-target.mjs";
 
 assert.equal(process.env.CI, "true", "Local checks must use Device/agent-device");
@@ -104,6 +105,7 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
   const { tap, fill, visible } = await nativeControls(page);
+  await checkBoardMoves(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
   await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
     for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
       await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), forbidden));

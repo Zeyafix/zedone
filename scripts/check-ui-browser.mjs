@@ -8,6 +8,8 @@ import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 import { checkNativeControls } from "./check-ui-native-controls.mjs";
+import { checkBoardMoves } from "./check-ui-moves.mjs";
+import { nativeControls } from "./check-ui-android-scenarios.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -34,9 +36,17 @@ try {
   const originalSession = await readFile(sessionPath);
   const paths = process.env.UI_BROWSER_PATHS ? JSON.parse(process.env.UI_BROWSER_PATHS) : [undefined];
   for (const executablePath of paths) {
-    browser = await chromium.launch({ executablePath, headless: true });
+    // Opera's headless compositor can throttle undrawn frames to 1 Hz. Keep
+    // real animation frames running for the 24-frame native-touch regression;
+    // its geometry/hit-target assertions and 10s deadline stay unchanged.
+    const launchOptions = { executablePath, headless: true, args: ["--disable-frame-rate-limit"] };
+    browser = await chromium.launch(launchOptions);
     console.log(`UI browser: ${browser.version()}`);
     await checkNativeControls(browser);
+    // This synthetic CDP fixture leaves Opera suppressing later link popups,
+    // even in fresh contexts. Isolate its browser-wide input state from the UI.
+    await browser.close();
+    browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "light" });
     const page = await context.newPage();
     diagnosticPage = page;
@@ -66,6 +76,15 @@ try {
     await checkWorkspace(page, url, JSON.parse(originalSession.toString()));
     await checkCards(page, url, JSON.parse(originalSession.toString()));
     await checkEditor(page, url, JSON.parse(originalSession.toString()));
+    await checkBoardMoves(page);
+    const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
+    try {
+      const movesTouchPage = await movesTouchContext.newPage();
+      movesTouchPage.on("pageerror", error => errors.push(error.message));
+      await movesTouchPage.goto(url);
+      const { tap } = await nativeControls(movesTouchPage);
+      await checkBoardMoves(movesTouchPage, { tap });
+    } finally { await movesTouchContext.close(); }
     // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);
     const markdownContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark" });

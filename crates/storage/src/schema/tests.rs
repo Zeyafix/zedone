@@ -42,10 +42,14 @@ async fn only_initial_schema_is_registered_and_new_installation_needs_no_backup(
             .unwrap();
         assert_eq!(count, 0, "new installation must not invent access");
     }
-    let observed: i64 = connection
-        .query_row("SELECT observed_ms FROM access_clock", [], |r| r.get(0))
+    let clock: (i64, i64) = connection
+        .query_row(
+            "SELECT calendar_ms, effective_ms FROM access_clock",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
         .unwrap();
-    assert_eq!(observed, 0);
+    assert_eq!(clock, (0, 0));
     assert!(
         fs::read_dir(root.path())
             .unwrap()
@@ -95,6 +99,29 @@ async fn previous_development_schemas_are_rejected_without_migration_or_reset() 
     }
 }
 
+#[tokio::test]
+async fn previous_single_clock_layout_is_rejected_without_writes() {
+    let (_dir, path) = fixture();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute_batch(
+            "DROP TABLE access_clock;
+             CREATE TABLE access_clock (
+                 singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
+                 observed_ms INTEGER NOT NULL CHECK(observed_ms >= 0)
+             ) STRICT, WITHOUT ROWID;
+             INSERT INTO access_clock VALUES (1, 42);",
+        )
+        .unwrap();
+    connection.close().unwrap();
+    let before = durable_files(&path);
+    assert_eq!(
+        Storage::open(&path).await.err(),
+        Some(StorageError::InvalidDatabase)
+    );
+    assert_eq!(durable_files(&path), before);
+}
+
 // SHM contains SQLite's transient reader locks, not authoritative DB/WAL data.
 fn durable_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
     ["", "-wal", "-journal"]
@@ -117,7 +144,7 @@ async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "b87df5f3879df1ecf932ef515f231ccc62f7654780d18bf0ea85abff74734083"
+        "bd624dc6f7e525300970b94e6a6b74175bf1e8e5ed010d8ecc6145c33ec01d86"
     );
     let (_root, path) = fixture();
     let storage = Storage::open(&path).await.unwrap();

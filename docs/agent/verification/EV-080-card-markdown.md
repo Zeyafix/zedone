@@ -361,3 +361,85 @@ textarea/focus/visibility) и сохранённые descriptions через т�
 Это не Android Device acceptance. Product source/API/clock policy прежние;
 Device для диагностической правки заново не запускался. Новый CI должен
 подтвердить сценарий либо дать evidence для точечного исправления GAP-016.
+
+## Текущие отказы 131f068 — LOG-422
+
+Windows shell [129107549515](https://github.com/Zeyafix/zedone/actions/runs/42601715418/job/129107549515)
+failed ещё в прежнем checkCards: несколько space.read/card.list получили
+unavailable. Debug trace подтвердил GAP-014: raw wall на 1ms ниже observed,
+при этом последние восемь raw samples не уменьшаются. Например,
+wall=1794220782770/observed=1794220782771; это не доказательство отката ОС.
+Ошибка checkCards:106 — error вместо ok. Политика ADR-0038 прямо отклоняет
+календарь ниже observed; её ослабление либо изменение тестов не выполняется.
+Уточнён scope исправления часов: отдельный PR или текущий #80; ответ разработчика
+ожидается. Это не разрешение слить с failed checks.
+
+Android prototype-ui [129107549187](https://github.com/Zeyafix/zedone/actions/runs/42601715411/job/129107549187)
+прошёл environment/Activity recreation/подключение WebView и упал в
+qr-scenarios:67: screenshot Timeout 10000ms при независимом декодировании QR.
+Это повтор наблюдаемого GAP-012, без изменения QR source/assertions/timeouts.
+GAP-014 и GAP-012 требуют отдельных причин; общий инфраструктурный корень
+не доказан. HTTP 504 в двух полных логах не зарегистрирован.
+
+На момент уведомления Android shell с диагностикой GAP-016 ещё выполнялся,
+как и часть других jobs. Его результат и оба aggregate не приняты заранее.
+Оба failed лога сохранены вне Git. Новые commits/push/retry не выполнялись,
+чтобы не отменять незавершённый диагностический запуск. Watch остаётся включённым;
+следующее действие — получить завершённый shell evidence и решение о scope часов.
+
+## Итог текущего CI и передача решения — LOG-423
+
+Head 131f068: Android shell 129107549798 целиком SUCCESS, 10:33:33–10:41:30
+UTC (7:57). В 10:41:07 лог подтвердил полный Card Markdown, точный исходник
+после UI-правки, hide/retry/reload/completion/reverse и обратную агентскую
+правку. Шаг negative compiler/version/cleanup и все post steps success.
+Это новый native результат; он не доказывает причину прежнего GAP-016:
+добавленная card.read сверка могла изменить timing, продукт не исправлялся.
+Отделённая arm64 сборка также SUCCESS, общий 10m budget сохранён.
+
+Все 13 checks завершились: девять SUCCESS, два непосредственных failure
+(Android prototype-ui screenshot и Windows shell clock) и два корректно
+failed aggregate. Полный CI не принят, merge/delete не выполняются.
+GAP-012/014/015/016 пока не закрываются; scope clock fix ожидает ответа.
+Новых исходников/коммитов/push/retry нет. Результаты и ограничения PR body
+актуализируются; watch выключается для передачи решения разработчику.
+
+## Запоздавшие aggregate уведомления — LOG-424
+
+Проверены оба итоговых jobs того же head 131f068: Android 129111031637
+и Windows 129111216058. Оба выполнили только строгую проверку RESULT=failure
+и корректно завершились exit 1; самостоятельных новых ошибок и HTTP 504 нет.
+Это итог уже разобранных QR screenshot/clock отказов, не новый CI attempt.
+Новых commit/push/retry/merge/delete нет. Повторный unwatch подтвердил
+wasWatching=false/watching=false: уведомление пришло после выключения watch.
+Ожидается прежний ответ разработчика о scope исправления часов.
+
+
+## Обновление из main — LOG-431
+
+В PR #80 включается main c04cf3c с FIX.01/PR #81: календарный rollback и
+effective expiry разделены по разрешённому договору. Clock source и
+product-core docs взяты без изменений из проверенного main; временная
+диагностика восьми raw samples удалена из feature diff. Остальные UI/Markdown/
+CI сценарии и лимиты прежние. Исходные dirty docs сохранены; журнал содержит
+прежнюю историю и FIX.01/LOG-426–430. Новый полный CI ещё не пройден,
+P05.04 не done; GAP-015/016 не закрыты автоматически. Следующий шаг —
+локальные product/UI checks объединённого кода и публикация обновлённого head.
+При новом HTTP 504 остановиться без retry/merge.
+
+## Локальная проверка после включения FIX.01 — LOG-432
+
+Полный product-check passed: 279 Rust tests, 23 client/239 assertions,
+release всех targets/features, 7 unsafe guards, OpenAPI/types/strict contract.
+Полный Windows ui:check на Node baseline 24.22.1 passed с прежними workspace/
+card/editor/history/completion/delivery и CommonMark сценариями. Общий Markdown
+отдельно passed с desktop/light и mobile/dark/native touch/visibility adapters;
+это host proof, не локальная Device acceptance нового head.
+
+Routing guards обоих CI и actionlint passed. Проверены побайтовая сохранность
+четырёх посторонних dirty docs, все 98 критериев/статусы и прежние события,
+добавление FIX.01 без подмены P05.04 и полнота исходных записей EV-080.
+Clock implementation/product-core docs совпадают с проверенным main c04cf3c.
+UI/Markdown источники и существующие медиа визуального diff не менялись;
+локальная Device-проверка выше сохраняет охват неизменённого viewer.
+Полный новый CI/ABI/native UI ещё ожидается; старые failures сохраняются.

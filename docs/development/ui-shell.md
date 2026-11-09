@@ -228,4 +228,8 @@ CommonMark, буквальный HTML/XSS, точный исходник/ист�
 сохраняет запрет неожиданных внешних запросов. Android CI использует тот же
 сценарий с native touch и проверяет native-отказ другим схемам, ошибку bridge
 и реальный внешний ACTION_VIEW. Локальная Android-приёмка — только Device.
+Для ожидания Markdown на Android сценарий получает штатный nativeControls.visible:
+обычный Playwright locator.waitFor использует отсутствующий в WebView 101
+element.checkVisibility. Проверки стилей/размера и native touch сохраняются;
+полнота сценария/таймауты не меняются, подмены DOM API нет.
 Доказательства и ограничения: [EV-080](../agent/verification/EV-080-card-markdown.md).

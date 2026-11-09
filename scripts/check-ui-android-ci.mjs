@@ -86,8 +86,8 @@ try {
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));
   await checkWorkspaceTouch(page, () => device("shell", "input", "keyevent", "4"), dismissKeyboard);
-  const { tap, fill } = await nativeControls(page);
-  await checkCardMarkdown(page, { tap, fill, dismissKeyboard, external: async (url, click) => {
+  const { tap, fill, visible } = await nativeControls(page);
+  await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
     for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {
       await assert.rejects(page.evaluate(url => window.__TAURI_INTERNALS__.invoke("plugin:opener|open_url", { url }), forbidden));
     }

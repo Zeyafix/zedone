@@ -33,6 +33,36 @@ pub(crate) fn millis(time: SystemTime) -> CommandResult<i64> {
     .map_err(|_| unavailable())
 }
 
+#[cfg(debug_assertions)]
+fn trace_calendar(wall: i64, observed: i64) {
+    use std::{cell::RefCell, collections::VecDeque, io::Write};
+    // Each Storage connection owns a dedicated worker thread. Keep only its
+    // last eight raw samples; opt-in is read once when that worker first runs.
+    thread_local! {
+        static SAMPLES: Option<RefCell<VecDeque<i64>>> =
+            (std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
+                == Some(std::ffi::OsStr::new("1")))
+                .then(|| RefCell::new(VecDeque::with_capacity(8)));
+    }
+    SAMPLES.with(|samples| {
+        let Some(samples) = samples else { return };
+        let Ok(mut samples) = samples.try_borrow_mut() else {
+            return;
+        };
+        if samples.len() == 8 {
+            samples.pop_front();
+        }
+        samples.push_back(wall);
+        if wall < observed {
+            // Debug diagnostics never change the clock or command result.
+            let _ = writeln!(
+                std::io::stderr().lock(),
+                "Trusted clock rejected calendar: wall_ms={wall} observed_ms={observed} recent_wall_ms={samples:?}"
+            );
+        }
+    });
+}
+
 pub(crate) fn seed(tx: &rusqlite::Transaction<'_>) -> StorageResult<()> {
     tx.execute("INSERT INTO access_clock VALUES (1, 0)", [])?;
     Ok(())
@@ -66,22 +96,11 @@ pub struct TransactionClock<'a> {
 impl Clock for TransactionClock<'_> {
     fn now(&self) -> CommandResult<SystemTime> {
         let wall = millis((self.source)()?)?;
+        #[cfg(debug_assertions)]
+        trace_calendar(wall, self.observed.get());
         // Backward movement below any previously observed calendar time fails
         // closed. A monotonic floor also prevents extending running operations.
         if wall < self.observed.get() {
-            #[cfg(debug_assertions)]
-            if std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
-                == Some(std::ffi::OsStr::new("1"))
-            {
-                use std::io::Write;
-                // Explicit debug diagnostics only; never change the clock or
-                // turn a failed stderr write into a different command result.
-                let _ = writeln!(
-                    std::io::stderr().lock(),
-                    "Trusted clock rejected calendar: wall_ms={wall} observed_ms={}",
-                    self.observed.get()
-                );
-            }
             return Err(unavailable());
         }
         let instant = Instant::now();

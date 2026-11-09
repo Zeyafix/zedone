@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 
 /** The actual card API and production viewer; image servers alone are fixtures. */
-export async function checkCardMarkdown(page, { tap, fill, external, dismissKeyboard = async () => {} } = {}) {
+export async function checkCardMarkdown(page, { tap, fill, visible, external, dismissKeyboard = async () => {} } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const input = fill || ((selector, value) => page.locator(selector).fill(value));
+  const waitVisible = visible || (selector => page.locator(selector).waitFor());
   const command = (operation, parameters) => page.evaluate(async ({ operation, parameters }) => {
     const request = JSON.stringify({ id: Array.from(crypto.getRandomValues(new Uint8Array(16))), operation, parameters });
     const native = window.__TAURI_INTERNALS__;
@@ -36,7 +37,7 @@ export async function checkCardMarkdown(page, { tap, fill, external, dismissKeyb
     await command("card.create", { space, column, card, title: "CommonMark", description: source });
     await page.evaluate(space => { location.hash = `#/spaces/${space}`; }, space);
     await page.waitForFunction(() => document.querySelector(".card-title")?.textContent === "CommonMark");
-    await click(".card-title"); await content.waitFor();
+    await click(".card-title"); await waitVisible(".markdown-content");
     assert.equal(await content.locator("h1").textContent(), "Ёж 😀");
     assert.equal(await content.locator("strong").textContent(), "важно");
     assert.equal(await content.locator("em").textContent(), "курсив");
@@ -95,7 +96,7 @@ export async function checkCardMarkdown(page, { tap, fill, external, dismissKeyb
     assert.deepEqual((await current()).completed, [false]);
     assert.equal(requests.length, 3);
     // A reopened card resets consent, including browser reload.
-    await close(); await page.reload(); await click(".card-title"); await content.waitFor();
+    await close(); await page.reload(); await click(".card-title"); await waitVisible(".markdown-content");
     assert.equal(await content.locator("img").count(), 0); assert.equal(requests.length, 3);
     await click("[data-editor-edit]");
     assert.equal(await page.locator('textarea[name="card-description"]').inputValue(), source);
@@ -109,7 +110,7 @@ export async function checkCardMarkdown(page, { tap, fill, external, dismissKeyb
     // Reverse the ordinary edit through the same API used by agents.
     await close(); const latest = await current();
     await command("card.edit", { space, card, expected: latest.version, title: latest.titles[0], description: source });
-    await page.reload(); await click(".card-title"); await content.waitFor();
+    await page.reload(); await click(".card-title"); await waitVisible(".markdown-content");
     assert.deepEqual((await current()).descriptions, [source]);
     assert.equal(await content.locator("img").count(), 0); assert.equal(requests.length, 3);
     assert.deepEqual((await current()).completed, [false]);

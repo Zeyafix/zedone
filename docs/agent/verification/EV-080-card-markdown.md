@@ -138,3 +138,58 @@ integration tests и прежние editor/fault/Markdown сценарии со�
 относятся к первоначальному срезу; повторное локальное управление Device
 для перемещения неизменённых файлов не выполнялось. Новые APK собраны,
 полный Android CI нового head ещё ожидается.
+
+## Новый head и условие остановки — LOG-404/405
+
+Исправление опубликовано в PR #80 как 0d7b77e; полный новый CI ожидается.
+По прямому указанию разработчика при повторном HTTP 504 в CI нужно остановить
+работу: без повторов и merge, выключить наблюдение и сообщить. Если такого
+отказа нет, исходное поручение merge/delete после успешных проверок сохраняется.
+
+## Поздний Windows отказ 86c0e7f — LOG-406
+
+Windows shell 129013381916: после trash card.list вернул unavailable.
+Opt-in trace подтвердил clock rejection: raw wall на 1 мс ниже observed,
+после чего UI-тест не нашёл область/кнопку корзины за прежние 10 секунд.
+Это наблюдение GAP-014, не HTTP 504 и не ошибка типов. Причина расхождения
+calendar/observed по одному trace не доказана; перенос 0d7b77e её не меняет.
+Исходный отказ сохранён; clock policy/лимиты/assertions/retries не изменены.
+Текущий head проходит новый CI. Условие остановки LOG-405 сохраняется.
+
+## Остальные исходные отказы — LOG-407
+
+Windows product 129013381904 на 86c0e7f подтвердил ту же ошибку области
+контрактного tsc (TS2307/TS2550). Android/Windows aggregates
+129016567063/129016199672 корректно отклонили исходные матрицы; собственных
+новых ошибок и повторного HTTP 504 в этих трёх job нет. Старые jobs
+не повторяются: полный новый CI уже проверяет исправление 0d7b77e.
+
+## Текущие shell отказы — LOG-408
+
+Windows shell 129018121216 на 0d7b77e повторил clock rejection на 1 мс:
+space.list unavailable и timeout карточки. Это GAP-014, который блокирует CI
+и merge; не HTTP 504. Причина расхождения по двум одиночным trace не доказана.
+Для уточнения добавлена ограниченная история восьми raw wall samples
+того же worker, только в прежнем opt-in debug trace. Ветка отказа/Instant/
+observed/авторизация/схема и release поведение прежние.
+
+Android shell 129018120031 прошёл старый IPC/editor/Back набор, но обычный
+Playwright waitFor нового Markdown использовал отсутствующий в WebView 101
+element.checkVisibility. Новый сценарий принимает штатный nativeControls.visible
+для трёх ожиданий; проверки стилей/размера/native touch/все assertions и лимиты
+сохранены, DOM API не подменяется. Host proof обоих адаптеров passed.
+Десять прежних clock tests с debug trace ON/OFF и полный product-check passed;
+полный UI/ABI перед публикацией фиксируются ниже. Никакого повторного 504
+в этих двух shell логах нет; условие остановки LOG-405 сохраняется.
+
+### Локальная проверка уточнённой диагностики и native waits — LOG-409
+
+Десять исходных clock tests прошли с trace ON/OFF; полный product-check
+passed (273 Rust, 23 client/239 assertions, release/7 unsafe/контракт).
+Полный host ui:check на Node baseline 24.22.1 passed. Новый общий сценарий
+отдельно passed с desktop и native touch/visibility adapters; обе debug ABI
+собраны. Отсутствие строки recent_wall_ms в release CLI и её наличие в
+debug fixture проверены. Публичные DTO/схема/политика времени/assertions
+и лимиты не менялись. Native Android CI новых ожиданий ещё ожидается;
+clock rejection не объявляется исправленным. Device заново не запускался
+для изменения тестового ожидания/opt-in debug trace.

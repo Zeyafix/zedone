@@ -284,3 +284,47 @@ Bun syntax build и git diff --check. Изменены только workflow, е
 прежний охват, заново не запускались для подготовки CI runner.
 Новый полный CI ожидается; P05.04/GAP-014/015 не закрываются до результата.
 При повторном HTTP 504 работа снова останавливается без retry/merge.
+
+## Возобновление после ручной остановки и готовность WebView — LOG-418
+
+После уведомления об отказах 394f957 разработчик остановил работу;
+наблюдение выключено. Новое «Продолжи» возобновляет задачу. Оба прежних
+workflow завершились failure. Все шесть непосредственных отказов исследованы:
+
+- Android prototype-native 129047549999: setup-java, JDK download HTTP 504.
+- Android shell-arm64 129047549885: setup-bun, Bun download HTTP 504.
+- Windows product 129047549836, prototype-ui 129047549780 и shell
+  129047549858: setup-bun, Bun download HTTP 504. Для последнего gh run view
+  отказал из-за повреждённого локального ZIP-кэша; raw job logs получены
+  через GitHub API без перезапуска CI. Это ошибка получения evidence,
+  не дополнительный отказ job.
+- Android shell 129047549727: сборка x86_64/host fixture и начальный
+  IPC/menu/Back/themes/reload passed, после подготовки fixture и restart
+  `browser.contexts()[0]?.pages()[0]` вернул undefined. Socket и CDP уже
+  доступны, но page ещё не появилась. Ранее setup-java также записал HTTP 504
+  при загрузке подписи; action продолжился, агент его настройки не менял.
+
+Пять остальных checks SUCCESS: Linux, Windows prototype-native, Android
+product-native/product-arm64/prototype-ui. Оба aggregate корректно failed.
+Полный CI и arm64 negative preflight не приняты. Отказы относятся к запуску
+до нового поручения продолжить; они сохранены, слепой повтор не выполнялся.
+При новом HTTP 504 в следующем CI снова остановиться без retry/merge.
+
+Shell openWebView теперь использует прежний проверенный helper discovery из
+прототипа и ожидает незакрытую Playwright page. Socket/target/page и CDP
+делят прежние 15 секунд готовности; нет новых запусков приложения/повторов
+сценария, job budget 10m и assertions сохранены. При отказе после forward
+собираются targets/pages/lifecycle logs с сохранением исходной ошибки.
+Исходная первопричина периодических WebView отказов GAP-007 не объявляется
+устранённой по одной гонке; GAP-014/015 также остаются открытыми.
+
+Локально passed: существующий WebView target guard; исполнение настоящего
+openWebView с синтетическими process/CDP/time boundaries для немедленной
+и задержанной готовности, закрытых страниц, отсутствия каждой стадии,
+единого дедлайна, одного запуска и сохранения исходной ошибки при отказе
+диагностики. Временный проверочный скрипт — игнорируемый
+docs/reports/p05-04/verify-shell-webview-connection.mjs, без запуска устройства.
+Также passed Android/host routing guards, actionlint обоих workflows,
+JS syntax, docs links/fences/98 критериев/сохранность dirty docs и diff checks.
+Product source/API/clock policy прежние; Device локально заново не запускался.
+Native подтверждение ожидания page остаётся задачей нового полного CI.

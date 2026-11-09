@@ -197,6 +197,14 @@ Playwright `Browser.setDownloadBehavior` даёт protocol error. Режим с�
 реальные настройки WebView, включая системное оформление; UI assertions
 остаются прежними. См. [Playwright connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp-option-no-defaults).
 
+При запуске и перезапуске socket, discoverable page target и Playwright page
+ожидаются отдельно в общем прежнем бюджете готовности 15 секунд (60 × 250 мс).
+Shell CI использует проверенный helper обнаружения из прототипа; это зависимость
+тестового драйвера, не приложения. CDP получает остаток того же бюджета,
+закрытые страницы не принимаются. При отказе после port forward выводятся
+targets/страницы/последние lifecycle logs до штатной очистки; диагностическая
+ошибка не заменяет исходную. Повторов запуска и UI-сценариев нет, job остаётся 10m.
+
 ## Описание карточки: P05.04
 
 Сохранённое описание в CardEditor использует общий ui/src/markdown/MarkdownView.ts,

@@ -229,3 +229,77 @@ framing. Базовые assets/CSP собраны из Git archive; Rust API/Ser
 Пять посторонних dirty docs и старая история не включаются в commit;
 в journal/queue включается только текущая передача/зависимость P05.04,
 P05.05 и FIX.02. Новый CI пока не выполнялся, приёмка не повышена.
+
+## PR — LOG-442
+
+[PR #82](https://github.com/Zeyafix/zedone/pull/82), head
+`ce1475678d249d392d371851a838e02c88c7c0bb`, base `94df827`, опубликован
+и сразу linked. Commit `feat(board): let users move cards and columns`
+содержит 23 связанных paths; пять посторонних dirty docs и старые записи
+журнала/очереди остаются unstaged. Runtime соответствует повторному
+успешному полному Opera/Chrome `ui:check` (`pr-ui-full.log`, exit 0).
+
+Title/body/head/base прочитаны обратно: английские Summary/UI Changes/
+Changes/Testing/credit, ровно две картинки и два видео на GitHub attachments,
+без локальных ссылок. Реальные материалы из base/final просмотрены,
+оба MP4 1920×1080. Comments/reviews/inline comments отсутствуют.
+Новый CI выполняется: 11 suites, ещё два aggregate появятся по окончании
+матриц; ожидается полный набор из 13 checks. Merge/delete пока не выполнены,
+P05.05 не done. По поручению разработчика после успеха exact head/readiness
+выполнить merge/удаление ветки; иначе разобрать отказ, не объявляя успеха.
+
+## Первый Android CI — GAP-018 / LOG-443
+
+На head `ce14756` Android shell job `129256154427` failed на прежнем
+`checkWorkspaceTouch:132`: после создания колонки сценарий выбирал
+`.column-actions button:first-child`, который теперь открывает Move.
+`named` затем ждал `input[name=name]`, отсутствующий в move-dialog, и
+получил прежний timeout 10s. Это доказанное несоответствие позиционного
+selector новой структуре. До нового move-сценария этот прогон не дошёл;
+потери данных/ошибка API/HTTP 504 из этого отказа не следуют.
+
+Неизменённый общий сценарий с настоящим host CDP touch воспроизвёл тот же
+отказ на строке 132 (`workspace-touch-red.log`). Переименование получает
+стабильный class marker `rename-column`, оба прямое/обратное переименования
+выбираются по нему. В штатный host ui:check добавляется весь
+`checkWorkspaceTouch` перед move-сценарием: это те же selectors/настоящие
+касания и shared Service, без Vue state/DOM click/повторов. Только host
+переход Back представлен Escape/историей; настоящий IME/Back остаётся Android CI.
+Исходные assertions и бюджеты не ослабляются. Локальные проверки и новый
+native CI ожидаются, GAP-018 пока не закрыт; merge/delete не выполнялись.
+
+`workspace-touch-green.log` подтверждает тот же полный сценарий после
+исправления: column rename/reverse/trash/restore, карточки, парная история,
+выполнение/снятие, отказ пустому заголовку и durable draft passed.
+Постоянный host helper использует отдельный пустой Service, как Android:
+первый эксперимент с переиспользованием уже заполненной host-базы отказал
+на предпосылке пустого списка (`pr82-rename-ui.log`, строка 120), затем
+набор изолирован. Это исправление orchestration нового host-покрытия;
+сами общие сценарии/assertions/таймауты не ослаблялись.
+Финальный полный Opera/Chrome ui:check passed: `pr82-rename-ui-final.log`,
+exit 0, оба прежних полных набора и общий workspace/card/editor touch
+на отдельном пустом Service для каждого браузера. Guards/JS syntax/diff passed.
+
+Видимый UI не меняется: добавлен только class без CSS-правил и исправлены
+test selectors/host coverage. Материалы PR остаются применимыми; Rust/API/DDL
+не менялись. Native Android-подтверждение ожидается от нового CI.
+
+## Итог первого CI / GAP-019 — LOG-444
+
+Все 13 результатов `ce14756`: 10 SUCCESS, Android shell FAILURE,
+prototype-ui CANCELLED, Android aggregate FAILURE. Prototype-ui job
+`129256154235` шёл 15:29:04–15:39:10 UTC при прежнем 10m budget:
+`Check Android environment`, negative compiler/version/cleanup и disk usage
+завершены SUCCESS, отменён post-step Rust cache action. Raw log подтверждает
+настоящие Markdown/QR/scanner/storage/board/touch/scroll/autoscroll/IPC/HTTP/
+restart проверки до отмены, но весь job не принимается как successful.
+Лимит и workflow не меняются. Новый кодовый head после исправления GAP-018
+должен получить весь успешный CI; при повторе budget отказа требуется
+отдельная диагностика, не автоматический retry/увеличение таймаута.
+
+GAP-018 остаётся in_progress до нового native подтверждения; GAP-019 открыт
+для контроля бюджета. GAP-017 resolved сохраняется. Сохранность пяти
+посторонних исходных документов проверена побайтово; старые записи журнала
+и очереди остаются unstaged. Изображения/видео PR прежние: UI class marker
+не имеет CSS-правил и не меняет видимый интерфейс. Новый CI ещё не запущен,
+merge/delete не выполнялись.

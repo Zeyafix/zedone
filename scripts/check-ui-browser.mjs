@@ -10,6 +10,7 @@ import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 import { checkNativeControls } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
+import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -165,6 +166,7 @@ try {
     await blockedPage.getByRole("status").filter({ hasText: "Тема применена" }).waitFor();
     assert.equal(await blockedPage.locator("html").getAttribute("data-theme"), "dark");
     await blocked.close();
+    await checkWorkspaceTouchHost(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await browser.close();
     browser = undefined;
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");

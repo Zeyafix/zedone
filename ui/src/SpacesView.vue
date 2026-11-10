@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
-import { newCardId, newColumnId, newSpaceId } from "../../client/commands";
-import { createMutation, deliverMutation, errorMessage, forgetMutation, pendingCommands, read, type Card, type Column, type Mutation, type Pending, type Space } from "./workspace-api";
+import { newCardId, newColumnId, newSpaceId, newTagId } from "../../client/commands";
+import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, tagErrorMessage, type Card, type Column, type Mutation, type Pending, type Space, type Tag } from "./workspace-api";
 import CardsList from "./CardsList.vue";
 import CardEditor from "./CardEditor.vue";
 import BoardView from "./BoardView.vue";
@@ -17,6 +17,8 @@ type Action =
   | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column }
   | { kind: "card.create"; space: string; column: string }
   | { kind: "card.read" | "card.trash" | "card.restore"; target: Card }
+  | { kind: "tag.create"; space: string }
+  | { kind: "tag.rename" | "tag.delete"; target: Tag }
   | { kind: "forget" | "forget-draft"; id: string };
 const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string> = {
   "space.create": "Создать пространство", "column.create": "Создать колонку",
@@ -27,6 +29,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "card.begin_editing": "Начать редактирование", "card.autosave": "Сохранить карточку", "card.finish_editing": "Завершить редактирование", "card.set_completed": "Изменить выполнение",
   "forget-draft": "Удалить черновик",
   "card.move": "Переместить карточку", "column.move": "Переместить колонку",
+  "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
 };
 const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];
 const selected = ref(routeSpace());
@@ -34,6 +37,9 @@ const spaces = ref<Space[]>([]);
 const space = ref<Space>();
 const columns = ref<Column[]>([]);
 const cards = ref<Card[]>([]);
+const tags = ref<Tag[]>([]);
+const tagNames = computed(() => new Map(tags.value.map(tag => [tag.tag, tag.names.join(' / ')])));
+const tagSubject = ref<string>();
 const showTrash = ref(false);
 const showCardTrash = ref(false);
 const loading = ref(false);
@@ -59,7 +65,7 @@ let localGeneration = 0, lastUrl = location.href, pendingUrl: string | undefined
 const boardBlocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready || loading.value);
 const blocked = computed(() => boardBlocked.value || moving.value);
 const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename"));
-const title = (item: Space | Column) => item.names.length === 1 ? item.names[0] || "Без названия" : "Конфликт названий";
+const title = (item: Space | Column | Tag) => item.names.length === 1 ? item.names[0] || "Без названия" : "Конфликт названий";
 const cardTitle = (item: Card) => item.titles.length === 1 ? item.titles[0] : "Конфликт заголовков";
 const visibleCards = computed(() => cards.value.filter(item => showCardTrash.value ? item.state === "trashed" : item.state !== "trashed"));
 const cardGroups = computed(() => {
@@ -103,18 +109,20 @@ async function refresh() {
       selected.value ? read("space.read", { space: selected.value }) : Promise.resolve(undefined),
       selected.value ? read("column.list", { space: selected.value, include_trashed: true }) : Promise.resolve(undefined),
       selected.value ? read("card.list", { space: selected.value, include_trashed: true }) : Promise.resolve(undefined),
+      selected.value ? read("tag.list", { space: selected.value, include_deleted: false }) : Promise.resolve(undefined),
     ]);
     if (current !== generation) return;
     const failure = results.find(result => result.status === "rejected");
     if (failure?.status === "rejected") throw failure.reason;
-    const [list, board, children, notes] = results;
+    const [list, board, children, notes, labels] = results;
     if (list?.status === "fulfilled") spaces.value = list.value!.spaces;
     if (board?.status === "fulfilled") space.value = board.value;
     if (children?.status === "fulfilled") columns.value = children.value?.columns ?? [];
     if (notes?.status === "fulfilled") cards.value = notes.value?.cards ?? [];
+    if (labels?.status === "fulfilled") tags.value = labels.value?.tags ?? [];
   } catch (cause) {
     if (current !== generation) return;
-    spaces.value = []; space.value = undefined; columns.value = []; cards.value = [];
+    spaces.value = []; space.value = undefined; columns.value = []; cards.value = []; tags.value = [];
     error.value = errorMessage(cause);
   } finally { if (current === generation) loading.value = false; }
 }
@@ -130,13 +138,13 @@ async function routeChanged() {
   selected.value = id;
   showTrash.value = false;
   showCardTrash.value = false;
-  space.value = undefined; columns.value = []; cards.value = [];
+  space.value = undefined; columns.value = []; cards.value = []; tags.value = [];
   await refresh();
   await nextTick(); viewHeading.value?.focus();
 }
 watch(() => props.ready, ready => {
   if (ready) { void refresh(); void loadPending(); }
-  else { generation++; loading.value = false; spaces.value = []; space.value = undefined; columns.value = []; cards.value = []; }
+  else { generation++; loading.value = false; spaces.value = []; space.value = undefined; columns.value = []; cards.value = []; tags.value = []; }
 }, { immediate: true });
 onMounted(() => {
   window.addEventListener("hashchange", routeChanged, true);
@@ -178,6 +186,7 @@ async function open(next: Action, event: Event) {
   recovering.value = undefined;
   const current = generation;
   try {
+    tagSubject.value = next.kind.startsWith("tag.") ? (await mutationCredential()).subject : undefined;
     // Freeze the fresh original version at dialog opening. Refresh never rebases it.
     switch (next.kind) {
       case "column.rename": case "column.trash": case "column.restore":
@@ -186,6 +195,8 @@ async function open(next: Action, event: Event) {
         next = { kind: next.kind, target: await read("space.read", { space: next.target.space }) }; break;
       case "card.read": case "card.trash": case "card.restore":
         next = { kind: next.kind, target: await read("card.read", { space: next.target.space, card: next.target.card }) }; break;
+      case "tag.rename": case "tag.delete":
+        next = { kind: next.kind, target: await read("tag.read", { space: next.target.space, tag: next.target.tag }) }; break;
     }
     if (current !== generation || !props.ready) return;
     action.value = next; name.value = "target" in next && "names" in next.target ? next.target.names[0] ?? "" : "";
@@ -205,6 +216,7 @@ async function retry(id: string) {
   if (busy.value || moving.value) return;
   busy.value = true; error.value = ""; notice.value = "";
   try {
+    const original = (await pendingCommands()).find(item => item.id === id);
     const result = await deliverMutation(id);
     if (result.status === "completed") {
       notice.value = "Действие подтверждено.";
@@ -213,7 +225,7 @@ async function retry(id: string) {
     } else {
       const message = result.reason === "identity_changed"
         ? "Учётная запись изменилась. Повтор возможен только от исходной учётной записи."
-        : result.response?.status === "error" ? errorMessage(new Error(result.response.error.code))
+        : result.response?.status === "error" ? (original?.intention.operation.startsWith("tag.") ? tagErrorMessage(result.response.error.code) : errorMessage(new Error(result.response.error.code)))
           : "Результат неизвестен. Повторите исходное действие ниже; новый объект не создаётся.";
       error.value = message; formError.value = message;
     }
@@ -246,6 +258,9 @@ async function submit() {
       case "space.trash": case "space.restore": id = await createMutation(current.kind, { space: current.target.space, expected: current.target.version }); break;
       case "column.rename": id = await createMutation(current.kind, { space: current.target.space, column: current.target.column, expected: current.target.version, name: name.value }); break;
       case "column.trash": case "column.restore": id = await createMutation(current.kind, { space: current.target.space, column: current.target.column, expected: current.target.version }); break;
+      case "tag.create": id = await createMutation(current.kind, { space: current.space, tag: newTagId(), name: name.value }, tagSubject.value); break;
+      case "tag.rename": id = await createMutation(current.kind, { space: current.target.space, tag: current.target.tag, expected: current.target.version, name: name.value }, tagSubject.value); break;
+      case "tag.delete": id = await createMutation(current.kind, { space: current.target.space, tag: current.target.tag, expected: current.target.version }, tagSubject.value); break;
     }
     await loadPending();
   } catch (cause) {
@@ -330,10 +345,26 @@ function pendingName(item: Pending) {
         </div>
         <section v-if="!showTrash && unplacedCards.length" aria-label="Карточки вне активных колонок">
           <h3>Карточки вне активных колонок</h3><p class="object-note">Положение конфликтует или колонка в корзине. Карточки доступны для просмотра.</p>
-          <CardsList :cards="unplacedCards" :blocked="busy" readonly @open="open" />
+          <CardsList :cards="unplacedCards" :tags="tagNames" :blocked="busy" readonly @open="open" />
         </section>
         <p v-if="!loading && !visibleColumns.length" class="empty-view">{{ showTrash ? 'В корзине нет колонок.' : 'Колонок пока нет. Создайте колонку для одной темы.' }}</p>
-        <BoardView :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :blocked="boardBlocked || dialogOpen" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
+        <details v-if="!showTrash" class="space-tags">
+          <summary>Теги пространства ({{ tags.length }})</summary>
+          <p class="object-note">Назначайте и снимайте теги в открытой карточке. Переименование сохраняет все назначения.</p>
+          <ul class="tag-list" aria-label="Теги пространства">
+            <li v-for="tag in tags" :key="tag.tag" :data-tag="tag.tag">
+              <span>{{ tag.names.join(' / ') }}</span>
+              <p v-if="tag.state !== 'active' || tag.names.length !== 1" class="object-note">Есть конфликт. Изменения тега недоступны до разрешения.</p>
+              <div class="view-actions">
+                <button class="rename-tag" :disabled="blocked || conflicts(space) || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.rename', target: tag }, $event)">Переименовать</button>
+                <button class="delete-tag" :disabled="blocked || conflicts(space) || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.delete', target: tag }, $event)">Удалить тег</button>
+              </div>
+            </li>
+          </ul>
+          <p v-if="!tags.length" class="object-note">Тегов пока нет. Создайте тег для одной темы.</p>
+          <button class="create-tag" :disabled="blocked || conflicts(space) || space.state !== 'active'" @click="open({ kind: 'tag.create', space: space.space }, $event)">Создать тег</button>
+        </details>
+        <BoardView :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :tags="tagNames" :blocked="boardBlocked || dialogOpen" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
       </template>
     </template>
 
@@ -345,11 +376,13 @@ function pendingName(item: Pending) {
           <DialogDescription v-else-if="action?.kind === 'forget-draft'">Удаляется только локальный ввод. Сохранённая карточка и уже отправленные действия останутся.</DialogDescription>
           <DialogDescription v-else-if="action?.kind === 'card.read'">Изменяйте текст и отмечайте выполненные дела.</DialogDescription>
           <DialogDescription v-else-if="action?.kind === 'card.create'">Добавьте мысль или дело в эту колонку. Заголовок обязателен, описание можно оставить пустым.</DialogDescription>
+          <DialogDescription v-else-if="action?.kind === 'tag.delete'">Удалить «{{ action.target.names.join(' / ') }}» со всех карточек пространства, включая корзину? Карточки и их текст сохранятся. Тег удаляется без корзины и отдельного восстановления. Новый тег с тем же именем не вернёт назначения.</DialogDescription>
+          <DialogDescription v-else-if="action?.kind === 'tag.create' || action?.kind === 'tag.rename'">Имя тега обязательно и должно быть свободно в этом пространстве. Регистр и пробелы по краям не различаются, «е» и «ё» различаются. Переименование сохраняет назначения.</DialogDescription>
           <DialogDescription v-else-if="naming">Название можно изменить позже. Оно сохраняется только после подтверждения ядром.</DialogDescription>
           <DialogDescription v-else>{{ action?.kind.endsWith('.trash') ? 'Объект попадёт в корзину. Его можно будет восстановить с прежним названием и местом.' : 'Объект вернётся из корзины с прежним названием и местом.' }} {{ action && 'target' in action ? 'titles' in action.target ? cardTitle(action.target) : title(action.target) : '' }}</DialogDescription>
-          <CardEditor v-if="action?.kind === 'card.read'" ref="editor" :card="action.target" :ready="ready" :draft-id="recovering" @changed="refresh" @close="editorClosed" @stay="pendingUrl = undefined" />
+          <CardEditor v-if="action?.kind === 'card.read'" ref="editor" :card="action.target" :tags="tags" :ready="ready" :draft-id="recovering" @changed="refresh" @close="editorClosed" @stay="pendingUrl = undefined" />
           <form v-else @submit.prevent="submit">
-            <label v-if="naming" class="name-field">{{ action?.kind === 'card.create' ? 'Заголовок' : 'Название' }}<input ref="titleInput" v-model="name" name="name" :aria-label="action?.kind === 'card.create' ? 'Заголовок' : 'Название'" autocomplete="off" :required="action?.kind === 'card.create'" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">{{ action?.kind === 'card.create' ? 'Пустой заголовок не сохраняется.' : 'Можно оставить пустым.' }}</span></label>
+            <label v-if="naming" class="name-field">{{ action?.kind === 'card.create' ? 'Заголовок' : 'Название' }}<input ref="titleInput" v-model="name" name="name" :aria-label="action?.kind === 'card.create' ? 'Заголовок' : 'Название'" autocomplete="off" :required="action?.kind === 'card.create' || action?.kind.startsWith('tag.')" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">{{ action?.kind.startsWith('tag.') ? 'Пустое или занятое имя не сохраняется.' : action?.kind === 'card.create' ? 'Пустой заголовок не сохраняется.' : 'Можно оставить пустым.' }}</span></label>
             <label v-if="action?.kind === 'card.create'" class="name-field">Описание<textarea v-model="description" name="description" rows="6" :readonly="busy || pending.length > 0" /></label>
             <p v-if="formError" role="alert" class="action-error">{{ formError }}</p>
             <p v-if="pending.length && action?.kind !== 'forget'">Исходное действие сохранено. Закройте форму и проверьте его результат в списке незавершённых действий.</p>

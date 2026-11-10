@@ -1,5 +1,22 @@
 # Разработка общей UI-оболочки
 
+P05.06 добавляет теги в `SpacesView.vue`: disposable tag.list включён в общий
+refresh и очищается вместе с остальными данными при смене пространства/доступа
+или ошибке чтения. Управление раскрывается в «Теги пространства»; создание,
+переименование и подтверждённое удаление идут через общий журнал намерений.
+Исходные identity/version фиксируются при открытии формы и не подменяются refresh.
+Unicode-сравнение выполняет только Rust Service.
+
+`CardEditor.vue` хранит прочитанные версии карточки и тегов до явного действия.
+`card.set_tag` отправляет один ID, present и обе исходные версии. Во время
+редактирования текста назначения недоступны; это исключает подмену предусловия
+текстового черновика операцией тегов. После успеха читается текущая карточка,
+старый receipt не подменяет состояние. «Обновить карточку и теги» — явное новое
+чтение, без автоматического повторения отказанного намерения. `TagNames.vue`
+показывает назначения в общем списке и в карточке без сохранения доменных данных
+в localStorage. Проверка `check-ui-tags.mjs` включена в desktop/touch и native CI;
+фактические результаты и ограничения — [EV-083](../agent/verification/EV-083-tags-ui.md).
+
 P05.03 завершает локальный срез карточки: `CardEditor.vue` управляет
 просмотром/редактором, begin/autosave/finish и выполнением через прежний API.
 `editor-drafts.ts` хранит только ввод/исходное предусловие с отдельным ID
@@ -351,3 +368,12 @@ invalid/rejected/timeout. Ключи и полный session object не воз�
 configured/unconfigured Service и отсутствие credential key в проекции.
 Причина первого native startup отказа c286cc4 пока не доказана —
 [EV-082, GAP-020](../agent/verification/EV-082-board-moves-ui.md#первый-экран-c286cc4--gap-020--log-446).
+
+### Совместимость драйвера с прежним WebView
+
+В shared touch-сценариях читайте DOM-свойства через page.evaluate. Даже
+locator.evaluate может вызвать Playwright visibility engine, который требует
+checkVisibility, отсутствующий в целевом AOSP WebView. Реальные касания остаются
+в nativeControls. Host-only withoutVisibilityApi удаляет этот API из page и
+isolated execution realms перед проверкой moves/tags; продуктовый DOM и
+нативный WebView не получают polyfill. Локальный red→green и native границы — EV-083.

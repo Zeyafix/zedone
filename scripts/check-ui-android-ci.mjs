@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 import { checkShell, checkWorkspaceTouch, nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
+import { checkTags } from "./check-ui-tags.mjs";
 import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
 import { waitForWebViewTarget } from "../prototypes/scripts/android-webview-target.mjs";
 
@@ -112,6 +113,8 @@ try {
   const { tap, fill, visible } = await nativeControls(page);
   stage = "moves";
   await checkBoardMoves(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
+  stage = "tags";
+  await checkTags(page, { tap, fill, back: () => device("shell", "input", "keyevent", "4"), dismissKeyboard });
   stage = "markdown";
   await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
     for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {

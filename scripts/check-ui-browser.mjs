@@ -7,8 +7,9 @@ import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
-import { checkNativeControls } from "./check-ui-native-controls.mjs";
+import { checkNativeControls, withoutVisibilityApi } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
+import { checkTags } from "./check-ui-tags.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
@@ -83,13 +84,16 @@ try {
     await checkCards(page, url, JSON.parse(originalSession.toString()));
     await checkEditor(page, url, JSON.parse(originalSession.toString()));
     await checkBoardMoves(page);
+    await checkTags(page);
     const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
     try {
       const movesTouchPage = await movesTouchContext.newPage();
       movesTouchPage.on("pageerror", error => errors.push(error.message));
       await movesTouchPage.goto(url);
-      const { tap } = await nativeControls(movesTouchPage);
+      await withoutVisibilityApi(movesTouchPage);
+      const { tap, fill } = await nativeControls(movesTouchPage);
       await checkBoardMoves(movesTouchPage, { tap });
+      await checkTags(movesTouchPage, { tap, fill });
     } finally { await movesTouchContext.close(); }
     // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);

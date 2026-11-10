@@ -7,8 +7,10 @@ type Schemas = components["schemas"];
 export type Space = Schemas["SpaceSnapshot"];
 export type Column = Schemas["ColumnSnapshot"];
 export type Card = Schemas["CardSnapshot"];
+export type Tag = Schemas["TagSnapshot"];
+export type TagMutation = "tag.create" | "tag.rename" | "tag.delete" | "card.set_tag";
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
-export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation;
+export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation;
 export const pendingChanged = "zedone:pending";
 type Reads = {
   "space.list": Schemas["SpaceList"];
@@ -17,6 +19,8 @@ type Reads = {
   "column.read": Column;
   "card.list": Schemas["CardList"];
   "card.read": Card;
+  "tag.list": Schemas["TagList"];
+  "tag.read": Tag;
 };
 export type Pending = { id: string; intention: Intention };
 const store = () => webIntentionStore(localStorage, "shell");
@@ -102,3 +106,8 @@ export const errorMessage = (error: unknown): string => {
   };
   return messages[code] ?? "Результат не подтверждён. Проверьте связь и повторите исходное действие в списке незавершённых действий.";
 };
+
+export const tagErrorMessage = (code: string) => code === "conflict"
+  ? "Имя занято или тег конфликтует. Обновите теги и выберите свободное имя. Назначения не изменены."
+  : code === "invalid_request" ? "Имя тега не может быть пустым. Проверьте имя и его длину."
+    : errorMessage(new Error(code));

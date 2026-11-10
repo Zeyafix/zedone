@@ -6,6 +6,7 @@ import { createMutation, deliverMutation, errorMessage, forgetMutation, mutation
 import CardsList from "./CardsList.vue";
 import CardEditor from "./CardEditor.vue";
 import BoardView from "./BoardView.vue";
+import SearchPanel from "./SearchPanel.vue";
 import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./editor-drafts";
 import { pendingChanged } from "./workspace-api";
 
@@ -38,6 +39,10 @@ const space = ref<Space>();
 const columns = ref<Column[]>([]);
 const cards = ref<Card[]>([]);
 const tags = ref<Tag[]>([]);
+const editorTags = ref<Tag[]>([]);
+const searchOpen = ref(false);
+const searchRevision = ref(0);
+const searchPanel = ref<InstanceType<typeof SearchPanel>>();
 const tagNames = computed(() => new Map(tags.value.map(tag => [tag.tag, tag.names.join(' / ')])));
 const tagSubject = ref<string>();
 const showTrash = ref(false);
@@ -99,6 +104,7 @@ async function loadPending() {
 }
 async function refresh() {
   const current = ++generation;
+  searchRevision.value++;
   if (!props.ready) return;
   loading.value = true;
   error.value = "";
@@ -136,6 +142,7 @@ async function routeChanged() {
   const id = routeSpace();
   if (id === selected.value) return;
   selected.value = id;
+  searchOpen.value = false;
   showTrash.value = false;
   showCardTrash.value = false;
   space.value = undefined; columns.value = []; cards.value = []; tags.value = [];
@@ -173,7 +180,9 @@ async function openDraft(item: EditorDraft, event: Event) {
   const current = generation;
   try {
     const target = await read("card.read", { space: item.space, card: item.card });
+    const labels = await read("tag.list", { space: item.space, include_deleted: false });
     if (current !== generation) return;
+    editorTags.value = labels.tags;
     action.value = { kind: "card.read", target }; recovering.value = item.id; dialogOpen.value = true;
   } catch (cause) { error.value = errorMessage(cause); }
   finally { busy.value = false; }
@@ -199,6 +208,11 @@ async function open(next: Action, event: Event) {
         next = { kind: next.kind, target: await read("tag.read", { space: next.target.space, tag: next.target.tag }) }; break;
     }
     if (current !== generation || !props.ready) return;
+    if (next.kind === "card.read") {
+      const labels = await read("tag.list", { space: next.target.space, include_deleted: false });
+      if (current !== generation || !props.ready) return;
+      editorTags.value = labels.tags;
+    }
     action.value = next; name.value = "target" in next && "names" in next.target ? next.target.names[0] ?? "" : "";
     description.value = "";
     formError.value = ""; dialogOpen.value = true;
@@ -207,7 +221,8 @@ async function open(next: Action, event: Event) {
 }
 function restoreFocus(event: Event) {
   event.preventDefault();
-  if (opener?.isConnected && !opener.matches(":disabled")) opener.focus(); else viewHeading.value?.focus();
+  if (opener?.isConnected && !opener.matches(":disabled")) opener.focus();
+  else if (searchOpen.value) searchPanel.value?.focus(); else viewHeading.value?.focus();
 }
 function initialFocus(event: Event) {
   if (naming.value) { event.preventDefault(); titleInput.value?.focus(); titleInput.value?.select(); }
@@ -290,6 +305,7 @@ function pendingName(item: Pending) {
         <button :aria-pressed="showTrash" :disabled="busy || moving" @click="showTrash = !showTrash">{{ showTrash ? 'Активные' : 'Корзина' }}</button>
         <button :disabled="loading || busy || moving" @click="refresh">Обновить список</button>
         <button v-if="!selected && !showTrash" class="primary-button" :disabled="blocked" @click="open({ kind: 'space.create' }, $event)">Создать пространство</button>
+        <button class="search-toggle" :aria-expanded="searchOpen" :disabled="busy || moving" @click="searchOpen = !searchOpen">{{ searchOpen ? 'Закрыть поиск' : 'Поиск карточек' }}</button>
       </div>
     </div>
     <p v-if="notice" role="status">{{ notice }}</p>
@@ -315,7 +331,8 @@ function pendingName(item: Pending) {
       </li></ul>
     </section>
 
-    <template v-if="ready && !error">
+    <SearchPanel v-if="ready && searchOpen" ref="searchPanel" :space="selected" :blocked="busy || moving || dialogOpen" :revision="searchRevision" @open="open" @navigate="searchOpen = false; showTrash = false; showCardTrash = false" />
+    <template v-if="ready && !error && !searchOpen">
       <p v-if="loading" role="status">Обновляем данные…</p>
       <template v-if="!selected">
         <p v-if="!loading && !visibleSpaces.length" class="empty-view">{{ showTrash ? 'В корзине нет пространств.' : 'Пространств пока нет. Создайте первое для своих мыслей и дел.' }}</p>
@@ -380,7 +397,7 @@ function pendingName(item: Pending) {
           <DialogDescription v-else-if="action?.kind === 'tag.create' || action?.kind === 'tag.rename'">Имя тега обязательно и должно быть свободно в этом пространстве. Регистр и пробелы по краям не различаются, «е» и «ё» различаются. Переименование сохраняет назначения.</DialogDescription>
           <DialogDescription v-else-if="naming">Название можно изменить позже. Оно сохраняется только после подтверждения ядром.</DialogDescription>
           <DialogDescription v-else>{{ action?.kind.endsWith('.trash') ? 'Объект попадёт в корзину. Его можно будет восстановить с прежним названием и местом.' : 'Объект вернётся из корзины с прежним названием и местом.' }} {{ action && 'target' in action ? 'titles' in action.target ? cardTitle(action.target) : title(action.target) : '' }}</DialogDescription>
-          <CardEditor v-if="action?.kind === 'card.read'" ref="editor" :card="action.target" :tags="tags" :ready="ready" :draft-id="recovering" @changed="refresh" @close="editorClosed" @stay="pendingUrl = undefined" />
+          <CardEditor v-if="action?.kind === 'card.read'" ref="editor" :card="action.target" :tags="editorTags" :ready="ready" :draft-id="recovering" @changed="refresh" @close="editorClosed" @stay="pendingUrl = undefined" />
           <form v-else @submit.prevent="submit">
             <label v-if="naming" class="name-field">{{ action?.kind === 'card.create' ? 'Заголовок' : 'Название' }}<input ref="titleInput" v-model="name" name="name" :aria-label="action?.kind === 'card.create' ? 'Заголовок' : 'Название'" autocomplete="off" :required="action?.kind === 'card.create' || action?.kind.startsWith('tag.')" :readonly="busy || pending.length > 0" aria-describedby="name-help" /><span id="name-help">{{ action?.kind.startsWith('tag.') ? 'Пустое или занятое имя не сохраняется.' : action?.kind === 'card.create' ? 'Пустой заголовок не сохраняется.' : 'Можно оставить пустым.' }}</span></label>
             <label v-if="action?.kind === 'card.create'" class="name-field">Описание<textarea v-model="description" name="description" rows="6" :readonly="busy || pending.length > 0" /></label>

@@ -10,9 +10,11 @@ export type Card = Schemas["CardSnapshot"];
 export type Tag = Schemas["TagSnapshot"];
 export type SearchResults = Schemas["SearchResults"];
 export type SearchHit = Schemas["SearchHit"];
+export type TrashSelection = Schemas["TrashSelection"];
+export type TrashPreview = Schemas["TrashPreview"];
 export type TagMutation = "tag.create" | "tag.rename" | "tag.delete" | "card.set_tag";
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
-export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation;
+export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge";
 export const pendingChanged = "zedone:pending";
 type Reads = {
   "space.list": Schemas["SpaceList"];
@@ -24,6 +26,7 @@ type Reads = {
   "card.search": SearchResults;
   "tag.list": Schemas["TagList"];
   "tag.read": Tag;
+  "trash.inspect": TrashPreview;
 };
 export type Pending = { id: string; intention: Intention };
 const store = () => webIntentionStore(localStorage, "shell");

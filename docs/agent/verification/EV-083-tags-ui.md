@@ -140,3 +140,34 @@ DOM-записи или polyfill. Постоянный withoutVisibilityApi guar
 GAP-023 открыт до полного нового CI. Старый успешный cached run не считается
 гарантией текущего времени. Новый head должен дать все 17 SUCCESS/readiness;
 GAP-022 также ждёт подтверждения native shell. Merge/delete ещё не выполнялись.
+
+Исправление опубликовано в прежнем [PR #83](https://github.com/Zeyafix/zedone/pull/83),
+head 6808b13. Описание прочитано обратно, обе картинки/credit сохранены.
+Новый CI pending, GAP-022/023 пока открыты; все 17 SUCCESS/readiness нужны
+перед порученными merge/delete. Существующее наблюдение сохраняется, LOG-458.
+
+LOG-459: запоздалое уведомление исходного 46af9e8 проверено. Android aggregate
+штатно отверг RESULT=failure после shell FAILURE/prototype-ui CANCELLED;
+нового самостоятельного отказа нет. Текущий head 6808b13, новый CI выполняется,
+GAP-022/023 ждут полного результата. Новых изменений/rerun нет, watch прежний.
+
+## Повторный CI budget и подготовка зеркал
+
+6808b13: все 17 checks завершены, 15 SUCCESS; native shell прошёл целиком,
+включая новый UI тегов, Markdown и cleanup. Обе shell ABI checks SUCCESS.
+GAP-022 resolved в охвате совместимости драйвера. Prototype-ui повторно
+CANCELLED по annotation 10m0s, Android aggregate штатно FAILURE. GAP-023 открыт.
+
+Raw APT в обоих запусках показывает ожидание Azure HTTP mirror: загрузка
+libpulse0 и зависимостей заняла 74/117 секунд, затем использованы официальные
+Ubuntu архивы. Перед отменой пройдены board/scanner, оставшийся lock/restart/
+negative cleanup не завершён. В Android prep добавлен тот же HTTPS mirrorlist,
+что уже используется Linux host. Signed sources/suites/components/Release и
+package hashes сохраняются, пакеты/KVM/матрица/все проверки/10m прежние.
+
+Passed host/Android routing guards, real Bash mirrorlist bytes и propagation
+ошибок missing-file/write failure, negative guards удаления prefix/пакета,
+actionlint с ShellCheck. Структурная сверка YAML: изменён только prefix одного
+prep step. Продукт/API/ABI/медиа не менялись; новые product/UI прогоны локально
+не нужны и не заявляются. Реальный Linux apt/timing и весь новый CI ещё нужны
+перед merge/delete. Старые failures/cancellations сохранены, LOG-460.

@@ -342,3 +342,15 @@ DOM click вместо ввода не добавляются. Локальна�
 Удалить кэш — **Actions → Caches**, отменить настройки — обратным коммитом.
 Удалённый кэш просто приводит к закреплённой холодной сборке. Личные SDK,
 AVD, ключи, настройки Rust и данные ZeDone эти действия не меняют.
+
+### Android: зеркала зависимостей эмулятора
+
+Android CI перед apt-get применяет тот же HTTPS mirrorlist Ubuntu archive/security,
+что Linux host. В PR #83 повторный prototype-ui исчерпал 10m: APT ожидал Azure
+HTTP mirror при установке libpulse0, затем переходил к Ubuntu архиву.
+Настройка меняет только mirrorlist одноразового runner; suites/components/
+Signed-By, подписи Release и хеши пакетов сохраняются. Пакет libpulse0 и KVM
+остаются обязательными. Матрица, все команды/negative cleanup, strict gate и
+10m не меняются. Routing guard проверяет одинаковую настройку с host и
+сохранение установки libpulse0. Реальный Linux результат/время требует нового CI;
+см. [EV-083](../agent/verification/EV-083-tags-ui.md).

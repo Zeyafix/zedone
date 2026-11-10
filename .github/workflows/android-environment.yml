@@ -236,6 +236,12 @@ jobs:
         # The build-only job also runs the shared compiler-failure preflight,
         # which checks emulator dependencies and KVM before invoking rustc.
         run: |
+          # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
+          test -f /etc/apt/apt-mirrors.txt
+          printf '%s\n' \
+            $'https://archive.ubuntu.com/ubuntu/\tpriority:1' \
+            $'https://security.ubuntu.com/ubuntu/\tpriority:2' \
+            | sudo tee /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libpulse0
           printf 'KERNEL=="kvm", OWNER="%s", MODE="0600", OPTIONS+="static_node=kvm"\n' "$(id -u)" \

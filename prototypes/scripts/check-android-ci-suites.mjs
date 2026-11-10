@@ -68,6 +68,11 @@ assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell"]);
 const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
 assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), suites,
   "Every compiler-failure preflight needs emulator libraries and KVM access");
+const hostPreparation = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/actions/prepare-host-check/action.yml`).text());
+const mirrors = hostPreparation.runs.steps.find(step => step.name === "Use Ubuntu HTTPS mirrors for browser dependencies");
+assert.ok(runtime.run.startsWith(mirrors.run), "Android must use the same signed Ubuntu mirror setup as Linux host checks");
+assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-install-recommends -y libpulse0\n"),
+  "Mirror selection cannot replace installing emulator dependencies");
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
 assert.deepEqual(suites.filter(suite => enabled(environment, suite)), suites.filter(suite => suite !== "shell-arm64"));
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");

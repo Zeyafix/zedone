@@ -368,3 +368,12 @@ invalid/rejected/timeout. Ключи и полный session object не воз�
 configured/unconfigured Service и отсутствие credential key в проекции.
 Причина первого native startup отказа c286cc4 пока не доказана —
 [EV-082, GAP-020](../agent/verification/EV-082-board-moves-ui.md#первый-экран-c286cc4--gap-020--log-446).
+
+### Совместимость драйвера с прежним WebView
+
+В shared touch-сценариях читайте DOM-свойства через page.evaluate. Даже
+locator.evaluate может вызвать Playwright visibility engine, который требует
+checkVisibility, отсутствующий в целевом AOSP WebView. Реальные касания остаются
+в nativeControls. Host-only withoutVisibilityApi удаляет этот API из page и
+isolated execution realms перед проверкой moves/tags; продуктовый DOM и
+нативный WebView не получают polyfill. Локальный red→green и native границы — EV-083.

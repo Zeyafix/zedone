@@ -7,7 +7,7 @@ import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
-import { checkNativeControls } from "./check-ui-native-controls.mjs";
+import { checkNativeControls, withoutVisibilityApi } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { checkTags } from "./check-ui-tags.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
@@ -90,6 +90,7 @@ try {
       const movesTouchPage = await movesTouchContext.newPage();
       movesTouchPage.on("pageerror", error => errors.push(error.message));
       await movesTouchPage.goto(url);
+      await withoutVisibilityApi(movesTouchPage);
       const { tap, fill } = await nativeControls(movesTouchPage);
       await checkBoardMoves(movesTouchPage, { tap });
       await checkTags(movesTouchPage, { tap, fill });

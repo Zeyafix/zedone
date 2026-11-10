@@ -28,7 +28,9 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
   const refresh = async () => {
     await click(".view-toolbar button:nth-of-type(2)");
     await page.waitForFunction(() => document.querySelector(".spaces-view")?.getAttribute("aria-busy") === "false");
-    if (!await page.locator(".space-tags").evaluate(element => element.open)) await click(".space-tags summary");
+    // Locator.evaluate asks Playwright to inspect visibility in its isolated realm;
+    // AOSP WebView has no checkVisibility(). This is only a read of native details state.
+    if (!await page.evaluate(() => document.querySelector(".space-tags")?.open)) await click(".space-tags summary");
   };
   async function forget() {
     await click(".pending-list button:last-child"); await submit(); await closed(); await refresh();

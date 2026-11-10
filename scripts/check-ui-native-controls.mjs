@@ -1,6 +1,24 @@
 import assert from "node:assert/strict";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 
+/** Host-only regression: old WebView lacks this API in every execution realm. */
+export async function withoutVisibilityApi(page) {
+  const cdp = await page.context().newCDPSession(page);
+  const contexts = [];
+  cdp.on("Runtime.executionContextCreated", ({ context }) => contexts.push(context));
+  try {
+    await cdp.send("Runtime.enable");
+    assert.ok(contexts.some(context => context.auxData?.type === "isolated"), "Check the automation realm as well as the page");
+    for (const context of contexts) {
+      const result = await cdp.send("Runtime.evaluate", {
+        expression: "delete Element.prototype.checkVisibility; typeof Element.prototype.checkVisibility",
+        contextId: context.id,
+      });
+      assert.equal(result.result.value, "undefined");
+    }
+  } finally { await cdp.detach(); }
+}
+
 /** Real CDP touch against changing layout, without application state or clicks. */
 export async function checkNativeControls(browser) {
   const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });

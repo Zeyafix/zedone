@@ -110,3 +110,33 @@ P05 целиком не завершён. P05.06 verified локально. Да
 ветки (LOG-455). Runtime после локальной матрицы не менялся; CI routing guards
 повторно passed. Реальная before/after пара подготовлена из базы/финального UI
 на одинаковых данных вне репозитория. Результат публикации/CI ещё не получен.
+
+[PR #83](https://github.com/Zeyafix/zedone/pull/83), head 46af9e8, опубликован
+из feat/p05-06-tags-ui в main/1a71b72. Описание и две before/after картинки
+прочитаны обратно; публичные вложения побайтово совпали с исходными. Запущены
+все 14 runtime suites Windows/Linux/Android, три aggregates ожидаются. CI pending,
+reviews/comments при чтении отсутствуют. Условие merge/delete — все 17 SUCCESS
+и повторная readiness; наблюдение watch_pull_request, LOG-456. Шаг пока verified.
+
+## Исправление native CI-драйвера
+
+Исходный head 46af9e8 имеет 14 SUCCESS, native shell FAILURE, prototype-ui
+CANCELLED и Android aggregate FAILURE. Shell завершил прежние workspace/editor/
+IME/Back/moves, затем упал на stage=tags: locator.evaluate читает details.open
+через Playwright visibility engine и вызывает отсутствующий в AOSP WebView
+element.checkVisibility. Продуктовое состояние/IPC были доступны. GAP-022/LOG-457.
+
+Host red→green воспроизвёл ровно этот stack после удаления API из page и
+текущего isolated realm. Исправлено raw-чтением через page.evaluate без
+DOM-записи или polyfill. Постоянный withoutVisibilityApi guard удаляет API в
+обоих realms перед shared touch moves/tags. Chrome/Opera desktop и legacy-touch
+прошли, как и оба routing guards. Assertions, реальные касания, данные и
+таймауты прежние. Это изменение только драйвера; APK/продукт не менялись,
+новые локальные native builds/Device-прогон не требуются и не заявляются.
+
+Отдельный prototype-ui CANCELLED подтверждён аннотацией 10m0s timeout:
+перед отменой прошли environment/Activity/HTTP/QR/scanner/board, но полный
+набор/negative cleanup не завершён. Прототипный код и бюджет не менялись.
+GAP-023 открыт до полного нового CI. Старый успешный cached run не считается
+гарантией текущего времени. Новый head должен дать все 17 SUCCESS/readiness;
+GAP-022 также ждёт подтверждения native shell. Merge/delete ещё не выполнялись.

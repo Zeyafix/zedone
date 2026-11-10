@@ -1,5 +1,13 @@
 # Разработка продуктового Rust-ядра
 
+P03.06 сводит общий контракт: [матрица EV-084](../agent/verification/EV-084-adapter-acceptance.md).
+`crates/adapters/tests/commands/acceptance.rs` использует закрытую fixture
+`offline::Board` внутри прежнего target `commands`. Проверяются 11 изменений
+карточки × 13 старых намерений × HTTP/IPC/CLI, исходные отказы после обратного
+действия/restart, 15 изменений контейнеров, контроль чтения/фиксации истории
+и конкурирующие записи. Новые тесты автоматически входят в обычный product-check
+Windows/Linux/нативного Android; отдельного runner или публичного fault API нет.
+
 P04.10 сводит автономные прикладные сценарии: [матрица EV-076](../agent/verification/EV-076-offline-acceptance.md).
 `crates/adapters/tests/commands/offline.rs` входит в прежний target `commands`
 и штатные Windows/Linux/Android product-check без отдельного runner.

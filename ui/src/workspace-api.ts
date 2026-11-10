@@ -8,6 +8,8 @@ export type Space = Schemas["SpaceSnapshot"];
 export type Column = Schemas["ColumnSnapshot"];
 export type Card = Schemas["CardSnapshot"];
 export type Tag = Schemas["TagSnapshot"];
+export type SearchResults = Schemas["SearchResults"];
+export type SearchHit = Schemas["SearchHit"];
 export type TagMutation = "tag.create" | "tag.rename" | "tag.delete" | "card.set_tag";
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
 export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation;
@@ -19,6 +21,7 @@ type Reads = {
   "column.read": Column;
   "card.list": Schemas["CardList"];
   "card.read": Card;
+  "card.search": SearchResults;
   "tag.list": Schemas["TagList"];
   "tag.read": Tag;
 };

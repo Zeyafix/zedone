@@ -10,6 +10,7 @@ import { checkCardMarkdown } from "./check-ui-markdown.mjs";
 import { checkNativeControls, withoutVisibilityApi } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { checkTags } from "./check-ui-tags.mjs";
+import { checkSearch } from "./check-ui-search.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
@@ -85,6 +86,7 @@ try {
     await checkEditor(page, url, JSON.parse(originalSession.toString()));
     await checkBoardMoves(page);
     await checkTags(page);
+    await checkSearch(page);
     const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
     try {
       const movesTouchPage = await movesTouchContext.newPage();
@@ -94,6 +96,7 @@ try {
       const { tap, fill } = await nativeControls(movesTouchPage);
       await checkBoardMoves(movesTouchPage, { tap });
       await checkTags(movesTouchPage, { tap, fill });
+      await checkSearch(movesTouchPage, { tap, fill });
     } finally { await movesTouchContext.close(); }
     // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);

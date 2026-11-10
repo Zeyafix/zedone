@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import MarkdownView from "./markdown/MarkdownView";
+import TagNames from "./TagNames.vue";
 import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
-import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending } from "./workspace-api";
+import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending, type Tag } from "./workspace-api";
 
-const props = defineProps<{ card: Card; ready: boolean; draftId?: string }>();
+const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: string }>();
 const emit = defineEmits<{ changed: []; close: []; stay: [] }>();
 const snapshot = ref<Card>(props.card);
+// Freeze the displayed tag versions with the card; parent refresh never rebases an action.
+const tags = ref<Tag[]>(props.tags);
+const tagNames = computed(() => new Map(tags.value.map(tag => [tag.tag, tag.names.join(' / ')])));
 const draft = ref<EditorDraft>();
 const comparison = ref<Card>();
 const editing = ref(false), busy = ref(false), blocked = ref(false), storageError = ref(false);
@@ -109,7 +113,7 @@ async function confirmDelivery(id: string) {
   error.value = ""; blocked.value = false;
   return !storageError.value;
 }
-async function mutate<O extends EditorMutation>(operation: O, parameters: Parameters[O]) {
+async function mutate<O extends EditorMutation | "card.set_tag">(operation: O, parameters: Parameters[O]) {
   if (draft.value && !persist()) return false;
   const id = await createMutation(operation, parameters, draft.value?.subject ?? subject);
   if (operation === "card.begin_editing") begunHere.add(id);
@@ -192,6 +196,30 @@ async function toggleCompleted() {
     await mutate("card.set_completed", { space: snapshot.value.space, card: snapshot.value.card, expected: snapshot.value.version, completed: !snapshot.value.completed[0] });
   });
 }
+async function setTag(tag: Tag) {
+  if (editing.value || !mutable.value || !props.ready || blocked.value || pending.value) return;
+  await task(async () => {
+    subject ||= (await mutationCredential()).subject;
+    const value = snapshot.value;
+    await mutate("card.set_tag", { space: value.space, card: value.card, tag: tag.tag,
+      present: !value.tags.includes(tag.tag), expected: value.version, expected_tag: tag.version });
+    tags.value = (await read("tag.list", { space: value.space, include_deleted: false })).tags;
+  });
+}
+async function refreshTags() {
+  if (editing.value || pending.value || !props.ready) return;
+  await task(async () => {
+    await discoverPending();
+    if (pending.value) { blocked.value = true; return; }
+    const value = snapshot.value;
+    const [fresh, labels] = await Promise.all([
+      read("card.read", { space: value.space, card: value.card }),
+      read("tag.list", { space: value.space, include_deleted: false }),
+    ]);
+    snapshot.value = fresh; tags.value = labels.tags; blocked.value = false; error.value = ""; comparison.value = undefined;
+    emit("changed");
+  });
+}
 async function requestClose() {
   if (closing.value) return false;
   closing.value = true; clearTimers();
@@ -272,6 +300,22 @@ defineExpose({ requestClose });
     </template>
     <p v-if="status" :role="!busy && (error || storageError || pending) ? 'alert' : 'status'" :class="{ 'action-error': !busy && (error || storageError || pending) }">{{ status }}</p>
     <p v-if="!ready" role="status">Доступ не подтверждён. Ввод остаётся в редакторе; сохранение приостановлено.</p>
+    <section class="card-tags" aria-label="Теги карточки">
+      <h3>Теги</h3>
+      <TagNames :ids="snapshot.tags" :tags="tagNames" />
+      <p v-if="editing" class="object-note">Для изменения тегов завершите редактирование текста и откройте карточку снова.</p>
+      <template v-else>
+        <p v-if="!tags.length" class="object-note">Создайте тег в разделе «Теги пространства» на доске.</p>
+        <ul class="tag-list">
+          <li v-for="tag in tags" :key="tag.tag" :data-tag="tag.tag">
+            <span>{{ tag.names.join(' / ') }}</span>
+            <button class="set-card-tag" :aria-pressed="snapshot.tags.includes(tag.tag)" :disabled="busy || !ready || !mutable || blocked || !!pending || tag.state !== 'active' || tag.names.length !== 1" @click="setTag(tag)">{{ snapshot.tags.includes(tag.tag) ? 'Снять тег' : 'Назначить тег' }}</button>
+            <p v-if="tag.state !== 'active' || tag.names.length !== 1" class="object-note">Конфликт имени. Назначение и снятие недоступны до разрешения.</p>
+          </li>
+        </ul>
+        <button data-refresh-tags :disabled="busy || !ready || !!pending" @click="refreshTags">Обновить карточку и теги</button>
+      </template>
+    </section>
     <div class="view-actions">
       <button v-if="!editing && mutable" data-editor-edit :disabled="busy || !ready" @click="start">Редактировать</button>
       <button v-if="editing" :disabled="busy || !ready || !validTitle || blocked || !!pending" @click="flush">Сохранить сейчас</button>

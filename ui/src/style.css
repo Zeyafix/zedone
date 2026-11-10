@@ -143,6 +143,17 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .draft-discard { margin-top: 24px; }
 .name-field span { font-size: 13px; color: var(--muted); }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.space-tags { margin: 20px 0; padding: 16px 0; border-block: 1px solid var(--border); }
+.space-tags summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: var(--accent); }
+.space-tags summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.tag-list { list-style: none; padding: 0; margin: 16px 0; }
+.tag-list > li { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tag-list > li > span { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.tag-list .object-note { flex-basis: 100%; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 12px 0; }
+.tag-chips li { max-width: 100%; padding: 3px 9px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; background: var(--selected); overflow-wrap: anywhere; white-space: pre-wrap; }
+.card-tags { margin: 24px 0; padding-block: 12px; border-block: 1px solid var(--border); }
+.card-tags h3 { margin: 0; font-size: 16px; }
 @media (max-width: 700px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail, .desktop-context { display: none; }

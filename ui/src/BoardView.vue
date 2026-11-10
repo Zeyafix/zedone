@@ -6,7 +6,7 @@ import CardsList from "./CardsList.vue";
 import { cardTitle, columnConflict, dragOptions, movableCard, objectTitle, type MoveTarget, type Placement } from "./board-order";
 import { createMutation, deliverMutation, errorMessage, mutationCredential, read, type Card, type Column, type Space } from "./workspace-api";
 
-const props = defineProps<{ space: Space; columns: Column[]; cards: Card[]; blocked: boolean; trash: boolean; cardTrash: boolean; refresh: () => Promise<void> }>();
+const props = defineProps<{ space: Space; columns: Column[]; cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; trash: boolean; cardTrash: boolean; refresh: () => Promise<void> }>();
 const emit = defineEmits<{
   open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column }, event: Event];
   lock: [value: boolean];
@@ -124,7 +124,7 @@ async function end(event: DraggableEvent) {
       <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
       <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
       <template v-if="!trash">
-        <CardsList :cards="columnCards(item.column)" :blocked="blocked || working || dialog" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
+        <CardsList :cards="columnCards(item.column)" :tags="tags" :blocked="blocked || working || dialog" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
           @open="(action, event) => emit('open', action, event)" @move="(card, event) => open({ kind: 'card.move', target: card }, event)" @start="start($event, 'card.move')" @end="end" />
         <p v-if="cardTrash && !columnCards(item.column).length" class="object-note">В корзине нет карточек этой колонки.</p>
         <button v-if="!cardTrash" class="create-card" :disabled="blocked || locked || !writable(space) || !writable(item)" @click="emit('open', { kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>

@@ -11,9 +11,9 @@ dependencies_evidence: ["P05.03: PR #78/2f54349, EV-078", "P01.07: PR #14/21e329
 scope: ["общий UI Markdown viewer из прототипа", "CardEditor", "CSP/Android Opener", "закреплённые зависимости", "проверки и документация P05.04"]
 checks: ["bun run ui:check", "прежний прототип Markdown", "debug APK x86_64/aarch64", "Android Device: настоящий IPC/ссылки/изображения/ошибка/повтор"]
 reverse_and_failure: "Обычная обратная правка Markdown, скрытие изображения, повтор загрузки; ошибка не меняет данные/редактор"
-result: "PR #80 открыт: 2a0a13f — 11 SUCCESS, Android shell/aggregate failed; driver stability verified на host, новый native CI ожидается"
+result: "done: PR #80/head 734511e merged 94df827 после всех 13 SUCCESS Windows/Linux/Android; feature-ветка удалена, dirty docs сохранены"
 evidence: ["Windows UI/HTTP", "Android Device/IPC", "обе debug ABI", "сохранность sandbox", "прототип/типы/CI guards"]
-next: "Опубликовать touch stability fix, проверить весь новый CI; при успехе merge и удаление ветки. Затем P05.05"
+next: "По новому поручению готов P05.05; P03.06 также готов. Полные P05/T08/A50 и другие GAP остаются вне этой приёмки"
 ```
 
 ## Граница
@@ -490,3 +490,54 @@ JS syntax passed. Локальный Device заново не запускалс
 паритет Windows/Android для нового драйвера ожидает native CI. P05.04 не done,
 GAP-015/016 не закрыты. Далее публикация нового head и все checks; merge/delete
 только при успехе, новый HTTP 504 — остановка без retry.
+
+## Публикация native touch stability — LOG-435
+
+Head 734511ea8686492ede366ab14b8c2dd69fd963da опубликован в PR #80 и сразу
+linked. Body/readback проверены: base c04cf3c, OPEN/non-draft/MERGEABLE,
+comments/reviews отсутствуют, четыре реальные attachments сохранены.
+11 suite checks выполняются, два aggregate ещё ожидаются (всего 13).
+Прежний watch сохраняется без повторной регистрации. Full native Android
+подтверждение исправления ещё не получено; P05.04/GAP-015/016 остаются открыты.
+Далее exact-head checks/readiness и исходный merge/delete только при успехе.
+При новом HTTP 504 выключить watch и остановиться без retry.
+
+## Итоговая приёмка и интеграция — LOG-436
+
+[Host CI 734511e](https://github.com/Zeyafix/zedone/actions/runs/42619064184)
+и [Android CI 734511e](https://github.com/Zeyafix/zedone/actions/runs/42619064158)
+завершены SUCCESS: все 13 checks. Readback подтвердил точные head/base,
+OPEN/non-draft/MERGEABLE/CLEAN и отсутствие comments/reviews/review comments.
+Новых HTTP 504 в прочитанных логах нет, rerun не выполнялся.
+
+Native product лог подтвердил 279 Rust tests. Android shell прошёл весь
+Card Markdown: CommonMark/буквальный HTML/XSS, точный API source, внешнюю
+ссылку, image consent/hide/failure/retry, completion/reverse/reload,
+UI edit и agent reverse. Editor/history/draft/restart и negative
+compiler/version/cleanup также passed. Windows shell подтвердил новый
+moving-target/pending-refresh host regression с одним touch и прежний
+полный HTTP/editor/Markdown сценарий. Обе Android ABI/прототип/QR и строгие
+aggregate passed. Shell 8:18, shell-arm64 5:52 в прежнем 10m budget.
+Это один успешный финальный CI; будущие cold-run сроки не гарантируются.
+
+GAP-015 resolved по обязательному ABI split. GAP-016 resolved по
+воспроизведённому host механизму потери касания, исправлению actionability
+и новому полному native результату. Конкретный timing исходного native
+отказа не объявляется доказанным; прежние failures сохранены выше.
+GAP-007/012/013 остаются открыты, локальный Device/физический arm64/release
+UI заново не запускались. Полные P05/T08/A50 остаются partial.
+
+Watch выключен до завершения: wasWatching=true/watching=false.
+PR #80 слит 2026-11-09 12:53:32 UTC в 94df827532477c1fa4b0261d1c3ecd6bc7dc254e;
+checked head 734511ea8686492ede366ab14b8c2dd69fd963da входит в merge,
+деревья полностью совпали. Main fast-forward, feature-ветка удалена
+локально и на GitHub без force-delete. Все десять исходных dirty docs
+сохранены побайтово при переключениях; затем обновлены только связанные
+product journal/queue/EV-080. Четыре посторонних product docs и три clock
+docs остаются прежними; clock worktree на том же c04cf3c без ветки.
+Нового source commit/push после CI нет, отдельный post-merge CI не заявлен.
+
+P05.04 done в согласованном scope. Обратимость, единый API человека/агента,
+user/agent/development/ADR docs, Windows/Android parity и authoritative
+saved source/общий viewer подтверждены в указанном охвате. Далее по новому
+поручению готов P05.05; P03.06 также готов. Новая реализация не начата.

@@ -10,10 +10,10 @@ goal: "Сократить ожидание Windows host-check до 10 минут
 requirements: [T16, T17]
 dependencies_evidence: ["CI.01/EV-028 merged", "CI.03/EV-064 merged", "P05.03/EV-078 PR #78 merged"]
 scope: ["Prototype foundation workflow и read-only миграция cache", "общая подготовка host suites", "разделение host driver и диагностика test/debug Rust", "CI docs и журнал"]
-checks: ["actionlint", "YAML и сохранение команд/paths/permissions", "настоящие shell-границы подготовки и aggregate с подставными внешними CLI", "cold/warm GitHub Actions — ожидаются"]
+checks: ["actionlint", "YAML и сохранение команд/paths/permissions", "настоящие shell-границы подготовки и aggregate с подставными внешними CLI", "GitHub Actions ed512db: все 12 passed, Windows 6:32 с legacy main cache; полностью cold не подтверждён"]
 reverse_and_failure: "Возврат последовательного workflow через Git; failure/cancelled/skipped не дают успешного aggregate; fail-fast false сохраняет диагностику остальных suites."
-result: "in_progress: attempt 1 passed за 13:54, attempt 2 failed; cache migration/debug diagnostics проверены локально, новый CI ожидается"
-next: "После публикации проверить точный head полным CI и измерить cold/warm время до aggregate; CI.04 остаётся in_progress."
+result: "done: PR #79/head ed512db merged 8e87273 после 12 SUCCESS; Windows 6:32/весь CI 9:31; один cached замер, GAP-014 открыт; ветка удалена локально и на GitHub"
+next: "CI.04 интегрирован; следующий готовый продуктовый шаг P05.04, также готов P03.06. Новая реализация не начата; полностью cold время не подтверждено."
 ```
 
 Исходные незакоммиченные документы результата P05.03 сохранены:
@@ -304,3 +304,90 @@ API подтвердил, что прежний main-архив
 и workflow/composite actionlint passed. Это не подмена проверки: все прежние
 Cargo команды/флаги/версии/проверки freshness сохраняются. Настоящий restore,
 время и весь CI нового диагностического head ещё ожидаются; цель не принята.
+
+Опубликован head `ed512db547c09fb5e871e05976e344c29dd67f9b`, commit
+`ci: reuse main dependencies and diagnose backend failures`.
+Новые [host run 42520459945](https://github.com/Zeyafix/zedone/actions/runs/42520459945)
+и [Android run 42520460030](https://github.com/Zeyafix/zedone/actions/runs/42520460030)
+стартовали 2026-11-08 20:30:29 UTC. Все 12 checks нового head ожидаются;
+это не продолжение/успех старых попыток. Проверить реальные cache keys/paths/
+restore, полный охват и время от 20:30:29 до Windows aggregate. PR остаётся draft.
+
+### Итог ed512db: цель достигнута с legacy main cache
+
+Точный head `ed512db547c09fb5e871e05976e344c29dd67f9b`: все **12 checks SUCCESS**
+с первой попытки обоих workflows. Host run `42520459945` и Android run
+`42520460030` стартовали 2026-11-08 **20:30:29 UTC**. Windows aggregate завершён
+**20:37:01**, Android aggregate/последний check — **20:40:00**.
+Итого Windows **6:32**, весь CI **9:31**. Сравнимая исходная граница PR #78 —
+**19:32** от старта workflow, включая Windows job **19:29**.
+Четыре секунды собственного aggregate не используются как замер ускорения.
+
+| Job/граница | Фактическое время |
+| --- | --- |
+| Windows product, job 128852617079 | 6:23 |
+| Windows prototype-native, job 128852616775 | 4:45 |
+| Windows prototype-ui, job 128852617036 | 5:27 |
+| Windows shell, job 128852617048 | 5:58 |
+| Windows aggregate: собственный job | 0:04 |
+| От старта workflow до Windows aggregate | **6:32** |
+| Сумма четырёх Windows jobs | **22:33**, без Ubuntu aggregate |
+| Linux job, 128852617054 | 9:23 |
+| Host workflow целиком | 9:26 |
+| Android workflow / все 12 checks | **9:31** |
+
+Все четыре Windows jobs действительно восстановили один прежний main-архив
+`zedone-rust-v1-prototype-host-Windows_NT-x64-af717f4b-427390d8`.
+Собственные suite namespaces ещё дали miss; PR не сохраняет кэши.
+Это один успешный запуск с восстановленными зависимостями, сравнимый с
+исходным main cache hit. Полностью холодный запуск без обоих архивов и
+будущие main save/direct suite restore не подтверждены. Повторная подготовка
+увеличивает сумму Windows job time с 19:29 до 22:33; сокращено ожидание,
+стоимость/тарификация не измерялись. Прежние 13:54 и failed attempt 2
+сохраняются выше, без отбора только успешных результатов.
+
+Raw logs подтвердили прежний полный охват: 273 product Rust tests на каждой
+из Windows/Linux/Android, 23 client tests/239 assertions, семь unsafe guards
+на host/каждой Android ABI, OpenAPI/types, routing/pairing guard. Prototype:
+175 Windows/177 Linux tests (разница Unix-specific), release/restart/HTTP/UI
+passed. Windows/Linux UI на Node baseline 24.22.1 прошли полностью;
+Android обе ABI/native/APK/IPC/lifecycle/environment/cleanup passed.
+Ни один assertion/timeout/clock/access guard не ослаблен, retry не добавлен.
+
+GAP-014 не повторился; диагностические storage/clock error traces отсутствуют.
+Это не доказывает причину или устранение прежних отказов, GAP-014 остаётся
+`in_progress` отдельно от GAP-013. Пять правил в данном охвате соблюдены:
+изменения CI обратимы через Git; общий API человека/агента и данные продукта
+прежние; developer/agent docs обновлены; Windows/Linux/Android прошли;
+версии берутся из единого `environment-versions.json`.
+
+CI.04 — `verified`, draft PR #79 доступен для ревью, merge не выполнялся
+и не поручен. Финальные результаты сохранены в локальных docs и PR body
+без нового source-коммита: проверенный head остаётся `ed512db`.
+Исходные dirty EV-077/078 сохранены побайтово, 98 критериев/статусы приёмки
+не изменены. Сырые логи и JSON — `host-ed512db.log`, `android-ed512db.log`,
+`host-jobs-ed512db.json`, `android-jobs-ed512db.json` в `docs/reports/ci-04/`.
+Следующее действие — ревью/интеграция по поручению разработчика.
+
+### Интеграция по поручению разработчика
+
+Разработчик поручил PR, при успехе merge и удаление ветки. Повторно сверены
+точный head `ed512db`, все 12 завершённых SUCCESS, base `main`, отсутствие
+конфликтов и замечаний reviews/comments. Новые исходники/коммиты не добавлялись.
+PR #79 переведён из draft и слит merge-коммитом
+`8e87273d994d1b7969d8431b6212b17da132f0ee` в **2026-11-09 05:36:46 UTC**.
+
+Git подтвердил вхождение проверенного head и полное совпадение дерева
+merge с ним. Локальный `main` fast-forward до `origin/main`; ветка
+`ci/parallel-windows-checks` удалена на GitHub и локально без force-delete.
+Все шесть исходных working documents сохранились побайтово при переключении;
+резервный снимок/manifest — только в `docs/reports/ci-04/pre-merge-*/`.
+EV-077/078 не редактировались. Финальная передача/измерения остаются в
+локальных docs и PR body; отдельный коммит результатов не создавался.
+
+CI.04 — `done` в указанном CI-охвате; T16/T17 и остальные 98 критериев не
+переоцениваются. Пять правил соблюдены в прежнем охвате, GAP-014 остаётся
+открытым, ограничение одного замера с main-кэшем сохраняется. Результаты CI
+относятся к проверенному PR head; отдельный post-merge запуск не выдаётся
+за проверенный. Следующий готовый продуктовый шаг P05.04, также готов P03.06;
+новая реализация не начата.

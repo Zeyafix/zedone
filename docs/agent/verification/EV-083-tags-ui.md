@@ -1,6 +1,6 @@
 # EV-083: интерфейс тегов пространства и карточки
 
-Дата: 2026-11-10. Шаг: P05.06. Состояние: verified локально, без CI/интеграции.
+Дата: 2026-11-10. Шаг: P05.06. Состояние: done в согласованном UI-срезе после CI/интеграции.
 
 ## Рабочая карточка
 
@@ -26,8 +26,8 @@
 - Проверки: vue-tsc, `bun run ui:check` на подготовленных Chrome/Opera,
   общий сценарий тегов на host touch/Android CI; локальные debug APK обеих ABI,
   Android Device/agent-device с проверкой native IPC, IME/Back/перезапуска.
-- Результат: реализация и локальная матрица пройдены. Коммит/PR/CI/слияние не выполнены.
-- Следующее действие: ревью и интеграция ветки в рамках отдельного поручения.
+- Результат: PR #83, head d1c1c44, merge 695d0b8; все 17 Windows/Linux/Android checks SUCCESS. Ветка удалена, main обновлена; итог ниже.
+- Следующее действие: готов P05.07 (поиск) по новому поручению, P03.06 также готов. Новая реализация не начата.
 
 ## Проверенное поведение
 
@@ -191,3 +191,33 @@ Passed точное сравнение YAML, negative guard 10/14/16 вмест�
 guards, actionlint с ShellCheck и diff. Продукт/UI/ABI не менялись; нового
 локального UI/ABI прогона для config-only правки нет. GAP-023 открыт до нового
 полного CI/readiness; merge/delete поручены при всех 17 SUCCESS. LOG-462.
+
+Лимит 15m опубликован в прежнем [PR #83](https://github.com/Zeyafix/zedone/pull/83),
+head d1c1c44. Описание приведено к итоговому diff и прочитано обратно,
+обе картинки/credit сохранены. Новый полный CI pending, все 17 SUCCESS/readiness
+нужны перед порученными merge/delete. GAP-023 пока открыт, watch прежний. LOG-463.
+
+## Итоговая интеграция
+
+[PR #83](https://github.com/Zeyafix/zedone/pull/83), окончательный head d1c1c44,
+merge 695d0b8 (2026-11-10T07:09:00Z). Все 17 checks COMPLETED/SUCCESS:
+14 runtime suites Windows/Linux/Android и три strict aggregates без пропусков.
+Readiness/head/base проверены повторно; comments/reviews/inline threads отсутствуют.
+Описание и две hosted картинки/credit сохранены и прочитаны обратно.
+
+Raw native shell и prototype-ui подтвердили полные прежние сценарии и новый
+сценарий тегов, Unicode/обратные действия/сохранность/IPC/IME/Back/Markdown,
+lock/restart/cleanup. Обе ABI и все платформенные checks прошли. GAP-022/023
+resolved в документированном scope; Android 15m явно разрешены разработчиком,
+aggregate 1m и все проверки сохранены. Текущие shell 606s / prototype-ui
+541s не доказывают cold или будущее время. Старые отказы остаются историей.
+
+Merge tree совпал с checked head, родители — прежний main 1a71b72 и
+head d1c1c44. Ветка удалена на GitHub/локально, main fast-forward обновлена.
+Девять dirty docs сохранены до записи результата побайтово, без stash и без
+изменения других worktrees. Существующее наблюдение выключено перед merge.
+Записи завершения остаются в рабочем дереве; нового source commit/push нет.
+
+P05.06 done, пять правил соблюдены в согласованном срезе; удаление без restore
+остаётся утверждённым исключением. Весь P05/T08/A20/A30/A32 partial.
+Далее P05.07 по отдельному поручению; P03.06 также готов. LOG-464.

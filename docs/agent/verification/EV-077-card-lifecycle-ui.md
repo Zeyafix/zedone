@@ -16,8 +16,8 @@ dependencies_evidence: ["P05.02/EV-066: PR #56/5e8005d", "P04.03/EV-067: PR #58/
 scope: ["SpacesView/workspace-api/style", "HTTP/IPC UI-проверки", "user/agent/development docs"]
 checks: ["bun run ui:check, Chrome/Opera", "product --check-types", "debug APK x86_64/aarch64", "Android Device IPC", "git diff --check"]
 reverse_and_failure: "Корзина/восстановление с тем же ID; stale не подменяет версию, отказ сохраняет ввод, неизвестный исход повторяет сохранённые байты после restart; ошибка localStorage запрещает отправку."
-result: verified_locally
-next: "Проверка и интеграция feat/p05-03-1-card-lifecycle-ui; P05.03.2 готов после интеграции .1."
+result: done
+next: "Срез интегрирован вместе со всем P05.03 в PR #78/2f54349; текущая передача — EV-078/LOG-382."
 ```
 
 До начала сохранены четыре исходных незакоммиченных документа о завершении
@@ -100,3 +100,12 @@ P05.03/P05/T08 и полные A остаются partial. Редактор/ав
 выполнение, история UI, продуктовый обмен, физический arm64 и выпуск не приняты.
 Повтор общей native product-матрицы без изменений ядра не выполнялся;
 сохранена принятая P04/T07-основа. Прежние GAP-007/012/013 остаются наблюдениями.
+
+
+## Итоговая интеграция
+
+P05.03.1 done вместе с полным P05.03: [PR #78](https://github.com/Zeyafix/zedone/pull/78),
+head 75637bc, merge 2f54349 после восьми SUCCESS Windows/Linux/Android.
+Исходная ветка удалена локально и на GitHub. Итоговые доказательства,
+дополненный Android CI, пять правил и границы — [EV-078](EV-078-card-editor.md)/
+LOG-382. Прежние отметки verified/отсутствия публикации выше исторические.

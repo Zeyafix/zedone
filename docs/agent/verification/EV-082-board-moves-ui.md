@@ -12,9 +12,14 @@ dependencies_evidence: ["P05.03: PR #78/2f54349, EV-078", "P04.05: PR #63/1d36d3
 scope: ["BoardView/CardsList", "закреплённая VueDraggablePlus из прототипа", "move в штатной очереди UI", "проверки и документация"]
 checks: ["полный ui:check Chrome/Opera", "истинный HTTP/Service", "debug APK x86_64/aarch64", "Android Device/IPC/касание/прокрутка"]
 reverse_and_failure: "Новое обратное перемещение; сохранённый порядок после stale/отказа, исходная команда при неизвестном результате"
-result: "Реализован; полный локальный ui:check Opera/Chrome passed. GAP-017 resolved в FIX.02/LOG-440; PR/CI/merge отсутствуют"
-next: "Ревью/интеграция ветки; полный P05.10 остаётся отдельным шагом"
+result: "done: PR #82/head f723d52 merged 1a71b72 после всех 17 SUCCESS; checked tree совпал, ветка удалена, main обновлена, dirty docs сохранены (LOG-453)"
+next: "P05.06 (теги) готов; новая реализация не начата. Полный P05.10 остаётся отдельным шагом"
 ```
+
+P05.05 интегрирован: [PR #82](https://github.com/Zeyafix/zedone/pull/82),
+head f723d52, merge 1a71b72. Все 17 Windows/Linux/Android checks SUCCESS,
+ветка удалена локально/на GitHub, main обновлена. LOG-453 завершает карточку;
+нижеследующие промежуточные результаты остаются историческими.
 
 ## Граница
 
@@ -477,3 +482,57 @@ permissions/concurrency и неизменённой подготовки вне 
 Весь product/UI набор локально не повторялся для orchestration-only diff;
 весь exact-head native/UI/ABI CI нужен до merge/delete. Новый успех и
 ускорение не заявляются; GAP-019/020 открыты, полные критерии partial.
+
+## Linux split опубликован — LOG-452
+
+Commit `f723d52feacee715abdee78770e0bd8e6f7803db`
+`ci: let Linux check suites run independently` опубликован в прежний PR #82
+и сразу linked. Семь связанных paths содержат YAML/action/guard и scoped
+CI docs/evidence; старые dirty ci-checks/journal/queue записи остались
+unstaged, четыре прочих исходных документа не изменены. Полные backups
+вне Git, 98 определений/статусов критериев прежние.
+
+PR body прочитан обратно: exact head, OPEN/MERGEABLE, comments/reviews нет;
+английские разделы/credit, две rendered картинки/два видео сохранены.
+Видимый UI/product diff прежний. Все 14 runtime suites IN_PROGRESS,
+три aggregates ожидаются; все 17 SUCCESS/readiness и реальные Linux
+cache/time ещё требуются до merge/delete. Наблюдение прежнее, нового
+source push после этого нет; GAP-019/020 пока открыты.
+
+## Итоговая интеграция — LOG-453
+
+[PR #82](https://github.com/Zeyafix/zedone/pull/82) merged 2026-11-09
+19:41:07 UTC, head f723d52feacee715abdee78770e0bd8e6f7803db,
+merge 1a71b72e5282eed0f626821814e9eb13d44022e3. Все 17 checks exact head
+SUCCESS: [host](https://github.com/Zeyafix/zedone/actions/runs/42683311751),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/42683311676), attempt 1.
+Readiness CLEAN/MERGEABLE/non-draft; reviews/comments/threads отсутствовали.
+Head guard применён при merge. Parents — прежний main 94df827 и checked
+head, дерево merge побайтово соответствует Git tree проверенного f723d52.
+Main обновлена fast-forward, feature-ветка удалена remote и локально через
+обычный -d, tracking pruned. Watch выключен до merge.
+
+Все четыре Linux jobs восстановили прежний main cache, собственных suite
+архивов ещё не было; save-if=false. Linux aggregate — 4:05 от workflow
+start. Это один cached замер, не cold/main save или гарантия будущего времени.
+279 product Rust tests, 177 prototype Unix tests, весь HTTP/touch/shell и
+постоянные guards passed. Native Android shell полностью подтвердил startup,
+rename/reverse/editor/history/drafts/IME/Back/moves/сохранность/Markdown/
+UI edit/agent reverse и negative cleanup; обе ABI и весь Android passed.
+GAP-019/020 resolved в scope текущего budget/native подтверждения;
+причина прежнего startup timeout и устранение всех периодических сбоев
+не доказаны. GAP-017/018/021 resolved, прочие GAP/DEC прежние.
+
+Восемь dirty документов перед merge сохранены с hashes/binary patch вне Git,
+после stash/main transition восстановлены побайтово; удалён только собственный
+stash. Четыре посторонних документа совпали с исходным backup, старые
+ci-checks/journal/queue records сохранены, 98 определений/статусов критериев
+не изменены. Прочие worktrees не затронуты. Итоговая запись протокола
+остаётся локально в прежнем dirty наборе, нового source push после CI нет.
+
+Пять правил соблюдены: обратные move/отказы; общий API человека/агента;
+user/agent/development/architecture docs; Windows/Android Device+native CI;
+одно авторитетное хранилище с refresh вместо старого receipt/JS рангов.
+P05.05 done в согласованном срезе; полный P05/T08/A07/A35/A41, физический
+arm64/release UI, cold/main cache измерения и P06 не принимаются этим шагом.
+Следующий UI-шаг — P05.06 (теги); новая реализация не начата.

@@ -11,8 +11,8 @@ dependencies_evidence: ["P03.05/EV-058/PR #47", "P04.10/EV-076/PR #77"]
 scope: ["недостающие adapter tests и сводная матрица T06", "документация и передача"]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android", "полный diff и сохранность исходных dirty docs"]
 reverse_and_failure: "Устаревшие команды без частичных эффектов; перечитывание/новое действие, обратные действия и исходные повторы после restart."
-result: verified_local
-next: "Ревью и интеграция текущего diff; T06/P03 закрывать после необходимого CI/интеграции, не по локальному verified."
+result: done_merged_pr_84
+next: "P05.07 — поиск в интерфейсе; начать по отдельному поручению. P03.06/T06 завершены в контрактном объёме."
 ```
 
 Один вопрос приёмки: общий контракт готовых прикладных команд одинаков для
@@ -40,7 +40,7 @@ API-среза и не закрываются автоматически вме�
 | Конкуренция | `commands/acceptance.rs::competing_adapter_changes_require_a_new_intention_for_the_loser`; прежние adapter/storage replay и card/group tests | Два workers HTTP/IPC не могут применить разные изменения одной версии; проигравший запрос stale также в CLI; новое явное намерение проходит, старый receipt сохраняет позднее состояние |
 | Повторы и неизвестный исход | Все domain adapter tests; `commands/offline.rs`; `storage/src/replay_tests.rs`; `tests/commands.test.ts` | Исходные ID/JSON/expected/subject, mismatch, ограниченные попытки/ручной повтор, unavailable/outcome_unknown, restart и параллельная доставка; нет новой правки/истории/границы серии/группы и отмены восстановления |
 | Атомарность и сбои | `storage/src/{tests,replay_tests}.rs`, domain storage tests карточек/колонок/пространств/тегов/очистки | SQL/checkpoint/commit/сериализация/остановка дочернего процесса не дают частичных данных или ложного успеха; закрытые fault seams не экспортируются адаптерами |
-| Границы пакетов и unsafe | product-check metadata/lints, Clippy, release/all-features и независимые negative guards всех lib/bin/test targets | Один Rust-источник контракта, core без I/O/SQL/Automerge, `unsafe_code=forbid` без продуктовых исключений; сторонние зависимости не объявляются свободными от unsafe |
+| Границы пакетов и unsafe | product-check metadata/lints, Clippy, release/all-features и независимые negative guards всех lib/bin/test targets | Один Rust-источник контракта, core без I/O/SQL/Automerge, `unsafe_code=forbid` в core/storage/adapters; отдельный JNI bootstrap host ограничен ADR-0024/0042; сторонние зависимости не объявляются свободными от unsafe |
 
 В новой матрице карточки отдельно меняются только заголовок, только описание,
 оба текста, назначение и снятие тега, установка и снятие выполнения, колонка,
@@ -86,11 +86,11 @@ Android открывается и выключается через Device; сб
   Исходный отказ тестовой подготовки снятия назначения исправлен свежим
   `expected_tag`; это не обнаруженный дефект продукта и не закрытие GAP.
 
-P03.06 — `verified` локально. T06 и связанные A пока `partial`: итоговая
-контрактная матрица выполнена на обеих платформах, ревью/CI/интеграция
-ожидаются. Полная UI/обменная приёмка связанных A остаётся P05/P06.
-PR/новый CI/commit/push/merge
-не выполнены. Открытые GAP-007/012/013 и DEC этим шагом не закрываются.
+P03.06 — `done`: PR #84/head 3ea5c54 интегрирован в d64133e после всех
+17 SUCCESS Windows/Linux/Android и проверки readiness. T06 и A17 passed
+в продуктовом контрактном объёме; P03 завершён в этом объёме. Полные
+UI/обменные A05/A07/A55/A56 остаются partial и принимаются в P05/P06.
+Открытые GAP-007/012/013 и DEC этим шагом не закрываются.
 
 ## Пять правил проекта
 
@@ -115,3 +115,57 @@ PR/новый CI/commit/push/merge
 источников совпали с проверенными; семь посторонних dirty docs побайтово прежние.
 Старые записи журнала/очереди сохранены, все 98 определений критериев неизменны.
 Локальные источники данных, SQL/Rust runtime/контракт/зависимости не менялись.
+
+## Публикация — LOG-468
+
+Раздел фиксирует момент публикации; итог интеграции приведён ниже.
+
+[PR #84](https://github.com/Zeyafix/zedone/pull/84) создан из
+`test/p03-06-adapter-acceptance`, head `3ea5c543d28ca80b234f921db482041d908f52e2`, base `695d0b8`.
+Коммит включает восемь scoped paths, только P03.06 и необходимую передачу
+предыдущего интегрированного шага. Семь посторонних документов прежние,
+прочие dirty записи journal/queue сохранены в рабочем дереве.
+Описание/отрендеренные разделы/credit прочитаны обратно; визуальных
+изменений и медиа нет. Исходники совпали с проверенными SHA-256.
+
+Все 14 runtime suites Windows/Linux/Android нового CI запущены; три
+strict aggregates ожидаются. Для merge требуется точный head и все 17
+SUCCESS без пропусков, отсутствие нерешённых замечаний и готовность PR.
+На момент публикации reviews/comments/review threads отсутствуют.
+Разработчик поручил merge и удаление ветки при успехе; повторного
+согласования не требуется. Новый успех/merge/delete пока не заявляются,
+T06/P03 остаются partial.
+
+## Интеграция и приёмка — LOG-469
+
+На точном head `3ea5c543d28ca80b234f921db482041d908f52e2` все 17 checks COMPLETED/SUCCESS:
+14 runtime suites и три strict aggregates, без пропусков.
+[Windows/Linux CI](https://github.com/Zeyafix/zedone/actions/runs/42778073613) и
+[Android CI](https://github.com/Zeyafix/zedone/actions/runs/42778073475) завершены
+успешно. Прямые raw job logs подтверждают по 283 Rust-теста Windows/Linux/
+нативного Android, все четыре новых сценария, 23 client/239 assertions, обе
+Android release ABI/bridge и guards (по 7 для каждого host и 14 Android).
+Native shell и обе UI ABI checks тоже SUCCESS; они сохраняют прежний CI-охват,
+не подменяя полную будущую приёмку P05/P06 или физический arm64.
+
+Перед merge повторно проверены head/base 3ea5c54/695d0b8, OPEN/non-draft/
+MERGEABLE/CLEAN, все 17 SUCCESS и отсутствие reviews/comments/review requests/
+review threads. PR body обновлён фактическим CI и прочитан обратно вместе с
+отрендеренными разделами. Наблюдение выключено перед merge. Merge API
+проверил точный head; PR #84 merged в `d64133e49d5a57f3d311243e23d06607c84e677f`,
+родители 695d0b8 и 3ea5c54. Дерево merge побайтово совпало с проверенным head.
+
+Main fast-forward обновлена без перехода через старое дерево. Десять dirty
+документов сохранились побайтово до записи этого итога; stash и другие
+worktrees не менялись. Feature-ветка удалена обычным branch -d локально
+и на GitHub; tracking pruned, индекс пуст. Коммитов/push после интеграции нет.
+
+A17: core/storage/adapters сохраняют forbid без исключений; UI host имеет
+единственное `allow(unsafe_code)` для генерируемого JNI в `entry_point`,
+обоснованное ADR-0024/0042 и изолированное от доменных команд/хранения. Вне
+него действует deny; собственного unsafe/FFI не добавлено. Сторонние
+зависимости не объявляются свободными от unsafe. Полный CI обеих ABI/host
+и исходная граница проверены; T06/A17 passed, P03/P03.06 done в указанном
+объёме. Пять правил соблюдены в API-срезе; полные A05/A07/A55/A56 остаются
+partial, GAP/DEC прежние. Далее P05.07 по новому поручению, новая работа
+не начата. Сырые логи/метаданные/машинные сведения — только docs/reports/p03-06.

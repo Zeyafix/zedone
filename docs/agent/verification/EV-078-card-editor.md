@@ -12,8 +12,8 @@ dependencies_evidence: ["P05.02/EV-066 merged", "P04.04/EV-068 merged", "P04.08/
 scope: ["P05.03.1–.3 в одной ветке по явному поручению разработчика", "UI/черновик/доставка и Windows/Android проверки", "docs"]
 checks: ["ui:check Chrome/Opera", "contract/types", "обе debug ABI", "Android Device IPC", "история/конкуренция/restart/отказы", "diff/98 критериев/docs"]
 reverse_and_failure: "Обратная правка/снятие выполнения/корзина/восстановление; ввод при отказе и пустом заголовке, исходный повтор и явное решение после stale; черновик до доставки и после перезапуска."
-result: verified_locally
-next: "Проверка и интеграция feat/p05-03-card-editor; затем P05.04 на интегрированном результате. Новая реализация не начата."
+result: done
+next: "P05.03/.1–.3 интегрирован PR #78/2f54349; следующий готовый шаг — P05.04. Новая реализация не начата."
 ```
 
 Разработчик явно поручил весь P05.03 в продолжение .1; прежняя граница
@@ -120,3 +120,31 @@ SHA-256 совпадают с source-fingerprint.json. Реальные Before/A
 и 1280×900; файлы находятся вне репозитория и загружены вложениями GitHub.
 Новый CI/merge пока не выполнены; перед слиянием требуются проверки точного
 head, всех обязательных checks, замечаний и конфликтов.
+
+
+## Интеграция — LOG-382
+
+Весь P05.03/.1–.3 done: [PR #78](https://github.com/Zeyafix/zedone/pull/78),
+head 75637bc7358f863f7e6540c54c0d2b796d5297a8, merge 2f54349c775da93ff38aab34a51e64da510f7edd.
+Прежние отметки об отсутствии публикации/CI выше исторические.
+
+Восемь SUCCESS проверены на точном head: Windows/Linux foundation, пять
+Android suites и strict aggregate. [Host run](https://github.com/Zeyafix/zedone/actions/runs/42509815148)
+и [Android run](https://github.com/Zeyafix/zedone/actions/runs/42509815121):
+по 273 product Rust-теста, 23 client/239 assertions каждой платформы,
+обе release ABI/guards/контракт и прежняя native/UI/cleanup матрица passed.
+Полный host UI/editor-набор прошёл под Node baseline 24.22.1.
+Новый реальный Android shell CI подтвердил card lifecycle, парные
+autosave/history, выполнение/снятие, invalid-title guard и durable recovery.
+Ранее описанные Device и обе локальные debug ABI сохраняют свой охват.
+
+До слияния повторно проверены head, восемь SUCCESS, CLEAN/MERGEABLE и
+отсутствие замечаний/запросов review; merge ограничен match-head-commit.
+Исходная ветка удалена локально/на GitHub после проверки её head,
+отсутствие remote ref подтверждено. Main обновлена. История записи/пять правил
+и границы — LOG-382; полный P05/T08 и остальные A не закрываются.
+Следующий готовый шаг — P05.04; P03.06 также готов.
+
+После merge обновлены только EV/очередь/журнал, без runtime-изменений;
+запись результата оставлена локально на main, отдельный PR/push не создавался.
+Сырые логи/хеши/метаданные только docs/reports/p05-03-complete/.

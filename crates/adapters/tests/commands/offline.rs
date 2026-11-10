@@ -99,6 +99,9 @@ impl Board {
     }
 }
 
+#[path = "acceptance.rs"]
+mod acceptance;
+
 #[tokio::test]
 async fn new_description_invalidates_every_old_card_intention_and_both_container_deletions() {
     let mut b = Board::new(0).await;

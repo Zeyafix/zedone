@@ -63,7 +63,7 @@ jobs:
       matrix:
         suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, shell-arm64]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash

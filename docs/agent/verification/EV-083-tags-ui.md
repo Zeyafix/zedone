@@ -171,3 +171,23 @@ actionlint с ShellCheck. Структурная сверка YAML: изменё
 prep step. Продукт/API/ABI/медиа не менялись; новые product/UI прогоны локально
 не нужны и не заявляются. Реальный Linux apt/timing и весь новый CI ещё нужны
 перед merge/delete. Старые failures/cancellations сохранены, LOG-460.
+
+CI mirror fix опубликован в прежнем [PR #83](https://github.com/Zeyafix/zedone/pull/83),
+head 4c37de3. Описание прочитано обратно, обе картинки/credit сохранены.
+Новый полный CI и фактический APT timing pending, GAP-023 открыт. Ожидаемый
+набор прежний — 17 checks, merge/delete после SUCCESS/readiness. LOG-461.
+
+## Лимит Android по прямому поручению разработчика
+
+4c37de3: prototype-ui полностью SUCCESS, APT пакеты загружены за 2s.
+Всего 15 SUCCESS из 17; shell CANCELLED по annotation 10m0s, aggregate FAILURE.
+Raw shell log/steps подтверждают все runtime/tags/Markdown и negative cleanup
+SUCCESS; отмена произошла на завершении job. Это не успешный обязательный check.
+
+Разработчик явно поручил увеличить лимит до 15 минут. Изменён только budget
+всей Android matrix (шесть jobs) и ожидаемое значение routing guard. Aggregate
+остаётся 1m, все проверки/SDK/кэш/сценарные таймауты/остальные workflows прежние.
+Passed точное сравнение YAML, negative guard 10/14/16 вместо 15, оба routing
+guards, actionlint с ShellCheck и diff. Продукт/UI/ABI не менялись; нового
+локального UI/ABI прогона для config-only правки нет. GAP-023 открыт до нового
+полного CI/readiness; merge/delete поручены при всех 17 SUCCESS. LOG-462.

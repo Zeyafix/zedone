@@ -354,3 +354,12 @@ Signed-By, подписи Release и хеши пакетов сохраняют�
 10m не меняются. Routing guard проверяет одинаковую настройку с host и
 сохранение установки libpulse0. Реальный Linux результат/время требует нового CI;
 см. [EV-083](../agent/verification/EV-083-tags-ui.md).
+
+### Текущий лимит Android jobs
+
+По прямому поручению разработчика от 2026-11-10 каждый из шести Android
+matrix jobs имеет timeout-minutes: 15. Strict aggregate остаётся с лимитом
+1 минута. Это переопределяет прежние упоминания 10m для Android matrix;
+host бюджеты, сценарные таймауты, матрица, runtime/negative cleanup и правила
+принятия SUCCESS не меняются. Routing guard проверяет точное значение 15.
+Основание и фактическая новая приёмка — [EV-083](../agent/verification/EV-083-tags-ui.md).

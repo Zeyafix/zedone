@@ -56,7 +56,7 @@ const jobs = workflow.jobs["android-checks"];
 const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "shell-arm64"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
-assert.equal(jobs["timeout-minutes"], 10);
+assert.equal(jobs["timeout-minutes"], 15);
 const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite } });
 for (const [target, owner] of [["x86_64", "shell"], ["aarch64", "shell-arm64"]]) {
   const builds = jobs.steps.filter(step => step.run?.includes(`bun scripts/build-ui-android.mjs ${target}`));

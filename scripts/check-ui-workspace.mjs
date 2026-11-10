@@ -68,7 +68,8 @@ export async function checkWorkspace(page, url, session) {
   await page.keyboard.press("Escape");
   assert.equal(await button("Создать колонку").evaluate(el => el === document.activeElement), true, "cancel restores focus");
   await page.getByRole("link", { name: "Все пространства", exact: true }).click();
-  assert.equal(await row(boardName).getByRole("button", { name: "В корзину", exact: true }).isDisabled(), true, "nonempty space is protected");
+  await page.waitForFunction(() => !document.querySelector('.board-heading') && document.querySelector('.spaces-view')?.getAttribute('aria-busy') === 'false');
+  assert.equal(await row(boardName).getByRole("button", { name: "В корзину", exact: true }).isDisabled(), false, "nonempty space offers a complete group preview");
 
   // A saved version must not be replaced by a concurrent author's version.
   console.log("Workspace concurrent rename");

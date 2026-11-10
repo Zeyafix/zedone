@@ -58,7 +58,7 @@ export async function checkCards(page, url, session) {
   const restored = await list();
   assert.deepEqual(restored.map(card => [card.card, card.positions, card.titles, card.descriptions]), original.map(card => [card.card, card.positions, card.titles, card.descriptions]));
   assert.deepEqual(await page.locator(".card-title").allTextContents(), ["Первая мысль", "Вторая мысль"]);
-  assert.equal(await page.locator(".column-actions button:last-child").isDisabled(), true, "nonempty column stays protected");
+  assert.equal(await page.locator(".column-actions button:last-child").isDisabled(), false, "nonempty column offers a complete group preview");
 
   // Rust rejects Unicode whitespace too; preserve both fields and the request.
   await create("   ", "Не потерять описание");

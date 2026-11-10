@@ -150,8 +150,9 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
   await back();
   await visible(".space-row a", "Мысли");
-  assert.equal(await page.evaluate(() => document.querySelector(".space-row .view-actions button:last-child").disabled), true);
-  console.log("Android domain IPC: space/column create/rename/reverse/trash/restore, reload, focus/Back and protected nonempty space passed.");
+  await page.waitForFunction(() => document.querySelector('.spaces-view')?.getAttribute('aria-busy') === 'false');
+  assert.equal(await page.evaluate(() => document.querySelector(".space-row .view-actions button:last-child").disabled), false);
+  console.log("Android domain IPC: space/column create/rename/reverse/trash/restore, reload, focus/Back and nonempty space preview available passed.");
 }
 
 /** Same IPC/Service, including the card's reverse action, on the CI AVD. */
@@ -177,7 +178,7 @@ async function checkCardsTouch(page, dismissKeyboard) {
   await tap('.board-heading button[aria-pressed="true"]', "Активные карточки");
   await page.reload(); await visible(".card-title", "Разобрать мысли");
   assert.equal(await page.evaluate(() => localStorage.length), 0);
-  assert.equal(await page.evaluate(() => document.querySelector('.column-actions button:last-child').disabled), true);
+  assert.equal(await page.evaluate(() => document.querySelector('.column-actions button:last-child').disabled), false);
   await tap(".create-card", "Создать карточку");
   await fill(`${dialog} input[name="name"]`, "   ");
   await fill(`${dialog} textarea`, "Ввод при отказе");
@@ -192,7 +193,7 @@ async function checkCardsTouch(page, dismissKeyboard) {
   assert.equal(await page.evaluate(() => localStorage.length), 0);
   await tap(".view-toolbar .view-actions button:nth-child(2)", "Обновить список");
   await visible(".card-title", "Разобрать мысли");
-  console.log("Android card IPC: creation/read/literal description/trash/restore/reload, nonempty column protection and rejected-title draft passed.");
+  console.log("Android card IPC: creation/read/literal description/trash/restore/reload, nonempty column preview available and rejected-title draft passed.");
   await checkEditorTouch(page, dismissKeyboard);
 }
 

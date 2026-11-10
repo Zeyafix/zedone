@@ -132,9 +132,8 @@ async function end(event: DraggableEvent) {
       <div class="column-actions">
         <button v-if="!trash && !cardTrash" class="move-column" :disabled="!enabled || locked || columnConflict(item)" @click="open({ kind: 'column.move', target: item }, $event)">Переместить колонку</button>
         <button v-if="item.state === 'active'" class="rename-column" :disabled="blocked || locked || !writable(space) || columnConflict(item)" @click="emit('open', { kind: 'column.rename', target: item }, $event)">Переименовать</button>
-        <button :disabled="blocked || locked || !writable(space) || columnConflict(item) || !item.empty" @click="emit('open', { kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
+        <button :disabled="blocked || locked || !writable(space) || columnConflict(item)" @click="emit('open', { kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
       </div>
-      <p v-if="!item.empty" class="object-note">Действие с содержимым появится в следующем шаге.</p>
     </section>
   </VueDraggable>
   <DialogRoot v-model:open="dialog"><DialogPortal><DialogOverlay class="dialog-overlay" />

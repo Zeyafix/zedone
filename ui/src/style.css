@@ -105,6 +105,15 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .object-name > a { font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
 .object-note { color: var(--muted); font-size: 14px; margin: 8px 0 0; overflow-wrap: anywhere; }
 .scope-note { flex-basis: 100%; }
+.trash-panel { padding: 20px 0; border-top: 1px solid var(--border); }
+.trash-panel .trash-column { width: 100%; margin: 20px 0; }
+.trash-choice { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; overflow-wrap: anywhere; }
+.trash-choice input { width: 20px; height: 20px; flex: 0 0 20px; accent-color: var(--accent); }
+.scope-list { list-style: none; padding: 0; margin: 16px 0; }
+.scope-list > li { padding: 16px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.trash-scope h3 { font-size: 16px; margin-top: 24px; }
+.danger-button { color: var(--error); border-color: var(--error); }
+.purge-confirmation { margin-top: 20px; }
 .empty-view { padding: 28px 0; color: var(--muted); }
 .board-heading { margin: 26px 0 20px; }
 .board-heading h2 { margin-bottom: 16px; font-size: 26px; overflow-wrap: anywhere; }

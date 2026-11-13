@@ -1,6 +1,8 @@
 # EV-086 — интерфейс корзины, восстановления и очистки
 
-Дата: 2026-11-10. Шаг: P05.08. Состояние: verified локально, без интеграции.
+Дата: 2026-11-10. Шаг: P05.08. Состояние: done в согласованном UI-срезе.
+PR #86/head d479619 интегрирован в main: merge 8039c88 после всех 17 SUCCESS.
+Исходная ветка удалена локально и на GitHub.
 
 ## Карточка шага
 
@@ -30,9 +32,9 @@
   местом карточки; stale состава/данных/назначения без частичных эффектов,
   новое явное действие после чтения; отмена purge, конфликт, storage/доступ/unknown
   и прежний receipt после восстановления/новой корзины без повторного действия.
-- Результат: локальный UI-срез реализован и проверен, подробности ниже.
-  Commit/push/PR/новый CI/merge не выполнялись. Полные критерии остаются partial.
-- Далее: ревью и интеграция P05.08, затем P05.09 по новому поручению.
+- Результат: UI-срез реализован и интегрирован через PR #86 после полного CI;
+  подробности и границы ниже. Полные критерии остаются partial.
+- Далее: P05.09 по новому поручению; новая реализация не начата.
 
 Сырые логи, снимки и данные окружения — только игнорируемая `docs/reports/p05-08/`.
 
@@ -167,3 +169,63 @@ WebView. После изменения passed типы/build, вся целев�
 список карточек/групповое восстановление/выбор очистки. Снимки просмотрены;
 это статические элементы, новых анимаций нет. Публикация/новый CI/merge пока
 не выполнены. Локальное ограничение уборки прежнее и не расширяется.
+
+## Публикация
+
+[PR #86](https://github.com/Zeyafix/zedone/pull/86), head d479619, base main/29746c8.
+Только 24 scoped paths; отдельный dirty EV-085 сохранён вне коммита.
+После data-space marker типы/build/host и вся матрица desktop/legacy touch
+Chrome/Opera passed заново, обе итоговые debug ABI/manifest собраны.
+Host/Android routing guards, 12 исходных fingerprints в индексе, noreply,
+privacy и все 98 определений критериев проверены.
+
+Две настоящие картинки base/final размещены GitHub attachments, после привязки
+PR публичные байты/размеры/SHA-256 совпали с исходными. На финальной сборке
+с marker снимки пересозданы: байты прежние. Title/body/четыре English sections/
+rendered media/credit прочитаны обратно. Issue не создавался; черновик очищен,
+собственные browser tabs закрыты. Все 14 runtime suites нового CI запущены,
+три aggregates ожидаются; полный успех требует все 17 SUCCESS без пропусков.
+Локальная приёмка прежняя, новый CI/merge/delete ещё не выполнены, P05.08
+остаётся verified. После всех SUCCESS/readiness поручены merge и удаление
+ветки без нового согласования; LOG-477/478.
+
+## Интеграция после полного CI
+
+[PR #86](https://github.com/Zeyafix/zedone/pull/86), head
+d47961984d560990ba5ac2075b46efc1bc54f524: все 17 COMPLETED/SUCCESS без
+пропущенных checks — 14 runtime suites и три strict aggregates.
+[Host CI](https://github.com/Zeyafix/zedone/actions/runs/42814521403) и
+[Android CI](https://github.com/Zeyafix/zedone/actions/runs/42814521363) SUCCESS.
+Raw Windows/Linux shell logs содержат по два полных новых trash-сценария
+desktop/touch: группы/прежняя корзина/выбранное восстановление/stale/отказы/
+purge/сохранность/исходный replay. Android shell подтверждает финальный общий
+сценарий через настоящий IPC, включая data-space marker, и прежние editor/
+IME/Back/search/Markdown. Обе Android ABI/manifest и native cleanup passed.
+Предыдущие указания на отсутствие нового CI относятся к прежним состояниям;
+текстовая правка failed preview и test marker теперь покрыты финальным CI.
+Бюджеты/таймауты/validator не менялись; будущее время запусков не гарантируется.
+
+Перед merge повторно проверены exact head/base, OPEN/non-draft/MERGEABLE/CLEAN,
+отсутствие reviews/comments/review requests/review threads. Body обновлён
+фактическими CI-результатами и прочитан обратно; четыре English sections,
+две hosted картинки с проверенными байтами и generation credit сохранены.
+Watch выключен. Merge API с точным sha создал 8039c882bd87e6f132ac338ca330e409d20a06de
+2026-11-10T12:31:56Z. Родители — main 29746c8 и checked head d479619;
+дерево merge точно совпало с checked head.
+
+Незанятая main обновлена fast-forward без checkout старого дерева; switch
+выполнен только после проверки равенства деревьев. Все четыре dirty docs
+сохранены побайтово до записи результата; EV-085 остался отдельным dirty
+документом. Stash/другие worktrees не менялись. Feature-ветка удалена обычным
+branch -d локально и на GitHub, tracking pruned; индекс пуст, новых commits/
+push после интеграции нет. Записи завершения остаются в рабочем дереве.
+
+P05.08 done в согласованном срезе. Пять правил соблюдены: обратные lifecycle
+действия и явное согласованное исключение purge; общий Service/права/expected/
+replay человека и агента; актуальные docs; Windows/Linux/Android native CI и
+обе ABI плюс Device-матрица; один авторитетный Service/SQLite/Automerge.
+Полные P05/T08/A06/A07/A55/A56 остаются partial: история P05.09, итоговая
+матрица P05.10, продуктовый обмен/разрешение конфликтов P06, физический arm64
+и release UI не принимаются. Прежние GAP/DEC и локальное ограничение уборки
+сохранены, новых BUG/GAP нет. Далее P05.09 по новому поручению, active_work
+очищен; LOG-479.

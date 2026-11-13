@@ -1,6 +1,7 @@
 # EV-085 — P05.07: интерфейс поиска карточек
 
-Состояние: verified локально. Ветка `feat/p05-07-search-ui`, база
+Состояние: done в согласованном UI-срезе; PR #85/head 0cdd182, merge 29746c8.
+Исходная ветка `feat/p05-07-search-ui` удалена после интеграции. База
 `20f34b356984bf674b7170fa94934c9d83f3ab6c`; исходное дерево чистое.
 
 ## Рабочая карточка
@@ -137,3 +138,38 @@ P05.07 verified локально, T08/A19/A34 partial; определения в
 из base/final в одинаковом сценарии/данных/Service, light theme, 1280 × 1280;
 медиа и временная базовая сборка вне репозитория. Карточки между снимками
 не менялись. Новый CI/публикация/интеграция ещё не выполнены.
+
+[PR #85](https://github.com/Zeyafix/zedone/pull/85), head 0cdd182, опубликован
+из feat/p05-07-search-ui в main/20f34b3. Только 14 scoped paths, исходники
+совпали с финальными проверками. Обе hosted картинки публично доступны и
+побайтово совпали с исходными. Title/body/rendered sections/media/credit
+прочитаны обратно. Все 14 runtime suites запущены, три aggregates ожидаются;
+новый CI pending. Отзывов/комментариев/запросов ревью нет. Перед порученными
+merge/delete требуются все 17 SUCCESS/readiness точного head. LOG-473;
+наблюдение штатным watch, P05.07 пока verified.
+
+## Интеграция после полного CI
+
+[PR #85](https://github.com/Zeyafix/zedone/pull/85), head 0cdd182, интегрирован
+в main: merge 29746c8 после всех 17 COMPLETED/SUCCESS без пропущенных checks.
+[Host CI](https://github.com/Zeyafix/zedone/actions/runs/42803695582) и
+[Android CI](https://github.com/Zeyafix/zedone/actions/runs/42803695501) SUCCESS;
+14 runtime suites и три strict aggregates. Raw Windows/Linux shell logs
+подтвердили весь новый поиск desktop/touch, native Android — новый IPC поиск,
+редактор/обратные действия/IME/Back/Markdown, обе ABI/manifest и cleanup passed.
+Новый CI подтверждает финальный UI, включая последнюю навигационную правку.
+Указания выше на pending/отсутствие CI относятся к предыдущим состояниям.
+
+Перед merge повторно проверены exact head/base, OPEN/non-draft/MERGEABLE/CLEAN,
+отсутствие reviews/comments/review requests/review threads; PR body с итоговыми
+результатами прочитан обратно, две картинки/разделы/credit сохранены. Watch
+выключен. Merge tree fcb643189a785b49f6067aa87053a5a9ee98c0ee точно совпал
+с проверенным head; родители — прежний main 20f34b3 и head 0cdd182. Main
+обновлена fast-forward, feature-ветка удалена локально/на GitHub. Все три dirty
+документа сохранены побайтово перед записью результата; stash/другие worktrees
+не менялись, индекс пуст, дополнительных commits/push после интеграции нет.
+
+Пять правил соблюдены в согласованном UI-срезе. P05.07 done, полные P05/T08/
+A19/A34 partial; продуктовые обмен/разрешение конфликтов, физический arm64,
+release UI и итоговая матрица впереди. Прежние GAP/DEC сохранены, новых нет.
+Далее P05.08 по отдельному поручению; новая реализация не начата. LOG-474.

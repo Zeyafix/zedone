@@ -125,6 +125,13 @@ tauri-build при host-проверке. Отдельный shell runner каж
 | `prototype-ui` | `bun run check --host-ui` из `prototypes/` | Cargo/JS прототипа и Playwright Chromium с OS-зависимостями; прежняя release-сборка workspace, Vue/Vite/HTTP и Android driver guards |
 | `shell` | `bun run ui:check` из корня | Cargo workspace `ui/src-tauri`, корневые JS и Playwright Chromium с OS-зависимостями |
 
+Общий history-сценарий desktop/touch/native перед вводом ждёт подтверждённое
+«Сохранено» после открытия редактора: начальные `begin_editing` и фокус должны
+завершиться до сценария автосохранения. После новой пары текстов переход к
+истории выполняется сразу; ожидание autosave перед касанием не добавляется.
+Failure trace сохраняет ограниченные события/геометрию без ввода/ключей.
+Механизм промаха и локальное воспроизведение — [EV-089](../agent/verification/EV-089-history-transition-diagnostics.md).
+
 Подготовка вынесена в локальный composite action
 [prepare-host-check](../../.github/actions/prepare-host-check/action.yml).
 Он читает закреплённые версии из `environment-versions.json`, проверяет имя

@@ -77,6 +77,9 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   await back(); await closed(); await open();
   assert.equal(await page.locator("[data-text-version]").count(), 6, "history survives editor remount");
   await click("[data-history-close]"); await click("[data-editor-edit]");
+  // Finish begin_editing and its initial focus before starting the autosave case.
+  // The later history tap still immediately follows the new input.
+  await page.waitForFunction(() => document.querySelector('.card-editor > [role="status"]')?.textContent === "Сохранено");
   await input('input[name="card-title"]', "Непрерывный ввод");
   await input('textarea[name="card-description"]', "Последняя сохранённая пара");
   await dismissKeyboard();

@@ -1,6 +1,6 @@
 # EV-090 — независимый Windows-пробник окружения
 
-Дата: 2026-11-14. Шаг: CI.07. Состояние: verified локально; новый CI ожидается.
+Дата: 2026-11-14. Шаг: CI.07. Состояние: verified локально и Windows CI head 19a5a3f; интеграция ожидается.
 
 ## Карточка шага
 
@@ -31,3 +31,14 @@
 
 Связь: GAP-026, T13/T16 (сохранение охвата), LOG-489. Сырые логи остаются
 только в игнорируемой `docs/reports/p05-09/`.
+
+Опубликовано в PR #87/head 19a5a3f; Windows environment и все runtime suites
+IN_PROGRESS, три aggregates ожидаются. Нужны все 18 SUCCESS/readiness;
+GAP-026 не закрыт до стандартного runner. LOG-490.
+
+Windows environment head 19a5a3f/job 132349463238 завершён SUCCESS на
+стандартном windows-2025. Raw log подтверждает собственный системный temp,
+все offline build/run/Clippy, fmt/check и точный `Hello, world!`, затем
+`Windows environment check passed.` Включения в root workspace и обращения
+к продуктовой `icu_casemap` нет. GAP-026 resolved в scope Windows-пробника;
+весь PR ещё требует остальных checks/readiness. LOG-491.

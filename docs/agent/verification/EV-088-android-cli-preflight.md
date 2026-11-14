@@ -1,6 +1,6 @@
 # EV-088 — закрепление исполняемого Android CLI и диагностика окружения
 
-Дата: 2026-11-14. Шаг: CI.05. Состояние: in_progress.
+Дата: 2026-11-14. Шаг: CI.05. Состояние: verified локально и Android CI head 19a5a3f; интеграция ожидается.
 
 ## Карточка шага
 
@@ -94,3 +94,24 @@ corrupt/wrong-version/execution-failure probes. Первый запуск с б�
 Непроверенные байты не исполняются и не заменяют launcher. Actionlint/ShellCheck
 и оба routing guards passed. Настоящий Linux ELF и весь Android runtime
 ожидают новый CI; GAP-024 остаётся открытым. LOG-489.
+
+Исправление первого запуска опубликовано в PR #87/head 19a5a3f; все 14
+runtime suites и Windows environment IN_PROGRESS, aggregates ожидаются.
+Требуются все 18 SUCCESS/readiness; body/две картинки проверены. LOG-490.
+
+Повторное уведомление об Android failures относится к cbf90ec. Все шесть
+сырых логов подтверждают прежний first-run вывод после успешного SHA-256;
+aggregate job 132347491400 строго отказал с `RESULT: failure` дочерней matrix.
+На текущем 19a5a3f GitHub jobs API показывает completed/success шага
+`Install pinned Android tools in an isolated SDK` во всех шести Android jobs:
+исправленный первый запуск и отдельное точное сравнение прошли на Linux.
+Последующие environment/runtime шаги ещё не завершены, весь CI/GAP-024
+не принимаются по одному успешному setup. LOG-492.
+
+Все шесть Android jobs head 19a5a3f и aggregate 132352033200 завершены
+SUCCESS. Сырые логи всего run 43562625983 прочитаны: настоящий SDK preflight,
+runtime/обе ABI и прежние negative/cleanup проверки прошли; native shell
+132349463162 подтвердил полный history сценарий через IPC. GAP-024 resolved
+в scope закреплённого CLI/чистой инициализации. Весь PR отдельно блокирует
+Linux shell/GAP-025; следующий test-only head требует полного нового CI.
+Версии/архивные хэши/бюджеты/проверки не ослаблены. LOG-493.

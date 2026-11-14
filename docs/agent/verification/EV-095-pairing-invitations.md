@@ -100,3 +100,26 @@ Application/WebView данные и настройки. Все исходные 
 сохранены локально и проверены после всех прогонов. Последующие правки —
 только документация. PR/CI/commit/merge не выполнялись; P06.01.2/P06
 остаются in_progress. Следующий продуктовый подшаг не начат.
+
+
+## Публикация — LOG-523
+
+[PR #91](https://github.com/Zeyafix/zedone/pull/91), head 49b701549a92b3e4dce01cf7976522cfca93e917,
+base main/90c869d. Все 27 согласованных файлов опубликованы; 18 tested
+fingerprints совпали, восемь исходных dirty EV сохранены вне коммита.
+Новый полный CI pending: ожидаются все 17 SUCCESS/readiness перед порученными
+merge/delete. Body/readback/credit подтверждены, визуального diff нет.
+Локальные проверки и ограничения прежние; full pairing не принимается.
+
+
+## Первоначальный CI и диагностика — LOG-524/525
+
+На head 49b7015 остальные 15 checks SUCCESS, но Windows shell отказал в
+touch trash go на 10000ms; strict aggregate корректно передал failure.
+Причина неизвестна, GAP-028 остаётся in_progress. CI.09/EV-096 добавляет
+read-only lifecycle начатых/завершённых/отказавших чтений перед disposal;
+исходный error/одна попытка/таймауты/порядок/набор прежние.
+Полный локальный Chrome/Opera UI прошёл до final observer hook; финальные
+guard и все семь touch stages обоих браузеров passed отдельно последовательно.
+Исходный timeout не воспроизведён. Все 18 product fingerprints прежние;
+новый полный CI/17 SUCCESS/readiness нужны до ранее порученных merge/delete.

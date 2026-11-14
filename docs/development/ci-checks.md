@@ -11,6 +11,21 @@ Host shell записывает ошибку общего touch-набора д�
 GAP-028 отслеживает исходный tags refresh timeout: улучшение диагностики
 само по себе не доказывает его причину или устранение.
 
+CI.09 добавляет `readLifecycle` для той же touch-страницы: до 30 последних
+чтений `/host/session` и space.list/read, column.list, card.list, tag.list.
+Для каждого сохраняются локальный порядковый номер, фиксированный path без
+query, started/headers/finished/failed, HTTP-код, длительности и результат
+проверки тела API по производной схеме (pending/valid/invalid/unreadable).
+Исходное тело/ошибка разбора не выводятся; новый observer не читает тело
+host/session. Так видны также запросы без ответа или с незавершённым телом,
+которых нет в прежнем списке готовых JSON-ответов. Время ожидания, одна
+попытка, исходный TimeoutError и весь набор проверок прежние.
+Постоянный control проверяет состояния/лимит/исключение секрета, настоящий
+перехваченный pending→failed запрос и сохранение исходной ошибки при отказе
+reporter; [EV-096](../agent/verification/EV-096-host-read-lifecycle.md).
+Повторный trash timeout PR #91 связан с GAP-028 как наблюдение;
+общая причина с первым отказом и устранение исходного сбоя не доказаны.
+
 Android setup отдельно закрепляет исполняемый Android CLI: `android.cli`
 задаёт версию, `android.linux_cli_sha256` — SHA-256 Linux x86_64 файла из
 версионированного URL Google. После распаковки command-line tools workflow

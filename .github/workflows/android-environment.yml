@@ -114,6 +114,17 @@ jobs:
           unzip -q "$RUNNER_TEMP/android-tools.zip" -d "$RUNNER_TEMP/zedone-android-tools"
           mkdir -p "$sdk/cmdline-tools"
           mv "$RUNNER_TEMP/zedone-android-tools/cmdline-tools" "$tools"
+          # The archive's android binary is a launcher that downloads latest.
+          # Replace it with the pinned executable before any SDK command runs.
+          cli=$(jq -r .android.cli "$versions")
+          curl --fail --location --retry 3 "https://dl.google.com/android/cli/$cli/linux_x86_64/android-cli" -o "$RUNNER_TEMP/android-cli"
+          echo "$(jq -r .android.linux_cli_sha256 "$versions")  $RUNNER_TEMP/android-cli" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/android-cli"
+          mv "$RUNNER_TEMP/android-cli" "$tools/bin/android"
+          # First invocation unpacks embedded tools and prints installation text.
+          # Initialization must succeed before the separate exact version check.
+          "$tools/bin/android" --no-metrics --version
+          test "$("$tools/bin/android" --no-metrics --version)" = "$cli"
           printf 'y\n%.0s' {1..200} > "$RUNNER_TEMP/android-license-answers"
           while IFS= read -r package; do
             "$tools/bin/android" --no-metrics "--sdk=$sdk" sdk install "$package" < "$RUNNER_TEMP/android-license-answers"

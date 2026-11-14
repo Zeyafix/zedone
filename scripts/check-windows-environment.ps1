@@ -42,12 +42,14 @@ $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits/10/Lib'
 Write-Host "Windows SDK libraries: $((Get-ChildItem -LiteralPath $sdkRoot -Directory).Name -join ', ')"
 
 # Each invocation owns one disposable directory, including on failure.
-$tempRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../temp'))
+$tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)
 $probe = Join-Path $tempRoot "windows-environment-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $probe -Force | Out-Null
 try {
     Invoke-Checked cargo @("+$toolchain", 'init', '--bin', '--vcs', 'none', '--name', 'zedone_environment_probe', $probe)
     $manifest = Join-Path $probe 'Cargo.toml'
+    # Keep this dependency-free probe independent of any enclosing workspace.
+    Add-Content -LiteralPath $manifest -Value "`n[workspace]"
     Invoke-Checked cargo @("+$toolchain", 'build', '--manifest-path', $manifest, '--offline')
     $result = Invoke-Checked cargo @("+$toolchain", 'run', '--manifest-path', $manifest, '--offline')
     if ("$result".Trim() -ne 'Hello, world!') { throw 'Unexpected Rust probe output.' }

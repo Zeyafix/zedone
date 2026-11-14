@@ -1,6 +1,6 @@
 # EV-089 — диагностика сенсорного перехода из редактора в историю
 
-Дата: 2026-11-14. Шаг: CI.06. Состояние: диагностика verified локально; публикация/новый CI ожидаются.
+Дата: 2026-11-14. Шаг: CI.06. Состояние: диагностика verified; Linux shell cbf90ec SUCCESS, причина исходного отказа неизвестна.
 
 ## Карточка шага
 
@@ -39,3 +39,16 @@ Controlled negative probe намеренно направил настоящий
 Это проверяет обработку отказа, не устанавливает причину исходного Linux CI.
 После получения CLI expected/actual CI.06 включается в следующий head вместе
 с исправлением CI.05; новый реальный CI и GAP-025 остаются открытыми.
+
+Опубликовано в PR #87/head cbf90ec; новый CI pending. Требуется весь набор
+18 SUCCESS, включая штатную дополнительную Windows environment проверку
+из-за изменения pin metadata. Body/медиа прочитаны обратно; LOG-488.
+Реальная приёмка Linux runner ещё ожидается, прежние локальные границы сохранены.
+
+Linux shell cbf90ec/job 132347027748 завершён SUCCESS. Raw log через GitHub
+job logs API подтверждает оба полных history сценария (desktop/touch), прежние
+workspace/editor/moves/tags/search/trash/Markdown и lifecycle. Linux aggregate
+также SUCCESS. Успешный сценарий не вызвал failure diagnostic и не объясняет
+прежнее закрытие диалога; GAP-025 остаётся открытым до итоговой revalidation.
+Android и Windows environment блокируют весь CI отдельно от этого результата.
+Повторные tap/изменения UI/ослабления assertions не добавлены. LOG-489.

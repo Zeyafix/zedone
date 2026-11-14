@@ -121,6 +121,9 @@ jobs:
           echo "$(jq -r .android.linux_cli_sha256 "$versions")  $RUNNER_TEMP/android-cli" | sha256sum --check
           chmod +x "$RUNNER_TEMP/android-cli"
           mv "$RUNNER_TEMP/android-cli" "$tools/bin/android"
+          # First invocation unpacks embedded tools and prints installation text.
+          # Initialization must succeed before the separate exact version check.
+          "$tools/bin/android" --no-metrics --version
           test "$("$tools/bin/android" --no-metrics --version)" = "$cli"
           printf 'y\n%.0s' {1..200} > "$RUNNER_TEMP/android-license-answers"
           while IFS= read -r package; do

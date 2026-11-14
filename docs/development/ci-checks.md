@@ -1,5 +1,15 @@
 # Проверки PR и кэши сборки
 
+Android setup отдельно закрепляет исполняемый Android CLI: `android.cli`
+задаёт версию, `android.linux_cli_sha256` — SHA-256 Linux x86_64 файла из
+версионированного URL Google. После распаковки command-line tools workflow
+заменяет их `android` launcher проверенным файлом до первой команды SDK.
+Launcher из архива сам получает `latest`, поэтому одного SHA-256 архива
+недостаточно для воспроизводимой версии CLI. Перед SDK install и при preflight
+сохраняется точное сравнение версии; при отказе preflight показывает
+ожидаемую/фактическую строку и найденную команду. Версии SDK/NDK/эмулятора
+и прежние архивные хэши этим не меняются; [EV-088](../agent/verification/EV-088-android-cli-preflight.md).
+
 Все три workflow запускаются для подходящих изменений в PR, при push в `main`
 и вручную через **Actions → Run workflow** с выбором ветки. Отдельный push
 feature-ветки не запускает второй набор jobs; до открытия PR доступны обычные

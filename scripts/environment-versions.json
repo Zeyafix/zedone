@@ -7,6 +7,7 @@
     "jdk": "25.0.3",
     "command_line_tools": "23.0",
     "cli": "1.1.16717390",
+    "linux_cli_sha256": "b34ed0baeeffa2aaee2720d82491b975835696e2e56840449078bec885436564",
     "linux_archive": "commandlinetools-linux-16111833_latest.zip",
     "linux_sha256": "0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8",
     "linux_emulator_archive": "emulator-linux_x64-16428233.zip",

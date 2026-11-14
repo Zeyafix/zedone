@@ -24,6 +24,7 @@ use utoipa::OpenApi;
 #[openapi(
     info(title = "ZeDone API"),
     paths(access_commands::inspect, access_commands::revoke,
+        access_commands::issue, access_commands::replace, access_commands::list,
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,

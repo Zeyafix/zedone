@@ -6,7 +6,7 @@ pub mod ipc;
 use serde_json::Value;
 use zedone_core::{
     access::Credential,
-    access_commands::{self, InspectAccess, RevokeAccess},
+    access_commands::{self, InspectAccess, IssueAccess, ListAccess, ReplaceAccess, RevokeAccess},
     card_history::{AutosaveCard, BeginCardEditing, FinishCardEditing, RestoreCardText},
     cards::{
         self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard,
@@ -86,6 +86,9 @@ impl Service {
             match operation {
                 InspectAccess::NAME => run!(InspectAccess, access_commands::inspect),
                 RevokeAccess::NAME => run!(RevokeAccess, access_commands::revoke),
+                IssueAccess::NAME => run!(IssueAccess, access_commands::issue),
+                ReplaceAccess::NAME => run!(ReplaceAccess, access_commands::replace),
+                ListAccess::NAME => run!(ListAccess, access_commands::list),
                 CreateSpace::NAME => run!(CreateSpace, spaces::create),
                 ReadSpace::NAME => run!(ReadSpace, spaces::read),
                 ListSpaces::NAME => run!(ListSpaces, spaces::list),

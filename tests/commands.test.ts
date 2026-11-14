@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, newTagId, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, newTagId, newAccessCredential, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { createHash } from "node:crypto";
 import validateResponse from "../api/validate-response.js";
 
 function fixture() {
@@ -14,6 +15,51 @@ function fixture() {
   return { values, storage, store: webIntentionStore(storage, "test") };
 }
 const parameters = { subject: "1".repeat(32) };
+
+test("recipient registration retains the secret outside intentions and uses the Rust verifier format", async () => {
+  const { credential, verifier } = await newAccessCredential();
+  expect(credential.subject).toMatch(/^[a-f0-9]{32}$/);
+  expect(credential.key).toMatch(/^[a-f0-9]{64}$/);
+  const expected = createHash("sha256").update("zedone/access-key/v1\0").update(Buffer.from(credential.key,"hex")).digest();
+  expect(verifier).toEqual(Array.from(expected));
+  const another = await newAccessCredential();
+  expect(another.credential.subject).not.toBe(credential.subject);
+  expect(another.credential.key).not.toBe(credential.key);
+  const { store, values, storage } = fixture();
+  const params = { subject: credential.subject, verifier, scope: { kind: "spaces" as const, spaces: { [newSpaceId()]: "read" as const } }, expires_at_unix_ms: null };
+  const id = await prepare("2".repeat(32),"access.issue",params,store);
+  const saved = (await store.load(id))!.body;
+  expect([...values.values()].join("")).not.toContain(credential.key);
+  verifier[0] = verifier[0] ^ 255;
+  const result = { subject: credential.subject,scope:params.scope,expires_at_unix_ms:null,revoked:false,version:Array(32).fill(1) };
+  const response: Response = {status:"ok",replayed:true,result};
+  const sent:string[]=[];
+  const transport = ipcTransport(async(_,args) => {
+    sent.push((args.invocation as {request:string}).request);
+    if (sent.length===1) throw new Error("lost reply");
+    return JSON.stringify(response);
+  },async()=>({subject:"2".repeat(32),key:"approved"}));
+  expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([saved,saved]);
+});
+
+test("access replacement keeps its original version and lists reject malformed or leaked registration fields", async () => {
+  const {store}=fixture();
+  const params={subject:"1".repeat(32),verifier:Array(32).fill(2),scope:{kind:"administration" as const},expires_at_unix_ms:null,expected:Array(32).fill(7)};
+  const id=await prepare("2".repeat(32),"access.replace",params,store);
+  params.expected[0]=9;
+  const denied=new CommandClient(store,async()=>({status:"error",error:{code:"stale_state"}}));
+  expect((await denied.deliver(id)).status).toBe("pending");
+  expect(JSON.parse((await store.load(id))!.body).parameters.expected[0]).toBe(7);
+  const entry={subject:params.subject,scope:params.scope,expires_at_unix_ms:null,revoked:true,version:Array(32).fill(1)};
+  const reply={status:"ok",replayed:false,result:{entries:[entry],next:null}};
+  expect(validateResponse(reply,"access.list")).toBe(true);
+  expect(validateResponse(reply,"access.issue")).toBe(false);
+  expect(validateResponse({...reply,result:{entries:[{...entry,verifier:Array(32).fill(2)}],next:null}},"access.list")).toBe(false);
+  expect(validateResponse({...reply,result:{entries:[{...entry,key:"secret"}],next:null}},"access.list")).toBe(false);
+  expect(validateResponse({...reply,result:{entries:Array(51).fill(entry),next:null}},"access.list")).toBe(false);
+  expect(validateResponse({...reply,result:{entries:[{...entry,version:Array(31).fill(1)}],next:null}},"access.list")).toBe(false);
+});
 
 test("column group previews are validated and retries retain the confirmed scope version", async () => {
   const {store,storage}=fixture();

@@ -5,6 +5,12 @@ import { prepare, type IntentionStore } from "../client/commands";
 
 function typedCommands(store: IntentionStore) {
   void prepare("2".repeat(32), "access.inspect", { subject: "1".repeat(32) }, store);
+  void prepare("2".repeat(32), "access.list", { after: null }, store);
+  void prepare("2".repeat(32), "access.issue", { subject: "1".repeat(32), verifier: Array(32).fill(1), scope: { kind: "spaces", spaces: { ["3".repeat(32)]: "read" } }, expires_at_unix_ms: null }, store);
+  // @ts-expect-error Issuance cannot silently default to a scope.
+  void prepare("2".repeat(32), "access.issue", { subject: "1".repeat(32), verifier: Array(32).fill(1) }, store);
+  // @ts-expect-error Replacing permissions requires an observed version.
+  void prepare("2".repeat(32), "access.replace", { subject: "1".repeat(32), verifier: Array(32).fill(1), scope: { kind: "administration" }, expires_at_unix_ms: null }, store);
   void prepare("2".repeat(32), "access.revoke", { subject: "1".repeat(32), expected: Array(32).fill(1) }, store);
   // @ts-expect-error Revocation must retain its original state version.
   void prepare("2".repeat(32), "access.revoke", { subject: "1".repeat(32) }, store);

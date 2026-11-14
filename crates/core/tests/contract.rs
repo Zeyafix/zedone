@@ -47,8 +47,11 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 39);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 42);
     for operation in [
+        "access.issue",
+        "access.replace",
+        "access.list",
         "trash.inspect",
         "trash.purge",
         "history.inspect",
@@ -302,6 +305,7 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
     for (schema, length) in [
         (&schemas["CommandRequest_Value"]["properties"]["id"], 16),
         (&schemas["StateVersion"], 32),
+        (&schemas["KeyVerifier"], 32),
     ] {
         assert_eq!(schema["minItems"], length);
         assert_eq!(schema["maxItems"], length);
@@ -313,8 +317,26 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         "CommandRequest_Value",
         "CommandSuccess_Value",
         "CommandFailure",
+        "IssueAccess",
+        "ReplaceAccess",
+        "ListAccess",
+        "AccessList",
     ] {
         assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
     }
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 39);
+    assert_eq!(
+        schemas["AccessList"]["properties"]["entries"]["maxItems"],
+        50
+    );
+    for name in ["IssueAccess", "ReplaceAccess"] {
+        assert_eq!(
+            schemas[name]["properties"]["expires_at_unix_ms"]["minimum"],
+            0
+        );
+        assert_eq!(
+            schemas[name]["properties"]["expires_at_unix_ms"]["maximum"],
+            zedone_core::access_commands::MAX_EXPIRY_UNIX_MS
+        );
+    }
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 42);
 }

@@ -1,5 +1,22 @@
 # Разработка продуктового Rust-ядра
 
+P06.01.1: [ADR-0053](../architecture/decisions/0053-access-registration.md),
+[EV-093](../agent/verification/EV-093-access-issuance.md). Core фиксирует
+ManageAccess и обработчики access.issue/replace/list; storage использует
+прежние таблицы/worker/guard/сроки/tombstones/защиту последнего администратора.
+KeyVerifier — только 32-байтное регистрационное значение, не ключ доступа.
+Общий клиент готовит ключ у получателя; секрет не сохраняется в намерении.
+issue требует нового subject; replace — свежего expected и нового verifier.
+list выдаёт до 50 снимков с исключительным subject cursor, включая revoked.
+Повтор list — исходная страница, обновление требует нового ID.
+
+`crates/adapters/tests/commands/access_issuance.rs` входит в прежний commands
+target Windows/Linux/native Android: HTTP/IPC/CLI, отзыв/смена/regrant/restart,
+конкурентные смены, stale/ключи/последний администратор и пагинация.
+Закрытые storage tests проверяют точную границу срока и отказ записи receipt.
+Схема v1, формат снимков пространств, зависимости и UI прежние. Процесс
+приглашения/подтверждения и защищённый канал остаются P06.01.2, формы — .3.
+
 P03.06 сводит общий контракт: [матрица EV-084](../agent/verification/EV-084-adapter-acceptance.md).
 `crates/adapters/tests/commands/acceptance.rs` использует закрытую fixture
 `offline::Board` внутри прежнего target `commands`. Проверяются 11 изменений

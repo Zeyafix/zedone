@@ -17,6 +17,22 @@ export interface IntentionStore {
 export type Transport = (intention: Intention, signal: AbortSignal) => Promise<Response>;
 export type Delivery = { status: "completed"; response: Response } | { status: "pending"; response?: Response; reason?: "identity_changed" };
 export interface CredentialMaterial { readonly subject: string; readonly key: string }
+
+/** Prepare once on the recipient. Retain credential in its protected facility
+ * until delivery is known; only subject/verifier belong in an admin intention.
+ * Registration does not grant access or prove device pairing/confirmation. */
+export async function newAccessCredential(): Promise<{ credential: CredentialMaterial; verifier: Parameters["access.issue"]["verifier"] }> {
+  const subject = randomId().id;
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const input = new Uint8Array([...new TextEncoder().encode("zedone/access-key/v1\0"), ...bytes]);
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", input);
+    return { credential: { subject, key: Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("") }, verifier: Array.from(new Uint8Array(digest)) };
+  } finally {
+    bytes.fill(0);
+    input.fill(0);
+  }
+}
 class IdentityChanged extends Error {}
 
 export async function prepare<O extends Operation>(subject: string, operation: O, parameters: Parameters[O], store: IntentionStore): Promise<string> {

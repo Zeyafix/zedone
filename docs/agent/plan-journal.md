@@ -7,21 +7,23 @@ updated: 2026-11-14
 development_state: implementation
 current_stage: P05
 current_stage_state: in_progress
-current_step: null
+current_step: CI.05
 last_completed_stage: P03
 last_completed_step: P05.08
 active_work: null
-next_action: "P05.09 verified локально (EV-087/LOG-481). Далее ревью/интеграция ветки; после интеграции готов P05.11 — объём и ручная очистка истории. Новая реализация не начата."
+next_action: "CI.05/GAP-024: получить реальные expected/actual версии Android CLI новым CI; затем исправить доказанную причину и дождаться всех 17 SUCCESS перед merge/delete PR #87."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-024]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-482
+last_event: LOG-484
 ```
+
+P05.09 опубликован в [PR #87](https://github.com/Zeyafix/zedone/pull/87), head e4f24a3, base main/6d6d546. Восемь runtime/test fingerprints совпали с финальной локальной проверкой. Правка ze-pr по gh --attach включена отдельным коммитом; две настоящие before/after картинки загружены CLI, публичные байты совпали. Все 14 runtime suites Windows/Linux/Android IN_PROGRESS, три strict aggregates ожидаются; нужен точный набор всех 17 SUCCESS и readiness перед порученными merge/delete. Локальные EV-087/пять правил прежние, полные критерии partial, P05.11 не начат. LOG-483. Нижеследующие сводки исторические.
 
 P05.09 verified локально в `feat/p05-09-card-history-ui` от 6d6d546: [EV-087](verification/EV-087-card-history-ui.md)/LOG-481. Просмотр парных версий, восстановление новой правкой и обратное восстановление, граница автосохранения, пагинация/stale/отказы/исходный replay/сохранность проверены Chrome/Opera desktop/touch и Android Device IPC. Полный ui:check обоих браузеров passed до последней правки фокуса; финальные типы/build/вся целевая матрица обоих браузеров и обе debug ABI/manifest passed, финальный Device preview/restore/reverse также проверен. Исходные 24 product/WebView файла восстановлены по именам/SHA-256, Device выключен. Одна игнорируемая синтетическая проверочная копия оставлена из-за blocked by policy при удалении. Пять правил соблюдены в срезе; полные P05/T08/A21/A54 partial, новый CI/физический arm64/release UI/обмен не приняты. Commit/PR/merge не выполнялись. Далее ревью/интеграция P05.09, затем P05.11 — отдельный UI объёма/ручной очистки истории перед P05.10. Новая реализация не начата, active_work очищен. Нижеследующие сводки исторические.
 
@@ -860,6 +862,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| GAP-024 | gap | in_progress | CI.05 / P05.09 CI | PR #87/e4f24a3: product-native/product-arm64/prototype-native и prototype-ui упали на Unexpected Android CLI version до runtime-наборов. Все используют закреплённый архив с проверенным прежним SHA-256; в PR #86 та же проверка passed. Фактическая строка версии первоначальным скриптом не сохранена, причина пока неизвестна. Добавлена read-only диагностика expected/actual/resolved command при прежнем строгом сравнении; версии/хэши/матрица/таймауты прежние. Bash и matching/wrong/empty/multiline/command-failure probes passed; новый CI ожидается. EV-088/LOG-484, T16/T08. |
 | GAP-022 | gap | resolved | P05.06 CI | PR #83/46af9e8: native shell упал в check-ui-tags refresh после первого ожидаемого отказа имени. locator.evaluate вызвал Playwright element.checkVisibility, которого нет в AOSP WebView. Та же ошибка/stack воспроизведена host touch при удалении API из page и текущего isolated realm. Исправлено чтением details.open через page.evaluate, без DOM-записи, force, polyfill, новых retry/ослабления assertions/таймаутов. Постоянный host guard удаляет API в обоих realms; Chrome/Opera desktop/touch moves/tags passed. 6808b13 native shell 129666469474 SUCCESS: raw log подтверждает весь workspace/editor/moves/tags/Markdown и cleanup, обе shell ABI checks SUCCESS. Совместимость драйвера подтверждена, полный CI отдельно блокирует GAP-023; EV-083/LOG-457/460, T08. |
 | GAP-023 | gap | resolved | P05.06 CI / P05.10 | PR #83/46af9e8: android prototype-ui 129659452507 CANCELLED; check-run annotation явно сообщает превышение 10m0s. Перед отменой пройдены environment/Activity/HTTP/QR/scanner/board, полный набор и negative cleanup не завершены. Прототипный код и лимит в P05.06 не менялись; успешный прежний cached run не гарантирует следующий. Новый head запускает полную прежнюю матрицу без расширения бюджета или исключения проверок. 6808b13 повторно CANCELLED по 10m. В обоих raw logs apt install libpulse0 ожидал Azure HTTP mirror 74/117s; затем успешно использовал Ubuntu archive. Android получает тот же signed HTTPS mirrorlist prefix, что уже применяется Linux host checks. Пакеты/подписи/матрица/все команды/10m/negative cleanup неизменны; локальные workflow boundary/guards/Bash/error propagation/actionlint/ShellCheck passed. Реальный новый APT timing/полный CI ещё нужны; EV-083/LOG-457/460, T08/T16. 4c37de3: prototype-ui полностью SUCCESS, установка пакетов 2s; shell CANCELLED по 10m после всех успешных шагов runtime/negative cleanup на завершении job. Разработчик явно поручил увеличить Android лимит до 15m: меняется только timeout-minutes всей Android matrix и соответствующий guard, aggregate 1m/все проверки/остальные бюджеты прежние. Новый полный CI пока pending; LOG-462. d1c1c44 все 17 checks SUCCESS при разрешённых 15m, shell 606s/prototype-ui 541s; raw logs подтверждают полные наборы и cleanup. PR #83 merged 695d0b8, tree совпал с checked head. Resolved в scope полного текущего CI/разрешённого budget; cold/future timing не гарантируются. EV-083/LOG-464. |
 | GAP-021 | gap | resolved | P05.05 CI | dd84aac: attempt 1 имел лишь 3 SUCCESS вместо 13, оба workflows FAILURE. Workflow-level annotations обоих attempts явно сообщают GitHub Actions Internal server error; check-run annotations этого не показывали. Полный attempt 2 за ~1:42 завершён FAILURE, jobs=0 в обеих матрицах. Код/лимиты прежние; correlation IDs/links — EV-082/LOG-449. После mitigation attempt 3 создал все 13 checks: 12 SUCCESS/Linux CANCELLED с явным 10m timeout. Матрица/оба aggregates восстановлены, внешний blocker снят; Linux budget разбирается отдельно GAP-019. EV-082/LOG-450/451. |
@@ -924,7 +927,7 @@ observed_on: "Дата, ревизия/сборка, платформа, тра�
 reproduction: "Минимальные исходные условия и действия"
 expected: "Ожидаемый результат по источнику"
 actual: "Фактический результат и ссылка на доказательство"
-next_action: "P04.01 завершён (EV-063, PR #49/#50). Следующий готовый шаг по приоритету очереди — P05.01, оболочка UI; P04.02 также разблокирован. Новая реализация за пределами P04.01 не начата."
+next_action: "CI.05/GAP-024: получить реальные expected/actual версии Android CLI новым CI; затем исправить доказанную причину и дождаться всех 17 SUCCESS перед merge/delete PR #87."
 resolution: null  # изменение/ADR; для accepted — кто, когда, основание и принятый риск
 recheck: null  # EV-*; исправление без проверки ещё не resolved
 ```
@@ -4654,3 +4657,16 @@ limitations: "Непроверенные части и связанные BUG/GA
 - База/main/origin main — 6d6d546, восемь runtime/test fingerprints совпали с финальными проверенными исходниками. Исходные 15 dirty/new файлов сохранены локально с manifest/patch; публикация ещё не выполнена.
 - Подготовлена настоящая static before/after пара на одинаковых синтетических данных/Service/light/viewport 1280 × 1280; baseline assets/CSP собраны из базы в изолированном временном каталоге. Карточка и история между снимками неизменны, медиа вне репозитория.
 - Дополнительно поручено обновить ze-pr: использовать имеющийся gh --attach для PNG/видео до обращения к browser login, проверять partial-upload результат и не создавать повторный PR. Изменение навыка идёт отдельным коммитом того же PR; runtime прежний.
+
+### LOG-483 — 2026-11-14 — агент Codex, P05.09 опубликован в PR #87
+
+- Коммиты 5642911 feat(ui): let users inspect and restore card history и e4f24a3 docs(skills): upload PR images and videos with gh отправлены в feat/p05-09-card-history-ui. Итоговый head e4f24a3b7fb49969a95739a4ec2b394e052558f5, base main/6d6d546. Восемь checked источников совпали; 15 scoped feature paths и отдельная правка навыка, noreply/privacy/pre-push/routing guards passed. Индекс пуст, post-publication runtime изменений нет.
+- Создан и следующим tool call linked PR #87. Обе реальные PNG загружены gh pr create --attach без browser login. Title/body/четыре English sections/credit/rendered media прочитаны обратно; публичные размеры/байты/SHA-256 совпали. Media/base assets/body вне репозитория. Собственная browser-вкладка закрыта, issue/release не создавались. ze-pr дополнен create/edit --attach, ссылками в body и обработкой partial failure; skill-creator validator passed с временной dependency PyYAML вне проекта/глобального Python.
+- Все 14 runtime suites Windows/Linux/Android IN_PROGRESS, три strict aggregates ожидаются. Reviews/comments/requests/threads отсутствуют; OPEN/non-draft/MERGEABLE. Новый CI/merge/delete ещё не завершены. Штатный watch запускается; после всех 17 COMPLETED/SUCCESS и readiness точного head действует поручение на merge и удаление ветки без повторного согласования. Локальная EV-087/пять правил прежние, полные P05/T08/A21/A54 partial; P05.11 не начат.
+
+### LOG-484 — 2026-11-14 — агент Codex, CI.05: диагностика Android CLI preflight
+
+- Read-only разбор raw logs всех трёх названных jobs и четвёртого prototype-ui подтвердил один preflight отказ Unexpected Android CLI version на head e4f24a3; до соответствующих runtime-наборов они не дошли. Предыдущий product-native PR #86 passed с теми же pin/архивом/SHA-256. Фактическая строка исходным скриптом не выведена; root cause неизвестен, GAP-024 открыт.
+- EV-088/CI.05 фиксируют минимальный scope: scripts/check-android-environment.sh сохраняет expected/actual/resolved command и отдельный отказ при неуспешном чтении версии. Проверка остаётся точной; версии/скачивания/SDK/продукт/UI/матрица/assertions/таймауты прежние. Три dirty документа публикации сохранены локально.
+- Bash syntax и исполнение настоящего preflight с подставными командами passed: совпадение пропускает к SDK; wrong/empty/multiline отказывают с точными данными, ошибка CLI остаётся отказом. Оба routing guards passed. ShellCheck/реальные expected/actual и полный CI ещё нужны; Linux runner локально недоступен, инструменты не переустанавливались.
+- P05.09/EV-087 остаётся локально verified, CI.05 in_progress. Публикуется отдельный диагностический commit в PR #87; далее реальный новый CI, установление причины и все 17 SUCCESS/readiness перед порученными merge/delete. Watch прежний, повторно не включается.

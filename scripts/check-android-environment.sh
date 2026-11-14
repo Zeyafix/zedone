@@ -14,7 +14,10 @@ export PATH="$android_home/platform-tools:$android_home/emulator:$tools:$PATH"
 image=$(jq -r .android.image "$versions")
 [[ $(bun --version) == "$(jq -r .bun "$versions")" ]] || fail 'Unexpected Bun version.'
 [[ $(javac -version 2>&1) == "javac $(jq -r .android.jdk "$versions")" ]] || fail 'Unexpected JDK version.'
-[[ $(android --no-metrics --version) == "$(jq -r .android.cli "$versions")" ]] || fail 'Unexpected Android CLI version.'
+expected_android_cli=$(jq -r .android.cli "$versions")
+actual_android_cli=$(android --no-metrics --version) || fail 'Unable to read Android CLI version.'
+[[ $actual_android_cli == "$expected_android_cli" ]] || \
+    fail "Unexpected Android CLI version: expected $(printf '%q' "$expected_android_cli"), got $(printf '%q' "$actual_android_cli") (executable: $(command -v android))."
 while IFS=@ read -r package revision; do
     properties="$android_home/$package/source.properties"
     [[ -f $properties ]] || fail "Missing SDK package: $package"

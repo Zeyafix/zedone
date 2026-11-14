@@ -96,6 +96,9 @@ let page, stage = "install";
 const errors = [];
 try {
   device("install", "-r", resolve(root, "ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"));
+  stage = "host-secrets";
+  const secrets = Bun.spawnSync([process.execPath, resolve(root, "scripts/check-host-secrets-android.mjs")], { stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+  assert.equal(secrets.exitCode, 0, "Native host secrets check failed");
   stage = "unconfigured-shell";
   page = await openWebView();
   page.on("pageerror", error => errors.push(error.message));

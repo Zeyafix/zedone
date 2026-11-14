@@ -1,5 +1,13 @@
 # Продуктовое Rust-ядро
 
+Защищённый канал и системные host secrets —
+[ADR-0055](decisions/0055-protected-device-channel.md). TLS/ring, certificate
+pinning и порт SecretStore находятся в adapters; Windows backend — там же под
+cfg(windows), Android Keystore — в платформенном Kotlin host с закрытым Rust
+bridge. Core/storage/SQLite/Rust-derived JSON контракт не меняются. Приватная
+идентичность канала не сериализуется в прикладной ответ, receipt или снимок.
+Внешнего listener/request/confirm пока нет, TLS не выдаёт прав Service.
+
 Прикладной жизненный цикл пустых колонок — [ADR-0043](decisions/0043-column-lifecycle.md).
 ColumnStore расширяет SpaceStore, данные/причинная проекция находятся в одном
 Automerge-документе пространства. Права пространства, guard/replay/timed commit

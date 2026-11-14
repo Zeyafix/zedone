@@ -23,7 +23,9 @@ on:
       - 'ui/**'
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
+      - 'scripts/check-host-secrets-android.mjs'
       - 'scripts/check-product.mjs'
+      - 'scripts/check-channel-pair.mjs'
   pull_request:
     paths:
       - '.gitattributes'
@@ -45,7 +47,9 @@ on:
       - 'ui/**'
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
+      - 'scripts/check-host-secrets-android.mjs'
       - 'scripts/check-product.mjs'
+      - 'scripts/check-channel-pair.mjs'
   workflow_dispatch:
 
 permissions:

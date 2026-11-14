@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, relative, resolve } from "node:path";
+import { checkChannelPair } from "./check-channel-pair.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
@@ -203,6 +204,12 @@ async function checkAndroid() {
         console.log(output);
         assert.ok(output.includes("test result: ok."));
       }
+      const hostArtifacts = run(cargo(["test", "-p", "zedone-adapters", "--lib", "--no-run", "--message-format=json", ...locked]), { capture: true })
+        .stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line));
+      const hostBinary = hostArtifacts.find(item => item.reason === "compiler-artifact" && item.profile.test && item.target.name === "zedone_adapters" && item.executable)?.executable;
+      const androidIndex = tests.findIndex(item => item.target.name === "zedone_adapters");
+      assert.ok(hostBinary && androidIndex >= 0, "Channel probe test binaries required");
+      await checkChannelPair({ root, env, hostBinary, androidBinary: `${remote}/test-${androidIndex}`, adb, serial });
       device("push", resolve(root, `target/${target}/release/export-contract`), `${remote}/export-contract`);
       device("shell", "chmod", "700", `${remote}/export-contract`);
       assert.equal(device("shell", `${remote}/export-contract`), generated.toString(), "Android and host contracts differ");

@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::{io::Read, path::Path};
 use zedone_adapters::Service;
 
+#[cfg(target_os = "android")]
+pub mod secrets;
 pub mod web;
 
 // Only a pre-provisioned local credential is read. Issuance, OS credential
@@ -132,6 +134,7 @@ mod entry_point {
     pub fn run() {
         use tauri::Manager;
         tauri::Builder::default()
+            .plugin(super::secrets::plugin())
             .plugin(
                 tauri_plugin_opener::Builder::new()
                     .open_js_links_on_click(false)

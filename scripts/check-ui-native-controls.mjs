@@ -1,5 +1,50 @@
 import assert from "node:assert/strict";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
+import { observeShellReads, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
+
+/** Host-only negative control: failure evidence must belong to the live touch
+ * page, survive context disposal and preserve the exact scenario error. */
+export async function checkShellFailureDiagnostics(browser, url, secret) {
+  const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });
+  const report = console.error;
+  try {
+    const main = await context.newPage(), touch = await context.newPage();
+    await main.goto(url);
+    await touch.goto(`${url}/#/settings`);
+    await touch.getByRole("heading", { name: "Настройки", exact: true, level: 1 }).waitFor();
+    let responseListener;
+    const reads = observeShellReads({ on: (event, listener) => { assert.equal(event, "response"); responseListener = listener; } });
+    for (let index = 0; index < 35; index++) await responseListener({
+      url: () => `${url}/v1/commands/tag.list`, status: () => 200,
+      json: async () => ({ status: "error", error: { code: "access_denied", credential: secret }, credential: secret, result: { tags: [], credential: secret } }),
+    });
+    assert.equal(reads.length, 30);
+    const lines = [];
+    console.error = (...args) => lines.push(args);
+    let original;
+    let attempts = 0;
+    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => {
+      attempts++;
+      // This impossible probe has its own short deadline; the real UI actions
+      // retain their existing 10s deadline and are never retried by diagnostics.
+      try { await touch.waitForFunction(() => false, undefined, { timeout: 50 }); }
+      catch (error) { original = error; throw error; }
+    }), error => error === original && error.name === "TimeoutError");
+    assert.equal(attempts, 1); assert.equal(lines.length, 1);
+    assert.equal(lines[0][0], "UI failure state:");
+    const state = JSON.parse(lines[0][1]);
+    assert.equal(state.label, "host touch"); assert.equal(state.stage, "tags");
+    assert.equal(state.hash, "#/settings"); assert.notEqual(state.hash, await main.evaluate(() => location.hash));
+    assert.equal(state.mounted, true); assert.equal(state.session, "configured");
+    assert.ok(!JSON.stringify(lines).includes(secret));
+    assert.equal(state.reads.length, 30); assert.equal(state.reads[0].path, "/v1/commands/tag.list");
+    assert.equal(state.reads[0].error, "access_denied");
+    console.error = () => { throw new Error("controlled diagnostic failure"); };
+    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => { throw original; }), error => error === original);
+    console.error = report;
+    console.log("Diagnostics: failing touch page/stage before disposal, bounded metadata, secret exclusion and original error passed.");
+  } finally { console.error = report; await context.close(); }
+}
 
 /** Host-only regression: old WebView lacks this API in every execution realm. */
 export async function withoutVisibilityApi(page) {

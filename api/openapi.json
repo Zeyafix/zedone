@@ -44,6 +44,108 @@
         ]
       }
     },
+    "/v1/commands/access.issue": {
+      "post": {
+        "tags": [
+          "access_commands"
+        ],
+        "operationId": "issue_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_IssueAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_AccessSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/access.list": {
+      "post": {
+        "tags": [
+          "access_commands"
+        ],
+        "operationId": "list_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ListAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_AccessList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/access.replace": {
+      "post": {
+        "tags": [
+          "access_commands"
+        ],
+        "operationId": "replace_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ReplaceAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_AccessSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/access.revoke": {
       "post": {
         "tags": [
@@ -1339,6 +1441,29 @@
   },
   "components": {
     "schemas": {
+      "AccessList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessSnapshot"
+            },
+            "description": "At most 50 entries, including revoked/expired grants. No secret/verifier.",
+            "maxItems": 50
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "AccessMode": {
         "type": "string",
         "enum": [
@@ -2394,6 +2519,98 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_IssueAccess": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "subject",
+              "verifier",
+              "scope"
+            ],
+            "properties": {
+              "expires_at_unix_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "scope": {
+                "$ref": "#/components/schemas/AccessScope"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "verifier": {
+                "$ref": "#/components/schemas/KeyVerifier"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ListAccess": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "after": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Exclusive subject cursor. New reads need new command IDs."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ListCards": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -3073,6 +3290,65 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ReplaceAccess": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Permission changes and re-issuance always rotate the key. A stale preview\ncannot replace newer permissions or revive an already revoked credential.",
+            "required": [
+              "subject",
+              "verifier",
+              "scope",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "expires_at_unix_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "scope": {
+                "$ref": "#/components/schemas/AccessScope"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "verifier": {
+                "$ref": "#/components/schemas/KeyVerifier"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RestoreCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -3616,6 +3892,17 @@
         },
         "additionalProperties": false
       },
+      "CommandResponse_AccessList": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_AccessList"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_AccessSnapshot": {
         "oneOf": [
           {
@@ -3769,6 +4056,46 @@
           }
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandSuccess_AccessList": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AccessSnapshot"
+                },
+                "description": "At most 50 entries, including revoked/expired grants. No secret/verifier.",
+                "maxItems": 50
+              },
+              "next": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
       },
       "CommandSuccess_AccessSnapshot": {
         "type": "object",
@@ -4765,6 +5092,58 @@
         },
         "additionalProperties": false
       },
+      "IssueAccess": {
+        "type": "object",
+        "required": [
+          "subject",
+          "verifier",
+          "scope"
+        ],
+        "properties": {
+          "expires_at_unix_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AccessScope"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "verifier": {
+            "$ref": "#/components/schemas/KeyVerifier"
+          }
+        },
+        "additionalProperties": false
+      },
+      "KeyVerifier": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "maxItems": 32,
+        "minItems": 32
+      },
+      "ListAccess": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Exclusive subject cursor. New reads need new command IDs."
+          }
+        },
+        "additionalProperties": false
+      },
       "ListCards": {
         "type": "object",
         "required": [
@@ -5099,6 +5478,40 @@
           },
           "tag": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplaceAccess": {
+        "type": "object",
+        "description": "Permission changes and re-issuance always rotate the key. A stale preview\ncannot replace newer permissions or revive an already revoked credential.",
+        "required": [
+          "subject",
+          "verifier",
+          "scope",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "expires_at_unix_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AccessScope"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "verifier": {
+            "$ref": "#/components/schemas/KeyVerifier"
           }
         },
         "additionalProperties": false

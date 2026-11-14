@@ -13,6 +13,7 @@ use zedone_core::{
         AccessTransaction, Clock, Credential, Grant, GrantScope, RequiredAccess, ResolvedAccess,
         SpacePermission, with_authorized,
     },
+    access_commands::{AccessList, AccessMode, AccessScope, KeyVerifier},
     command::CommandResult,
     error::{CommandError, ErrorCode},
     replay::{RecordedCommand, ReplayTransaction},
@@ -22,6 +23,8 @@ use crate::{StorageError, StorageResult, WriteContext};
 
 #[cfg(test)]
 mod combined_tests;
+#[cfg(test)]
+mod issuance_tests;
 #[cfg(test)]
 mod tests;
 
@@ -39,6 +42,12 @@ impl AccessKey {
 
     pub fn credential(&self) -> Credential<'_> {
         Credential(&self.0)
+    }
+
+    /// Safe registration material for the authenticated administration API.
+    /// The original key remains in the recipient's protected credential facility.
+    pub fn registration_verifier(&self) -> KeyVerifier {
+        KeyVerifier(self.verifier())
     }
 
     fn verifier(&self) -> [u8; 32] {
@@ -69,6 +78,10 @@ impl PendingAccess {
 
     pub fn credential(&self) -> Credential<'_> {
         self.key.credential()
+    }
+
+    pub fn registration_verifier(&self) -> KeyVerifier {
+        self.key.registration_verifier()
     }
 }
 
@@ -238,6 +251,16 @@ impl WriteContext<'_> {
         scope: &GrantScope,
         expires_at: Option<SystemTime>,
     ) -> StorageResult<()> {
+        self.store_verifier(subject, KeyVerifier(key.verifier()), scope, expires_at)
+    }
+
+    fn store_verifier(
+        &mut self,
+        subject: &str,
+        verifier: KeyVerifier,
+        scope: &GrantScope,
+        expires_at: Option<SystemTime>,
+    ) -> StorageResult<()> {
         let expires_ms = expiry(expires_at)?;
         if let Some(spaces) = scope.spaces()
             && (spaces.is_empty() || spaces.keys().any(|id| id.is_empty()))
@@ -247,7 +270,7 @@ impl WriteContext<'_> {
         // Every old verifier remains a tombstone, even after replacement/restart.
         let reused: bool = self.connection().query_row(
             "SELECT EXISTS(SELECT 1 FROM access_keys WHERE verifier = ?1)",
-            [key.verifier().as_slice()],
+            [verifier.0.as_slice()],
             |r| r.get(0),
         )?;
         if reused {
@@ -266,7 +289,7 @@ impl WriteContext<'_> {
         )?;
         self.connection().execute(
             "INSERT INTO access_keys VALUES (?1, ?2, 1)",
-            (key.verifier().as_slice(), subject),
+            (verifier.0.as_slice(), subject),
         )?;
         self.connection()
             .execute("DELETE FROM access_spaces WHERE subject = ?1", [subject])?;
@@ -383,6 +406,60 @@ impl ReplayTransaction for WriteContext<'_> {
 }
 
 impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
+    fn issue_subject(
+        &mut self,
+        subject: &str,
+        verifier: KeyVerifier,
+        scope: &AccessScope,
+        expires_at: Option<SystemTime>,
+    ) -> CommandResult<()> {
+        let result = (|| {
+            if self.load_access(subject)?.is_some() {
+                return Err(error(ErrorCode::InvalidRequest));
+            }
+            self.store_wire_access(subject, verifier, scope, expires_at)
+        })();
+        Ok(self.checked(result)?)
+    }
+
+    fn replace_subject(
+        &mut self,
+        subject: &str,
+        verifier: KeyVerifier,
+        scope: &AccessScope,
+        expires_at: Option<SystemTime>,
+    ) -> CommandResult<()> {
+        let result = (|| {
+            if self.load_access(subject)?.is_none() {
+                return Err(error(ErrorCode::NotFound));
+            }
+            self.store_wire_access(subject, verifier, scope, expires_at)
+        })();
+        Ok(self.checked(result)?)
+    }
+
+    fn list_access(&mut self, after: Option<&str>) -> CommandResult<AccessList> {
+        let mut subjects = self.connection().prepare(
+            "SELECT subject FROM access_principals WHERE subject > coalesce(?1, '') ORDER BY subject LIMIT 51"
+        ).map_err(StorageError::from)?.query_map([after], |row| row.get::<_, String>(0))
+            .map_err(StorageError::from)?.collect::<Result<Vec<_>, _>>().map_err(StorageError::from)?;
+        let next = if subjects.len() > 50 {
+            subjects.truncate(50);
+            subjects.last().cloned()
+        } else {
+            None
+        };
+        let entries = subjects
+            .iter()
+            .map(|subject| {
+                self.access_snapshot(subject)?.ok_or(CommandError {
+                    code: ErrorCode::Unavailable,
+                })
+            })
+            .collect::<CommandResult<Vec<_>>>()?;
+        Ok(AccessList { entries, next })
+    }
+
     fn access_snapshot(
         &mut self,
         subject: &str,
@@ -454,6 +531,50 @@ impl zedone_core::access_commands::AccessStore for WriteContext<'_> {
             self.ensure_administrator()
         })();
         Ok(self.checked(result)?)
+    }
+}
+
+impl WriteContext<'_> {
+    fn store_wire_access(
+        &mut self,
+        subject: &str,
+        verifier: KeyVerifier,
+        scope: &AccessScope,
+        expires_at: Option<SystemTime>,
+    ) -> StorageResult<()> {
+        let spaces = match scope {
+            AccessScope::Administration(_) => None,
+            AccessScope::AdministrationAndSpaces(scope) => Some(&scope.spaces),
+            AccessScope::Spaces(scope) => Some(&scope.spaces),
+        };
+        let mut permissions = BTreeMap::new();
+        if let Some(spaces) = spaces {
+            for (space, mode) in spaces {
+                let exists: bool = self.connection().query_row(
+                    "SELECT EXISTS(SELECT 1 FROM documents WHERE space = ?1)",
+                    [space],
+                    |r| r.get(0),
+                )?;
+                if !exists {
+                    return Err(error(ErrorCode::NotFound));
+                }
+                permissions.insert(
+                    space.clone(),
+                    match mode {
+                        AccessMode::Read => SpacePermission::Read,
+                        AccessMode::ReadWrite => SpacePermission::ReadWrite,
+                    },
+                );
+            }
+        }
+        let grant_scope = match scope {
+            AccessScope::Administration(_) => GrantScope::Administration,
+            AccessScope::AdministrationAndSpaces(_) => {
+                GrantScope::AdministrationAndSpaces(permissions)
+            }
+            AccessScope::Spaces(_) => GrantScope::Spaces(permissions),
+        };
+        self.store_verifier(subject, verifier, &grant_scope, expires_at)
     }
 }
 

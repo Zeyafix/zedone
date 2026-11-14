@@ -15,6 +15,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/access.issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["issue_access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/access.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["list_access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/access.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["replace_access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/access.revoke": {
         parameters: {
             query?: never;
@@ -627,6 +675,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccessList: {
+            /** @description At most 50 entries, including revoked/expired grants. No secret/verifier. */
+            entries: components["schemas"]["AccessSnapshot"][];
+            next?: string | null;
+        };
         /** @enum {string} */
         AccessMode: "read" | "read_write";
         AccessScope: components["schemas"]["AdministrationScope"] | components["schemas"]["AdministrationAndSpacesScope"] | components["schemas"]["SpacesScope"];
@@ -1188,6 +1241,73 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_IssueAccess: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                /** Format: int64 */
+                expires_at_unix_ms?: number | null;
+                scope: components["schemas"]["AccessScope"];
+                subject: string;
+                verifier: components["schemas"]["KeyVerifier"];
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ListAccess: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                /** @description Exclusive subject cursor. New reads need new command IDs. */
+                after?: string | null;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_ListCards: {
             id: [
                 number,
@@ -1683,6 +1803,46 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_ReplaceAccess: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            /**
+             * @description Permission changes and re-issuance always rotate the key. A stale preview
+             *     cannot replace newer permissions or revive an already revoked credential.
+             */
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                /** Format: int64 */
+                expires_at_unix_ms?: number | null;
+                scope: components["schemas"]["AccessScope"];
+                subject: string;
+                verifier: components["schemas"]["KeyVerifier"];
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RestoreCard: {
             id: [
                 number,
@@ -2079,6 +2239,13 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_AccessList: components["schemas"]["CommandSuccess_AccessList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_AccessSnapshot: components["schemas"]["CommandSuccess_AccessSnapshot"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -2171,6 +2338,15 @@ export interface components {
          *     a lost response or uncertain commit must never be converted to success.
          */
         CommandResponse_Value: components["schemas"]["CommandSuccess_Value"] | components["schemas"]["CommandFailure"];
+        CommandSuccess_AccessList: {
+            replayed: boolean;
+            result: {
+                /** @description At most 50 entries, including revoked/expired grants. No secret/verifier. */
+                entries: components["schemas"]["AccessSnapshot"][];
+                next?: string | null;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_AccessSnapshot: {
             replayed: boolean;
             /**
@@ -2427,6 +2603,18 @@ export interface components {
             operation: string;
             request: string;
         };
+        IssueAccess: {
+            /** Format: int64 */
+            expires_at_unix_ms?: number | null;
+            scope: components["schemas"]["AccessScope"];
+            subject: string;
+            verifier: components["schemas"]["KeyVerifier"];
+        };
+        KeyVerifier: number[];
+        ListAccess: {
+            /** @description Exclusive subject cursor. New reads need new command IDs. */
+            after?: string | null;
+        };
         ListCards: {
             include_trashed: boolean;
             space: string;
@@ -2508,6 +2696,18 @@ export interface components {
             name: string;
             space: string;
             tag: string;
+        };
+        /**
+         * @description Permission changes and re-issuance always rotate the key. A stale preview
+         *     cannot replace newer permissions or revive an already revoked credential.
+         */
+        ReplaceAccess: {
+            expected: components["schemas"]["StateVersion"];
+            /** Format: int64 */
+            expires_at_unix_ms?: number | null;
+            scope: components["schemas"]["AccessScope"];
+            subject: string;
+            verifier: components["schemas"]["KeyVerifier"];
         };
         RestoreCard: {
             card: string;
@@ -2680,6 +2880,75 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_InspectAccess"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_AccessSnapshot"];
+                };
+            };
+        };
+    };
+    issue_access: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_IssueAccess"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_AccessSnapshot"];
+                };
+            };
+        };
+    };
+    list_access: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListAccess"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_AccessList"];
+                };
+            };
+        };
+    };
+    replace_access: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReplaceAccess"];
             };
         };
         responses: {

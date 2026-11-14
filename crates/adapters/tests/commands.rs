@@ -26,6 +26,9 @@ use zedone_storage::{
 #[path = "commands/spaces.rs"]
 mod spaces;
 
+#[path = "commands/access_issuance.rs"]
+mod access_issuance;
+
 #[path = "commands/columns.rs"]
 mod columns;
 

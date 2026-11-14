@@ -12,11 +12,12 @@ export type SearchResults = Schemas["SearchResults"];
 export type SearchHit = Schemas["SearchHit"];
 export type TrashSelection = Schemas["TrashSelection"];
 export type TrashPreview = Schemas["TrashPreview"];
+export type HistoryPreview = Schemas["HistoryPreview"];
 export type CardHistory = Schemas["CardHistory"];
 export type CardTextVersion = Schemas["CardTextVersion"];
 export type TagMutation = "tag.create" | "tag.rename" | "tag.delete" | "card.set_tag";
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
-export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "card.restore_text";
+export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "card.restore_text" | "history.clear";
 export const pendingChanged = "zedone:pending";
 type Reads = {
   "space.list": Schemas["SpaceList"];
@@ -30,6 +31,7 @@ type Reads = {
   "tag.list": Schemas["TagList"];
   "tag.read": Tag;
   "trash.inspect": TrashPreview;
+  "history.inspect": HistoryPreview;
 };
 export type Pending = { id: string; intention: Intention };
 const store = () => webIntentionStore(localStorage, "shell");

@@ -8,7 +8,7 @@ import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending, type Tag } from "./workspace-api";
 
 const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: string }>();
-const emit = defineEmits<{ changed: []; close: []; stay: [] }>();
+const emit = defineEmits<{ changed: []; close: []; stay: []; cleanup: [card: Card, event: Event] }>();
 const snapshot = ref<Card>(props.card);
 // Freeze the displayed tag versions with the card; parent refresh never rebases an action.
 const tags = ref<Tag[]>(props.tags);
@@ -321,7 +321,7 @@ defineExpose({ requestClose });
 
 <template>
   <div class="card-editor">
-    <CardHistory v-if="historyOpen" :key="historyGeneration" :card="snapshot" :ready="ready" :disabled="busy || !!pending" :mutable="mutable && !blocked" @restore="restoreText" @refresh="openHistory" @close="closeHistory" />
+    <CardHistory v-if="historyOpen" :key="historyGeneration" :card="snapshot" :ready="ready" :disabled="busy || !!pending" :mutable="mutable && !blocked" @restore="restoreText" @refresh="openHistory" @close="closeHistory" @cleanup="emit('cleanup', snapshot, $event)" />
     <div v-else-if="!editing" class="card-content">
       <h3 v-for="text in snapshot.titles" :key="text">{{ text }}</h3>
       <template v-for="text in snapshot.descriptions" :key="text">

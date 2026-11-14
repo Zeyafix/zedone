@@ -12,6 +12,7 @@ import { checkTags } from "./check-ui-tags.mjs";
 import { checkSearch } from "./check-ui-search.mjs";
 import { checkTrash } from "./check-ui-trash.mjs";
 import { checkHistory } from "./check-ui-history.mjs";
+import { checkHistoryCleanup } from "./check-ui-history-cleanup.mjs";
 import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
 import { waitForWebViewTarget } from "../prototypes/scripts/android-webview-target.mjs";
 
@@ -124,6 +125,8 @@ try {
   await checkTrash(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
   stage = "history";
   await checkHistory(page, { tap, fill, back: () => device("shell", "input", "keyevent", "4"), dismissKeyboard });
+  stage = "history-cleanup";
+  await checkHistoryCleanup(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
   stage = "markdown";
   await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {
     for (const forbidden of ["file:///secret", "mailto:test@example.invalid", "javascript:alert(1)"]) {

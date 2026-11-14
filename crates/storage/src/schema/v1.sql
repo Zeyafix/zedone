@@ -64,5 +64,15 @@ CREATE TABLE pairing_invitations (
     verifier BLOB NOT NULL UNIQUE CHECK(length(verifier) = 32 AND verifier != zeroblob(32)),
     created_ms INTEGER NOT NULL CHECK(created_ms >= 0 AND created_ms <= 253402300199999),
     expires_ms INTEGER NOT NULL CHECK(expires_ms = created_ms + 600000),
+    cancelled INTEGER NOT NULL CHECK(cancelled IN (0, 1)),
+    failures INTEGER NOT NULL CHECK(failures BETWEEN 0 AND 5)
+) STRICT, WITHOUT ROWID;
+CREATE TABLE pairing_requests (
+    request TEXT PRIMARY KEY NOT NULL CHECK(length(request) = 32 AND request NOT GLOB '*[^0-9a-f]*'),
+    invitation TEXT NOT NULL UNIQUE REFERENCES pairing_invitations(invitation),
+    pending_verifier BLOB NOT NULL UNIQUE CHECK(length(pending_verifier) = 32 AND pending_verifier != zeroblob(32)),
+    access_verifier BLOB NOT NULL UNIQUE CHECK(length(access_verifier) = 32 AND access_verifier != zeroblob(32)),
+    label TEXT NOT NULL CHECK(length(label) BETWEEN 1 AND 80),
+    created_ms INTEGER NOT NULL CHECK(created_ms BETWEEN 0 AND 253402300799999),
     cancelled INTEGER NOT NULL CHECK(cancelled IN (0, 1))
 ) STRICT, WITHOUT ROWID;

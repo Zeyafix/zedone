@@ -5331,6 +5331,10 @@ name = "zedone-adapters"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "getrandom 0.4.3",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "keyring-core",
  "rcgen",
  "rustls",
@@ -5385,6 +5389,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "subtle",
  "tempfile",
  "tokio",
  "zedone-core",

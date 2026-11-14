@@ -1,6 +1,6 @@
 # EV-089 — подготовка сенсорного сценария истории и диагностика перехода
 
-Дата: 2026-11-14. Шаг: CI.06. Состояние: исправление готовности сценария verified локально; новый Linux CI ожидается.
+Дата: 2026-11-14. Шаг: CI.06. Состояние: done в диагностированном срезе; исправление autosave подтверждено Windows/Linux/native Android CI и интегрировано.
 
 ## Карточка шага
 
@@ -207,3 +207,20 @@ override не меняет baseline CI 24.22.1. Лог —
 `docs/reports/p05-09/ui-check-autosave-fix-final.log`. Синтаксис/diff и
 неизменность всего реестра 98 критериев проверены отдельно. Новый native
 Android CI/публикация ожидаются; GAP-025 открыт, LOG-496.
+
+Опубликовано в PR #87/head 241c24115959bb30315eed6f3962e0bab658b5c0.
+Readback body подтвердил финальные тестовые утверждения, две прежние static
+картинки, одну динамическую before/after пару и точный base 6d6d546. Обе
+публичные видеозагрузки совпали по байтам/SHA-256 с проверенными оригиналами.
+Все 15 первичных checks IN_PROGRESS, три aggregates ожидаются; reviewers/
+comments/requests отсутствуют. GAP-025 открыт до нового native Android CI,
+полные критерии не повышаются; наблюдение за новым CI включается. LOG-497.
+
+## Итоговая интеграция — 2026-11-14
+
+CI.06 done, GAP-025 resolved в scope диагностированного перехода. Raw Android shell 132368524146 подтвердил весь history-сценарий через IPC, autosave/editor/IME/Back/negative cleanup; shell-arm64 132368524429 подтвердил вторую ABI/manifest. Linux/Windows raw shell подтвердили оба history-сценария. Все 18 SUCCESS; первые failures без trace не переатрибутируются, полный T08/A21 partial.
+
+PR #87/head 241c24115959bb30315eed6f3962e0bab658b5c0 интегрирован в
+main/c859afb179f5fb207b123bbde1794e76ed995e9c после точных 18 SUCCESS и
+CLEAN readiness. Дерево merge равно checked head; feature-ветка удалена
+локально/на GitHub, три dirty документа сохранены побайтово. LOG-498.

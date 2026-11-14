@@ -1,6 +1,6 @@
 # EV-090 — независимый Windows-пробник окружения
 
-Дата: 2026-11-14. Шаг: CI.07. Состояние: verified локально и Windows CI head 19a5a3f; интеграция ожидается.
+Дата: 2026-11-14. Шаг: CI.07. Состояние: done; финальный CI 241c241 SUCCESS, интегрирован PR #87/c859afb.
 
 ## Карточка шага
 
@@ -42,3 +42,12 @@ Windows environment head 19a5a3f/job 132349463238 завершён SUCCESS на
 `Windows environment check passed.` Включения в root workspace и обращения
 к продуктовой `icu_casemap` нет. GAP-026 resolved в scope Windows-пробника;
 весь PR ещё требует остальных checks/readiness. LOG-491.
+
+## Итоговая интеграция — 2026-11-14
+
+CI.07 done, GAP-026 resolved. Итоговый windows environment/job 132368524108 SUCCESS на 241c241; остальные Windows checks и aggregates также SUCCESS. Прежние offline/fmt/Clippy/изолированный системный temp проверки сохранены.
+
+PR #87/head 241c24115959bb30315eed6f3962e0bab658b5c0 интегрирован в
+main/c859afb179f5fb207b123bbde1794e76ed995e9c после точных 18 SUCCESS и
+CLEAN readiness. Дерево merge равно checked head; feature-ветка удалена
+локально/на GitHub, три dirty документа сохранены побайтово. LOG-498.

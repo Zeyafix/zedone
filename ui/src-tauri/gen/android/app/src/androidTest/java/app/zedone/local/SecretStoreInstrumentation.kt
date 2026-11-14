@@ -19,6 +19,7 @@ class SecretStoreInstrumentation : Instrumentation() {
     val namespace = MessageDigest.getInstance("SHA-256").digest(UUID.randomUUID().toString().toByteArray())
       .joinToString("") { "%02x".format(it) }
     val store = ProtectedSecrets(targetContext, namespace)
+    val pending = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.PENDING_SLOT)
     val directory = File(targetContext.noBackupFilesDir, "host-secrets/$namespace")
     val baseFile = File(directory, "${ProtectedSecrets.SLOT}.bin")
     val alias = "app.zedone.local/$namespace/${ProtectedSecrets.SLOT}"
@@ -31,6 +32,7 @@ class SecretStoreInstrumentation : Instrumentation() {
     var stage = "missing-and-limits"
     try {
       check(store.load() == null)
+      fails { ProtectedSecrets(targetContext, namespace, "../invalid") }
       fails { store.create(ByteArray(0)) }
       fails { store.create(ByteArray(2049)) }
       val secret = ByteArray(2048) { (it % 251).toByte() }
@@ -42,6 +44,18 @@ class SecretStoreInstrumentation : Instrumentation() {
       check(ProtectedSecrets(targetContext, namespace).load()!!.contentEquals(secret))
       fails { store.create(byteArrayOf(2)) }
       check(store.load()!!.contentEquals(secret))
+      stage = "pending-slot-isolation"
+      val pendingSecret = ByteArray(1024) { ((it + 17) % 251).toByte() }
+      check(pending.load() == null)
+      pending.create(pendingSecret)
+      check(ProtectedSecrets(targetContext, namespace, ProtectedSecrets.PENDING_SLOT).load()!!.contentEquals(pendingSecret))
+      val pendingFile = File(directory, "${ProtectedSecrets.PENDING_SLOT}.bin")
+      val pendingBytes = pendingFile.readBytes()
+      pendingFile.writeBytes(baseFile.readBytes())
+      fails { pending.load() }; fails { pending.create(pendingSecret) }
+      pendingFile.writeBytes(pendingBytes)
+      pending.remove()
+      check(pending.load() == null && store.load()!!.contentEquals(secret))
       val key = keyStore.getKey(alias, null) as javax.crypto.SecretKey
       check(key.encoded == null)
       val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
@@ -91,9 +105,10 @@ class SecretStoreInstrumentation : Instrumentation() {
       result.putString("stage", stage)
     } finally {
       runCatching { store.remove() }
+      runCatching { pending.remove() }
       check(directory.canonicalPath.startsWith(targetContext.noBackupFilesDir.canonicalPath + File.separator))
       directory.deleteRecursively()
-      if (keyStore.containsAlias(alias) || directory.exists()) {
+      if (keyStore.containsAlias(alias) || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.PENDING_SLOT}") || directory.exists()) {
         succeeded = false; result.putString("zedone_secrets", "cleanup_failed")
       }
       finish(if (succeeded) Activity.RESULT_OK else Activity.RESULT_CANCELED, result)

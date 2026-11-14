@@ -1,6 +1,6 @@
 # EV-091 — объём и ручная очистка пользовательской истории
 
-Дата: 2026-11-14. Шаг: P05.11. Состояние: verified локально, без коммита/PR/нового CI/интеграции.
+Дата: 2026-11-14. Шаг: P05.11. Состояние: done в согласованном срезе; PR #88/head 525a818 интегрирован в ee81ce7 после всех 17 SUCCESS.
 
 ## Карточка шага
 
@@ -131,3 +131,51 @@ user/agent/development/ADR и этот EV; общий UI на Windows desktop/to
 Android Device/IPC с указанными границами native faults/CI; один Service/
 SQLite/Automerge остаётся источником данных, preview/receipt не становятся
 отдельным хранилищем. Новых BUG/GAP/продуктовых решений нет.
+
+## Публикация PR #88
+
+Коммит 525a81830e52fb85968c30a0195ab647a2ada3bd опубликован в
+[PR #88](https://github.com/Zeyafix/zedone/pull/88), base main/c859afb.
+17 согласованных файлов, финальные runtime/test fingerprints совпали с
+проверенными исходниками. Исходные четыре dirty EV сохранены вне коммита.
+Настоящая static before/after пара base/final снята на одинаковых синтетических
+данных/Service/light/1280×1280, без изменения карточки или истории. Медиа
+вне репозитория, загружены gh --attach; публичные байты совпали с оригиналами.
+Readback подтвердил четыре English sections, две hosted картинки и credit.
+
+Все 14 runtime suites IN_PROGRESS; три strict aggregates появятся после matrix.
+Всего требуется 17 SUCCESS: отдельный Windows environment workflow не затронут
+путями этого PR. Reviews/comments/requests отсутствуют. Merge/delete поручены
+после полного успеха и нового readiness; новый CI пока не принят, критерии прежние.
+
+## Итог CI и интеграции
+
+Точный набор всех 17 checks на 525a81830e52fb85968c30a0195ab647a2ada3bd
+COMPLETED/SUCCESS; OPEN/non-draft/MERGEABLE/CLEAN перепроверены перед merge.
+Comments/reviews/requests/review threads отсутствовали. Описание PR обновлено
+фактическими результатами; четыре English sections/обе hosted картинки/credit
+и ограничения native unknown-result сохранены, текст прочитан обратно.
+
+Raw Windows/Linux shell logs подтвердили оба desktop/touch cleanup-сценария,
+включая late inspect/отказы/исходный replay и прежний UI. Raw Android shell
+подтвердил общий cleanup через настоящий IPC: карточка/пространство с корзиной,
+состав/байты/отмена/stale/сохранность/чужая pending series, прежние editor/
+IME/Back/search/trash/history/Markdown и native cleanup. Обе debug ABI/manifest
+и отрицательные environment cleanup-проверки passed. Общая native матрица
+не включает host-only fault injection; это ограничение не повышено лог-строкой.
+Чтение job logs потребовало штатный --allow-escape-sequences для сохранения
+сырых журналов в ignored docs/reports; продуктовые проверки не менялись.
+
+Merge API с точным head создал ee81ce72a596176e4fd56c4866d7564ad0cf8707;
+родители — прежний main/c859afb и checked head/525a818, дерево точно равно
+проверенному head. Семь dirty agent-документов заранее сохранены с SHA-256
+и binary patch. Незанятая main обновлена fast-forward через проверенный ref,
+переключение после проверки равных деревьев сохранило все семь файлов
+побайтово. Feature-ветка удалена на GitHub/локально и tracking ref снят.
+Индекс пуст; новый commit/push после интеграции не выполнялся.
+
+P05.11 done. Пять правил подтверждены в срезе: отмена/прежнее исключение clear,
+общий API человека/агента, документация, Windows/Linux/native Android/обе ABI
+и прежняя Device-матрица, единый Service/SQLite/Automerge. Полные P05/T08/
+A12/A21/A31 partial до итогового UI/обмена. GAP/DEC прежние, новых BUG/GAP нет.
+Далее P05.10 по новому поручению; новая реализация не начата, active_work null.

@@ -32,6 +32,9 @@ mod access_issuance;
 #[path = "commands/invitations.rs"]
 mod invitations;
 
+#[path = "commands/pairing.rs"]
+mod pairing;
+
 #[path = "commands/columns.rs"]
 mod columns;
 

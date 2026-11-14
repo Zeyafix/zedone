@@ -47,8 +47,11 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 46);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 49);
     for operation in [
+        "pairing.inspect",
+        "pairing.cancel",
+        "pairing.list",
         "invitation.create",
         "invitation.inspect",
         "invitation.cancel",
@@ -332,6 +335,12 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         "ListInvitations",
         "InvitationSnapshot",
         "InvitationList",
+        "RequestPairing",
+        "InspectPairing",
+        "CancelPairing",
+        "ListPairings",
+        "PairingSnapshot",
+        "PairingList",
     ] {
         assert_eq!(schemas[name]["additionalProperties"], false, "{name}");
     }
@@ -353,5 +362,26 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         schemas["InvitationList"]["properties"]["entries"]["maxItems"],
         50
     );
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 46);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 49);
+    fn check_refs(value: &Value, schemas: &Value) {
+        match value {
+            Value::Object(fields) => {
+                if let Some(Value::String(reference)) = fields.get("$ref")
+                    && let Some(name) = reference.strip_prefix("#/components/schemas/")
+                {
+                    assert!(schemas.get(name).is_some(), "Unresolved Rust schema {name}");
+                }
+                for child in fields.values() {
+                    check_refs(child, schemas);
+                }
+            }
+            Value::Array(values) => {
+                for child in values {
+                    check_refs(child, schemas);
+                }
+            }
+            _ => {}
+        }
+    }
+    check_refs(&doc, schemas);
 }

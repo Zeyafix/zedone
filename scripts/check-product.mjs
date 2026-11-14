@@ -210,6 +210,7 @@ async function checkAndroid() {
       const androidIndex = tests.findIndex(item => item.target.name === "zedone_adapters");
       assert.ok(hostBinary && androidIndex >= 0, "Channel probe test binaries required");
       await checkChannelPair({ root, env, hostBinary, androidBinary: `${remote}/test-${androidIndex}`, adb, serial });
+      await checkChannelPair({ root, env, hostBinary, androidBinary: `${remote}/test-${androidIndex}`, adb, serial, test: "pairing::tests::cross_platform_probe" });
       device("push", resolve(root, `target/${target}/release/export-contract`), `${remote}/export-contract`);
       device("shell", "chmod", "700", `${remote}/export-contract`);
       assert.equal(device("shell", `${remote}/export-contract`), generated.toString(), "Android and host contracts differ");

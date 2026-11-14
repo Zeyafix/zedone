@@ -1,6 +1,6 @@
 # EV-087 — просмотр и восстановление версий карточки
 
-Дата: 2026-11-14. Шаг: P05.09. Состояние: verified локально; PR #87/head e4f24a3 опубликован, полный CI pending.
+Дата: 2026-11-14. Шаг: P05.09. Состояние: done в согласованном срезе; PR #87 интегрирован после всех 18 SUCCESS на 241c241.
 
 ## Карточка шага
 
@@ -107,3 +107,12 @@ reverse подтверждены. Assertions/таймауты и validator не 
 development/architecture docs; локальный паритет ПК/Android; авторитетный
 Service/SQLite/Automerge без второго источника истории в клиенте.
 Полные T08/A21/A54 остаются partial до всего согласованного UI/обменного охвата.
+
+## Итоговая интеграция — 2026-11-14
+
+P05.09 done в согласованном срезе. Финальный полный ui:check Chrome/Opera и все 18 Windows/Linux/Android checks прошли на 241c241. Raw shell logs подтвердили desktop/touch и native IPC history/autosave/restore/reverse, обе debug ABI/manifest; прежние Device/сохранность данных подтверждены ранее. Исправление autosave и CI-окружения интегрированы вместе с UI. Полные P05/T08/A21/A54 partial до остального согласованного UI/обмена.
+
+PR #87/head 241c24115959bb30315eed6f3962e0bab658b5c0 интегрирован в
+main/c859afb179f5fb207b123bbde1794e76ed995e9c после точных 18 SUCCESS и
+CLEAN readiness. Дерево merge равно checked head; feature-ветка удалена
+локально/на GitHub, три dirty документа сохранены побайтово. LOG-498.

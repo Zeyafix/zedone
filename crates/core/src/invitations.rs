@@ -34,6 +34,8 @@ pub enum InvitationStatus {
     Open,
     Expired,
     Cancelled,
+    Used,
+    Locked,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -104,6 +106,9 @@ pub struct InvitationRecord {
     pub created_ms: i64,
     pub expires_ms: i64,
     pub cancelled: bool,
+    pub verifier: InvitationVerifier,
+    pub failures: u8,
+    pub used: bool,
     pub version: StateVersion,
 }
 impl InvitationRecord {
@@ -116,6 +121,10 @@ impl InvitationRecord {
                 InvitationStatus::Cancelled
             } else if now >= self.expires_ms {
                 InvitationStatus::Expired
+            } else if self.used {
+                InvitationStatus::Used
+            } else if self.failures >= crate::pairing::MAX_ATTEMPTS {
+                InvitationStatus::Locked
             } else {
                 InvitationStatus::Open
             },
@@ -154,7 +163,7 @@ fn validate<C: Command>(id: &str, request: &CommandRequest<C>) -> CommandResult<
     }
     Ok(())
 }
-fn now_ms(clock: &impl Clock) -> CommandResult<i64> {
+pub(crate) fn now_ms(clock: &impl Clock) -> CommandResult<i64> {
     let ms = clock
         .now()?
         .duration_since(UNIX_EPOCH)

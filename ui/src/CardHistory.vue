@@ -3,7 +3,7 @@ import { nextTick, onMounted, onUnmounted, ref } from "vue";
 import { errorMessage, read, type Card, type CardHistory, type CardTextVersion } from "./workspace-api";
 
 const props = defineProps<{ card: Card; ready: boolean; disabled: boolean; mutable: boolean }>();
-const emit = defineEmits<{ restore: [id: string]; refresh: []; close: [] }>();
+const emit = defineEmits<{ restore: [id: string]; refresh: []; close: []; cleanup: [event: Event] }>();
 const versions = ref<CardTextVersion[]>([]);
 const page = ref<CardHistory>();
 const selected = ref<CardTextVersion>();
@@ -45,6 +45,7 @@ onUnmounted(() => { disposed = true; });
     <div class="view-actions">
       <button data-history-close :disabled="disabled" @click="emit('close')">Вернуться к карточке</button>
       <button data-history-refresh :disabled="disabled || loading || !ready" @click="emit('refresh')">Обновить историю и карточку</button>
+      <button data-history-cleanup :disabled="disabled || loading || !ready" @click="emit('cleanup', $event)">Объём и очистка истории</button>
     </div>
     <p v-if="loading" role="status">Читаем историю…</p>
     <p v-if="error" role="alert" class="action-error">{{ error }} Обновите историю перед новым выбором.</p>

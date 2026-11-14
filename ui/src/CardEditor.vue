@@ -357,8 +357,9 @@ defineExpose({ requestClose });
       <button v-if="!historyOpen" ref="historyButton" data-history-open :disabled="historyOpening || closing || !ready || !!pending && !busy || storageError" @click="openHistory">История версий</button>
       <button v-if="editing" :disabled="busy || !ready || !validTitle || blocked || !!pending" @click="flush">Сохранить сейчас</button>
       <button v-if="!historyOpen && mutable" :aria-pressed="!!snapshot.completed[0]" :disabled="busy || !ready || dirty || blocked || !!pending" @click="toggleCompleted">{{ snapshot.completed[0] ? 'Снять отметку выполнения' : 'Отметить выполненной' }}</button>
-      <button v-if="pending" data-editor-retry :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
-      <button v-if="pending" data-editor-forget :disabled="busy" @click="forgetWarning = true">Убрать исходное действие</button>
+      <!-- Recovery actions belong to an unresolved result, not an in-flight save. -->
+      <button v-if="pending && blocked" data-editor-retry :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
+      <button v-if="pending && blocked" data-editor-forget :disabled="busy" @click="forgetWarning = true">Убрать исходное действие</button>
       <button v-if="blocked" :disabled="busy || !ready" @click="inspectCurrent">Сверить с сохранённым</button>
       <button v-if="storageError" :disabled="busy" @click="persist(); schedule()">Повторить запись черновика</button>
     </div>

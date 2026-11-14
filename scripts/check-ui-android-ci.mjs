@@ -122,6 +122,7 @@ try {
   await checkSearch(page, { tap, fill, back: () => device("shell", "input", "keyevent", "4"), dismissKeyboard });
   stage = "trash";
   await checkTrash(page, { tap, back: () => device("shell", "input", "keyevent", "4") });
+  stage = "history";
   await checkHistory(page, { tap, fill, back: () => device("shell", "input", "keyevent", "4"), dismissKeyboard });
   stage = "markdown";
   await checkCardMarkdown(page, { tap, fill, visible, dismissKeyboard, external: async (url, click) => {

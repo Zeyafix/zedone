@@ -78,38 +78,84 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   assert.equal(await page.locator("[data-text-version]").count(), 6, "history survives editor remount");
   await click("[data-history-close]"); await click("[data-editor-edit]");
   // Finish begin_editing and its initial focus before starting the autosave case.
-  // The later history tap still immediately follows the new input.
+  // The history action still runs before the admitted autosave reply is released.
   await page.waitForFunction(() => document.querySelector('.card-editor > [role="status"]')?.textContent === "Сохранено");
-  await input('input[name="card-title"]', "Непрерывный ввод");
-  await input('textarea[name="card-description"]', "Последняя сохранённая пара");
-  await dismissKeyboard();
-  // Bounded, read-only evidence for native taps during editor blur.
-  // No input values, text, credentials or stored intentions are recorded.
-  await page.evaluate(() => {
-    const entries = [];
-    const record = event => {
-      const target = event.target instanceof Element ? event.target : undefined;
-      const button = document.querySelector("[data-history-open]");
-      const box = button?.getBoundingClientRect();
-      entries.push({ type: event.type, tag: target?.tagName, name: target?.getAttribute("name"),
-        historyButton: !!target?.closest("[data-history-open]"), closeButton: !!target?.closest("[data-workspace-dialog-close]"),
-        inDialog: !!target?.closest('[role="dialog"]'), dialog: !!document.querySelector('[role="dialog"]'),
-        x: event.clientX, y: event.clientY, button: box && { x: box.x, y: box.y, width: box.width, height: box.height } });
-      if (entries.length > 20) entries.shift();
-    };
-    const types = ["pointerdown", "pointerup", "click", "focusin", "focusout"];
-    for (const type of types) document.addEventListener(type, record, true);
-    window.__zedoneHistoryTransition = { entries, dispose: () => { for (const type of types) document.removeEventListener(type, record, true); } };
-  });
-  try { await click("[data-history-open]"); await loaded(); }
-  catch (cause) {
-    const evidence = await page.evaluate(() => ({ events: window.__zedoneHistoryTransition?.entries,
-      dialog: !!document.querySelector('[role="dialog"]'), history: !!document.querySelector(".card-history"),
-      editor: !!document.querySelector('textarea[name="card-description"]') })).catch(() => ({ unavailable: true }));
-    console.error("History editor transition:", JSON.stringify(evidence));
-    throw cause;
+  const host = !await page.evaluate(() => !!window.__TAURI_INTERNALS__);
+  let admittedAutosave, releaseAutosave, autosaveDelivery, autosaveRoute, admissionTimeout;
+  if (host) {
+    let admit;
+    admittedAutosave = new Promise(resolve => { admit = resolve; });
+    const held = new Promise(resolve => { releaseAutosave = resolve; });
+    autosaveRoute = route => autosaveDelivery = (async () => {
+      try {
+        const response = await route.fetch({ timeout: 10000 });
+        assert.equal((await response.json()).status, "ok");
+        admit(); await held; await route.fulfill({ response });
+      } catch (cause) {
+        admit(cause);
+        await route.abort().catch(() => {});
+        return cause;
+      }
+    })();
+    await page.route("**/v1/commands/card.autosave", autosaveRoute);
+  }
+  try {
+    await input('input[name="card-title"]', "Непрерывный ввод");
+    await input('textarea[name="card-description"]', "Последняя сохранённая пара");
+    await dismissKeyboard();
+    if (host) {
+      const admissionError = await Promise.race([admittedAutosave, new Promise((_, reject) => {
+        admissionTimeout = setTimeout(() => reject(new Error("Autosave was not admitted within 10000ms")), 10000);
+      })]).finally(() => clearTimeout(admissionTimeout));
+      if (admissionError) throw admissionError;
+      assert.equal(await page.locator("[data-editor-retry], [data-editor-forget]").count(), 0,
+        "An in-flight autosave must not expose unresolved-result actions or move the touch target");
+    }
+    // Bounded, read-only evidence for native taps during editor blur.
+    // No input values, text, credentials or stored intentions are recorded.
+    await page.evaluate(() => {
+      const entries = [];
+      const record = event => {
+        const target = event.target instanceof Element ? event.target : undefined;
+        const button = document.querySelector("[data-history-open]");
+        const box = button?.getBoundingClientRect();
+        entries.push({ type: event.type, tag: target?.tagName, name: target?.getAttribute("name"),
+          historyButton: !!target?.closest("[data-history-open]"), closeButton: !!target?.closest("[data-workspace-dialog-close]"),
+          inDialog: !!target?.closest('[role="dialog"]'), dialog: !!document.querySelector('[role="dialog"]'),
+          x: event.clientX, y: event.clientY, button: box && { x: box.x, y: box.y, width: box.width, height: box.height } });
+        if (entries.length > 20) entries.shift();
+      };
+      const types = ["pointerdown", "pointerup", "click", "focusin", "focusout"];
+      for (const type of types) document.addEventListener(type, record, true);
+      window.__zedoneHistoryTransition = { entries, dispose: () => { for (const type of types) document.removeEventListener(type, record, true); } };
+    });
+    try {
+      await click("[data-history-open]");
+      if (host) {
+        await page.waitForFunction(() => document.querySelector("[data-history-open]")?.disabled);
+        assert.equal(await page.locator(".card-history").count(), 0, "History must wait for the admitted autosave reply");
+        releaseAutosave();
+      }
+      await loaded();
+    }
+    catch (cause) {
+      const evidence = await page.evaluate(() => ({ events: window.__zedoneHistoryTransition?.entries,
+        dialog: !!document.querySelector('[role="dialog"]'), history: !!document.querySelector(".card-history"),
+        editor: !!document.querySelector('textarea[name="card-description"]') })).catch(() => ({ unavailable: true }));
+      console.error("History editor transition:", JSON.stringify(evidence));
+      throw cause;
+    } finally {
+      await page.evaluate(() => { window.__zedoneHistoryTransition?.dispose(); delete window.__zedoneHistoryTransition; }).catch(() => {});
+    }
   } finally {
-    await page.evaluate(() => { window.__zedoneHistoryTransition?.dispose(); delete window.__zedoneHistoryTransition; }).catch(() => {});
+    releaseAutosave?.();
+    if (host) {
+      // Let the held handler finish before removing it; unroute would otherwise
+      // continue the same request while its delayed fulfillment is still pending.
+      const deliveryError = await autosaveDelivery;
+      await page.unroute("**/v1/commands/card.autosave", autosaveRoute);
+      if (deliveryError) throw deliveryError;
+    }
   }
   versions = (await history()).versions;
   assert.equal(versions.length, 7, "history entry finishes one pending autosave series");

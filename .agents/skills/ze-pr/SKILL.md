@@ -57,6 +57,21 @@ Keep all PR images and videos outside the repository, including intermediate cap
 
 If capture or upload is unavailable, finish the reviewable text and report the specific missing evidence. Do not publish a visual PR with fabricated evidence, broken links, or media placeholders; resume publication once the required media is available.
 
+#### Upload media with GitHub CLI
+
+Check `gh pr create --help` or `gh pr edit --help` for `--attach` before choosing a browser upload or asking the user to sign in. When supported, prefer `gh` to upload images and videos using its existing authentication.
+
+Keep the body and media outside the repository. Reference the files in their intended positions in the body, for example `![Before: card without history](./before.png)` and `![After: selected history version](./after.png)`, then pass both files:
+
+```bash
+gh pr create --base main --head <branch> --title '<title>' --body-file /tmp/pr/body.md --attach /tmp/pr/before.png --attach /tmp/pr/after.png
+gh pr edit <number> --body-file /tmp/pr/body.md --attach /tmp/pr/before.mp4 --attach /tmp/pr/after.mp4
+```
+
+Paths referenced in `--body-file` are relative to that file's directory, with the working directory as fallback. `gh` rewrites matching references to hosted attachment URLs; unreferenced attachments are appended. Image alt text can also follow the attachment path after `#`; videos have no alt text. The video resolution and readability requirements above still apply.
+
+A partial attachment failure can return a nonzero exit code after the PR has already been created or updated. Read its reported URL and current body before retrying; check for an existing PR by head branch before repeating creation. Repair missing media on the existing PR and verify the hosted files and rendered body. Use a browser or another authorized upload route if the installed CLI lacks attachment support or its upload cannot complete.
+
 ### Changes
 
 Use a bulleted list of concrete changes. Start each bullet with an imperative verb, such as `Save`, `Restore`, `Share`, or `Preserve`. Include implementation details only when they help a reviewer assess the change. Do not repeat the summary or list every edited file.

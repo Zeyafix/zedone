@@ -1,6 +1,6 @@
 # EV-088 — закрепление исполняемого Android CLI и диагностика окружения
 
-Дата: 2026-11-14. Шаг: CI.05. Состояние: verified локально и Android CI head 19a5a3f; интеграция ожидается.
+Дата: 2026-11-14. Шаг: CI.05. Состояние: done; финальный CI 241c241 SUCCESS, интегрирован PR #87/c859afb.
 
 ## Карточка шага
 
@@ -115,3 +115,12 @@ runtime/обе ABI и прежние negative/cleanup проверки прош�
 в scope закреплённого CLI/чистой инициализации. Весь PR отдельно блокирует
 Linux shell/GAP-025; следующий test-only head требует полного нового CI.
 Версии/архивные хэши/бюджеты/проверки не ослаблены. LOG-493.
+
+## Итоговая интеграция — 2026-11-14
+
+CI.05 done, GAP-024 resolved. Все шесть итоговых Android suites/aggregate 241c241 SUCCESS, включая strict preflight, native runtime и negative cleanup; закреплённые версии/хэши/бюджеты прежние.
+
+PR #87/head 241c24115959bb30315eed6f3962e0bab658b5c0 интегрирован в
+main/c859afb179f5fb207b123bbde1794e76ed995e9c после точных 18 SUCCESS и
+CLEAN readiness. Дерево merge равно checked head; feature-ветка удалена
+локально/на GitHub, три dirty документа сохранены побайтово. LOG-498.

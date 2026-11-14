@@ -9,9 +9,9 @@ dependencies_evidence: [P05.10, EV-092, P06.01.1, EV-093]
 scope: [scripts/check-ui-browser.mjs, scripts/check-ui-diagnostics.mjs, scripts/check-ui-native-controls.mjs, docs/agent, docs/development/ci-checks.md]
 checks: ["bun run ui:check", "контролируемый отказ с реальным Service и разными main/touch страницами"]
 reverse_and_failure: "Только read-only диагностика тестового драйвера; исходный TimeoutError и одна попытка сохраняются, ошибка диагностики не заменяет ошибку сценария."
-result: "verified локально: full Chrome/Opera UI + финальные negative controls/moves→tags desktop/touch passed; исходный timeout не воспроизведён, новый CI нужен"
+result: "CI.08 done в диагностическом срезе: PR #90/head 5dc058a, merge 90c869d, все 17 SUCCESS/readiness; GAP-028 наблюдается, причина исходного timeout неизвестна"
 evidence: ["ignored docs/reports/p06-01/pr90-windows-shell-failed.log", "ignored docs/reports/p06-01/pr90-windows-aggregate-failed.log"]
-next: "Проверить диагностику, опубликовать в прежнем PR #90; нужен новый полный CI всех 17 checks перед merge/delete."
+next: "Готов P06.01.2 по новому поручению; при повторном timeout читать новые правильные touch diagnostics, новый продуктовый шаг не начат."
 ```
 
 ## Исходный отказ
@@ -56,3 +56,17 @@ touch окна. Причина исходного timeout пока неизве�
 - Девять исходных dirty документов сохранены с SHA-256; шесть прежних EV побайтово прежние. Все 98 определения/состояния критериев и прежние LOG сохранены. Пять правил остаются в прежнем продуктовом объёме, read-only тестовая диагностика не требует обратного действия; agent/development docs актуальны.
 
 GAP-028 остаётся in_progress: исходный Windows timeout не воспроизведён локально, его причина и отсутствие периодических отказов не доказаны. Исправлен подтверждённый дефект диагностики. CI.08 verified локально; commit/push/новый CI/merge ещё не выполнены. Далее scoped публикация в прежний PR #90 и все 17 SUCCESS/readiness перед порученными merge/delete.
+
+
+## CI.08 опубликован — LOG-518
+
+[PR #90](https://github.com/Zeyafix/zedone/pull/90), head 5dc058a246c737cc1a356e6116448bf8c37d0702, base main/6466b08. Новый полный CI pending, все 17 SUCCESS/readiness нужны перед merge/delete. Body/readback/credit подтверждены. Продукт/API/UI/таймауты/бюджеты прежние; исходный timeout не воспроизведён, GAP-028 остаётся in_progress. Исправлен подтверждённый дефект диагностики правильной host touch страницы/этапа до disposal. Прежние локальные ограничения сохраняются, нового продуктового шага нет.
+
+
+## Интеграция — LOG-519
+
+[PR #90](https://github.com/Zeyafix/zedone/pull/90) интегрирован: head 5dc058a246c737cc1a356e6116448bf8c37d0702, merge 90c869dae3df545b59f067bf79d12179b80edf07 после всех 17 COMPLETED/SUCCESS и CLEAN readiness. Comments/reviews/requests/review threads отсутствовали; body с фактическим успехом прочитан обратно. Raw Windows/Linux shell подтвердили final negative control и полный desktop/touch UI, native Android — прежние tags/history/cleanup/accessibility/editor/IME/Back/Markdown через настоящий IPC. Обе debug ABI/manifest/cleanup и product/native/arm64 checks passed.
+
+Дерево merge равно checked head, main обновлена, feature-ветка удалена локально/на GitHub/tracking. Все десять dirty документов сохранены побайтово при переключении; шесть исходных EV не менялись. Другие worktrees/stash не тронуты, индекс пуст, новых source commits/push после merge нет. Все 98 определения/состояния прежние. Пять правил соблюдены в точном API/diagnostic scope; формы/подключение/защищённый канал/две реплики/физический arm64/полная приёмка отдельно.
+
+GAP-028 остаётся наблюдением: исправлен дефект диагностики и новый полный CI успешен, причина первоначального timeout и отсутствие будущих периодических отказов не доказаны. Это не блокирует готовый P06.01.2. P06.01.1/CI.08 done, P06.01/P06 in_progress. Новая реализация не начата; дальнейший шаг — по новому поручению.

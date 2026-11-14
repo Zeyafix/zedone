@@ -9,9 +9,9 @@ dependencies_evidence: [P03.05, EV-058, EV-062]
 scope: [core/access_commands, storage/access, adapters, client, api, tests, docs]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android-native"]
 reverse_and_failure: "Отзыв; новая выдача с новым ключом после отзыва/истечения; смена области в обе стороны; отказ неадминистратору/устаревшей команде/повторному ключу; атомарность и неизменность данных."
-result: "API verified локально; PR #90/head 72af6e6: 15 SUCCESS, Windows shell/aggregate FAILURE; CI.08/EV-094 verified локально, новый CI нужен"
+result: "P06.01.1 done в API-срезе: PR #90/head 5dc058a, merge 90c869d, все 17 SUCCESS/readiness; GAP-028 наблюдается, причина исходного timeout неизвестна"
 evidence: ["ignored docs/reports/p06-01/product-check-final.log", "ignored docs/reports/p06-01/product-android-final.log", "ignored docs/reports/p06-01/product-arm64-final.log", "ignored docs/reports/p06-01/audit-proof.json"]
-next: "После локальной проверки — ревью/интеграция API-среза; далее P06.01.2."
+next: "Готов P06.01.2 по новому поручению; при повторном timeout читать новые правильные touch diagnostics, новый продуктовый шаг не начат."
 ```
 
 ## Граница и договор
@@ -113,3 +113,17 @@ P06.01.1 verified локально; P06.01/P06 in_progress. Commit/push/PR/CI/me
 ## Исходный CI — LOG-516/517
 
 На 72af6e6 15 checks SUCCESS, включая Windows/Linux product и все Android suites. Windows shell отказал в прежнем touch tags refresh на 10000ms; aggregate корректно передал этот отказ. Исходная причина неизвестна, GAP-028/CI.08/EV-094. Диагностика ошибочно читала main page после закрытия touch context; исправлена read-only запись правильной страницы/этапа до disposal с сохранением исходного error. Полный локальный Chrome/Opera UI и финальная guard/moves→tags desktop/touch матрица passed; нужен новый полный CI. Runtime/API и все 15 source fingerprints прежние, полные критерии не повышаются.
+
+
+## CI.08 опубликован — LOG-518
+
+[PR #90](https://github.com/Zeyafix/zedone/pull/90), head 5dc058a246c737cc1a356e6116448bf8c37d0702, base main/6466b08. Новый полный CI pending, все 17 SUCCESS/readiness нужны перед merge/delete. Body/readback/credit подтверждены. Продукт/API/UI/таймауты/бюджеты прежние; исходный timeout не воспроизведён, GAP-028 остаётся in_progress. Исправлен подтверждённый дефект диагностики правильной host touch страницы/этапа до disposal. Прежние локальные ограничения сохраняются, нового продуктового шага нет.
+
+
+## Интеграция — LOG-519
+
+[PR #90](https://github.com/Zeyafix/zedone/pull/90) интегрирован: head 5dc058a246c737cc1a356e6116448bf8c37d0702, merge 90c869dae3df545b59f067bf79d12179b80edf07 после всех 17 COMPLETED/SUCCESS и CLEAN readiness. Comments/reviews/requests/review threads отсутствовали; body с фактическим успехом прочитан обратно. Raw Windows/Linux shell подтвердили final negative control и полный desktop/touch UI, native Android — прежние tags/history/cleanup/accessibility/editor/IME/Back/Markdown через настоящий IPC. Обе debug ABI/manifest/cleanup и product/native/arm64 checks passed.
+
+Дерево merge равно checked head, main обновлена, feature-ветка удалена локально/на GitHub/tracking. Все десять dirty документов сохранены побайтово при переключении; шесть исходных EV не менялись. Другие worktrees/stash не тронуты, индекс пуст, новых source commits/push после merge нет. Все 98 определения/состояния прежние. Пять правил соблюдены в точном API/diagnostic scope; формы/подключение/защищённый канал/две реплики/физический arm64/полная приёмка отдельно.
+
+GAP-028 остаётся наблюдением: исправлен дефект диагностики и новый полный CI успешен, причина первоначального timeout и отсутствие будущих периодических отказов не доказаны. Это не блокирует готовый P06.01.2. P06.01.1/CI.08 done, P06.01/P06 in_progress. Новая реализация не начата; дальнейший шаг — по новому поручению.

@@ -2,8 +2,8 @@
 
 ## Рабочая карточка
 
-- Шаг: P06.01.2.2, verified локально; база main/e34b8fd, ветка
-  feat/p06-01-2-2-secure-channel.
+- Шаг: P06.01.2.2, done в host-срезе; база main/e34b8fd, ветка
+  feat/p06-01-2-2-secure-channel удалена после интеграции PR #92/d0b4e4c.
 - Цель: host сохраняет идентичность в системном защищённом хранилище,
   после restart устанавливает TLS 1.3, клиент отвергает подмену до отправки
   кода/ключа. Источник: T09/A51, ADR-0009/0053/0054/0055 и DEC-003.
@@ -20,9 +20,9 @@
   проверяемый результат неделим без сохранения server identity на обеих ОС;
   публикационная граница проверена: одна постоянная защищённая идентичность
   TLS на обеих ОС. PR/условная интеграция поручены отдельно в LOG-532.
-- Результат: host-компоненты реализованы и проверены; полные T09/A51,
-  DEC-003 и прежние GAP прежние. Commit/PR/новый CI/merge не выполнялись.
-- Далее: ревью/интеграция этого среза, затем P06.01.2.3.
+- Результат: host-компоненты интегрированы PR #92/d0b4e4c после всех 17
+  SUCCESS/readiness; полные T09/A51, DEC-003 и прежние GAP прежние.
+- Далее: P06.01.2.3 по новому поручению.
 
 ## Реализация и граница
 
@@ -118,3 +118,43 @@ T06/T09/A51 без повышения состояний. P06.01.2/P06 in_progre
 с SHA-256 и binary patch остаётся локально. Ожидается полный новый CI:
 17 SUCCESS/readiness точного head перед merge/delete. Локальные доказательства
 и ограничения выше прежние; новый продуктовый шаг не начат.
+
+
+## Публикация — LOG-533
+
+[PR #92](https://github.com/Zeyafix/zedone/pull/92), head
+164e65dccb41c4be9420899d7e37aaa637f2465f, base main/e34b8fd.
+Обычный push/pre-push passed, 29 согласованных файлов/20 tested fingerprints,
+staged equality/privacy/noreply и сохранность 11 исходных dirty EV проверены.
+Body/readback после нормализации CRLF подтвердил три English sections/credit;
+comments/reviews/requests/threads отсутствуют, визуального diff нет.
+
+Все 14 runtime suites IN_PROGRESS; три aggregates ожидаются, полный CI pending.
+Локальные доказательства не заменяют CI. Разработчик поручил merge/удаление
+ветки после всех 17 COMPLETED/SUCCESS и свежей readiness точного head.
+При failure требуется raw-log разбор. Пять правил и границы host-среза прежние;
+новый продуктовый шаг не начат, записи публикации остаются локально.
+
+
+## Интеграция — LOG-534
+
+[PR #92](https://github.com/Zeyafix/zedone/pull/92) интегрирован: head
+164e65dccb41c4be9420899d7e37aaa637f2465f, merge
+d0b4e4c6b117369ab9377ec13aa558f1961d2f3b после всех 17 COMPLETED/SUCCESS и
+CLEAN readiness. Body с завершённым CI прочитан обратно; comments/reviews/
+requests/threads отсутствовали. Raw logs подтверждают новые channel/store
+controls на Windows/Linux/native Android, явно вызванный host/native Android
+probe, native Keystore assertions и весь прежний desktop/touch/native UI,
+обе ABI/prototype/strict aggregates SUCCESS. Linux использует синтетический
+host store; настоящий Windows store подтверждён Windows CI и локальным probe.
+
+Дерево merge равно checked head, main равна origin/main/d0b4e4c; feature-ветка
+удалена локально/на GitHub/tracking. Все 14 dirty файлов сохранены побайтово
+при переключении; исходные 11 EV прежние, индекс пуст, другие worktrees/stash
+не менялись. Записи завершения остаются локально, source push после merge нет.
+
+Пять правил и граница host-компонентов выше сохраняются. P06.01.2.2 done,
+P06.01.2/P06 in_progress, все 98 определения/состояния прежние. Прежние GAP
+не закрываются успешным новым CI. Полный процесс подключения/прочие secrets/
+синхронизация/process restart/физический arm64/Tailscale отдельно. Далее готов
+P06.01.2.3 по новому поручению; active_work null, новая реализация не начата.

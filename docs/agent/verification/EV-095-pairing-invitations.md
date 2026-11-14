@@ -123,3 +123,29 @@ read-only lifecycle начатых/завершённых/отказавших �
 guard и все семь touch stages обоих браузеров passed отдельно последовательно.
 Исходный timeout не воспроизведён. Все 18 product fingerprints прежние;
 новый полный CI/17 SUCCESS/readiness нужны до ранее порученных merge/delete.
+
+
+## Интеграция — LOG-529
+
+[PR #91](https://github.com/Zeyafix/zedone/pull/91) интегрирован: head
+019e286745ae32c5b8cc407de5d4f46e03101f9b, merge
+e34b8fd493550ab8860a1542228e7836a91842b0 после всех 17 COMPLETED/SUCCESS и
+CLEAN readiness. Body с фактическим успехом Android attempt 2 прочитан обратно;
+comments/reviews/requests/review threads отсутствовали.
+
+Raw Windows/Linux shell подтвердили final read lifecycle guard и полный
+desktop/touch UI. Android attempt 2 подтвердил начальный unconfigured session
+IPC, весь прежний native domain/history/cleanup/accessibility/Markdown и
+cleanup; обе ABI/product/prototype/strict aggregates SUCCESS.
+
+Дерево merge равно checked head, main обновлена; feature-ветка удалена
+локально/на GitHub/tracking. Двенадцать исходных dirty файлов сохранены
+побайтово при переключении; восемь исходных EV прежние, индекс пуст,
+другие worktrees/stash не менялись. Записи завершения остаются локально.
+
+P06.01.2.1/CI.09/CI.10 done в согласованном API/diagnostic/revalidation scope,
+P06.01.2/P06 in_progress. Пять правил в этом scope соблюдены. GAP-020 и GAP-028
+остаются in_progress: причины startup/read timeout не доказаны, новый полный
+успех не доказывает устранения периодических отказов. Полные A51/T09,
+защищённый канал/host secrets/запрос/подтверждение/отвязка/формы/две реплики
+отдельно. Далее готов P06.01.2.2 по новому поручению; новая реализация не начата.

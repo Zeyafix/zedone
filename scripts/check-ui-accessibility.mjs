@@ -106,8 +106,12 @@ export async function checkAccessibility(page, { tap, back = () => page.keyboard
   const versions = await command("card.history", { space, card, after: null, limit: 100, expected: null });
   const route = async hash => {
     await page.evaluate(hash => { location.hash = hash; }, hash);
-    const heading = hash === "#/settings" ? "main h1" : hash === "#/spaces" ? ".view-toolbar h2" : ".board-heading h2";
-    await page.waitForFunction(({ hash, heading }) => location.hash === hash && document.querySelector(heading) === document.activeElement, { hash, heading });
+    // Entering the Spaces section focuses its h1. A completing list read may
+    // focus its h2 instead; either visible heading belongs to the same screen.
+    const heading = hash === "#/settings" ? "main h1" : hash === "#/spaces" ? "main h1, .view-toolbar h2" : ".board-heading h2";
+    await page.waitForFunction(({ hash, heading }) => location.hash === hash
+      && document.querySelector("main h1")?.textContent === (hash === "#/settings" ? "Настройки" : "Пространства")
+      && document.activeElement?.matches(heading) && document.activeElement.getClientRects().length > 0, { hash, heading });
   };
   const settled = () => page.waitForFunction(() => document.querySelector(".spaces-view")?.getAttribute("aria-busy") === "false");
   const closed = () => page.waitForFunction(() => !document.querySelector('[role="dialog"]'));

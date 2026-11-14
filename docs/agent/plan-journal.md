@@ -11,17 +11,21 @@ current_step: null
 last_completed_stage: P03
 last_completed_step: P05.11
 active_work: null
-next_action: "P05.10: поручены PR, merge и удаление ветки после всех 17 SUCCESS/readiness; публикация готовится. EV-092/LOG-505."
+next_action: "GAP-027: точечная правка focus-test verified локально. Далее commit/push в PR #89 и новый полный CI всех 17 checks перед merge/delete; LOG-508."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-027]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-505
+last_event: LOG-508
 ```
+
+PR #89/head 1ef5917: native shell отказал на ошибочном ожидании уровня заголовка нового test helper. GAP-027: причина воспроизведена desktop/touch; точечная правка проверяет видимый заголовок правильного экрана, финальная связка Chrome/Opera desktop/touch и negative controls passed. Runtime/таймауты/прежние проверки неизменны; новый CI ещё нужен. Далее commit/push исправления, затем все 17 SUCCESS/readiness перед порученными merge/delete. LOG-508. Нижеследующие сводки исторические.
+
+P05.10 опубликован в [PR #89](https://github.com/Zeyafix/zedone/pull/89), head 1ef5917, base main/ee81ce7. Все 14 runtime suites IN_PROGRESS, три strict aggregates ожидаются. Нужен точный набор всех 17 SUCCESS/readiness перед порученными merge/delete. Три tested source fingerprints совпали, девять согласованных файлов опубликованы; пять исходных dirty EV оставлены побайтово вне коммита. Визуального diff нет, body с тремя English sections/credit прочитан обратно. Локальная EV-092 прежняя, полные критерии partial; новый продуктовый шаг не начат. LOG-506. Нижеследующие сводки исторические.
 
 P05.10 verified локально в test/p05-10-ui-acceptance от main/ee81ce7: EV-092/LOG-504. Сводная UI/API-матрица, новый общий accessibility-сценарий, полный прежний Chrome/Opera ui:check и финальная cleanup→accessibility desktop/touch связка прошли. По 283 Rust-теста Windows/native Android, 23 client/239 assertions, контракт/обе ABI/unsafe guards, Device/обе темы/длинный текст/системный шрифт/сохранность подтверждены. Все 23 исходных Device-файла восстановлены по именам/SHA-256, исходный системный размер шрифта восстановлен, Device выключен; исходные dirty EV сохранены. Пять правил соблюдены в срезе; P05/T08/полные A partial до CI/интеграции/обмена. Коммит/PR/новый CI/merge не выполнялись. Далее ревью/интеграция ветки, новый продуктовый шаг не начат. Нижеследующие сводки исторические.
 
@@ -874,6 +878,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| GAP-027 | gap | in_progress | P05.10 CI / T08 | PR #89/head 1ef5917: android shell прошёл history/cleanup, затем timeout 10s в финальном возврате settings→spaces нового accessibility-сценария. Тест требовал h2 списка, хотя App фокусирует h1 раздела, а SpacesView при прежнем selected не переводит фокус. Детерминированный host desktop/touch контроль с завершённым скрытым чтением воспроизвёл timeout и фактический видимый H1 «Пространства». Нужна проверка видимого заголовка текущего экрана с прежним deadline/строгим отказом при отсутствии фокуса, затем новый native CI. Runtime прежний; EV-092/LOG-507. |
 | GAP-026 | gap | resolved | CI.07 / P05.09 CI | PR #87/cbf90ec Windows environment: cargo init добавил repo temp-пробник в корневой workspace; offline build потребовал icu_casemap через zedone-core и отказал. Пробник перенесён в системный temp с собственным workspace. Полный локальный скрипт/root manifest hash/cleanup passed. Windows environment 19a5a3f/job 132349463238 SUCCESS на стандартном runner; raw log подтверждает offline build/run/Clippy, fmt/Hello без root auto-membership/продуктовой зависимости. Resolved в scope пробника, весь PR ещё pending; EV-090/LOG-491, T13/T16. |
 | GAP-025 | gap | resolved | CI.06 / P05.09 CI | Причина сдвига touch-цели при обычном autosave подтверждена real-response/native-handoff: исчезновение двух recovery-кнопок уменьшало scrollHeight/scrollTop на 104px. Исправление pending + blocked и bounded host regression прошли финальный ui:check Chrome/Opera и весь CI head 241c241, включая native Android history/IME/Back, Linux/Windows desktop/touch. Все 18 SUCCESS/readiness; интегрировано PR #87/merge c859afb. Первые отказы без trace не переатрибутируются, гарантии отсутствия будущих гонок нет. EV-089/LOG-498, T08/A21 остаются partial в полном охвате. |
 | GAP-024 | gap | resolved | CI.05 / P05.09 CI | PR #87/e4f24a3: product-native/product-arm64/prototype-native и prototype-ui упали на Unexpected Android CLI version до runtime-наборов. Все используют закреплённый архив с проверенным прежним SHA-256; в PR #86 та же проверка passed. Фактическая строка версии первоначальным скриптом не сохранена, причина пока неизвестна. Добавлена read-only диагностика expected/actual/resolved command при прежнем строгом сравнении; версии/хэши/матрица/таймауты прежние. Bash и matching/wrong/empty/multiline/command-failure probes passed; новый CI ожидается. EV-088/LOG-484, T16/T08. c975d0f показал во всех четырёх jobs actual=1.1.16919734 при expected=1.1.16717390. Архив содержит launcher с latest URL; сам runtime CLI не был закреплён. Workflow теперь до SDK-команд ставит исполняемый файл из versioned Google URL с отдельным SHA-256 и точной проверкой прежней версии. Две независимые загрузки совпали; реальные workflow positive/download/hash/version failure probes, Actionlint/ShellCheck и routing guards passed. Новый runtime CI ожидается; GAP не закрыт. LOG-487. cbf90ec подтвердил SHA-256, но первый --version захватил установочный вывод; добавлена отдельная успешная инициализация перед строгим сравнением. First-run/execution-failure и прежние probes passed; реальный новый CI ожидается. LOG-489. Все шесть Android suites/aggregate 19a5a3f SUCCESS; raw full logs подтвердили strict environment/runtime/обе ABI/native history/negative cleanup. Resolved в scope pinned CLI/чистой инициализации; весь PR отдельно блокирует GAP-025. EV-088/LOG-493. |
@@ -4839,3 +4844,23 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Поручены PR и после успешной проверки merge/удаление ветки test/p05-10-ui-acceptance. База main/ee81ce7 подтверждена fetch; существующего PR этой ветки нет.
 - В публикацию входят общий accessibility-сценарий/подключение runners, сводная локальная UI/API-матрица и user/agent/development docs. Runtime/контракт/зависимости прежние, визуального diff нет. Пять прежних dirty EV остаются вне коммита; исходные файлы сохранены с SHA-256.
 - Локальные EV-092/пять правил прежние; точный набор CI — 17 checks по фактическим workflow paths. До их COMPLETED/SUCCESS и свежей readiness merge не выполняется; при отказе читать raw logs текущего head. Публикация ещё не выполнена.
+
+### LOG-506 — 2026-11-14 — агент Codex, P05.10 опубликован в PR #89
+
+- Коммит 1ef59179b1e6dd10eddcafb01163b366308cc830 `test(ui): verify local behavior and keyboard access across platforms` отправлен обычным push в test/p05-10-ui-acceptance от ee81ce7; штатный pre-push прошёл. Девять согласованных файлов, source equality/три tested fingerprints/98 критериев/privacy/noreply проверены. Пять прежних dirty EV побайтово сохранены вне коммита.
+- PR #89 создан и следующим tool call linked. Визуального diff нет, UI Changes/media не требуются. Readback подтвердил точный head/base, OPEN/non-draft, девять файлов, три English sections/credit; comments/reviews/requests/review threads отсутствуют. Body вне Git в OS temp.
+- Все 14 runtime suites IN_PROGRESS; три strict aggregates ожидаются. Точный набор этого diff — 17 checks, Windows environment paths не затронуты. Публикация не означает успеха CI. Локальные EV-092/пять правил прежние, полные критерии/GAP/DEC не повышаются.
+- Далее все 17 COMPLETED/SUCCESS и свежая readiness точного head перед порученными merge/delete. При failure читать raw logs текущего head. Записи публикации остаются локально без документального push, active_work null; новый продуктовый шаг не начат.
+
+### LOG-507 — 2026-11-14 — агент Codex, установлен отказ нового native focus-сценария PR #89
+
+- Raw logs android shell job 132432264698/head 1ef5917 прочитаны с gh API --allow-escape-sequences после штатного отказа вывода terminal escapes. History/cleanup прошли; stage accessibility, финальный route settings→spaces, timeout 10000ms на требовании .view-toolbar h2 === activeElement. У приложения нет alerts/pageErrors, доступ подтверждён. ColorBuffer warnings не объявляются причиной.
+- App.routeChanged направляет фокус на h1 раздела; SpacesView возвращается без перевода фокуса при прежнем selected. Новый тест требовал частный h2, зависящий от завершения прежнего чтения. Изолированный реальный Service desktop/touch прогон с завершённым скрытым чтением воспроизвёл старый timeout и видимый H1 «Пространства» без изменения продукта.
+- GAP-027 открыт для теста/покрытия T08; новая правка ограничена test helper и evidence/очередью. Нужен видимый заголовок текущего экрана и отрицательный контроль отсутствующего фокуса при прежних 10s. Семь исходных dirty файлов сохранены с SHA-256. Продукт/таймауты/права/матрица не менялись. Merge/delete ожидают нового полного успеха.
+
+### LOG-508 — 2026-11-14 — агент Codex, точечная правка focus-test проверена локально
+
+- Только route helper нового сценария: вместо частного h2 при входе в общий раздел проверяется фокус на видимом заголовке правильного экрана. Секция App фокусирует h1, завершённое чтение SpacesView может направить фокус на h2 этого же списка; board по-прежнему требует свой h2, settings — свой h1. Проверяются точный hash, название текущего раздела и видимость activeElement. Прежний deadline 10s, остальные assertions и runtime сохранены.
+- Детерминированный старый сценарий с завершённым скрытым чтением отверг старый helper на desktop/touch, подтвердив видимый H1 «Пространства». Финальный helper проходит тот же сценарий; принудительно потерянный фокус на body по-прежнему отклоняется на обоих режимах. Негативные контроли контраста/outline также прошли.
+- Финальная cleanup→accessibility связка Chrome/Opera desktop/touch прошла полностью, включая legacy visibility, обе темы/14 экранов и пустой localStorage после reset. Syntax/diff checks passed; продуктовые исходники/контракт/схема/ABI/бюджеты прежние. Повтор native UI-driver локально не выполнялся; GAP-027 остаётся in_progress до нового native CI. Пять правил в прежнем scope, 98 критериев/пять исходных dirty EV сохранены.
+- Далее scoped commit/push в прежний PR #89, readback body и новый полный CI. Merge/delete только после всех 17 SUCCESS/readiness. Active_work очищен; новый продуктовый шаг не начат.

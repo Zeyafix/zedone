@@ -7,7 +7,7 @@ import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
 import { checkEditor } from "./check-ui-editor.mjs";
 import { checkCardMarkdown } from "./check-ui-markdown.mjs";
-import { checkNativeControls, withoutVisibilityApi } from "./check-ui-native-controls.mjs";
+import { checkNativeControls, withoutVisibilityApi, checkShellFailureDiagnostics } from "./check-ui-native-controls.mjs";
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { checkTags } from "./check-ui-tags.mjs";
 import { checkSearch } from "./check-ui-search.mjs";
@@ -17,7 +17,7 @@ import { checkHistoryCleanup } from "./check-ui-history-cleanup.mjs";
 import { checkAccessibility } from "./check-ui-accessibility.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
-import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
+import { shellDiagnosticState, observeShellReads, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -29,6 +29,7 @@ const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix
 let browser;
 let diagnosticPage;
 let diagnosticReads;
+let failureReported = false;
 try {
   const reader = fixture.stdout.getReader();
   let address = "";
@@ -51,6 +52,7 @@ try {
     browser = await chromium.launch(launchOptions);
     console.log(`UI browser: ${browser.version()}`);
     await checkNativeControls(browser);
+    await checkShellFailureDiagnostics(browser, url, JSON.parse(originalSession.toString()).key);
     // This synthetic CDP fixture leaves Opera suppressing later link popups,
     // even in fresh contexts. Isolate its browser-wide input state from the UI.
     await browser.close();
@@ -58,7 +60,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "light" });
     const page = await context.newPage();
     diagnosticPage = page;
-    const reads = [];
+    const reads = observeShellReads(page);
     diagnosticReads = reads;
     const errors = [];
     const external = [];
@@ -67,12 +69,6 @@ try {
       const path = new URL(response.url()).pathname;
       if (!path.startsWith("/v1/commands/")) return;
       const body = await response.json().catch(() => undefined);
-      if (/\/(space\.(list|read)|column\.list|card\.list)$/.test(path)) {
-        reads.push({ path, http: response.status(), status: body?.status, error: body?.error?.code,
-          count: body?.result?.spaces?.length ?? body?.result?.columns?.length ?? body?.result?.cards?.length,
-          state: body?.result?.state });
-        if (reads.length > 30) reads.shift();
-      }
       if (body?.status === "error") console.error("UI API error:", path, body.error?.code);
     });
     page.on("requestfailed", request => console.error("UI request failed:", new URL(request.url()).pathname, request.failure()?.errorText));
@@ -98,17 +94,22 @@ try {
     const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
     try {
       const movesTouchPage = await movesTouchContext.newPage();
-      movesTouchPage.on("pageerror", error => errors.push(error.message));
-      await movesTouchPage.goto(url);
-      await withoutVisibilityApi(movesTouchPage);
-      const { tap, fill } = await nativeControls(movesTouchPage);
-      await checkBoardMoves(movesTouchPage, { tap });
-      await checkTags(movesTouchPage, { tap, fill });
-      await checkSearch(movesTouchPage, { tap, fill });
-      await checkTrash(movesTouchPage, { tap });
-      await checkHistory(movesTouchPage, { tap, fill });
-      await checkHistoryCleanup(movesTouchPage, { tap });
-      await checkAccessibility(movesTouchPage, { tap });
+      const touchDetails = { label: "host touch", stage: "startup", reads: observeShellReads(movesTouchPage) };
+      await withShellFailureDiagnostics(movesTouchPage, touchDetails, async () => {
+        movesTouchPage.on("pageerror", error => errors.push(error.message));
+        await movesTouchPage.goto(url);
+        await withoutVisibilityApi(movesTouchPage);
+        const { tap, fill } = await nativeControls(movesTouchPage);
+        for (const [stage, check, controls] of [
+          ["moves", checkBoardMoves, { tap }],
+          ["tags", checkTags, { tap, fill }],
+          ["search", checkSearch, { tap, fill }],
+          ["trash", checkTrash, { tap }],
+          ["history", checkHistory, { tap, fill }],
+          ["history cleanup", checkHistoryCleanup, { tap }],
+          ["accessibility", checkAccessibility, { tap }],
+        ]) { touchDetails.stage = stage; await check(movesTouchPage, controls); }
+      }).catch(error => { failureReported = true; throw error; });
     } finally { await movesTouchContext.close(); }
     // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);
@@ -201,17 +202,8 @@ try {
 } catch (error) {
   // This driver owns a synthetic installation. Record rendered state and API
   // error codes, never credentials, headers or persisted intention bodies.
-  if (diagnosticPage && !diagnosticPage.isClosed()) {
-    const state = await diagnosticPage.evaluate(() => ({
-      hash: location.hash,
-      headings: [...document.querySelectorAll("h1,h2,h3")].map(el => el.textContent),
-      alerts: [...document.querySelectorAll('[role="alert"]')].map(el => el.textContent),
-      statuses: [...document.querySelectorAll('[role="status"]')].map(el => el.textContent),
-      regions: [...document.querySelectorAll('[role="region"]')].map(el => el.getAttribute("aria-label")),
-      busy: document.querySelector(".spaces-view")?.getAttribute("aria-busy"),
-    })).catch(cause => ({ unavailable: cause.message }));
-    console.error("UI failure state:", JSON.stringify({ ...state, reads: diagnosticReads }));
-  }
+  if (!failureReported) await withShellFailureDiagnostics(diagnosticPage,
+    { label: "host main", stage: "main scenario", reads: diagnosticReads }, async () => { throw error; });
   throw error;
 } finally {
   await browser?.close();

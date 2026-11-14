@@ -140,6 +140,7 @@ P02 и не переоткрывают завершённую приёмку P00
 | CI.05 | CI.04 | EV-088/LOG-498: настоящий CLI pin/отдельная успешная инициализация подтверждены итоговым CI 241c241; все шесть Android suites и aggregate SUCCESS, strict preflight/обе ABI/runtime/negative cleanup сохранены. Интегрировано PR #87/c859afb, GAP-024 resolved | T16, T08 (сохранение охвата) | done |
 | CI.06 | P05.09 | EV-089/LOG-498: pending + blocked устраняет временные recovery-кнопки обычного autosave; bounded host regression/негативный контроль/Chrome+Opera и весь CI 241c241 SUCCESS. Raw Windows/Linux desktop/touch и native Android history прошли. Интегрировано PR #87/c859afb, GAP-025 resolved; исходные IPC/IME/один tap/assertions/10s сохранены | T08, A21 (сохранение охвата) | done |
 | CI.07 | CI.04 | EV-090/LOG-498: изолированный Windows-пробник со своим workspace/системным temp и прежними offline build/run/Clippy/fmt подтверждён итоговым windows environment SUCCESS 241c241. Интегрировано PR #87/c859afb, GAP-026 resolved | T13, T16 (сохранение охвата) | done |
+| CI.08 | P05.10 | EV-094/GAP-028: read-only диагностика правильной host touch страницы/этапа до disposal с исходной ошибкой, bounded read metadata и без секретов; полный Chrome/Opera UI и финальная guard/moves→tags desktop/touch матрица passed; исходная причина refresh timeout неизвестна, новый CI нужен (LOG-517) | T08, T16 (сохранение охвата) | verified |
 
 ### P02 — Проверка модели Automerge
 
@@ -230,7 +231,7 @@ P02 и не переоткрывают завершённую приёмку P00
 | ID | Зависимости | Результат и минимальная проверка | Критерии | Состояние |
 | --- | --- | --- | --- | --- |
 | P06.01 | P03.05, P05.01, P01.10 | Ручное приглашение/запрос/подтверждение на ПК, отмена/отклонение/отвязка и выдача/отзыв доступа через UI/API; до подтверждения обмена нет. Разделён на .1–.4, EV-093 | T09, A08, A51 | in_progress |
-| P06.01.1 | P03.05 | Общие access.issue/replace/list: явные области и срок, новый ключ без передачи секрета в JSON, актуальность/повторы/отзыв и сохранность; EV-093/LOG-513: Windows/native Android по 291 Rust-тесту, 25 client/255 assertions, обе release ABI/21 guards/контракт; commit/PR/CI/merge нет | T06, A08 | verified |
+| P06.01.1 | P03.05 | Общие access.issue/replace/list: явные области и срок, новый ключ без передачи секрета в JSON, актуальность/повторы/отзыв и сохранность; EV-093/LOG-513: Windows/native Android по 291 Rust-тесту, 25 client/255 assertions, обе release ABI/21 guards/контракт; PR #90/head 72af6e6 опубликован, новый CI/17 SUCCESS и интеграция ожидаются | T06, A08 | verified |
 | P06.01.2 | P06.01.1, P01.10 | Постоянный процесс ручного приглашения/запроса/подтверждения и защищённый канал двух устройств; одноразовость/срок/ограничение попыток, отмена/отклонение/отвязка, без доступа до подтверждения | T09, A51 | planned |
 | P06.01.3 | P06.01.2, P05.01 | UI ручного подключения и управления доступами на Windows/Android через общий API; чтение/«До отзыва» по умолчанию, явное изменение/администрирование/подтверждение и обратные действия | T09, A08, A51 | planned |
 | P06.01.4 | P06.01.3 | Приёмка ручного подключения двух устройств/UI/API/CLI: права, сроки/отзыв, повторы/отказы/restart и сохранность; обмен пространствами остаётся P06.03 | T09, A08, A51 | planned |

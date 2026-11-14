@@ -9,7 +9,7 @@ dependencies_evidence: [P03.05, EV-058, EV-062]
 scope: [core/access_commands, storage/access, adapters, client, api, tests, docs]
 checks: ["bun scripts/check-product.mjs", "bun scripts/check-product.mjs --android-native"]
 reverse_and_failure: "Отзыв; новая выдача с новым ключом после отзыва/истечения; смена области в обе стороны; отказ неадминистратору/устаревшей команде/повторному ключу; атомарность и неизменность данных."
-result: "verified локально: 291 Rust-тест каждой платформы, 25 client/255 assertions, обе release ABI/21 unsafe guard, контракт/типы/UI build; commit/PR/CI/merge нет"
+result: "API verified локально; PR #90/head 72af6e6: 15 SUCCESS, Windows shell/aggregate FAILURE; CI.08/EV-094 verified локально, новый CI нужен"
 evidence: ["ignored docs/reports/p06-01/product-check-final.log", "ignored docs/reports/p06-01/product-android-final.log", "ignored docs/reports/p06-01/product-arm64-final.log", "ignored docs/reports/p06-01/audit-proof.json"]
 next: "После локальной проверки — ревью/интеграция API-среза; далее P06.01.2."
 ```
@@ -103,3 +103,13 @@ T09 not_run и A51 partial не повышаются, DEC-003 остаётся o
 P06.01.1 verified локально; P06.01/P06 in_progress. Commit/push/PR/CI/merge
 не выполнялись. Следующее действие — ревью/интеграция этого API-среза,
 затем P06.01.2: постоянный процесс ручного подключения и защищённый канал.
+
+
+## Публикация — LOG-515
+
+[PR #90](https://github.com/Zeyafix/zedone/pull/90), head 72af6e67d1e27a5dfb6df225ec553bd0d3fc1d6d, base main/6466b08. 23 согласованных файла, три English sections/credit и отсутствие визуального diff подтверждены readback. Исходные шесть dirty EV вне коммита; 15 tested source fingerprints совпали. Все 14 runtime suites/три aggregates ожидают нового CI, публикация не является интеграцией или полной приёмкой. Merge/delete поручены только после всех 17 COMPLETED/SUCCESS и свежей readiness точного head. Прежние локальные ограничения сохраняются.
+
+
+## Исходный CI — LOG-516/517
+
+На 72af6e6 15 checks SUCCESS, включая Windows/Linux product и все Android suites. Windows shell отказал в прежнем touch tags refresh на 10000ms; aggregate корректно передал этот отказ. Исходная причина неизвестна, GAP-028/CI.08/EV-094. Диагностика ошибочно читала main page после закрытия touch context; исправлена read-only запись правильной страницы/этапа до disposal с сохранением исходного error. Полный локальный Chrome/Opera UI и финальная guard/moves→tags desktop/touch матрица passed; нужен новый полный CI. Runtime/API и все 15 source fingerprints прежние, полные критерии не повышаются.

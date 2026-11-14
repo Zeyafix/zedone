@@ -35,6 +35,22 @@ export async function newAccessCredential(): Promise<{ credential: CredentialMat
 }
 class IdentityChanged extends Error {}
 
+/** Retain code separately before creation. Only invitation/verifier enter an
+ * intention; this administrative preparation neither pairs nor grants access. */
+export async function newInvitation(): Promise<{ invitation: string; code: string; verifier: Parameters["invitation.create"]["verifier"] }> {
+  const invitation = randomId().id;
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const input = new Uint8Array([...new TextEncoder().encode("zedone/invitation-code/v1\0"), ...bytes]);
+  try {
+    if (bytes.every(byte => byte === 0)) throw new Error("unavailable");
+    const digest = await crypto.subtle.digest("SHA-256", input);
+    return { invitation, code: Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join(""), verifier: Array.from(new Uint8Array(digest)) };
+  } finally {
+    bytes.fill(0);
+    input.fill(0);
+  }
+}
+
 export async function prepare<O extends Operation>(subject: string, operation: O, parameters: Parameters[O], store: IntentionStore): Promise<string> {
   if (!/^[a-f0-9]{32}$/.test(subject)) throw new Error("invalid_subject");
   if (!operations.includes(operation)) throw new Error("invalid_request");

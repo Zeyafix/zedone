@@ -1,5 +1,17 @@
 # Разработка продуктового Rust-ядра
 
+P06.01.2.1: [ADR-0054](../architecture/decisions/0054-persistent-pairing-invitations.md),
+[EV-095](../agent/verification/EV-095-pairing-invitations.md). `core::invitations`
+фиксирует ManageDevices для create/inspect/cancel/list; Service использует
+прежний timed worker/guard/replay. `storage::invitations` хранит локальную
+таблицу pairing_invitations вне графа/снимков пространства; начальная v1
+и синтетический эталон обновлены. Базы прежнего layout отклоняются без записи.
+Общий `newInvitation()` готовит ID/код, намерение содержит только verifier.
+Код не является Bearer, создание не выдаёт прав. Хранилище host secrets,
+канал и неподтверждённые запросы не реализованы и не открыты.
+Новые тесты входят в прежние targets commands/storage и штатную матрицу
+Windows/Linux/native Android; таймауты/бюджеты/CI-задания не менялись.
+
 P06.01.1: [ADR-0053](../architecture/decisions/0053-access-registration.md),
 [EV-093](../agent/verification/EV-093-access-issuance.md). Core фиксирует
 ManageAccess и обработчики access.issue/replace/list; storage использует
@@ -89,8 +101,9 @@ Windows/Android; есть проба 1000 карточек, не заменяю�
 seed часов и общий validator прав/часов. При изменении этой схемы обновлять
 текущие тесты и эталон, не добавляя промежуточных продуктовых переходов.
 `crates/storage/tests/fixtures/schema-v1.sqlite` — синтетический эталон текущей
-стартовой схемы, SHA-256 `b87df5f3879df1ecf932ef515f231ccc62f7654780d18bf0ea85abff74734083`.
-В P04.08 добавлена пустая card_editing с сохранением всех прежних строк.
+стартовой схемы, SHA-256 `fd0441ca5e2ede275f084468e36038b20a08a3d690b4cdaa40509d717e722821`.
+В P04.08 добавлена пустая card_editing, в P06.01.2.1 — pairing_invitations;
+исходные документы/actor/receipts сохранены.
 В DEV.01 он обновлён из прежнего эталона добавлением текущих таблиц прав/часов
 и начальной строки часов; исходные документы/actor/receipts сохранены.
 Тесты работают с копиями. SQL хранится с LF: SQLite сохраняет текст DDL,

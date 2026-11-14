@@ -463,6 +463,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/invitation.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invitation_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/invitation.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invitation_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/invitation.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invitation_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/invitation.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["invitation_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.create": {
         parameters: {
             query?: never;
@@ -725,6 +789,10 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             space: string;
         };
+        CancelInvitation: {
+            expected: components["schemas"]["StateVersion"];
+            invitation: string;
+        };
         CardHistory: {
             card: string;
             next?: string | null;
@@ -878,6 +946,38 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_CancelInvitation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                invitation: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_ClearHistory: {
             id: [
                 number,
@@ -970,6 +1070,38 @@ export interface components {
                 column: string;
                 name: string;
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_CreateInvitation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                invitation: string;
+                verifier: components["schemas"]["InvitationVerifier"];
             };
         };
         /**
@@ -1209,6 +1341,37 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_InspectInvitation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                invitation: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_InspectTrash: {
             id: [
                 number,
@@ -1363,6 +1526,37 @@ export interface components {
             parameters: {
                 include_trashed: boolean;
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ListInvitations: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                after?: string | null;
             };
         };
         /**
@@ -2295,6 +2489,20 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_InvitationSnapshot: components["schemas"]["CommandSuccess_InvitationSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -2446,6 +2654,27 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_InvitationList: {
+            replayed: boolean;
+            result: {
+                entries: components["schemas"]["InvitationSnapshot"][];
+                next?: string | null;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_InvitationSnapshot: {
+            replayed: boolean;
+            result: {
+                /** Format: int64 */
+                created_at_unix_ms: number;
+                /** Format: int64 */
+                expires_at_unix_ms: number;
+                invitation: string;
+                status: components["schemas"]["InvitationStatus"];
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_SearchResults: {
             replayed: boolean;
             result: {
@@ -2525,6 +2754,10 @@ export interface components {
             name: string;
             space: string;
         };
+        CreateInvitation: {
+            invitation: string;
+            verifier: components["schemas"]["InvitationVerifier"];
+        };
         CreateSpace: {
             name: string;
             space: string;
@@ -2590,10 +2823,29 @@ export interface components {
             card?: string | null;
             space: string;
         };
+        InspectInvitation: {
+            invitation: string;
+        };
         InspectTrash: {
             selection: components["schemas"]["TrashSelection"];
             space: string;
         };
+        InvitationList: {
+            entries: components["schemas"]["InvitationSnapshot"][];
+            next?: string | null;
+        };
+        InvitationSnapshot: {
+            /** Format: int64 */
+            created_at_unix_ms: number;
+            /** Format: int64 */
+            expires_at_unix_ms: number;
+            invitation: string;
+            status: components["schemas"]["InvitationStatus"];
+            version: components["schemas"]["StateVersion"];
+        };
+        /** @enum {string} */
+        InvitationStatus: "open" | "expired" | "cancelled";
+        InvitationVerifier: number[];
         /**
          * @description Tauri framing preserves the original JSON string, including duplicate
          *     fields for the concrete decoder to reject. Credentials are a separate IPC
@@ -2622,6 +2874,9 @@ export interface components {
         ListColumns: {
             include_trashed: boolean;
             space: string;
+        };
+        ListInvitations: {
+            after?: string | null;
         };
         ListSpaces: {
             include_trashed: boolean;
@@ -3533,6 +3788,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_HistoryPreview"];
+                };
+            };
+        };
+    };
+    invitation_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CancelInvitation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_InvitationSnapshot"];
+                };
+            };
+        };
+    };
+    invitation_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CreateInvitation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_InvitationSnapshot"];
+                };
+            };
+        };
+    };
+    invitation_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectInvitation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_InvitationSnapshot"];
+                };
+            };
+        };
+    };
+    invitation_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListInvitations"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_InvitationList"];
                 };
             };
         };

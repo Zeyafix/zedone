@@ -59,3 +59,10 @@ CREATE TABLE card_editing (
        OR (pending_id IS NOT NULL AND title IS NOT NULL AND length(trim(title)) > 0 AND description IS NOT NULL AND changed_ms IS NOT NULL)),
     PRIMARY KEY(space, card)
 ) STRICT, WITHOUT ROWID;
+CREATE TABLE pairing_invitations (
+    invitation TEXT PRIMARY KEY NOT NULL CHECK(length(invitation) = 32 AND invitation NOT GLOB '*[^0-9a-f]*'),
+    verifier BLOB NOT NULL UNIQUE CHECK(length(verifier) = 32 AND verifier != zeroblob(32)),
+    created_ms INTEGER NOT NULL CHECK(created_ms >= 0 AND created_ms <= 253402300199999),
+    expires_ms INTEGER NOT NULL CHECK(expires_ms = created_ms + 600000),
+    cancelled INTEGER NOT NULL CHECK(cancelled IN (0, 1))
+) STRICT, WITHOUT ROWID;

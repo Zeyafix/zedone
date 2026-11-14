@@ -11,6 +11,7 @@ mod cleanup;
 mod clock;
 mod columns;
 mod document;
+mod invitations;
 pub mod migration_backup;
 mod ordering;
 mod schema;

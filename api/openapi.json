@@ -1132,6 +1132,108 @@
         ]
       }
     },
+    "/v1/commands/pairing.cancel": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_cancel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CancelPairing"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/pairing.inspect": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectPairing"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/pairing.list": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ListPairings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.create": {
       "post": {
         "tags": [
@@ -1767,6 +1869,22 @@
         },
         "additionalProperties": false
       },
+      "CancelPairing": {
+        "type": "object",
+        "required": [
+          "request",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "request": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CardHistory": {
         "type": "object",
         "required": [
@@ -2205,6 +2323,47 @@
                 "$ref": "#/components/schemas/StateVersion"
               },
               "invitation": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_CancelPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "request": {
                 "type": "string"
               }
             },
@@ -2749,6 +2908,43 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_InspectPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request"
+            ],
+            "properties": {
+              "request": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_InspectTrash": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2965,6 +3161,43 @@
         "additionalProperties": false
       },
       "CommandRequest_ListInvitations": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ListPairings": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
         "required": [
@@ -3657,6 +3890,56 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_RequestPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request",
+              "invitation",
+              "label",
+              "access_verifier"
+            ],
+            "properties": {
+              "access_verifier": {
+                "$ref": "#/components/schemas/KeyVerifier"
+              },
+              "invitation": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string",
+                "description": "Claimed display name, never an authenticated device identity."
+              },
+              "request": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RestoreCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -4310,6 +4593,28 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_PairingList": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_PairingList"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_PairingSnapshot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_PairingSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_SearchResults": {
         "oneOf": [
           {
@@ -4915,6 +5220,97 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_PairingList": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PairingSnapshot"
+                },
+                "maxItems": 50
+              },
+              "next": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_PairingSnapshot": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "request",
+              "invitation",
+              "label",
+              "created_at_unix_ms",
+              "status",
+              "version"
+            ],
+            "properties": {
+              "created_at_unix_ms": {
+                "type": "integer",
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "invitation": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "request": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "#/components/schemas/PairingStatus"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_SearchResults": {
         "type": "object",
         "required": [
@@ -5507,6 +5903,18 @@
         },
         "additionalProperties": false
       },
+      "InspectPairing": {
+        "type": "object",
+        "required": [
+          "request"
+        ],
+        "properties": {
+          "request": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "InspectTrash": {
         "type": "object",
         "required": [
@@ -5584,7 +5992,9 @@
         "enum": [
           "open",
           "expired",
-          "cancelled"
+          "cancelled",
+          "used",
+          "locked"
         ]
       },
       "InvitationVerifier": {
@@ -5710,6 +6120,18 @@
         },
         "additionalProperties": false
       },
+      "ListPairings": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "ListSpaces": {
         "type": "object",
         "required": [
@@ -5795,6 +6217,70 @@
           }
         },
         "additionalProperties": false
+      },
+      "PairingList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PairingSnapshot"
+            },
+            "maxItems": 50
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PairingSnapshot": {
+        "type": "object",
+        "required": [
+          "request",
+          "invitation",
+          "label",
+          "created_at_unix_ms",
+          "status",
+          "version"
+        ],
+        "properties": {
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "invitation": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "request": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PairingStatus"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PairingStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "cancelled"
+        ]
       },
       "PurgeTrash": {
         "type": "object",
@@ -6046,6 +6532,31 @@
           },
           "verifier": {
             "$ref": "#/components/schemas/KeyVerifier"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RequestPairing": {
+        "type": "object",
+        "required": [
+          "request",
+          "invitation",
+          "label",
+          "access_verifier"
+        ],
+        "properties": {
+          "access_verifier": {
+            "$ref": "#/components/schemas/KeyVerifier"
+          },
+          "invitation": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "Claimed display name, never an authenticated device identity."
+          },
+          "request": {
+            "type": "string"
           }
         },
         "additionalProperties": false

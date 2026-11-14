@@ -11,6 +11,7 @@ pub mod command;
 pub mod error;
 pub mod invitations;
 pub mod ordering;
+pub mod pairing;
 pub mod replay;
 pub mod search;
 pub mod spaces;
@@ -27,6 +28,7 @@ use utoipa::OpenApi;
     paths(access_commands::inspect, access_commands::revoke,
         access_commands::issue, access_commands::replace, access_commands::list,
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
+        pairing::inspect, pairing::cancel, pairing::list,
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,
@@ -41,6 +43,8 @@ use utoipa::OpenApi;
         error::CommandError,
         replay::StateVersion,
         wire::IpcInvocation,
+        pairing::RequestPairing,
+        wire::CommandRequest<pairing::RequestPairing>,
         wire::CommandRequest<serde_json::Value>,
         wire::CommandResponse<serde_json::Value>
     ))

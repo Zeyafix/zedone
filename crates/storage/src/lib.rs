@@ -14,6 +14,7 @@ mod document;
 mod invitations;
 pub mod migration_backup;
 mod ordering;
+mod pairing;
 mod schema;
 pub mod snapshot;
 mod spaces;

@@ -18,9 +18,11 @@ fn record(row: &Row<'_>) -> rusqlite::Result<InvitationRecord> {
     let created_ms: i64 = row.get(2)?;
     let expires_ms: i64 = row.get(3)?;
     let cancelled: bool = row.get(4)?;
+    let failures: u8 = row.get(5)?;
+    let used: bool = row.get(6)?;
     let version = state_version(
         &("invitation.v1", &invitation),
-        &(verifier, created_ms, expires_ms, cancelled),
+        &(&verifier, created_ms, expires_ms, cancelled, failures, used),
     )
     .map_err(|_| rusqlite::Error::InvalidQuery)?;
     Ok(InvitationRecord {
@@ -28,6 +30,13 @@ fn record(row: &Row<'_>) -> rusqlite::Result<InvitationRecord> {
         created_ms,
         expires_ms,
         cancelled,
+        verifier: InvitationVerifier(
+            verifier
+                .try_into()
+                .map_err(|_| rusqlite::Error::InvalidQuery)?,
+        ),
+        failures,
+        used,
         version,
     })
 }
@@ -37,7 +46,8 @@ impl InvitationStore for WriteContext<'_> {
         let result = self
             .connection()
             .query_row(
-                "SELECT invitation, verifier, created_ms, expires_ms, cancelled
+                "SELECT invitation, verifier, created_ms, expires_ms, cancelled, failures,
+                    EXISTS(SELECT 1 FROM pairing_requests r WHERE r.invitation = pairing_invitations.invitation)
              FROM pairing_invitations WHERE invitation = ?1",
                 [id],
                 record,
@@ -66,7 +76,7 @@ impl InvitationStore for WriteContext<'_> {
                 .into());
             }
             self.connection().execute(
-                "INSERT INTO pairing_invitations VALUES (?1, ?2, ?3, ?4, 0)",
+                "INSERT INTO pairing_invitations VALUES (?1, ?2, ?3, ?4, 0, 0)",
                 rusqlite::params![id, &verifier.0[..], created_ms, expires_ms],
             )?;
             Ok(())
@@ -91,7 +101,8 @@ impl InvitationStore for WriteContext<'_> {
             Ok(self
                 .connection()
                 .prepare(
-                    "SELECT invitation, verifier, created_ms, expires_ms, cancelled
+                    "SELECT invitation, verifier, created_ms, expires_ms, cancelled, failures,
+                        EXISTS(SELECT 1 FROM pairing_requests r WHERE r.invitation = pairing_invitations.invitation)
                  FROM pairing_invitations WHERE invitation > coalesce(?1, '')
                  ORDER BY invitation LIMIT 51",
                 )?

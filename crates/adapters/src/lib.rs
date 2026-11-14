@@ -3,6 +3,7 @@
 pub mod channel;
 pub mod http;
 pub mod ipc;
+pub mod pairing;
 pub mod secrets;
 
 use serde_json::Value;
@@ -21,6 +22,7 @@ use zedone_core::{
     error::{CommandError, ErrorCode},
     invitations::{self, CancelInvitation, CreateInvitation, InspectInvitation, ListInvitations},
     ordering::{self, MoveCard, MoveColumn},
+    pairing::{self as pending, CancelPairing, InspectPairing, ListPairings},
     replay::Execution,
     search::{self, SearchCards},
     spaces::{self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, RestoreSpace, TrashSpace},
@@ -96,6 +98,9 @@ impl Service {
                 InspectInvitation::NAME => run!(InspectInvitation, invitations::inspect),
                 CancelInvitation::NAME => run!(CancelInvitation, invitations::cancel),
                 ListInvitations::NAME => run!(ListInvitations, invitations::list),
+                InspectPairing::NAME => run!(InspectPairing, pending::inspect),
+                CancelPairing::NAME => run!(CancelPairing, pending::cancel),
+                ListPairings::NAME => run!(ListPairings, pending::list),
                 CreateSpace::NAME => run!(CreateSpace, spaces::create),
                 ReadSpace::NAME => run!(ReadSpace, spaces::read),
                 ListSpaces::NAME => run!(ListSpaces, spaces::list),

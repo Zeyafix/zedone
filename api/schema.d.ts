@@ -527,6 +527,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/pairing.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/pairing.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/pairing.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.create": {
         parameters: {
             query?: never;
@@ -793,6 +841,10 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             invitation: string;
         };
+        CancelPairing: {
+            expected: components["schemas"]["StateVersion"];
+            request: string;
+        };
         CardHistory: {
             card: string;
             next?: string | null;
@@ -969,6 +1021,38 @@ export interface components {
             parameters: {
                 expected: components["schemas"]["StateVersion"];
                 invitation: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_CancelPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                request: string;
             };
         };
         /**
@@ -1372,6 +1456,37 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_InspectPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                request: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_InspectTrash: {
             id: [
                 number,
@@ -1536,6 +1651,37 @@ export interface components {
          *     implemented operation or a substitute for concrete command validation.
          */
         CommandRequest_ListInvitations: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                after?: string | null;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ListPairings: {
             id: [
                 number,
                 number,
@@ -2037,6 +2183,41 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_RequestPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                access_verifier: components["schemas"]["KeyVerifier"];
+                invitation: string;
+                /** @description Claimed display name, never an authenticated device identity. */
+                label: string;
+                request: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RestoreCard: {
             id: [
                 number,
@@ -2503,6 +2684,20 @@ export interface components {
          *     Construct success only AFTER the storage transaction commits. Cancellation,
          *     a lost response or uncertain commit must never be converted to success.
          */
+        CommandResponse_PairingList: components["schemas"]["CommandSuccess_PairingList"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
+        CommandResponse_PairingSnapshot: components["schemas"]["CommandSuccess_PairingSnapshot"] | components["schemas"]["CommandFailure"];
+        /**
+         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
+         *     A success confirms the original completion, not the current object state.
+         *     Construct success only AFTER the storage transaction commits. Cancellation,
+         *     a lost response or uncertain commit must never be converted to success.
+         */
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
         /**
          * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
@@ -2675,6 +2870,27 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_PairingList: {
+            replayed: boolean;
+            result: {
+                entries: components["schemas"]["PairingSnapshot"][];
+                next?: string | null;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_PairingSnapshot: {
+            replayed: boolean;
+            result: {
+                /** Format: int64 */
+                created_at_unix_ms: number;
+                invitation: string;
+                label: string;
+                request: string;
+                status: components["schemas"]["PairingStatus"];
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_SearchResults: {
             replayed: boolean;
             result: {
@@ -2826,6 +3042,9 @@ export interface components {
         InspectInvitation: {
             invitation: string;
         };
+        InspectPairing: {
+            request: string;
+        };
         InspectTrash: {
             selection: components["schemas"]["TrashSelection"];
             space: string;
@@ -2844,7 +3063,7 @@ export interface components {
             version: components["schemas"]["StateVersion"];
         };
         /** @enum {string} */
-        InvitationStatus: "open" | "expired" | "cancelled";
+        InvitationStatus: "open" | "expired" | "cancelled" | "used" | "locked";
         InvitationVerifier: number[];
         /**
          * @description Tauri framing preserves the original JSON string, including duplicate
@@ -2878,6 +3097,9 @@ export interface components {
         ListInvitations: {
             after?: string | null;
         };
+        ListPairings: {
+            after?: string | null;
+        };
         ListSpaces: {
             include_trashed: boolean;
         };
@@ -2900,6 +3122,21 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             space: string;
         };
+        PairingList: {
+            entries: components["schemas"]["PairingSnapshot"][];
+            next?: string | null;
+        };
+        PairingSnapshot: {
+            /** Format: int64 */
+            created_at_unix_ms: number;
+            invitation: string;
+            label: string;
+            request: string;
+            status: components["schemas"]["PairingStatus"];
+            version: components["schemas"]["StateVersion"];
+        };
+        /** @enum {string} */
+        PairingStatus: "pending" | "cancelled";
         PurgeTrash: {
             expected: components["schemas"]["StateVersion"];
             selection: components["schemas"]["TrashSelection"];
@@ -2963,6 +3200,13 @@ export interface components {
             scope: components["schemas"]["AccessScope"];
             subject: string;
             verifier: components["schemas"]["KeyVerifier"];
+        };
+        RequestPairing: {
+            access_verifier: components["schemas"]["KeyVerifier"];
+            invitation: string;
+            /** @description Claimed display name, never an authenticated device identity. */
+            label: string;
+            request: string;
         };
         RestoreCard: {
             card: string;
@@ -3880,6 +4124,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_InvitationList"];
+                };
+            };
+        };
+    };
+    pairing_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CancelPairing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
+                };
+            };
+        };
+    };
+    pairing_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectPairing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
+                };
+            };
+        };
+    };
+    pairing_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ListPairings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingList"];
                 };
             };
         };

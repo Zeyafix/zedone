@@ -427,6 +427,21 @@ host бюджеты, сценарные таймауты, матрица, runtim
 принятия SUCCESS не меняются. Routing guard проверяет точное значение 15.
 Основание и фактическая новая приёмка — [EV-083](../agent/verification/EV-083-tags-ui.md).
 
+### Парные проверки запроса устройства
+
+Product-native явно запускает два ignored probe на host и нативном Android:
+прежний TLS/identity и pairing::tests::cross_platform_probe. Второй проверяет
+неверный pin, приём запроса, повторное открытие SQLite, загрузку исходной сессии,
+receipt, просмотр/отмену и отсутствие нового доступа. Каждый probe использует
+собственный localhost port/metadata и удаляет только собственный adb reverse.
+Обычный cargo test не заменяет этот парный запуск. Секреты синтетические,
+параметры transport не становятся настройкой приложения.
+
+Native SecretStoreInstrumentation дополнительно проверяет pending-pairing-v1:
+сохранение, чтение после нового экземпляра, изоляцию ciphertext/AAD и удаление
+без повреждения channel identity. Полный Rust→Kotlin→TLS процесс и формы
+подключения остаются отдельной приёмкой; [EV-099](../agent/verification/EV-099-pending-device-request.md).
+
 PR #83/head d1c1c44 интегрирован в 695d0b8 после всех 17 SUCCESS.
 Финальные Android runtime/negative cleanup завершились при разрешённых 15m,
 strict aggregate passed; прежний набор и все проверки сохранены. Это текущий

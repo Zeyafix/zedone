@@ -15,11 +15,13 @@ pub enum SecretError {
 #[derive(Clone, Copy)]
 pub enum Slot {
     ChannelIdentity,
+    PendingPairing,
 }
 impl Slot {
     pub fn name(self) -> &'static str {
         match self {
             Self::ChannelIdentity => "channel-identity-v1",
+            Self::PendingPairing => "pending-pairing-v1",
         }
     }
 }

@@ -138,6 +138,22 @@ async fn layout_before_pairing_invitations_is_rejected_without_writes() {
     assert_eq!(durable_files(&path), before);
 }
 
+#[tokio::test]
+async fn layout_before_pending_requests_is_rejected_without_writes() {
+    let (_dir, path) = fixture();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute_batch("DROP TABLE pairing_requests")
+        .unwrap();
+    connection.close().unwrap();
+    let before = durable_files(&path);
+    assert_eq!(
+        Storage::open(&path).await.err(),
+        Some(StorageError::InvalidDatabase)
+    );
+    assert_eq!(durable_files(&path), before);
+}
+
 // SHM contains SQLite's transient reader locks, not authoritative DB/WAL data.
 fn durable_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
     ["", "-wal", "-journal"]
@@ -160,7 +176,7 @@ async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "fd0441ca5e2ede275f084468e36038b20a08a3d690b4cdaa40509d717e722821"
+        "3dd3843970722881ad6a817d8bbdff6a243e8774db646e717a0df6edab7b7481"
     );
     let (_root, path) = fixture();
     let storage = Storage::open(&path).await.unwrap();

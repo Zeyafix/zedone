@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+subtle = "=2.6.1"
 zedone-core = { path = "../core" }
 automerge.workspace = true
 rusqlite.workspace = true

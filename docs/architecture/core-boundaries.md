@@ -259,3 +259,10 @@ core::cleanup; storage пишет причинные удаления под т�
 Пользовательская история и её логический объём — производные графа; технические
 changes/peers/receipts и копии не очищаются. Опорные решения и границы P05/P06 —
 [ADR-0051](decisions/0051-trash-and-history-cleanup.md).
+
+P06.01.2.3 добавляет отдельную ограниченную авторизацию ожидания: только собственные
+inspect/cancel по секрету pending-key/v1, без access principal. PairingHost сам
+принимает TLS и не предоставляет router для plaintext. Все изменения запросов,
+одноразовое использование приглашения и receipts фиксируются одним SQLite writer.
+Административные pairing.* используют прежний Service/ManageDevices. OS-слоты
+хранят секреты отдельно от SQLite; [ADR-0056](decisions/0056-pending-device-request.md).

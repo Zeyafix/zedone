@@ -15,17 +15,21 @@ import javax.crypto.spec.GCMParameterSpec
 // Host-only primitive: no Activity, exported component, plaintext fallback or logging.
 class SecretFailure(val code: String) : Exception(code)
 
-class ProtectedSecrets(context: Context, private val namespace: String) {
+class ProtectedSecrets(context: Context, private val namespace: String, private val slot: String = SLOT) {
   companion object {
     private val operations = Any()
     const val SLOT = "channel-identity-v1"
+    const val PENDING_SLOT = "pending-pairing-v1"
     const val LIMIT = 2048
   }
-  init { require(namespace.matches(Regex("[a-f0-9]{64}"))) }
+  init {
+    require(namespace.matches(Regex("[a-f0-9]{64}")))
+    require(slot == SLOT || slot == PENDING_SLOT)
+  }
   private val directory = File(context.noBackupFilesDir, "host-secrets/$namespace")
-  private val alias = "app.zedone.local/$namespace/$SLOT"
-  private val file get() = AtomicFile(File(directory, "$SLOT.bin"))
-  private val aad get() = "zedone/host-secret/v1\u0000$namespace/$SLOT".toByteArray(Charsets.UTF_8)
+  private val alias = "app.zedone.local/$namespace/$slot"
+  private val file get() = AtomicFile(File(directory, "$slot.bin"))
+  private val aad get() = "zedone/host-secret/v1\u0000$namespace/$slot".toByteArray(Charsets.UTF_8)
   private fun keyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
   private fun <T> locked(action: () -> T): T = synchronized(operations) {

@@ -5,10 +5,9 @@ import { resolve } from "node:path";
 
 // Called inside product-check's existing emulator/sandbox lifetime. The host
 // server owns the OS credential; only its public pin and port leave the host.
-export async function checkChannelPair({ root, env, hostBinary, androidBinary, adb, serial }) {
+export async function checkChannelPair({ root, env, hostBinary, androidBinary, adb, serial, test = "channel::tests::cross_platform_probe" }) {
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-channel-pair-"));
   const metadataFile = resolve(directory, "public.json");
-  const test = "channel::tests::cross_platform_probe";
   const server = Bun.spawn([hostBinary, "--ignored", "--exact", test], {
     cwd: root, env: { ...env, ZEDONE_CHANNEL_PROBE_ROLE: "server", ZEDONE_CHANNEL_PROBE_METADATA: metadataFile },
     stdin: "ignore", stdout: "pipe", stderr: "pipe",
@@ -43,7 +42,9 @@ export async function checkChannelPair({ root, env, hostBinary, androidBinary, a
     assert.match(result, /test result: ok\. 1 passed; 0 failed/);
     assert.equal(await server.exited, 0, "Host paired channel probe failed");
     assert.match(await output, /test result: ok\. 1 passed; 0 failed/);
-    console.log("Host ↔ native Android TLS 1.3: wrong pin rejected, persisted host identity and bidirectional private payload passed.");
+    console.log(test.startsWith("pairing::")
+      ? "Host ↔ native Android pending request: wrong pin, submission, database restart, saved-session replay, inspection/cancellation and no access passed."
+      : "Host ↔ native Android TLS 1.3: wrong pin rejected, persisted host identity and bidirectional private payload passed.");
   } finally {
     if (ownsReverse) device("reverse", "--remove", port);
     // The server's own 30-second bound performs credential cleanup. Do not kill

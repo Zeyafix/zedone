@@ -79,7 +79,35 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   await click("[data-history-close]"); await click("[data-editor-edit]");
   await input('input[name="card-title"]', "Непрерывный ввод");
   await input('textarea[name="card-description"]', "Последняя сохранённая пара");
-  await dismissKeyboard(); await click("[data-history-open]"); await loaded();
+  await dismissKeyboard();
+  // Bounded, read-only evidence for native taps during editor blur.
+  // No input values, text, credentials or stored intentions are recorded.
+  await page.evaluate(() => {
+    const entries = [];
+    const record = event => {
+      const target = event.target instanceof Element ? event.target : undefined;
+      const button = document.querySelector("[data-history-open]");
+      const box = button?.getBoundingClientRect();
+      entries.push({ type: event.type, tag: target?.tagName, name: target?.getAttribute("name"),
+        historyButton: !!target?.closest("[data-history-open]"), closeButton: !!target?.closest("[data-workspace-dialog-close]"),
+        inDialog: !!target?.closest('[role="dialog"]'), dialog: !!document.querySelector('[role="dialog"]'),
+        x: event.clientX, y: event.clientY, button: box && { x: box.x, y: box.y, width: box.width, height: box.height } });
+      if (entries.length > 20) entries.shift();
+    };
+    const types = ["pointerdown", "pointerup", "click", "focusin", "focusout"];
+    for (const type of types) document.addEventListener(type, record, true);
+    window.__zedoneHistoryTransition = { entries, dispose: () => { for (const type of types) document.removeEventListener(type, record, true); } };
+  });
+  try { await click("[data-history-open]"); await loaded(); }
+  catch (cause) {
+    const evidence = await page.evaluate(() => ({ events: window.__zedoneHistoryTransition?.entries,
+      dialog: !!document.querySelector('[role="dialog"]'), history: !!document.querySelector(".card-history"),
+      editor: !!document.querySelector('textarea[name="card-description"]') })).catch(() => ({ unavailable: true }));
+    console.error("History editor transition:", JSON.stringify(evidence));
+    throw cause;
+  } finally {
+    await page.evaluate(() => { window.__zedoneHistoryTransition?.dispose(); delete window.__zedoneHistoryTransition; }).catch(() => {});
+  }
   versions = (await history()).versions;
   assert.equal(versions.length, 7, "history entry finishes one pending autosave series");
   assert.deepEqual([versions.at(-1).title, versions.at(-1).description], ["Непрерывный ввод", "Последняя сохранённая пара"]);

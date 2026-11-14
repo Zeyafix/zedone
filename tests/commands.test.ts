@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, newTagId, newAccessCredential, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
+import { CommandClient, prepare, newSpaceId, newColumnId, newCardId, newTagId, newAccessCredential, newInvitation, httpTransport, ipcTransport, webIntentionStore, type Response, type IntentionStore } from "../client/commands";
 import { createHash } from "node:crypto";
 import validateResponse from "../api/validate-response.js";
 
@@ -15,6 +15,32 @@ function fixture() {
   return { values, storage, store: webIntentionStore(storage, "test") };
 }
 const parameters = { subject: "1".repeat(32) };
+
+test("invitation codes stay outside intentions and snapshots with operation-specific validation", async () => {
+  expect(Array.from(createHash("sha256").update("zedone/invitation-code/v1\0").update(Buffer.alloc(32,0x11)).digest())).toEqual([160,43,110,0,83,115,85,137,83,155,78,186,49,97,211,197,156,4,80,67,192,21,58,56,239,144,188,212,105,92,114,175]);
+  const {invitation, code, verifier}=await newInvitation();
+  expect(invitation).toMatch(/^[a-f0-9]{32}$/);
+  expect(code).toMatch(/^[a-f0-9]{64}$/);
+  expect(verifier).toEqual(Array.from(createHash("sha256").update("zedone/invitation-code/v1\0").update(Buffer.from(code,"hex")).digest()));
+  expect(verifier).not.toEqual(Array.from(createHash("sha256").update("zedone/access-key/v1\0").update(Buffer.from(code,"hex")).digest()));
+  const next=await newInvitation(); expect(next.invitation).not.toBe(invitation); expect(next.code).not.toBe(code);
+  const {store, values}=fixture();
+  const id=await prepare("2".repeat(32),"invitation.create",{invitation,verifier},store);
+  const original=(await store.load(id))!.body; expect([...values.values()].join("")).not.toContain(code);
+  const result={invitation,created_at_unix_ms:100,expires_at_unix_ms:600100,status:"open" as const,version:Array(32).fill(1)};
+  const response:Response={status:"ok",replayed:true,result};
+  expect(validateResponse(response,"invitation.create")).toBe(true);
+  expect(validateResponse(response,"access.issue")).toBe(false);
+  expect(validateResponse({...response,result:{...result,verifier}},"invitation.inspect")).toBe(false);
+  expect(validateResponse({...response,result:{...result,code}},"invitation.inspect")).toBe(false);
+  expect(validateResponse({...response,result:{...result,status:"confirmed"}},"invitation.inspect")).toBe(false);
+  expect(validateResponse({...response,result:{entries:Array(51).fill(result),next:null}},"invitation.list")).toBe(false);
+  verifier[0]^=255;
+  const sent:string[]=[];
+  const transport=ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject:"2".repeat(32),key:"approved"}));
+  expect((await new CommandClient(store,transport).deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([original,original]);
+});
 
 test("recipient registration retains the secret outside intentions and uses the Rust verifier format", async () => {
   const { credential, verifier } = await newAccessCredential();

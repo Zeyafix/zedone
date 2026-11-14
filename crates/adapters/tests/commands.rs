@@ -29,6 +29,9 @@ mod spaces;
 #[path = "commands/access_issuance.rs"]
 mod access_issuance;
 
+#[path = "commands/invitations.rs"]
+mod invitations;
+
 #[path = "commands/columns.rs"]
 mod columns;
 

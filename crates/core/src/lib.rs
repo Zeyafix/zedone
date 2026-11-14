@@ -9,6 +9,7 @@ pub mod cleanup;
 pub mod columns;
 pub mod command;
 pub mod error;
+pub mod invitations;
 pub mod ordering;
 pub mod replay;
 pub mod search;
@@ -25,6 +26,7 @@ use utoipa::OpenApi;
     info(title = "ZeDone API"),
     paths(access_commands::inspect, access_commands::revoke,
         access_commands::issue, access_commands::replace, access_commands::list,
+        invitations::create, invitations::inspect, invitations::cancel, invitations::list,
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,

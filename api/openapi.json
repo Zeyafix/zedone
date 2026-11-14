@@ -996,6 +996,142 @@
         ]
       }
     },
+    "/v1/commands/invitation.cancel": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "operationId": "invitation_cancel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CancelInvitation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_InvitationSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/invitation.create": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "operationId": "invitation_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CreateInvitation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_InvitationSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/invitation.inspect": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "operationId": "invitation_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectInvitation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_InvitationSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/invitation.list": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "operationId": "invitation_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ListInvitations"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_InvitationList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.create": {
       "post": {
         "tags": [
@@ -1615,6 +1751,22 @@
         },
         "additionalProperties": false
       },
+      "CancelInvitation": {
+        "type": "object",
+        "required": [
+          "invitation",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "invitation": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CardHistory": {
         "type": "object",
         "required": [
@@ -2020,6 +2172,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_CancelInvitation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "invitation",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "invitation": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ClearHistory": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2158,6 +2351,47 @@
               },
               "space": {
                 "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_CreateInvitation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "invitation",
+              "verifier"
+            ],
+            "properties": {
+              "invitation": {
+                "type": "string"
+              },
+              "verifier": {
+                "$ref": "#/components/schemas/InvitationVerifier"
               }
             },
             "additionalProperties": false
@@ -2478,6 +2712,43 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_InspectInvitation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "invitation"
+            ],
+            "properties": {
+              "invitation": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_InspectTrash": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -2686,6 +2957,43 @@
               },
               "space": {
                 "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ListInvitations": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "additionalProperties": false
@@ -3980,6 +4288,28 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_InvitationList": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_InvitationList"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_InvitationSnapshot": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_InvitationSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_SearchResults": {
         "oneOf": [
           {
@@ -4495,6 +4825,96 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_InvitationList": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/InvitationSnapshot"
+                },
+                "maxItems": 50
+              },
+              "next": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_InvitationSnapshot": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "invitation",
+              "created_at_unix_ms",
+              "expires_at_unix_ms",
+              "status",
+              "version"
+            ],
+            "properties": {
+              "created_at_unix_ms": {
+                "type": "integer",
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "expires_at_unix_ms": {
+                "type": "integer",
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "invitation": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "#/components/schemas/InvitationStatus"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_SearchResults": {
         "type": "object",
         "required": [
@@ -4837,6 +5257,22 @@
         },
         "additionalProperties": false
       },
+      "CreateInvitation": {
+        "type": "object",
+        "required": [
+          "invitation",
+          "verifier"
+        ],
+        "properties": {
+          "invitation": {
+            "type": "string"
+          },
+          "verifier": {
+            "$ref": "#/components/schemas/InvitationVerifier"
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateSpace": {
         "type": "object",
         "required": [
@@ -5059,6 +5495,18 @@
         },
         "additionalProperties": false
       },
+      "InspectInvitation": {
+        "type": "object",
+        "required": [
+          "invitation"
+        ],
+        "properties": {
+          "invitation": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "InspectTrash": {
         "type": "object",
         "required": [
@@ -5074,6 +5522,80 @@
           }
         },
         "additionalProperties": false
+      },
+      "InvitationList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvitationSnapshot"
+            },
+            "maxItems": 50
+          },
+          "next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvitationSnapshot": {
+        "type": "object",
+        "required": [
+          "invitation",
+          "created_at_unix_ms",
+          "expires_at_unix_ms",
+          "status",
+          "version"
+        ],
+        "properties": {
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "expires_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "invitation": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvitationStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "expired",
+          "cancelled"
+        ]
+      },
+      "InvitationVerifier": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "maxItems": 32,
+        "minItems": 32
       },
       "IpcInvocation": {
         "type": "object",
@@ -5172,6 +5694,18 @@
           },
           "space": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListInvitations": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false

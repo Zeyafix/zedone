@@ -17,7 +17,7 @@ import { checkHistoryCleanup } from "./check-ui-history-cleanup.mjs";
 import { checkAccessibility } from "./check-ui-accessibility.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
-import { shellDiagnosticState, observeShellReads, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
+import { shellDiagnosticState, observeShellReads, observeShellReadLifecycle, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
@@ -94,7 +94,7 @@ try {
     const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
     try {
       const movesTouchPage = await movesTouchContext.newPage();
-      const touchDetails = { label: "host touch", stage: "startup", reads: observeShellReads(movesTouchPage) };
+      const touchDetails = { label: "host touch", stage: "startup", reads: observeShellReads(movesTouchPage), readLifecycle: observeShellReadLifecycle(movesTouchPage) };
       await withShellFailureDiagnostics(movesTouchPage, touchDetails, async () => {
         movesTouchPage.on("pageerror", error => errors.push(error.message));
         await movesTouchPage.goto(url);

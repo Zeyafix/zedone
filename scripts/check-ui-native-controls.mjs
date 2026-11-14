@@ -1,10 +1,42 @@
 import assert from "node:assert/strict";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
-import { observeShellReads, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
+import { observeShellReads, observeShellReadLifecycle, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
+
+async function checkReadLifecycle(secret) {
+  const listeners = new Map();
+  const snapshot = observeShellReadLifecycle({ on: (event, listener) => listeners.set(event, listener) });
+  const request = (path, failure = "net::ERR_ABORTED") => ({ url: () => `http://127.0.0.1${path}?ignored=${secret}`, failure: () => ({ errorText: failure }) });
+  const tracked = Array.from({ length: 35 }, () => request("/v1/commands/tag.list"));
+  for (const item of tracked) listeners.get("request")(item);
+  assert.equal(snapshot().length, 30); assert.equal(snapshot()[0].sequence, 6);
+  assert.ok(snapshot().every(item => item.phase === "started" && item.elapsedMs >= 0));
+  let release;
+  const pending = listeners.get("response")({ request: () => tracked[34], status: () => 200, json: () => new Promise(resolve => { release = resolve; }) });
+  assert.equal(snapshot().at(-1).phase, "headers"); assert.equal(snapshot().at(-1).body, "pending");
+  listeners.get("requestfinished")(tracked[34]);
+  release({ status: "error", error: { code: "access_denied" } }); await pending;
+  assert.equal(snapshot().at(-1).phase, "finished"); assert.equal(snapshot().at(-1).body, "valid");
+  await listeners.get("response")({ request: () => tracked[33], status: () => 200, json: async () => ({ credential: secret, status: secret }) });
+  assert.equal(snapshot().at(-2).body, "invalid");
+  await listeners.get("response")({ request: () => tracked[32], status: () => 200, json: async () => { throw new Error(secret); } });
+  listeners.get("requestfailed")(tracked[32]);
+  assert.equal(snapshot().at(-3).body, "unreadable"); assert.equal(snapshot().at(-3).failure, "net::ERR_ABORTED");
+  const session = request("/host/session", secret), ignored = request("/v1/commands/access.issue");
+  listeners.get("request")(session); listeners.get("request")(ignored);
+  let sessionReads = 0;
+  for (const item of [session, ignored]) await listeners.get("response")({ request: () => item, status: () => 200, json: async () => { sessionReads++; return { credential: secret }; } });
+  assert.equal(sessionReads, 0, "never read host credentials or unrelated command bodies");
+  listeners.get("requestfailed")(session);
+  assert.equal(snapshot().at(-1).failure, "failed", "raw transport details cannot leak a URL or secret");
+  assert.equal(snapshot().length, 30); assert.ok(!JSON.stringify(snapshot()).includes(secret));
+  const detached = snapshot(); detached[0].phase = "changed";
+  assert.notEqual(snapshot()[0].phase, "changed");
+}
 
 /** Host-only negative control: failure evidence must belong to the live touch
  * page, survive context disposal and preserve the exact scenario error. */
 export async function checkShellFailureDiagnostics(browser, url, secret) {
+  await checkReadLifecycle(secret);
   const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });
   const report = console.error;
   try {
@@ -39,10 +71,31 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
     assert.ok(!JSON.stringify(lines).includes(secret));
     assert.equal(state.reads.length, 30); assert.equal(state.reads[0].path, "/v1/commands/tag.list");
     assert.equal(state.reads[0].error, "access_denied");
+    // A stalled real browser request must be captured even without a response.
+    const readLifecycle = observeShellReadLifecycle(touch);
+    let stalledRoute, captured;
+    const intercepted = new Promise(resolve => { captured = resolve; });
+    const pattern = "**/v1/commands/tag.list";
+    await touch.route(pattern, route => { stalledRoute = route; captured(); });
+    const fetching = touch.evaluate(() => fetch("/v1/commands/tag.list", { method: "POST" }).then(() => "unexpected response", () => "failed"));
+    await intercepted;
+    try {
+      await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "trash", reads, readLifecycle }, async () => { throw original; }), error => error === original);
+      const pendingState = JSON.parse(lines[1][1]);
+      const pendingRead = pendingState.readLifecycle.find(item => item.path === "/v1/commands/tag.list");
+      assert.equal(pendingRead.phase, "started"); assert.ok(pendingRead.elapsedMs >= 0);
+      assert.equal(pendingRead.http, undefined);
+      assert.ok(!JSON.stringify(pendingState).includes(secret));
+    } finally {
+      const failed = touch.waitForEvent("requestfailed", request => request.url().endsWith("/v1/commands/tag.list"));
+      await stalledRoute.abort(); await failed;
+      assert.equal(await fetching, "failed"); await touch.unroute(pattern);
+    }
+    assert.equal(readLifecycle().find(item => item.path === "/v1/commands/tag.list").phase, "failed");
     console.error = () => { throw new Error("controlled diagnostic failure"); };
-    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => { throw original; }), error => error === original);
+    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads, readLifecycle }, async () => { throw original; }), error => error === original);
     console.error = report;
-    console.log("Diagnostics: failing touch page/stage before disposal, bounded metadata, secret exclusion and original error passed.");
+    console.log("Diagnostics: failing touch page/stage, pending/headers/finished/failed reads, bounded metadata, secret exclusion and original error passed.");
   } finally { console.error = report; await context.close(); }
 }
 

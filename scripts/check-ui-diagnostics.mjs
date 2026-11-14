@@ -1,3 +1,5 @@
+import validateResponse from "../api/validate-response.js";
+
 /** Read-only failure evidence. Never return credentials, input values or stored intentions. */
 export async function shellDiagnosticState(page) {
   if (!page || page.isClosed()) return { unavailable: "no live page" };
@@ -53,6 +55,45 @@ export function observeShellReads(page) {
   return reads;
 }
 
+/** Bounded transport progress, including requests that never produce a JSON
+ * response. Never inspect request bytes/headers or the host session body. */
+export function observeShellReadLifecycle(page) {
+  const entries = [], requests = new WeakMap();
+  let sequence = 0;
+  page.on("request", request => {
+    const path = new URL(request.url()).pathname;
+    if (path !== "/host/session" && !/^\/v1\/commands\/(space\.(list|read)|column\.list|card\.list|tag\.list)$/.test(path)) return;
+    const entry = { sequence: ++sequence, path, phase: "started", start: performance.now() };
+    requests.set(request, entry); entries.push(entry);
+    if (entries.length > 30) entries.shift();
+  });
+  page.on("response", async response => {
+    const entry = requests.get(response.request());
+    if (!entry) return;
+    entry.http = response.status();
+    entry.headersMs = Math.round(performance.now() - entry.start);
+    if (entry.phase === "started") entry.phase = "headers";
+    if (entry.path === "/host/session") return;
+    entry.body = "pending";
+    try {
+      const body = await response.json();
+      entry.body = validateResponse(body, entry.path.slice("/v1/commands/".length)) ? "valid" : "invalid";
+    } catch { entry.body = "unreadable"; }
+  });
+  page.on("requestfinished", request => {
+    const entry = requests.get(request);
+    if (entry) { entry.phase = "finished"; entry.elapsedMs = Math.round(performance.now() - entry.start); }
+  });
+  page.on("requestfailed", request => {
+    const entry = requests.get(request);
+    if (!entry) return;
+    entry.phase = "failed"; entry.elapsedMs = Math.round(performance.now() - entry.start);
+    const reason = request.failure()?.errorText;
+    entry.failure = /^net::ERR_[A-Z_]+$/.test(reason ?? "") ? reason : "failed";
+  });
+  return () => entries.map(({ start, ...entry }) => ({ ...entry, elapsedMs: entry.elapsedMs ?? Math.round(performance.now() - start) }));
+}
+
 /** Capture the failing page before its context is disposed. Diagnostics must
  * never replace the scenario's original error or retry the failed action. */
 export async function withShellFailureDiagnostics(page, details, work) {
@@ -60,7 +101,7 @@ export async function withShellFailureDiagnostics(page, details, work) {
   catch (error) {
     try {
       const state = await shellDiagnosticState(page);
-      console.error("UI failure state:", JSON.stringify({ label: details.label, stage: details.stage, ...state, reads: details.reads }));
+      console.error("UI failure state:", JSON.stringify({ label: details.label, stage: details.stage, ...state, reads: details.reads, readLifecycle: details.readLifecycle?.() }));
     } catch { /* Preserve the original error even if diagnostic output fails. */ }
     throw error;
   }

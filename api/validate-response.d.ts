@@ -1,5 +1,5 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
+export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "invitation.cancel" | "invitation.create" | "invitation.inspect" | "invitation.list" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.issue": components["schemas"]["CommandRequest_IssueAccess"]["parameters"];
@@ -30,6 +30,10 @@ export type Parameters = {
   "column.trash": components["schemas"]["CommandRequest_TrashColumn"]["parameters"];
   "history.clear": components["schemas"]["CommandRequest_ClearHistory"]["parameters"];
   "history.inspect": components["schemas"]["CommandRequest_InspectHistory"]["parameters"];
+  "invitation.cancel": components["schemas"]["CommandRequest_CancelInvitation"]["parameters"];
+  "invitation.create": components["schemas"]["CommandRequest_CreateInvitation"]["parameters"];
+  "invitation.inspect": components["schemas"]["CommandRequest_InspectInvitation"]["parameters"];
+  "invitation.list": components["schemas"]["CommandRequest_ListInvitations"]["parameters"];
   "space.create": components["schemas"]["CommandRequest_CreateSpace"]["parameters"];
   "space.list": components["schemas"]["CommandRequest_ListSpaces"]["parameters"];
   "space.read": components["schemas"]["CommandRequest_ReadSpace"]["parameters"];
@@ -44,6 +48,6 @@ export type Parameters = {
   "trash.inspect": components["schemas"]["CommandRequest_InspectTrash"]["parameters"];
   "trash.purge": components["schemas"]["CommandRequest_PurgeTrash"]["parameters"];
 };
-export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_AccessList"] | components["schemas"]["CommandResponse_CardSnapshot"] | components["schemas"]["CommandResponse_CardHistory"] | components["schemas"]["CommandResponse_CardList"] | components["schemas"]["CommandResponse_SearchResults"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_HistoryPreview"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"] | components["schemas"]["CommandResponse_TagSnapshot"] | components["schemas"]["CommandResponse_TagList"] | components["schemas"]["CommandResponse_TrashPreview"];
+export type Response = components["schemas"]["CommandResponse_AccessSnapshot"] | components["schemas"]["CommandResponse_AccessList"] | components["schemas"]["CommandResponse_CardSnapshot"] | components["schemas"]["CommandResponse_CardHistory"] | components["schemas"]["CommandResponse_CardList"] | components["schemas"]["CommandResponse_SearchResults"] | components["schemas"]["CommandResponse_ColumnSnapshot"] | components["schemas"]["CommandResponse_ColumnList"] | components["schemas"]["CommandResponse_HistoryPreview"] | components["schemas"]["CommandResponse_InvitationSnapshot"] | components["schemas"]["CommandResponse_InvitationList"] | components["schemas"]["CommandResponse_SpaceSnapshot"] | components["schemas"]["CommandResponse_SpaceList"] | components["schemas"]["CommandResponse_TagSnapshot"] | components["schemas"]["CommandResponse_TagList"] | components["schemas"]["CommandResponse_TrashPreview"];
 export const operations: readonly Operation[];
 export default function validate(value: unknown, operation?: Operation): value is Response;

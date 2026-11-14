@@ -1,7 +1,9 @@
 //! Transport framing only. All commands use the same Rust decoder, fixed core
 //! handlers and timed storage transaction. No callback or authority from JSON.
+pub mod channel;
 pub mod http;
 pub mod ipc;
+pub mod secrets;
 
 use serde_json::Value;
 use zedone_core::{

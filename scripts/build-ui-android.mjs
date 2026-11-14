@@ -16,14 +16,20 @@ assert.equal(cli.stdout.toString().trim(), `tauri-cli ${versions.android.tauri_c
 const java = Bun.spawnSync([resolve(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java"), "-version"]);
 assert.equal(java.exitCode, 0);
 assert.ok(java.stderr.toString().includes(`"${versions.android.jdk}"`));
-function run(args) {
-  const result = Bun.spawnSync(args, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
+function run(args, cwd = root) {
+  const result = Bun.spawnSync(args, { cwd, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
   assert.equal(result.exitCode, 0, args.join(" "));
 }
 run(["cargo", `+${versions.rust}`, "metadata", "--manifest-path", "src-tauri/Cargo.toml", "--locked", "--offline", "--no-deps", "--format-version", "1"]);
 run(["cargo", `+${versions.rust}`, "tauri", "android", "build", ...(release ? [] : ["--debug"]), "--features", "android-shell", "--target", target, "--split-per-abi", "--apk", "--ci"]);
 const arch = target === "aarch64" ? "arm64" : "x86_64";
 const profile = release ? "release" : "debug";
+if (!release) {
+  const gradleRoot = resolve(root, "src-tauri/gen/android");
+  const gradle = resolve(gradleRoot, process.platform === "win32" ? "gradlew.bat" : "gradlew");
+  const variant = target === "aarch64" ? "Arm64Debug" : "X86_64Debug";
+  run([gradle, `:app:assemble${variant}AndroidTest`, "-x", `:app:rustBuild${variant}`], gradleRoot);
+}
 const apk = resolve(root, `src-tauri/gen/android/app/build/outputs/apk/${arch}/${profile}/app-${arch}-${profile}${release ? "-unsigned" : ""}.apk`);
 const aapt = resolve(process.env.ANDROID_HOME, `build-tools/37.0.0/aapt${process.platform === "win32" ? ".exe" : ""}`);
 const manifest = Bun.spawnSync([aapt, "dump", "xmltree", apk, "AndroidManifest.xml"]);

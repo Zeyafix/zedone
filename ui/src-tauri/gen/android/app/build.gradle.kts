@@ -22,6 +22,7 @@ android {
         // The WebView CSP still limits connections to the local IPC bridge.
         manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "app.zedone.local"
+        testInstrumentationRunner = "app.zedone.local.SecretStoreInstrumentation"
         minSdk = 24
         targetSdk = 37
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

@@ -1,5 +1,39 @@
 # Разработка продуктового Rust-ядра
 
+P06.01.2.2: [ADR-0055](../architecture/decisions/0055-protected-device-channel.md),
+[EV-098](../agent/verification/EV-098-protected-device-channel.md).
+`adapters::channel` предоставляет TLS 1.3/ring, фиксированное имя zedone.invalid,
+обязательный заранее доверенный SHA-256 pin и обычные проверки webpki/подписи.
+`create_identity` явно создаёт и сохраняет идентичность, `load_identity` только
+читает; отсутствие и ошибка чтения различаются. `secrets::SecretStore` не имеет
+незащищённого fallback: Windows — Credential Manager/Local, Android — закрытый
+Rust host plugin и AES-256-GCM/Android Keystore/noBackupFilesDir/AtomicFile.
+Создание не заменяет имеющуюся запись, удаление явно; блокировки сериализуют
+операции одного namespace. Namespace установки и каталог блокировки принадлежат
+host, не JSON/пространству; будущая композиция должна сохранять namespace вне
+экспорта пространства и использовать один каталог блокировок на установку.
+Канал не запускает listener и не выдаёт прав. Нет новых JSON-команд или схемы.
+Прежний pre-provisioned local-session.json остаётся стендом оболочки; перенос
+локальной сессии и прочих секретов относится к дальнейшей host-композиции.
+
+Обычные channel tests входят в прежний library target. Игнорируемый
+`channel::tests::cross_platform_probe` явно вызывается в `--android-native`
+после стандартных targets: host и native Android, adb reverse только для
+тестового TCP, wrong pin → отказ, сохранённая host identity → двусторонний TLS.
+Windows host использует настоящий Credential Manager, Linux — синтетический
+store; Android Keystore отдельно проверяется instrumentation. Debug APK обеих
+ABI собирают native test APK без новой зависимости JUnit. `check-host-secrets-android`
+запускает изолированный случайный namespace/проверяет очистку и удаляет только
+свой test APK; CI shell вызывает его до прежней UI-матрицы. Локально сначала
+Device; UI этим скриптом не управляется. Таймауты прежних UI/CI не меняются.
+
+Новые закреплённые зависимости: rustls 0.23.46, tokio-rustls 0.26.6, rcgen
+0.14.10, zeroize 1.8.1; Windows — keyring-core 1.0.1 и
+windows-native-keyring-store 1.1.0. Core/storage не получают платформенных
+зависимостей или исключений unsafe. Секрет не реализует Debug/Serialize;
+память ключа принадлежит zeroizing buffer, копии внутри TLS/OS bridge принадлежат
+соответствующим библиотекам и процессу приложения.
+
 P06.01.2.1: [ADR-0054](../architecture/decisions/0054-persistent-pairing-invitations.md),
 [EV-095](../agent/verification/EV-095-pairing-invitations.md). `core::invitations`
 фиксирует ManageDevices для create/inspect/cancel/list; Service использует

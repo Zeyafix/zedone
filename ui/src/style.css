@@ -175,6 +175,17 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .tag-chips li { max-width: 100%; padding: 3px 9px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; background: var(--selected); overflow-wrap: anywhere; white-space: pre-wrap; }
 .card-tags { margin: 24px 0; padding-block: 12px; border-block: 1px solid var(--border); }
 .card-tags h3 { margin: 0; font-size: 16px; }
+.card-history { margin: 24px 0; min-width: 0; }
+.card-history > .view-actions { margin: 20px 0; }
+.history-list { list-style: none; margin: 20px 0; padding: 0; }
+.history-list > li { border-top: 1px solid var(--border); }
+.history-list button { width: 100%; display: grid; gap: 6px; text-align: left; padding: 14px 10px; border: 0; border-radius: 0; background: transparent; overflow-wrap: anywhere; }
+.history-list button[aria-pressed="true"] { background: var(--selected); box-shadow: inset 3px 0 var(--accent); }
+.history-list button span { color: var(--muted); font-size: 14px; }
+.history-preview { margin-top: 24px; padding-top: 20px; border-top: 2px solid var(--accent); overflow-wrap: anywhere; }
+.history-preview h4 { font-size: 18px; }
+.history-preview dt { color: var(--muted); margin-top: 18px; }
+.history-preview dd { margin: 8px 0 20px; white-space: pre-wrap; line-height: 1.6; }
 @media (max-width: 700px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail, .desktop-context { display: none; }

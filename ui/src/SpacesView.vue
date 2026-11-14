@@ -35,6 +35,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "card.move": "Переместить карточку", "column.move": "Переместить колонку",
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
   "trash.purge": "Очистить окончательно",
+  "card.restore_text": "Восстановить версию карточки",
 };
 const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];
 const selected = ref(routeSpace());

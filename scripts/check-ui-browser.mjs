@@ -12,6 +12,7 @@ import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { checkTags } from "./check-ui-tags.mjs";
 import { checkSearch } from "./check-ui-search.mjs";
 import { checkTrash } from "./check-ui-trash.mjs";
+import { checkHistory } from "./check-ui-history.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 import { shellDiagnosticState } from "./check-ui-diagnostics.mjs";
@@ -89,6 +90,7 @@ try {
     await checkTags(page);
     await checkSearch(page);
     await checkTrash(page);
+    await checkHistory(page);
     const movesTouchContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark", hasTouch: true, isMobile: true });
     try {
       const movesTouchPage = await movesTouchContext.newPage();
@@ -100,6 +102,7 @@ try {
       await checkTags(movesTouchPage, { tap, fill });
       await checkSearch(movesTouchPage, { tap, fill });
       await checkTrash(movesTouchPage, { tap });
+      await checkHistory(movesTouchPage, { tap, fill });
     } finally { await movesTouchContext.close(); }
     // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);

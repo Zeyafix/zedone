@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import MarkdownView from "./markdown/MarkdownView";
 import TagNames from "./TagNames.vue";
+import CardHistory from "./CardHistory.vue";
 import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending, type Tag } from "./workspace-api";
@@ -16,6 +17,8 @@ const draft = ref<EditorDraft>();
 const comparison = ref<Card>();
 const editing = ref(false), busy = ref(false), blocked = ref(false), storageError = ref(false);
 const closing = ref(false);
+const historyOpen = ref(false), historyOpening = ref(false), historyGeneration = ref(0);
+const historyButton = ref<HTMLButtonElement>();
 const warning = ref(false), forgetWarning = ref(false), discardWarning = ref(false);
 const error = ref("");
 const pending = ref<Pending>();
@@ -110,10 +113,11 @@ async function confirmDelivery(id: string) {
     return false;
   }
   snapshot.value = fresh;
+  if (saved.intention.operation === "card.restore_text") historyGeneration.value++;
   error.value = ""; blocked.value = false;
   return !storageError.value;
 }
-async function mutate<O extends EditorMutation | "card.set_tag">(operation: O, parameters: Parameters[O]) {
+async function mutate<O extends EditorMutation | "card.set_tag" | "card.restore_text">(operation: O, parameters: Parameters[O]) {
   if (draft.value && !persist()) return false;
   const id = await createMutation(operation, parameters, draft.value?.subject ?? subject);
   if (operation === "card.begin_editing") begunHere.add(id);
@@ -220,6 +224,37 @@ async function refreshTags() {
     emit("changed");
   });
 }
+async function openHistory() {
+  if (historyOpening.value || closing.value || !props.ready || pending.value && !busy.value) return;
+  historyOpening.value = true;
+  try {
+    // Finish the same autosave series as a normal editor close. Invalid or
+    // uncertain drafts keep their existing guard and never disappear into history.
+    if (!await requestClose()) return;
+    editing.value = false;
+    await task(async () => {
+      await discoverPending();
+      if (pending.value) { blocked.value = true; return; }
+      const credential = await mutationCredential();
+      const fresh = await read("card.read", { space: snapshot.value.space, card: snapshot.value.card });
+      subject = credential.subject; snapshot.value = fresh;
+      blocked.value = false; error.value = ""; comparison.value = undefined;
+      historyGeneration.value++; historyOpen.value = true;
+    });
+  } finally { historyOpening.value = false; }
+}
+async function closeHistory() {
+  if (busy.value) return;
+  historyOpen.value = false;
+  await nextTick(); historyButton.value?.focus();
+}
+async function restoreText(id: string) {
+  if (!historyOpen.value || busy.value || !mutable.value || !props.ready || pending.value || blocked.value) return;
+  await task(async () => {
+    const value = snapshot.value;
+    await mutate("card.restore_text", { space: value.space, card: value.card, text_version: id, expected: value.version });
+  });
+}
 async function requestClose() {
   if (closing.value) return false;
   closing.value = true; clearTimers();
@@ -286,7 +321,8 @@ defineExpose({ requestClose });
 
 <template>
   <div class="card-editor">
-    <div v-if="!editing" class="card-content">
+    <CardHistory v-if="historyOpen" :key="historyGeneration" :card="snapshot" :ready="ready" :disabled="busy || !!pending" :mutable="mutable && !blocked" @restore="restoreText" @refresh="openHistory" @close="closeHistory" />
+    <div v-else-if="!editing" class="card-content">
       <h3 v-for="text in snapshot.titles" :key="text">{{ text }}</h3>
       <template v-for="text in snapshot.descriptions" :key="text">
         <MarkdownView v-if="text" :source="text" label="Описание карточки" />
@@ -300,7 +336,7 @@ defineExpose({ requestClose });
     </template>
     <p v-if="status" :role="!busy && (error || storageError || pending) ? 'alert' : 'status'" :class="{ 'action-error': !busy && (error || storageError || pending) }">{{ status }}</p>
     <p v-if="!ready" role="status">Доступ не подтверждён. Ввод остаётся в редакторе; сохранение приостановлено.</p>
-    <section class="card-tags" aria-label="Теги карточки">
+    <section v-if="!historyOpen" class="card-tags" aria-label="Теги карточки">
       <h3>Теги</h3>
       <TagNames :ids="snapshot.tags" :tags="tagNames" />
       <p v-if="editing" class="object-note">Для изменения тегов завершите редактирование текста и откройте карточку снова.</p>
@@ -317,11 +353,12 @@ defineExpose({ requestClose });
       </template>
     </section>
     <div class="view-actions">
-      <button v-if="!editing && mutable" data-editor-edit :disabled="busy || !ready" @click="start">Редактировать</button>
+      <button v-if="!historyOpen && !editing && mutable" data-editor-edit :disabled="busy || historyOpening || !ready" @click="start">Редактировать</button>
+      <button v-if="!historyOpen" ref="historyButton" data-history-open :disabled="historyOpening || closing || !ready || !!pending && !busy || storageError" @click="openHistory">История версий</button>
       <button v-if="editing" :disabled="busy || !ready || !validTitle || blocked || !!pending" @click="flush">Сохранить сейчас</button>
-      <button v-if="mutable" :aria-pressed="!!snapshot.completed[0]" :disabled="busy || !ready || dirty || blocked || !!pending" @click="toggleCompleted">{{ snapshot.completed[0] ? 'Снять отметку выполнения' : 'Отметить выполненной' }}</button>
-      <button v-if="pending" :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
-      <button v-if="pending" :disabled="busy" @click="forgetWarning = true">Убрать исходное действие</button>
+      <button v-if="!historyOpen && mutable" :aria-pressed="!!snapshot.completed[0]" :disabled="busy || !ready || dirty || blocked || !!pending" @click="toggleCompleted">{{ snapshot.completed[0] ? 'Снять отметку выполнения' : 'Отметить выполненной' }}</button>
+      <button v-if="pending" data-editor-retry :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
+      <button v-if="pending" data-editor-forget :disabled="busy" @click="forgetWarning = true">Убрать исходное действие</button>
       <button v-if="blocked" :disabled="busy || !ready" @click="inspectCurrent">Сверить с сохранённым</button>
       <button v-if="storageError" :disabled="busy" @click="persist(); schedule()">Повторить запись черновика</button>
     </div>
@@ -332,7 +369,7 @@ defineExpose({ requestClose });
     </section>
     <section v-if="forgetWarning" class="comparison-panel" role="alert">
       <p>Убирается только запись о проверке. Уже принятое изменение не отменяется. Новый ввод останется черновиком; перед новым действием сверьте сохранённую карточку.</p>
-      <button :disabled="busy" @click="forget">Подтвердить удаление записи</button><button @click="forgetWarning = false">Оставить запись</button>
+      <button data-editor-forget-confirm :disabled="busy" @click="forget">Подтвердить удаление записи</button><button @click="forgetWarning = false">Оставить запись</button>
     </section>
     <section v-if="warning" class="comparison-panel" role="alert">
       <h3>Редактирование ещё не завершено</h3><p>Не все действия подтверждены. Последняя сохранённая запись остаётся. Можно вернуться к редактированию или закрыть его с черновиком на этом устройстве.</p>

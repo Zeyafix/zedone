@@ -521,3 +521,25 @@ test("cleanup intentions retain the confirmed scope and condition across restart
   expect(JSON.parse((await store.load(id))!.body).parameters.column).toBe(column);
   expect(validateResponse({status:"ok",replayed:false,result:trash},"history.clear")).toBe(false);
 });
+
+
+test("pairing decisions retain explicit authority and original intention across lost replies", async () => {
+  const {store,values}=fixture();
+  const request="3".repeat(32);
+  const p={request,expected:Array(32).fill(1),scope:{kind:"spaces" as const,spaces:{["4".repeat(32)]:"read" as const}},expires_at_unix_ms:null};
+  const id=await prepare("2".repeat(32),"pairing.confirm",p,store);
+  const original=(await store.load(id))!.body;
+  const result={request,invitation:"5".repeat(32),label:"Phone",created_at_unix_ms:100,status:"confirmed" as const,subject:request,version:Array(32).fill(2)};
+  const response:Response={status:"ok",replayed:true,result};
+  expect(validateResponse(response,"pairing.confirm")).toBe(true);
+  expect(validateResponse({...response,result:{...result,status:"rejected",subject:null}},"pairing.reject")).toBe(true);
+  expect(validateResponse({...response,result:{...result,status:"unlinked"}},"pairing.unlink")).toBe(true);
+  expect(validateResponse({...response,result:{...result,verifier:Array(32).fill(3)}},"pairing.confirm")).toBe(false);
+  expect(validateResponse({...response,result:{...result,status:"automatic"}},"pairing.inspect")).toBe(false);
+  expect(validateResponse(response,"access.issue")).toBe(false);
+  const sent:string[]=[];
+  const client=new CommandClient(store,ipcTransport(async(_,args)=>{sent.push((args.invocation as {request:string}).request);if(sent.length===1)throw new Error("lost reply");return JSON.stringify(response);},async()=>({subject:"2".repeat(32),key:"approved"})));
+  expect((await client.deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([original,original]);
+  expect([...values.values()].join("")).not.toContain("approved");
+});

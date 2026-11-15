@@ -406,3 +406,134 @@ async fn cross_platform_probe() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn tls_confirmation_enforces_scopes_own_unlink_and_fresh_reconnection() {
+    let (_dir, db, admin, identity) = setup().await;
+    let service = Service::new(db.clone());
+    let space = format!("{:032x}", 90);
+    let created = command(
+        &service,
+        &admin,
+        20,
+        "space.create",
+        json!({"space":space,"name":"Preserved"}),
+    )
+    .await;
+    assert_eq!(created["status"], "ok", "{created}");
+    let store = MemoryStore::default();
+    let mut old_key: Option<String> = None;
+    for round in 0..2u8 {
+        let offered = Offer::new(
+            format!("{:032x}", round + 1),
+            identity.fingerprint(),
+            &[0x11 + round; 32],
+        )
+        .unwrap();
+        let invite = command(
+            &service,
+            &admin,
+            21 + round,
+            "invitation.create",
+            json!({"invitation":offered.invitation,"verifier":offered.verifier().0.to_vec()}),
+        )
+        .await;
+        assert_eq!(invite["status"], "ok");
+        let session = PendingSession::create(&store, offered, "Phone".into())
+            .await
+            .unwrap();
+        let host = PairingHost::new(db.clone());
+        let (client, server) = sockets().await;
+        let (reply, served) = tokio::join!(session.submit(client), host.serve(&identity, server));
+        served.unwrap();
+        let pending = success(reply.unwrap()).result;
+        let bytes=serde_json::to_vec(&json!({"id":vec![30+round;16],"operation":"pairing.confirm","parameters":{
+            "request":pending.request,"expected":pending.version,"scope":{"kind":"spaces","spaces":{space.clone():"read"}},"expires_at_unix_ms":null
+        }})).unwrap();
+        let access_key = hex(session.credential().0);
+        let denied = service
+            .dispatch("pairing.confirm", &bytes, &access_key)
+            .await;
+        assert!(
+            matches!(denied,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+        );
+        let denied = service
+            .dispatch(
+                "pairing.confirm",
+                &bytes,
+                &hex(&store.load(Slot::PendingPairing).await.unwrap().unwrap()[171..203]),
+            )
+            .await;
+        assert!(
+            matches!(denied,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+        );
+        // The TLS-only router cannot accept a confirmation, even with the
+        // pending bearer and a well-formed administrative command.
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            format!(
+                "Pending {}",
+                hex(&store.load(Slot::PendingPairing).await.unwrap().unwrap()[171..203])
+            )
+            .parse()
+            .unwrap(),
+        );
+        headers.insert("content-type", "application/json".parse().unwrap());
+        assert!(
+            matches!(host.dispatch("confirm",headers,Ok(Bytes::from(bytes.clone()))).await,CommandResponse::Error(e) if e.error.code==ErrorCode::InvalidRequest)
+        );
+        let approved = service
+            .dispatch("pairing.confirm", &bytes, &hex(admin.credential().0))
+            .await;
+        assert!(matches!(approved, CommandResponse::Ok(_)), "{approved:?}");
+        let (client, server) = sockets().await;
+        let (reply, served) = tokio::join!(
+            session.inspect(client, [31; 16]),
+            host.serve(&identity, server)
+        );
+        served.unwrap();
+        let linked = success(reply.unwrap()).result;
+        assert_eq!(linked.status, PairingStatus::Confirmed);
+        let read = serde_json::to_vec(
+            &json!({"id":vec![32;16],"operation":"space.read","parameters":{"space":space}}),
+        )
+        .unwrap();
+        assert!(matches!(
+            service.dispatch("space.read", &read, &access_key).await,
+            CommandResponse::Ok(_)
+        ));
+        if let Some(key) = &old_key {
+            assert!(
+                matches!(service.dispatch("space.read",&read,key).await,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+            );
+        }
+        let write=serde_json::to_vec(&json!({"id":vec![33;16],"operation":"space.rename","parameters":{"space":space,"name":"Unauthorized","expected":created["result"]["version"]}})).unwrap();
+        assert!(
+            matches!(service.dispatch("space.rename",&write,&access_key).await,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+        );
+        let (client, server) = sockets().await;
+        let (reply, served) = tokio::join!(
+            session.unlink(client, [34; 16], linked.version),
+            host.serve(&identity, server)
+        );
+        served.unwrap();
+        let unlinked = success(reply.unwrap());
+        assert_eq!(unlinked.result.status, PairingStatus::Unlinked);
+        let (client, server) = sockets().await;
+        let (reply, served) = tokio::join!(
+            session.unlink(client, [34; 16], linked.version),
+            host.serve(&identity, server)
+        );
+        served.unwrap();
+        assert!(success(reply.unwrap()).replayed);
+        assert!(
+            matches!(service.dispatch("space.read",&read,&access_key).await,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+        );
+        old_key = Some(access_key);
+        store.remove(Slot::PendingPairing).await.unwrap();
+    }
+    let read = command(&service, &admin, 40, "space.read", json!({"space":space})).await;
+    assert_eq!(read["result"]["names"], json!(["Preserved"]));
+    db.shutdown().await.unwrap();
+}

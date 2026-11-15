@@ -28,7 +28,7 @@ use utoipa::OpenApi;
     paths(access_commands::inspect, access_commands::revoke,
         access_commands::issue, access_commands::replace, access_commands::list,
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
-        pairing::inspect, pairing::cancel, pairing::list,
+        pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,

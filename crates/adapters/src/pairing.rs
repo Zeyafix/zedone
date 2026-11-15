@@ -26,6 +26,7 @@ use zedone_core::{
     invitations::InvitationVerifier,
     pairing::{
         self, CancelPairing, InspectPairing, PairingSnapshot, PendingVerifier, RequestPairing,
+        UnlinkPairing,
     },
     replay::StateVersion,
     wire::{CommandRequest, CommandResponse, decode_request},
@@ -82,6 +83,7 @@ impl PairingHost {
             .route("/v1/pairing/request", post(submit))
             .route("/v1/pairing/inspect", post(inspect))
             .route("/v1/pairing/cancel", post(cancel))
+            .route("/v1/pairing/unlink", post(unlink))
             .layer(DefaultBodyLimit::max(MAX_PAIRING_BYTES))
             .with_state(self.clone());
         tokio::time::timeout(
@@ -171,6 +173,13 @@ impl PairingHost {
                         .await
                         .map_err(CommandError::from)
                 }
+                "unlink" => {
+                    let r = decode_request::<UnlinkPairing>(&body)?;
+                    self.storage
+                        .timed_transact(move |tx, _| Ok(pairing::peer_unlink(tx, &r, pending)?))
+                        .await
+                        .map_err(CommandError::from)
+                }
                 _ => Err(CommandError {
                     code: ErrorCode::InvalidRequest,
                 }),
@@ -202,6 +211,9 @@ async fn inspect(State(host): State<PairingHost>, h: HeaderMap, b: Body) -> Repl
 }
 async fn cancel(State(host): State<PairingHost>, h: HeaderMap, b: Body) -> Reply {
     reply(host.dispatch("cancel", h, b).await)
+}
+async fn unlink(State(host): State<PairingHost>, h: HeaderMap, b: Body) -> Reply {
+    reply(host.dispatch("unlink", h, b).await)
 }
 
 async fn exchange<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(

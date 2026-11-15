@@ -135,7 +135,7 @@ Windows/Android; есть проба 1000 карточек, не заменяю�
 seed часов и общий validator прав/часов. При изменении этой схемы обновлять
 текущие тесты и эталон, не добавляя промежуточных продуктовых переходов.
 `crates/storage/tests/fixtures/schema-v1.sqlite` — синтетический эталон текущей
-стартовой схемы, SHA-256 `3dd3843970722881ad6a817d8bbdff6a243e8774db646e717a0df6edab7b7481`.
+стартовой схемы, SHA-256 `88f4cacc1ef5fa65e78a022a1737264921e480d3ffa27978807a822685acc947`.
 В P04.08 добавлена пустая card_editing, в P06.01.2.1 — pairing_invitations;
 исходные документы/actor/receipts сохранены. P06.01.2.3 добавляет pairing_requests
 и сохраняемый счётчик неудачных попыток приглашения; эталон обновлён без изменения
@@ -632,3 +632,19 @@ Recovery обрабатывает графы по одному простран�
 HTTP/IPC/реальный CLI, клиент сохраняет исходные session/пару/version при повторе.
 Общий shell test проверяет подключение recovery к новому host; матрица и
 ограничения — [EV-073](../agent/verification/EV-073-card-history.md).
+
+
+P06.01.2.4 добавляет decision/subject FK в pairing_requests и общий semantic
+validator связи исходного verifier с access principal. Права выдаются прежним
+AccessStore внутри confirm; rollback охватывает grant/решение/receipt.
+Snapshot.version включает текущий grant и активность исходного ключа, поэтому
+обычные access.revoke/replace не оставляют действующей старую связь. Обновлён
+только пустой pairing_requests синтетического эталона; прежние данные сохранены.
+
+Тесты: storage pairing::tests (решения/replay/restart/SQL/commit/гонки/коллизии),
+adapters pairing::tests (реальный TLS, отсутствие самоподтверждения, read-only,
+отвязка и новая выдача), commands::pairing (единые HTTP/IPC/CLI и права).
+Общий check-product проверяет тот же состав на Windows/native Android и обе
+release ABI. Host API session.credential() заимствует ключ OS pending slot;
+удалять slot после confirm нельзя. UI/полный Kotlin bridge/внешний listener
+и обмен не входят; [EV-100](../agent/verification/EV-100-pairing-confirmation.md).

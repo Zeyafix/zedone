@@ -1,11 +1,11 @@
-//! A pending credential authorizes only its own inspection/cancellation.
+//! A pending credential authorizes only its own inspection/cancellation/unlink.
 //! It is never resolved as a normal access principal or an administrator.
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
     access::{Clock, Credential, RequiredAccess},
-    access_commands::KeyVerifier,
+    access_commands::{self, AccessScope, AccessStore, KeyVerifier},
     command::{Command, CommandResult},
     error::{CommandError, ErrorCode},
     invitations::{InvitationStore, InvitationVerifier, now_ms, valid_id},
@@ -53,6 +53,40 @@ impl Command for CancelPairing {
 }
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ConfirmPairing {
+    pub request: String,
+    pub expected: StateVersion,
+    /// Explicit scopes only; administration never implies space access.
+    pub scope: AccessScope,
+    #[schema(minimum = 0, maximum = 253402300799999_i64)]
+    pub expires_at_unix_ms: Option<i64>,
+}
+impl Command for ConfirmPairing {
+    const NAME: &'static str = "pairing.confirm";
+    type Output = PairingSnapshot;
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RejectPairing {
+    pub request: String,
+    pub expected: StateVersion,
+}
+impl Command for RejectPairing {
+    const NAME: &'static str = "pairing.reject";
+    type Output = PairingSnapshot;
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UnlinkPairing {
+    pub request: String,
+    pub expected: StateVersion,
+}
+impl Command for UnlinkPairing {
+    const NAME: &'static str = "pairing.unlink";
+    type Output = PairingSnapshot;
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListPairings {
     pub after: Option<String>,
 }
@@ -72,6 +106,9 @@ pub struct PairingList {
 pub enum PairingStatus {
     Pending,
     Cancelled,
+    Rejected,
+    Confirmed,
+    Unlinked,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -82,13 +119,16 @@ pub struct PairingSnapshot {
     #[schema(minimum = 0, maximum = 253402300799999_i64)]
     pub created_at_unix_ms: i64,
     pub status: PairingStatus,
+    /// Ordinary access subject for a decided connection, never a secret.
+    pub subject: Option<String>,
     pub version: StateVersion,
 }
 pub struct PairingRecord {
     pub snapshot: PairingSnapshot,
     pub verifier: PendingVerifier,
+    pub access_verifier: KeyVerifier,
 }
-pub trait PairingStore: InvitationStore {
+pub trait PairingStore: InvitationStore + AccessStore {
     fn pairing(&mut self, id: &str) -> CommandResult<Option<PairingRecord>>;
     fn insert_pairing(
         &mut self,
@@ -98,6 +138,7 @@ pub trait PairingStore: InvitationStore {
     ) -> CommandResult<()>;
     fn fail_invitation(&mut self, id: &str) -> CommandResult<()>;
     fn cancel_pairing(&mut self, id: &str) -> CommandResult<()>;
+    fn decide_pairing(&mut self, id: &str, confirmed: bool) -> CommandResult<()>;
     fn pairings(&mut self, after: Option<&str>) -> CommandResult<Vec<PairingSnapshot>>;
     /// Compare secrets in constant time in the crypto-capable persistence layer.
     fn verifier_matches(&self, left: &[u8; 32], right: &[u8; 32]) -> bool;
@@ -223,6 +264,17 @@ pub fn peer_cancel(
         cancel_current(tx, &r.parameters)
     })
 }
+pub fn peer_unlink(
+    tx: &mut impl PairingStore,
+    r: &CommandRequest<UnlinkPairing>,
+    pending: PendingVerifier,
+) -> CommandResult<Execution<PairingSnapshot>> {
+    validate(&r.parameters.request, r)?;
+    authenticate(tx, &r.parameters.request, pending)?;
+    peer_replay(tx, r, &r.parameters.request, |tx| {
+        unlink_current(tx, &r.parameters)
+    })
+}
 fn authenticate(
     tx: &mut impl PairingStore,
     id: &str,
@@ -237,8 +289,101 @@ fn authenticate(
 fn cancel_current(tx: &mut impl PairingStore, p: &CancelPairing) -> CommandResult<PairingSnapshot> {
     let before = load(tx, &p.request)?.snapshot;
     replay::require_current(p.expected, before.version)?;
+    if before.status != PairingStatus::Pending {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
     tx.cancel_pairing(&p.request)?;
     Ok(load(tx, &p.request)?.snapshot)
+}
+
+#[utoipa::path(post, path = "/v1/commands/pairing.confirm", operation_id = "pairing_confirm", request_body = CommandRequest<ConfirmPairing>, responses((status = 200, body = CommandResponse<PairingSnapshot>)), security(("access_key" = [])))]
+pub fn confirm(
+    tx: &mut impl PairingStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    r: &CommandRequest<ConfirmPairing>,
+) -> CommandResult<Execution<PairingSnapshot>> {
+    let p = &r.parameters;
+    validate(&p.request, r)?;
+    replay::execute_as(
+        tx,
+        credential,
+        clock,
+        &[RequiredAccess::ManageDevices, RequiredAccess::ManageAccess],
+        r.id,
+        p,
+        |tx, administrator| {
+            let before = load(tx, &p.request)?;
+            replay::require_current(p.expected, before.snapshot.version)?;
+            if before.snapshot.status != PairingStatus::Pending || administrator == p.request {
+                return Err(error(ErrorCode::InvalidRequest));
+            }
+            access_commands::validate_issue(&p.scope, before.access_verifier)?;
+            let expires = access_commands::future_expiry(clock, p.expires_at_unix_ms)?;
+            clock.check_expiry(expires)?;
+            // Never replace an existing principal, including a revoked one.
+            tx.issue_subject(&p.request, before.access_verifier, &p.scope, expires)?;
+            tx.decide_pairing(&p.request, true)?;
+            Ok(load(tx, &p.request)?.snapshot)
+        },
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/pairing.reject", operation_id = "pairing_reject", request_body = CommandRequest<RejectPairing>, responses((status = 200, body = CommandResponse<PairingSnapshot>)), security(("access_key" = [])))]
+pub fn reject(
+    tx: &mut impl PairingStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    r: &CommandRequest<RejectPairing>,
+) -> CommandResult<Execution<PairingSnapshot>> {
+    let p = &r.parameters;
+    validate(&p.request, r)?;
+    replay::execute(
+        tx,
+        credential,
+        clock,
+        &[RequiredAccess::ManageDevices],
+        r.id,
+        p,
+        |tx| {
+            let before = load(tx, &p.request)?.snapshot;
+            replay::require_current(p.expected, before.version)?;
+            if before.status != PairingStatus::Pending {
+                return Err(error(ErrorCode::InvalidRequest));
+            }
+            tx.decide_pairing(&p.request, false)?;
+            Ok(load(tx, &p.request)?.snapshot)
+        },
+    )
+}
+
+fn unlink_current(tx: &mut impl PairingStore, p: &UnlinkPairing) -> CommandResult<PairingSnapshot> {
+    let before = load(tx, &p.request)?.snapshot;
+    replay::require_current(p.expected, before.version)?;
+    if before.status != PairingStatus::Confirmed {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
+    tx.revoke_subject(&p.request)?;
+    Ok(load(tx, &p.request)?.snapshot)
+}
+
+#[utoipa::path(post, path = "/v1/commands/pairing.unlink", operation_id = "pairing_unlink", request_body = CommandRequest<UnlinkPairing>, responses((status = 200, body = CommandResponse<PairingSnapshot>)), security(("access_key" = [])))]
+pub fn unlink(
+    tx: &mut impl PairingStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    r: &CommandRequest<UnlinkPairing>,
+) -> CommandResult<Execution<PairingSnapshot>> {
+    validate(&r.parameters.request, r)?;
+    replay::execute(
+        tx,
+        credential,
+        clock,
+        &[RequiredAccess::ManageDevices, RequiredAccess::ManageAccess],
+        r.id,
+        &r.parameters,
+        |tx| unlink_current(tx, &r.parameters),
+    )
 }
 
 #[utoipa::path(post, path = "/v1/commands/pairing.inspect", operation_id = "pairing_inspect", request_body = CommandRequest<InspectPairing>, responses((status = 200, body = CommandResponse<PairingSnapshot>)), security(("access_key" = [])))]

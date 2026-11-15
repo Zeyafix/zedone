@@ -1166,6 +1166,40 @@
         ]
       }
     },
+    "/v1/commands/pairing.confirm": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_confirm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ConfirmPairing"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/pairing.inspect": {
       "post": {
         "tags": [
@@ -1222,6 +1256,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CommandResponse_PairingList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/pairing.reject": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_reject",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RejectPairing"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/pairing.unlink": {
+      "post": {
+        "tags": [
+          "pairing"
+        ],
+        "operationId": "pairing_unlink",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_UnlinkPairing"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_PairingSnapshot"
                 }
               }
             }
@@ -2412,6 +2514,61 @@
               },
               "space": {
                 "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ConfirmPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request",
+              "expected",
+              "scope"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "expires_at_unix_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "maximum": 253402300799999,
+                "minimum": 0
+              },
+              "request": {
+                "type": "string"
+              },
+              "scope": {
+                "$ref": "#/components/schemas/AccessScope",
+                "description": "Explicit scopes only; administration never implies space access."
               }
             },
             "additionalProperties": false
@@ -3688,6 +3845,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_RejectPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "request": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RenameColumn": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -4449,6 +4647,47 @@
                 "$ref": "#/components/schemas/StateVersion"
               },
               "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_UnlinkPairing": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "request",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "request": {
                 "type": "string"
               }
             },
@@ -5299,6 +5538,13 @@
               "status": {
                 "$ref": "#/components/schemas/PairingStatus"
               },
+              "subject": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Ordinary access subject for a decided connection, never a secret."
+              },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
               }
@@ -5601,6 +5847,36 @@
           "result": {},
           "status": {
             "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmPairing": {
+        "type": "object",
+        "required": [
+          "request",
+          "expected",
+          "scope"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "expires_at_unix_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "maximum": 253402300799999,
+            "minimum": 0
+          },
+          "request": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AccessScope",
+            "description": "Explicit scopes only; administration never implies space access."
           }
         },
         "additionalProperties": false
@@ -6269,6 +6545,13 @@
           "status": {
             "$ref": "#/components/schemas/PairingStatus"
           },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ordinary access subject for a decided connection, never a secret."
+          },
           "version": {
             "$ref": "#/components/schemas/StateVersion"
           }
@@ -6279,7 +6562,10 @@
         "type": "string",
         "enum": [
           "pending",
-          "cancelled"
+          "cancelled",
+          "rejected",
+          "confirmed",
+          "unlinked"
         ]
       },
       "PurgeTrash": {
@@ -6429,6 +6715,22 @@
             "type": "string"
           },
           "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RejectPairing": {
+        "type": "object",
+        "required": [
+          "request",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "request": {
             "type": "string"
           }
         },
@@ -7208,6 +7510,22 @@
             "$ref": "#/components/schemas/StateVersion"
           },
           "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UnlinkPairing": {
+        "type": "object",
+        "required": [
+          "request",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "request": {
             "type": "string"
           }
         },

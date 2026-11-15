@@ -150,6 +150,12 @@ UI-агент использует «Настройки» → «Подключе
 нужную форму, используйте checkbox для явных пространств/RW/administration/срока
 и отдельного подтверждения. Defaults — чтение/до отзыва, пространства не выбраны.
 
+На Android с обычной IME перед выбором следующего перекрытого поля скройте
+клавиатуру системной Back через Device-owned `agent-device back --system`.
+Затем получите свежий snapshot и проверьте сохранность значений и текущий
+раздел. `keyboard dismiss` доступен только при поддержке текущей IME; отказ
+инструмента обрабатывается по инструкции Device. Проверка — EV-104/LOG-568.
+
 Windows web host: POST `/host/devices/<operation>`, один Bearer, точный
 application/json; разрешены только собственные Host/Origin/fetch-site оболочки.
 Android: `device_session {operation, parameters: JSON-string, credential}`.

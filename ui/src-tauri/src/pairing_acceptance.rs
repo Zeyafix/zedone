@@ -8,11 +8,50 @@ use zedone_adapters::{
     secrets::{Secret, SecretStore, Slot},
 };
 struct Fixture(#[allow(dead_code)] zedone_adapters::network::SecureListener);
+pub fn ui_directory(base: &std::path::Path) -> Option<std::path::PathBuf> {
+    let run = std::fs::read_to_string(base.join("pairing-ui-run")).ok()?;
+    if run.len() != 32 || !run.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(base.join(format!("pairing-ui-{run}")))
+}
 pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
     tauri::async_runtime::spawn(async move {
         let Ok(base) = app.path().app_local_data_dir() else {
             return;
         };
+        if let Some(directory) = ui_directory(&base) {
+            if std::fs::read_to_string(base.join("pairing-ui-cleanup"))
+                .ok()
+                .as_deref()
+                == directory.file_name().and_then(|name| name.to_str())
+            {
+                let cleanup = async {
+                    let store = crate::secrets::AndroidSecrets::new(
+                        &app,
+                        namespace(&directory).map_err(|_| ())?,
+                    )
+                    .map_err(|_| ())?;
+                    for slot in [
+                        Slot::PendingPairing,
+                        Slot::ConnectedPairing,
+                        Slot::ChannelIdentity,
+                        Slot::OutgoingInvitation,
+                    ] {
+                        store.remove(slot).await.map_err(|_| ())?;
+                        if store.load(slot).await.map_err(|_| ())?.is_some() {
+                            return Err(());
+                        }
+                    }
+                    std::fs::write(base.join("pairing-ui-cleaned"), b"cleaned").map_err(|_| ())
+                }
+                .await;
+                if cleanup.is_err() {
+                    let _ = std::fs::write(base.join("pairing-ui-failed"), b"cleanup");
+                }
+            }
+            return;
+        }
         let Ok(run) = std::fs::read_to_string(base.join("pairing-acceptance-run")) else {
             return;
         };
@@ -36,6 +75,7 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
                     Slot::PendingPairing,
                     Slot::ConnectedPairing,
                     Slot::ChannelIdentity,
+                    Slot::OutgoingInvitation,
                 ] {
                     store.remove(slot).await.map_err(|_| ())?;
                     if store.load(slot).await.map_err(|_| ())?.is_some() {

@@ -17,6 +17,7 @@ pub enum Slot {
     ChannelIdentity,
     PendingPairing,
     ConnectedPairing,
+    OutgoingInvitation,
 }
 impl Slot {
     pub fn name(self) -> &'static str {
@@ -24,6 +25,7 @@ impl Slot {
             Self::ChannelIdentity => "channel-identity-v1",
             Self::PendingPairing => "pending-pairing-v1",
             Self::ConnectedPairing => "connected-pairing-v1",
+            Self::OutgoingInvitation => "outgoing-invitation-v1",
         }
     }
 }

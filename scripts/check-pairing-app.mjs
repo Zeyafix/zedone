@@ -129,10 +129,10 @@ const error = (response, code) => assert.equal(response.error?.code, code);
 let host, space, lastOffer;
 function command(target, operation, parameters) { return call(target, operation, request(operation, parameters)); }
 async function invitation() {
-    const invitation = randomBytes(16).toString('hex'), code = randomBytes(32);
-    const verifier = [...createHash('sha256').update(Buffer.from('zedone/invitation-code/v1\0')).update(code).digest()];
-    ok(command(host, 'invitation.create', { invitation, verifier }));
-    return { invitation, offer: `zd1:${invitation}:${(await Bun.file(host.pinFile).text())}:${code.toString('hex')}` };
+    const created = ok(call(host, 'offer.create', {}));
+    assert.equal(created.invitation.status, 'open');
+    assert.ok(ok(call(host, 'offer.read', {})).offer === created.offer, 'Saved invitation code changed');
+    return { invitation: created.invitation.invitation, offer: created.offer };
 }
 function deliver(operation, parameters, intention = request(operation, parameters)) {
     return call(android, 'fixture.peer_command', { operation, request: JSON.stringify(intention) });

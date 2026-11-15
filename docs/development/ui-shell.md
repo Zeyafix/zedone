@@ -1,5 +1,44 @@
 # Разработка общей UI-оболочки
 
+## Ручное подключение и доступы — P06.01.3
+
+`DevicesPanel`/`AccessPanel` встроены в настройки и используют прежние токены,
+Reka Dialog и стандартные формы. `AccessScopeForm` явно собирает пространства
+и режимы каждого из них; default read/до отзыва и отдельное administration.
+`workspace-api` расширен только существующими Rust-derived operations/validators.
+Обычные изменения используют прежний CommandClient/intention store; ключи и
+коды в него не попадают. Причина отказа сохраняется в форме вместе с исходным
+намерением; отдельное подтверждение позволяет убрать только запись доставки.
+
+`device-api` вызывает общий Controller/DeviceHost через Android IPC или узкий
+same-origin `/host/devices/*`. Высокоуровневые команды не принимают имя OS-слота
+и не возвращают постоянный ключ. offer.create/read хранят код в новом защищённом
+слоте; TLS CLI поддерживает эти же операции. Схема SQLite не меняется.
+[ADR-0060](../architecture/decisions/0060-manual-pairing-ui.md).
+
+Проверка доступа при visibility/resume не размонтирует уже открытые формы;
+сервер всё равно перечитывает полномочия для каждой операции. При действительном
+отказе поля/действия отключаются. Форма выдачи сохраняет исходного субъекта,
+смена субъекта до отправки отклоняется. Session cancel/unlink сохраняют только
+subject/id/expected; Web Locks исключают перезапись намерения другой вкладкой.
+`action-dialog` использует прежний совместимый max-height: старый AOSP WebView
+не поддерживает dvh, без ограничения высоты нижние действия недоступны.
+
+`check-ui-pairing.mjs` включён в ui:check после прежней полной UI-матрицы.
+Два изолированных fixtures проверяют настоящий TLS/Service и обе стороны UI,
+права/новый ключ/статусы/обратные действия/stale/immutable retry/visibility probe.
+Windows OS store очищается только для namespace своих fixtures. Linux Memory
+явно ограничен example fixture; продуктового fallback нет. Новый paired APK
+runner использует также offer.* через CLI. Локальный Device проверяется отдельно;
+пропущенная или остановленная проверка не означает Android acceptance.
+
+Debug-only pairing-acceptance принимает `pairing-ui-run` (32 hex) и использует
+изолированный `pairing-ui-<run>`, подготовленный тестовым example. Cleanup-marker
+проверяет удаление только его OS-слотов. Никакого bootstrap/тестового ключа/маркера
+нет в обычном APK; release с feature запрещён. Локальные backup/APK/manifest/
+source fingerprints остаются в ignored docs/reports. Итоговый охват — EV-103.
+
+
 P05.09: `CardHistory.vue` читает `card.history` страницами по 25 версий;
 каждая следующая страница использует исходный history.version. При stale
 продолжение блокируется до явного обновления, страницы разных поколений

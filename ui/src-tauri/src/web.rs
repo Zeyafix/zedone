@@ -3,11 +3,12 @@ use crate::Shell;
 use axum::{
     Router,
     body::Body,
-    extract::{Request, State},
-    http::{HeaderValue, StatusCode},
+    body::Bytes,
+    extract::{DefaultBodyLimit, Path, Request, State},
+    http::{HeaderMap, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::Response,
-    routing::get,
+    routing::{get, post},
 };
 use std::sync::Arc;
 
@@ -46,6 +47,8 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
             }),
         )
         .route("/host/session", get(session))
+        .route("/host/devices/{operation}", post(devices))
+        .layer(DefaultBodyLimit::max(zedone_adapters::MAX_REQUEST_BYTES))
         .with_state(Arc::new(shell));
     let app = if let Some(service) = service {
         assets.merge(zedone_adapters::http::router_with_origin(
@@ -96,6 +99,40 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
 
 async fn session(State(shell): State<Arc<Shell>>) -> axum::Json<crate::Session> {
     axum::Json(shell.session())
+}
+async fn devices(
+    State(shell): State<Arc<Shell>>,
+    Path(operation): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, axum::extract::rejection::BytesRejection>,
+) -> axum::Json<zedone_core::wire::CommandResponse<serde_json::Value>> {
+    use zedone_core::{
+        error::{CommandError, ErrorCode},
+        wire::CommandResponse,
+    };
+    let failure = |code| CommandResponse::from(Err(CommandError { code }));
+    if headers.get_all("authorization").iter().count() != 1 {
+        return axum::Json(failure(ErrorCode::AccessDenied));
+    }
+    let Some(key) = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+    else {
+        return axum::Json(failure(ErrorCode::AccessDenied));
+    };
+    if headers.get_all("content-type").iter().count() != 1
+        || headers.get("content-type").and_then(|v| v.to_str().ok()) != Some("application/json")
+    {
+        return axum::Json(failure(ErrorCode::InvalidRequest));
+    }
+    let Ok(body) = body else {
+        return axum::Json(failure(ErrorCode::InvalidRequest));
+    };
+    axum::Json(match &shell.devices {
+        Some(devices) => devices.dispatch(&operation, &body, key).await,
+        None => failure(ErrorCode::Unavailable),
+    })
 }
 fn asset(content_type: &'static str, bytes: &'static [u8]) -> Response {
     Response::builder()

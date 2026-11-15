@@ -1,6 +1,7 @@
 //! Transport framing only. All commands use the same Rust decoder, fixed core
 //! handlers and timed storage transaction. No callback or authority from JSON.
 pub mod channel;
+pub mod device_control;
 pub mod device_host;
 pub mod http;
 pub mod ipc;

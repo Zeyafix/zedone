@@ -20,6 +20,12 @@ export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.fini
 export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "card.restore_text" | "history.clear";
 export const pendingChanged = "zedone:pending";
 type Reads = {
+  "access.list": Schemas["AccessList"];
+  "access.inspect": Schemas["AccessSnapshot"];
+  "invitation.list": Schemas["InvitationList"];
+  "invitation.inspect": Schemas["InvitationSnapshot"];
+  "pairing.list": Schemas["PairingList"];
+  "pairing.inspect": Schemas["PairingSnapshot"];
   "space.list": Schemas["SpaceList"];
   "space.read": Space;
   "column.list": Schemas["ColumnList"];
@@ -80,7 +86,8 @@ export async function mutationCredential() {
   })]).finally(() => { clearTimeout(timer); controller.abort(); });
 }
 
-export async function createMutation<O extends Mutation>(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
+export type AdministrationMutation = "access.issue" | "access.replace" | "access.revoke" | "invitation.cancel" | "pairing.confirm" | "pairing.reject" | "pairing.unlink";
+export async function createMutation<O extends Mutation | AdministrationMutation>(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
   const credential = await mutationCredential();
   if (subject !== undefined && credential.subject !== subject) throw new Error("identity_changed");
   const saved = store();

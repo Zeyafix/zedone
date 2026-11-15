@@ -21,6 +21,7 @@ class SecretStoreInstrumentation : Instrumentation() {
     val store = ProtectedSecrets(targetContext, namespace)
     val pending = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.PENDING_SLOT)
     val connected = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.CONNECTED_SLOT)
+    val outgoing = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.OUTGOING_SLOT)
     val directory = File(targetContext.noBackupFilesDir, "host-secrets/$namespace")
     val baseFile = File(directory, "${ProtectedSecrets.SLOT}.bin")
     val alias = "app.zedone.local/$namespace/${ProtectedSecrets.SLOT}"
@@ -71,6 +72,17 @@ class SecretStoreInstrumentation : Instrumentation() {
       check(connected.load()!!.contentEquals(pendingSecret))
       connected.remove()
       check(connected.load() == null && store.load()!!.contentEquals(secret))
+      stage = "outgoing-slot-isolation"
+      check(outgoing.load() == null)
+      outgoing.create(pendingSecret)
+      check(ProtectedSecrets(targetContext, namespace, ProtectedSecrets.OUTGOING_SLOT).load()!!.contentEquals(pendingSecret))
+      val outgoingFile = File(directory, "${ProtectedSecrets.OUTGOING_SLOT}.bin")
+      val outgoingBytes = outgoingFile.readBytes()
+      outgoingFile.writeBytes(pendingBytes)
+      fails { outgoing.load() }; fails { outgoing.create(pendingSecret) }
+      outgoingFile.writeBytes(outgoingBytes)
+      outgoing.remove()
+      check(outgoing.load() == null)
       val key = keyStore.getKey(alias, null) as javax.crypto.SecretKey
       check(key.encoded == null)
       val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
@@ -122,9 +134,10 @@ class SecretStoreInstrumentation : Instrumentation() {
       runCatching { store.remove() }
       runCatching { pending.remove() }
       runCatching { connected.remove() }
+      runCatching { outgoing.remove() }
       check(directory.canonicalPath.startsWith(targetContext.noBackupFilesDir.canonicalPath + File.separator))
       directory.deleteRecursively()
-      if (keyStore.containsAlias(alias) || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.PENDING_SLOT}") || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.CONNECTED_SLOT}") || directory.exists()) {
+      if (keyStore.containsAlias(alias) || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.PENDING_SLOT}") || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.CONNECTED_SLOT}") || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.OUTGOING_SLOT}") || directory.exists()) {
         succeeded = false; result.putString("zedone_secrets", "cleanup_failed")
       }
       finish(if (succeeded) Activity.RESULT_OK else Activity.RESULT_CANCELED, result)

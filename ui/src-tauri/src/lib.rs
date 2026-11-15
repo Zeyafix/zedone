@@ -36,13 +36,35 @@ pub enum Session {
 pub struct Shell {
     pub service: Option<Service>,
     credential_path: std::path::PathBuf,
+    pub devices: Option<std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>>,
 }
 
 impl Shell {
     pub fn new(service: Option<Service>, credential_path: std::path::PathBuf) -> Self {
+        #[cfg(windows)]
+        let devices = service.as_ref().and_then(|service| {
+            let directory = credential_path.parent()?;
+            let namespace = zedone_adapters::device_host::namespace(directory).ok()?;
+            let store = zedone_adapters::secrets::windows::WindowsSecrets::new(
+                namespace,
+                &directory.join("host-locks"),
+            );
+            Some(
+                std::sync::Arc::new(zedone_adapters::device_control::Controller::new(
+                    std::sync::Arc::new(zedone_adapters::device_host::DeviceHost::new(
+                        service.clone(),
+                        store,
+                    )),
+                ))
+                    as std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>,
+            )
+        });
+        #[cfg(not(windows))]
+        let devices = None;
         Self {
             service,
             credential_path,
+            devices,
         }
     }
 
@@ -145,7 +167,10 @@ mod entry_point {
                     .build(),
             )
             .setup(|app| {
-                let directory = app.path().app_local_data_dir()?.join("product");
+                let base = app.path().app_local_data_dir()?;
+                let directory = base.join("product");
+                #[cfg(feature = "pairing-acceptance")]
+                let directory = super::pairing_acceptance::ui_directory(&base).unwrap_or(directory);
                 let shell = tauri::async_runtime::block_on(super::open_shell(&directory));
                 if let Some(service) = &shell.service {
                     if let Ok(devices) =

@@ -34,3 +34,4 @@ tower = { version = "=0.5.3", features = ["util"] }
 [features]
 android-shell = ["dep:tauri-build"]
 custom-protocol = ["tauri/custom-protocol"]
+pairing-acceptance = []

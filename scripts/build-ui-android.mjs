@@ -6,7 +6,8 @@ const versions = await Bun.file(resolve(root, "../scripts/environment-versions.j
 assert.equal(Bun.version, versions.bun);
 const target = Bun.argv[2] || "x86_64";
 const release = Bun.argv[3] === "--release";
-assert.ok(["x86_64", "aarch64"].includes(target) && (Bun.argv.length <= 3 || Bun.argv.length === 4 && release));
+const acceptance = Bun.argv[3] === "--pairing-acceptance";
+assert.ok(["x86_64", "aarch64"].includes(target) && (Bun.argv.length <= 3 || Bun.argv.length === 4 && (release || acceptance)));
 for (const name of ["JAVA_HOME", "ANDROID_HOME", "NDK_HOME"]) assert.ok(process.env[name], `${name} required`);
 assert.ok((await Bun.file(resolve(process.env.NDK_HOME, "source.properties")).text()).includes(versions.android.ndk));
 const env = { ...process.env, RUSTUP_TOOLCHAIN: versions.rust, CARGO_NET_OFFLINE: "true", CARGO_TARGET_DIR: resolve(root, "../target") };
@@ -21,7 +22,7 @@ function run(args, cwd = root) {
   assert.equal(result.exitCode, 0, args.join(" "));
 }
 run(["cargo", `+${versions.rust}`, "metadata", "--manifest-path", "src-tauri/Cargo.toml", "--locked", "--offline", "--no-deps", "--format-version", "1"]);
-run(["cargo", `+${versions.rust}`, "tauri", "android", "build", ...(release ? [] : ["--debug"]), "--features", "android-shell", "--target", target, "--split-per-abi", "--apk", "--ci"]);
+run(["cargo", `+${versions.rust}`, "tauri", "android", "build", ...(release ? [] : ["--debug"]), "--features", acceptance ? "android-shell,pairing-acceptance" : "android-shell", "--target", target, "--split-per-abi", "--apk", "--ci"]);
 const arch = target === "aarch64" ? "arm64" : "x86_64";
 const profile = release ? "release" : "debug";
 if (!release) {

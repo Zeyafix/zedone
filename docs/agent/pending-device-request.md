@@ -1,6 +1,7 @@
 # Запрос устройства: доступный host-срез
 
-P06.01.2.3/.4 предоставляют host API, формы и внешний listener не включены.
+P06.01.2.5 связывает host API, защищённый listener и сессию устройства.
+Формы подключения и обмен пространствами остаются отдельными шагами.
 Человек и агент используют один процесс; прямые записи SQLite запрещены.
 Неподтверждённое устройство не вызывает обычный Service или bootstrap.
 
@@ -57,8 +58,9 @@ version меняется после попытки или приёма запр�
 Все доступны через прежние HTTP/IPC/CLI и один атомарный Service. Исходное
 подтверждение создаёт обычный grant с subject=request и заранее сохранённым
 verifier получателя; ключей в результате нет. После подтверждения host использует
-session.credential() для прежнего API. OS pending slot в этот момент сохранять:
-он содержит действующий ключ. Полного Rust→Kotlin→TLS процесса и форм ещё нет.
+session.credential() для прежнего API. OS pending slot нельзя удалять напрямую:
+он содержит действующий ключ. Перенос и очистку выполняет SessionLifecycle,
+описанный ниже. Полного Rust→Kotlin→TLS процесса и форм ещё нет.
 
 Получатель может только inspect/cancel своего ожидания или unlink собственной
 подтверждённой связи через session.unlink(stream, id, expected). Отмена уже
@@ -75,3 +77,66 @@ stale_state — перечитать и получить новое явное �
 
 Решение — [ADR-0057](../architecture/decisions/0057-pairing-confirmation-and-unlink.md),
 проверки — [EV-100](verification/EV-100-pairing-confirmation.md).
+
+## Сохранённая сессия — P06.01.2.5.1
+
+Host создаёт один `SessionLifecycle::new(store)` на namespace и проводит через
+него create/submit/refresh/cancel/unlink/connected. Второго владельца того же
+namespace быть не должно. Это Rust host API, а не команда renderer/HTTP.
+
+`refresh(stream)` сам генерирует новый ID inspect. Pending сохраняется;
+confirmed переносит точные байты в защищённый connected-pairing-v1, проверяет
+чтением и лишь затем удаляет pending-pairing-v1. Равные копии после сбоя
+восстанавливаются следующим refresh. Разные/нечитаемые записи не заменяются.
+`connected()` возвращает host-only ключ только из постоянного слота; наличие
+записи не заменяет проверку актуальных прав каждой обычной командой Service.
+
+Cancel/unlink требуют сохранённых исходных ID/expected, как прежде; их точный
+повтор не очищает секреты. После известного ответа вызвать свежий refresh:
+только cancelled/rejected/unlinked разрешают очистку. При ошибке или неизвестном
+исходе сохранить слот и повторить refresh после восстановления связи.
+Для следующего create сначала завершить очистку; identity и данные не удаляются.
+[ADR-0058](../architecture/decisions/0058-protected-session-lifecycle.md).
+
+## Постоянный host и общий CLI — P06.01.2.5
+
+`DeviceHost` использует один SessionLifecycle/Service. Явный start требует
+действующего административного ключа и запускает bounded TLS listener.
+Shutdown прекращает приём, не создаёт новую identity и не очищает сессию.
+После нового запуска host загружает прежний namespace/identity, а сессия
+ZDPN v2 содержит также исходный IP-адрес и порт. Сырой ключ остаётся в OS-store.
+
+Windows CLI: `zedone --listen <IP:port> --database <existing-db> --key-file <admin-key>`.
+Первая строка stdout содержит публичные address/pin; завершение — Ctrl+C.
+CLI не создаёт административные права. Native Android использует
+device_host_start/stop и device_session с тем же DeviceHost; автоматическая
+фоновая работа закрытого APK не обещается.
+
+Для доставки: `zedone --endpoint <IP:port> --pin-file <pin> --key-file <key> --operation <operation>`.
+Pin/ключ — 64 hex символа в файлах, секреты не попадают в argv. Stdin содержит
+исходное JSON-намерение. Обычные команды идут в `/v1/commands/<operation>` и
+проверяют собственный выданный доступ агента. `session.*` идут в
+`/v1/host/<operation>`, требуют ManageDevices локального host и принимают:
+
+| Операция | Stdin/parameters |
+| --- | --- |
+| session.prepare | `{address, offer, label}`; offer — составной код, не сохранять в обычном intention store |
+| session.status | `{}`; только локальная готовность, не подтверждение действующих прав |
+| session.submit | `{}`; повтор исходного сохранённого запроса |
+| session.refresh | `{}`; новый сетевой inspect и безопасный локальный переход/очистка |
+| session.cancel / session.unlink | `{id:[16 bytes], expected:version}`; сохранять исходное намерение для повтора |
+
+prepare не заменяет существующую запись. После потери ответа сначала status,
+затем submit/refresh исходной сессии; не создавать новый ключ. Неверный pin,
+недоступность или неизвестный результат сохраняют запись. Известный постоянный
+отказ submit позволяет очистку: отрицательный receipt запрещает позднюю
+активацию этой же попытки. Один повтор неверной попытки не расходует лимит
+заново; пять отдельных неверных попыток блокируют приглашение.
+
+В API нет session.command или выдачи сохранённого remote key. Администрирование
+локального host не является неявным доступом к удалённым пространствам.
+Низкоуровневый trusted native peer_command заимствует device key; агент для
+обычных команд использует собственный явно выданный key и тот же Service.
+При stale_state нужно свежее чтение и новое явное действие; автоматически
+подменять expected нельзя. [EV-102](verification/EV-102-two-device-pairing.md),
+[ADR-0059](../architecture/decisions/0059-device-host-and-paired-acceptance.md).

@@ -210,8 +210,35 @@ pub fn request(
     {
         return Err(error(ErrorCode::InvalidRequest));
     }
-    let Some(invitation) = tx.invitation(&p.invitation)? else {
+    // A rejected immutable attempt must never become accepted later (e.g. a
+    // delayed duplicate after the client discarded its rejected OS record).
+    // Only verifiers enter this receipt; neither code nor pending key is stored.
+    let denied_key = replay::canonical_json(&("zedone.pending-denied.v1", &p.request, pending.0))?;
+    let denied_request = replay::canonical_json(&(r, code.0))?;
+    if let Some(previous) = tx.recorded(&denied_key)? {
+        if previous.request != denied_request {
+            return Err(error(ErrorCode::CommandMismatch));
+        }
         return Ok(None);
+    }
+    fn deny(
+        tx: &mut impl PairingStore,
+        key: &[u8],
+        request: Vec<u8>,
+    ) -> CommandResult<Option<Execution<PairingSnapshot>>> {
+        tx.record(
+            key,
+            &RecordedCommand {
+                request,
+                result: b"null".to_vec(),
+            },
+        )?;
+        Ok(None)
+    }
+    let Some(invitation) = tx.invitation(&p.invitation)? else {
+        // Unknown IDs must not allocate unauthenticated receipts. Nor is this
+        // proof of a permanent rejection: invitation publication may be in flight.
+        return Err(error(ErrorCode::Unavailable));
     };
     let correct = tx.verifier_matches(&invitation.verifier.0, &code.0);
     // A retry must prove the same pending secret, not merely know the invite.
@@ -226,11 +253,13 @@ pub fn request(
         || invitation.failures >= MAX_ATTEMPTS
         || now_ms(clock)? >= invitation.expires_ms
     {
+        // These invitation states are permanent under the trusted clock and
+        // tombstone rules. Never allocate receipts for unlimited locked retries.
         return Ok(None);
     }
     if !correct {
         tx.fail_invitation(&p.invitation)?;
-        return Ok(None);
+        return deny(tx, &denied_key, denied_request);
     }
     clock.check_expiry(Some(
         std::time::UNIX_EPOCH + std::time::Duration::from_millis(invitation.expires_ms as u64),

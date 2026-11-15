@@ -24,6 +24,7 @@ on:
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-host-secrets-android.mjs'
+      - 'scripts/check-pairing-app.mjs'
       - 'scripts/check-product.mjs'
       - 'scripts/check-channel-pair.mjs'
   pull_request:
@@ -48,6 +49,7 @@ on:
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-host-secrets-android.mjs'
+      - 'scripts/check-pairing-app.mjs'
       - 'scripts/check-product.mjs'
       - 'scripts/check-channel-pair.mjs'
   workflow_dispatch:

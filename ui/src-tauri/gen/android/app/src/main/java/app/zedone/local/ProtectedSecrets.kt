@@ -20,11 +20,12 @@ class ProtectedSecrets(context: Context, private val namespace: String, private 
     private val operations = Any()
     const val SLOT = "channel-identity-v1"
     const val PENDING_SLOT = "pending-pairing-v1"
+    const val CONNECTED_SLOT = "connected-pairing-v1"
     const val LIMIT = 2048
   }
   init {
     require(namespace.matches(Regex("[a-f0-9]{64}")))
-    require(slot == SLOT || slot == PENDING_SLOT)
+    require(slot == SLOT || slot == PENDING_SLOT || slot == CONNECTED_SLOT)
   }
   private val directory = File(context.noBackupFilesDir, "host-secrets/$namespace")
   private val alias = "app.zedone.local/$namespace/$slot"

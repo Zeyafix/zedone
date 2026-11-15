@@ -35,6 +35,8 @@ use zedone_storage::Storage;
 
 mod offer;
 pub use offer::{Offer, PendingSession};
+mod lifecycle;
+pub use lifecycle::SessionLifecycle;
 
 const MAX_PAIRING_BYTES: usize = 4096;
 const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -64,6 +66,15 @@ impl PairingHost {
             connections: Arc::new(Semaphore::new(8)),
         }
     }
+    pub fn router(&self) -> Router {
+        Router::new()
+            .route("/v1/pairing/request", post(submit))
+            .route("/v1/pairing/inspect", post(inspect))
+            .route("/v1/pairing/cancel", post(cancel))
+            .route("/v1/pairing/unlink", post(unlink))
+            .layer(DefaultBodyLimit::max(MAX_PAIRING_BYTES))
+            .with_state(self.clone())
+    }
     /// One bounded HTTP/1 connection after TLS verification. The private router
     /// cannot accidentally be mounted on the existing plaintext host listener.
     pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
@@ -79,13 +90,7 @@ impl PairingHost {
         let tls = channel::accept(&acceptor, stream)
             .await
             .map_err(|_| ErrorCode::AccessDenied)?;
-        let router = Router::new()
-            .route("/v1/pairing/request", post(submit))
-            .route("/v1/pairing/inspect", post(inspect))
-            .route("/v1/pairing/cancel", post(cancel))
-            .route("/v1/pairing/unlink", post(unlink))
-            .layer(DefaultBodyLimit::max(MAX_PAIRING_BYTES))
-            .with_state(self.clone());
+        let router = self.router();
         tokio::time::timeout(
             EXCHANGE_TIMEOUT,
             hyper::server::conn::http1::Builder::new()

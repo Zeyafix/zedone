@@ -6,6 +6,9 @@ use tokio::net::{TcpListener, TcpStream};
 use zedone_core::pairing::PairingStatus;
 use zedone_storage::access::PendingAccess;
 
+#[path = "lifecycle_tests.rs"]
+mod lifecycle;
+
 #[derive(Default)]
 struct MemoryStore(Mutex<HashMap<&'static str, Secret>>);
 impl SecretStore for MemoryStore {
@@ -230,19 +233,22 @@ async fn wrong_pin_or_corrupt_protected_record_never_sends_or_replaces_a_request
 async fn tls_authentication_failures_commit_the_attempt_limit_and_reject_browser_origins() {
     let (_dir, db, admin, identity) = setup().await;
     invitation(&db, &admin, &offer(&identity)).await;
-    let store = MemoryStore::default();
-    let wrong = Offer::new(format!("{:032x}", 1), identity.fingerprint(), &[0x22; 32]).unwrap();
-    let session = PendingSession::create(&store, wrong, "Wrong code".into())
-        .await
-        .unwrap();
     let host = PairingHost::new(db.clone());
     for _ in 0..5 {
-        let (client, server) = sockets().await;
-        let (reply, served) = tokio::join!(session.submit(client), host.serve(&identity, server));
-        served.unwrap();
-        assert!(
-            matches!(reply.unwrap(),CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
-        );
+        let store = MemoryStore::default();
+        let wrong = Offer::new(format!("{:032x}", 1), identity.fingerprint(), &[0x22; 32]).unwrap();
+        let session = PendingSession::create(&store, wrong, "Wrong code".into())
+            .await
+            .unwrap();
+        for _ in 0..2 {
+            let (client, server) = sockets().await;
+            let (reply, served) =
+                tokio::join!(session.submit(client), host.serve(&identity, server));
+            served.unwrap();
+            assert!(
+                matches!(reply.unwrap(),CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
+            );
+        }
     }
     let service = Service::new(db.clone());
     let current = command(

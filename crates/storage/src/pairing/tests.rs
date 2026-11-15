@@ -245,6 +245,72 @@ async fn cancelling_invitation_cancels_its_pending_request_without_reusing_the_c
     assert!(submit(&db, 4, 1, 104).await.unwrap().is_none());
     db.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn rejected_attempts_are_atomic_idempotent_and_bounded_by_the_invitation_limit() {
+    async fn count(db: &Storage) -> i64 {
+        db.transact(|tx| {
+            Ok(tx
+                .connection()
+                .query_row("SELECT count(*) FROM command_results", [], |row| row.get(0))?)
+        })
+        .await
+        .unwrap()
+    }
+    let (dir, db, admin) = setup().await;
+    let before = invite(&db, &admin, 90, 101).await;
+    db.transact(|tx| {tx.connection().execute_batch("CREATE TRIGGER deny_receipt BEFORE INSERT ON command_results BEGIN SELECT RAISE(ABORT,'test'); END;")?;Ok(())}).await.unwrap();
+    assert!(submit(&db, 2, 9, 102).await.is_err());
+    db.transact(|tx| {
+        tx.connection().execute_batch("DROP TRIGGER deny_receipt")?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+    assert_eq!(invite(&db, &admin, 91, 103).await.version, before.version);
+    let initial = count(&db).await;
+    assert!(submit(&db, 2, 9, 104).await.unwrap().is_none());
+    assert_eq!(count(&db).await, initial + 1);
+    assert!(submit(&db, 2, 9, 104).await.unwrap().is_none());
+    assert_eq!(count(&db).await, initial + 1);
+    db.shutdown().await.unwrap();
+    let db = Storage::open(dir.path().join("pair.db")).await.unwrap();
+    assert!(submit(&db, 2, 9, 105).await.unwrap().is_none());
+    assert_eq!(count(&db).await, initial + 1);
+    for n in 3..=6 {
+        assert!(submit(&db, n, 9, 106).await.unwrap().is_none());
+    }
+    assert_eq!(count(&db).await, initial + 5);
+    for n in 7..=30 {
+        assert!(submit(&db, n, 9, 107).await.unwrap().is_none());
+    }
+    assert_eq!(
+        count(&db).await,
+        initial + 5,
+        "locked invitation allocated unbounded rejection receipts"
+    );
+    let unknown = count(&db).await;
+    let result = db
+        .transact(|tx| {
+            let mut r = submit_request(31);
+            r.parameters.invitation = sid(255);
+            Ok(pairing::request(
+                tx,
+                &TestClock(108),
+                &r,
+                InvitationVerifier([9; 32]),
+                PendingVerifier([31; 32]),
+            )?)
+        })
+        .await;
+    assert!(matches!(result,Err(StorageError::Rejected(e)) if e.code==ErrorCode::Unavailable));
+    assert_eq!(
+        count(&db).await,
+        unknown,
+        "unknown invitation allocated unauthenticated receipts"
+    );
+    db.shutdown().await.unwrap();
+}
 #[tokio::test]
 async fn concurrent_devices_consume_one_invitation_exactly_once() {
     let (dir, db, _admin) = setup().await;

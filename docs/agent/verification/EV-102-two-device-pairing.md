@@ -148,3 +148,33 @@ dispatcher уже добавлял debug APK build/сквозной runner по�
 runtime не менялся; его прежние 26 fingerprints совпадают. Новый полный CI и
 readiness нового head обязательны перед ранее порученными merge/delete.
 Состояния полных критериев/GAP/DEC и пять правил прежние.
+
+## Обновлённый head и ожидание CI — LOG-551
+
+PR #95 обновлён коммитом aadd27348f070edcfee57d864f7e24e8bee19d2a
+`test(ci): keep paired Android checks in the verified run order`; обычный
+push/pre-push passed. Всего 36 файлов, оба локальных routing guards passed,
+26 runtime fingerprints прежние; исходный EV-100 сохранён вне коммита.
+Body с фактическим исправлением прочитан обратно; три English sections и
+generation credit подтверждены. Comments/reviews/requests/threads отсутствовали.
+
+Новый полный CI pending; все 17 COMPLETED/SUCCESS и свежая readiness точного
+head необходимы до уже порученных merge/delete. MERGEABLE/UNSTABLE и частичный
+rollup не разрешают merge. Новых продуктовых изменений и повышения критериев
+нет; записи публикации остаются локально, active_work null.
+
+## Чистый checkout и каталог отчёта — LOG-552
+
+На aadd273 job android (shell) прошёл всю прежнюю native UI-матрицу и сборку
+acceptance APK, затем остановился до запуска нового сценария: ignored родитель
+docs/reports отсутствовал в чистом checkout. Runner создавал только вложенный
+каталог. Исправлено создание дерева каталогов через recursive mkdir; никакие
+проверки, budgets, API или продуктовый runtime не менялись.
+
+Фактический runner запущен из отдельной временной копии без docs/reports:
+родитель и изолированный run-каталог успешно созданы, затем процесс ожидаемо
+остановился на специально отсутствующем SDK до Cargo и действий с устройством.
+Оба routing guards passed. 25 исходных файлов прежние; проверено, что runner
+отличается от проверенной версии ровно этой строкой, прежний CI guard не менялся.
+Новый полный CI и readiness нового head требуются до merge/delete; успех
+прежней части shell job не объявляется успехом всей сквозной приёмки CI.

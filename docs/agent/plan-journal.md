@@ -11,7 +11,7 @@ current_step: null
 last_completed_stage: P03
 last_completed_step: P06.01.2.4
 active_work: null
-next_action: "PR #95 опубликован; исправлен guard порядка CI, локальные routing checks passed. Нужен новый полный CI всех 17 SUCCESS и readiness точного head перед порученными merge/delete; EV-102/LOG-550."
+next_action: "PR #95: исправлен startup paired runner в чистом checkout после отказа android shell на aadd273. Новый полный CI/17 SUCCESS и readiness обязательны перед merge/delete; EV-102/LOG-552."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028]
@@ -20,8 +20,18 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-550
+last_event: LOG-552
 ```
+
+P06.01.2.5 опубликован в [PR #95](https://github.com/Zeyafix/zedone/pull/95),
+head aadd273, base main/bcc9b20. 36 файлов, исправленный strict routing guard
+и оба локальных routing checks passed; 26 runtime fingerprints прежние.
+Новый полный CI pending: 14 runtime suites queued/in_progress, три strict
+aggregates ожидаются. До порученных merge/delete нужны все 17 SUCCESS и новая
+readiness этого head. Body/readback/credit/состав подтверждены; reviews/comments/
+requests/threads отсутствовали. Исходный EV-100 вне коммита; записи публикации
+остаются локально. Новая реализация не начата, active_work null. EV-102/LOG-551.
+Нижеследующие сводки исторические.
 
 Весь P06.01.2.5 verified локально в feat/p06-01-2-5-pairing-acceptance от bcc9b20.
 EV-102/ADR-0059: постоянный TLS host, общий API/CLI и настоящий Rust→Kotlin→TLS
@@ -5318,3 +5328,15 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Коммит 2b4c6aed527be09c98689083b8e64943e8be8a90 опубликован обычным push/pre-push. PR #95 создан и немедленно linked; head/base bcc9b20, OPEN/non-draft, 35 файлов и body/readback/credit подтверждены. Исходный dirty EV-100 вне коммита; 26 проверенных fingerprints и noreply совпали, tracked ignored нет. Визуального diff нет.
 - Исходный linux-checks (prototype-native) отказал в check-android-ci-suites на ожидаемом составе: добавленные debug build/paired APK runner уже шли после прежнего shell/UI, guard ещё ожидал только прежний шаг. Raw log сохранён локально. Обновлён точный full/shell порядок; добавлены failure/signal на каждом из трёх shell шагов, без ослабления прежних проверок/таймаутов/агрегатов/числа suites.
 - Локальные Android/host routing checks passed; продуктовый runtime и его 26 fingerprints прежние. Исправление готовится отдельным коммитом в тот же PR. Новый полный CI и свежая readiness нового head нужны до порученных merge/delete; старый частичный rollup не принимается. Reviews/comments/requests/threads на первом readback отсутствовали. Новая продуктовая реализация не начата, active_work null; все полные критерии/GAP/DEC прежние.
+
+### LOG-551 — 2026-11-15 — агент Codex, PR #95 обновлён после исправления CI guard
+
+- Коммит aadd27348f070edcfee57d864f7e24e8bee19d2a отправлен обычным push/pre-push в тот же PR; link подтверждён. Два локальных routing guard passed, 26 runtime fingerprints и индекс совпали. В PR теперь 36 согласованных файлов; исходный EV-100 вне коммита. Body обновлён честными результатами и прочитан обратно: три English sections/credit сохранены.
+- Readback точного head/base bcc9b20: OPEN/non-draft/MERGEABLE/UNSTABLE, comments/reviews/requests/threads отсутствуют. Все 14 runtime suites queued/in_progress, три strict aggregates ожидаются. Требуются ровно все 17 COMPLETED/SUCCESS и свежая readiness того же head перед ранее порученными merge/delete. Новый частичный rollup не считается успехом.
+- Далее watch полного CI и обработка новых событий; при отказе читать raw logs, checks/бюджеты не ослаблять. Состояния полных T09/A08/A51/GAP/DEC и пять правил EV-102 прежние, новая реализация не начата. Записи публикации остаются локальными, индекс пуст, active_work null.
+
+### LOG-552 — 2026-11-15 — агент Codex, исправление startup paired runner в чистом checkout
+
+- Watch сообщил отказ android (shell) на aadd273. Raw job log прочитан: прежние UI/history/cleanup/accessibility/Markdown проверки и acceptance APK build passed; новый runner завершился до сценария на mkdir вложенного отчёта, потому что ignored родитель docs/reports отсутствует в чистом checkout. Это ошибка подготовки runner, не отказ TLS/Keystore/продуктового сценария.
+- Исправлена одна строка на recursive mkdir. Реальный entrypoint выполнен в отдельной временной копии без docs/reports: дерево и изолированный run-каталог созданы; остановка произошла только на специально отсутствующем SDK до Cargo/устройства. Временная копия очищена. Оба routing guards passed; сроки/набор suites/strict aggregates сохранены.
+- Продуктовый runtime не менялся: 25 исходных fingerprints прежние, runner отличается от проверенной версии ровно строкой инициализации отчёта, прежний routing guard неизменен; актуальный manifest 27 файлов сохранён локально. Новый полный CI/17 SUCCESS и свежая readiness нового head нужны до ранее порученных merge/delete. Все состояния полных критериев/GAP/DEC прежние, active_work null.

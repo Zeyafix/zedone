@@ -17,7 +17,7 @@ const adb = resolve(process.env.ANDROID_HOME, `platform-tools/adb${suffix}`);
 const app = 'app.zedone.local';
 const run = randomBytes(16).toString('hex');
 const report = resolve(root, 'docs/reports', `pairing-app-${run}`);
-await mkdir(report);
+await mkdir(report, { recursive: true });
 console.log('Pairing acceptance started; isolated fixtures and original APK/data are retained in ignored reports.');
 function invoke(args, { input, allowFailure = false, timeout = 30000 } = {}) {
     const result = Bun.spawnSync(args, { cwd: root, stdin: input === undefined ? 'ignore' : input, stdout: 'pipe', stderr: 'pipe', timeout });

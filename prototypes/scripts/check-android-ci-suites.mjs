@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
   .replace('import assert from "node:assert/strict";', "")
   .replaceAll("import.meta.dir", '"/fixture"');
-function dispatch(args, failure = {}) {
+function dispatch(args, failure = {}, failureAt = 0) {
   const calls = [];
   let exit;
   const stopped = {};
@@ -18,7 +18,7 @@ function dispatch(args, failure = {}) {
         argv: ["fixture-bun", "dispatcher", ...args],
         spawnSync(command) {
           calls.push(Array.from(command).slice(1).map(arg => arg.replace("/fixture/", "")));
-          return { exitCode: 0, ...failure };
+          return { exitCode: 0, ...(calls.length - 1 === failureAt ? failure : {}) };
         },
       },
     });
@@ -34,6 +34,8 @@ const full = [
   ["check-automerge.mjs", "--android"],
   ["check-android.mjs"],
   ["../../scripts/check-ui-android-ci.mjs"],
+  ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"],
+  ["../../scripts/check-pairing-app.mjs"],
 ];
 for (const [args, expected] of [
   [[], full],
@@ -42,11 +44,11 @@ for (const [args, expected] of [
   [["product-arm64"], [[product, "--android-arm64"]]],
   [["prototype-native"], [full[2]]],
   [["prototype-ui"], [full[1], full[3]]],
-  [["shell"], [full[4]]],
+  [["shell"], full.slice(4)],
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
-for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", "extra"]]) {
+for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", "extra"], ["shell", "extra"]]) {
   assert.throws(() => dispatch(args), /Unknown Android suite/);
 }
 // Validate the real workflow's build/runtime boundary independently of the
@@ -89,4 +91,12 @@ assert.deepEqual(dispatch([], { exitCode: 23 }), { calls: [full[0]], exit: 23 })
 assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
-console.log("Android CI routing: full/default/native compatibility, exact ABI job ownership, all runtime/negative checks, strict aggregate, invalid input, child failure and signal passed.");
+for (let index = 0; index < full.slice(4).length; index++) {
+  assert.deepEqual(dispatch(["shell"], { exitCode: 23 }, index), {
+    calls: full.slice(4, 5 + index), exit: 23,
+  }, "A failing legacy UI, acceptance build or APK check must stop the shell sequence");
+  assert.deepEqual(dispatch(["shell"], { signalCode: "SIGTERM" }, index), {
+    calls: full.slice(4, 5 + index), exit: 1,
+  });
+}
+console.log("Android CI routing: full/default/native compatibility, exact ABI job ownership, paired APK acceptance after legacy shell checks, all runtime/negative checks, strict aggregate, invalid input, child failures and signals passed.");

@@ -60,12 +60,21 @@ pub struct PendingSession {
     offer: Offer,
     pending_key: Secret,
     access_key: Secret,
+    pub address: Option<std::net::SocketAddr>,
 }
 impl PendingSession {
     pub async fn create(
         store: &impl SecretStore,
         offer: Offer,
         label: String,
+    ) -> Result<Self, ErrorCode> {
+        Self::create_at(store, offer, label, None).await
+    }
+    pub async fn create_at(
+        store: &impl SecretStore,
+        offer: Offer,
+        label: String,
+        address: Option<std::net::SocketAddr>,
     ) -> Result<Self, ErrorCode> {
         let mut id = [0; 16];
         let mut pending_key = Secret::new(vec![0; 32]);
@@ -93,6 +102,7 @@ impl PendingSession {
             offer,
             pending_key,
             access_key,
+            address,
         };
         let encoded = session.encode()?;
         store
@@ -106,12 +116,20 @@ impl PendingSession {
         }
         Ok(saved)
     }
-    fn encode(&self) -> Result<Secret, ErrorCode> {
+    pub(super) fn encode(&self) -> Result<Secret, ErrorCode> {
         let mut bytes = Secret::new(b"ZDPN\x01".to_vec());
         bytes.extend_from_slice(&self.offer.encode());
         bytes.extend_from_slice(&self.pending_key);
         bytes.extend_from_slice(&self.access_key);
         serde_json::to_writer(&mut *bytes, &self.request).map_err(|_| ErrorCode::Unavailable)?;
+        if let Some(address) = self.address {
+            let mut stored = Secret::new(b"ZDPN\x02".to_vec());
+            let address = address.to_string();
+            stored.push(address.len() as u8);
+            stored.extend_from_slice(address.as_bytes());
+            stored.extend_from_slice(&bytes);
+            return Ok(stored);
+        }
         Ok(bytes)
     }
     pub async fn load(store: &impl SecretStore) -> Result<Option<Self>, ErrorCode> {
@@ -122,6 +140,24 @@ impl PendingSession {
         else {
             return Ok(None);
         };
+        Self::decode(&bytes).map(Some)
+    }
+    pub(super) fn decode(bytes: &[u8]) -> Result<Self, ErrorCode> {
+        if bytes.starts_with(b"ZDPN\x02") {
+            let length = usize::from(*bytes.get(5).ok_or(ErrorCode::Unavailable)?);
+            let address =
+                std::str::from_utf8(bytes.get(6..6 + length).ok_or(ErrorCode::Unavailable)?)
+                    .ok()
+                    .and_then(|v| v.parse::<std::net::SocketAddr>().ok())
+                    .ok_or(ErrorCode::Unavailable)?;
+            let rest = bytes.get(6 + length..).ok_or(ErrorCode::Unavailable)?;
+            if !rest.starts_with(b"ZDPN\x01") || bytes.len() > crate::secrets::MAX_SECRET_BYTES {
+                return Err(ErrorCode::Unavailable);
+            }
+            let mut session = Self::decode(rest)?;
+            session.address = Some(address);
+            return Ok(session);
+        }
         if bytes.len() < 236
             || bytes.len() > crate::secrets::MAX_SECRET_BYTES
             || &bytes[..5] != b"ZDPN\x01"
@@ -136,6 +172,7 @@ impl PendingSession {
             request,
             pending_key: Secret::new(bytes[171..203].to_vec()),
             access_key: Secret::new(bytes[203..235].to_vec()),
+            address: None,
         };
         if session.request.parameters.invitation != session.offer.invitation
             || session.request.parameters.access_verifier.0
@@ -144,7 +181,7 @@ impl PendingSession {
         {
             return Err(ErrorCode::Unavailable);
         }
-        Ok(Some(session))
+        Ok(session)
     }
     pub async fn submit<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,
@@ -224,6 +261,9 @@ impl PendingSession {
     /// ordinary authorization still decides every operation; a receipt is no permit.
     pub fn credential(&self) -> zedone_core::access::Credential<'_> {
         zedone_core::access::Credential(&self.access_key)
+    }
+    pub fn fingerprint(&self) -> Fingerprint {
+        self.offer.fingerprint
     }
     async fn call<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,

@@ -16,12 +16,14 @@ pub enum SecretError {
 pub enum Slot {
     ChannelIdentity,
     PendingPairing,
+    ConnectedPairing,
 }
 impl Slot {
     pub fn name(self) -> &'static str {
         match self {
             Self::ChannelIdentity => "channel-identity-v1",
             Self::PendingPairing => "pending-pairing-v1",
+            Self::ConnectedPairing => "connected-pairing-v1",
         }
     }
 }
@@ -36,6 +38,18 @@ pub trait SecretStore: Send + Sync {
         secret: &[u8],
     ) -> impl Future<Output = Result<(), SecretError>> + Send;
     fn remove(&self, slot: Slot) -> impl Future<Output = Result<(), SecretError>> + Send;
+}
+
+impl<S: SecretStore> SecretStore for std::sync::Arc<S> {
+    async fn load(&self, slot: Slot) -> Result<Option<Secret>, SecretError> {
+        (**self).load(slot).await
+    }
+    async fn create(&self, slot: Slot, secret: &[u8]) -> Result<(), SecretError> {
+        (**self).create(slot, secret).await
+    }
+    async fn remove(&self, slot: Slot) -> Result<(), SecretError> {
+        (**self).remove(slot).await
+    }
 }
 
 #[cfg(windows)]

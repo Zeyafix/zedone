@@ -25,7 +25,7 @@ class SecretsPlugin(private val activity: Activity) : Plugin(activity) {
     val result = JSObject()
     try {
       val args = invoke.parseArgs(SecretArgs::class.java)
-      if (args.slot != ProtectedSecrets.SLOT && args.slot != ProtectedSecrets.PENDING_SLOT) throw SecretFailure("invalid_secret")
+      if (args.slot !in listOf(ProtectedSecrets.SLOT, ProtectedSecrets.PENDING_SLOT, ProtectedSecrets.CONNECTED_SLOT)) throw SecretFailure("invalid_secret")
       val store = ProtectedSecrets(activity, args.namespace, args.slot)
       when (args.operation) {
         "load" -> {

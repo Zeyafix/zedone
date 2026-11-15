@@ -9,6 +9,10 @@ use std::{io::Read, path::Path};
 use zedone_adapters::Service;
 
 #[cfg(target_os = "android")]
+pub mod devices;
+#[cfg(all(target_os = "android", feature = "pairing-acceptance"))]
+mod pairing_acceptance;
+#[cfg(target_os = "android")]
 pub mod secrets;
 pub mod web;
 
@@ -142,14 +146,25 @@ mod entry_point {
             )
             .setup(|app| {
                 let directory = app.path().app_local_data_dir()?.join("product");
-                app.manage(tauri::async_runtime::block_on(super::open_shell(
-                    &directory,
-                )));
+                let shell = tauri::async_runtime::block_on(super::open_shell(&directory));
+                if let Some(service) = &shell.service {
+                    if let Ok(devices) =
+                        super::devices::Devices::new(app.handle(), service.clone(), &directory)
+                    {
+                        app.manage(devices);
+                    }
+                }
+                app.manage(shell);
+                #[cfg(feature = "pairing-acceptance")]
+                super::pairing_acceptance::start(app.handle().clone());
                 Ok(())
             })
             .invoke_handler(tauri::generate_handler![
                 super::shell_session,
-                super::zedone_command
+                super::zedone_command,
+                super::devices::device_host_start,
+                super::devices::device_host_stop,
+                super::devices::device_session
             ])
             .run(tauri::generate_context!())
             .expect("ZeDone platform startup failed");

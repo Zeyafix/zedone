@@ -648,3 +648,40 @@ adapters pairing::tests (реальный TLS, отсутствие самопо
 release ABI. Host API session.credential() заимствует ключ OS pending slot;
 удалять slot после confirm нельзя. UI/полный Kotlin bridge/внешний listener
 и обмен не входят; [EV-100](../agent/verification/EV-100-pairing-confirmation.md).
+
+P06.01.2.5.1: `adapters::pairing::SessionLifecycle` сериализует полный
+read/TLS/write цикл одного host namespace. При свежем confirmed он переносит
+ZDPN v1 из PendingPairing в ConnectedPairing через create/readback/remove;
+оба OS-store используют тот же фиксированный новый слот. Точные копии после
+сбоя восстанавливаются, конфликтующие/повреждённые сохраняются с отказом.
+Только свежий терминальный inspect разрешает очистку. `connected()` — локальная
+готовность; авторизация остаётся в Service/access_*. Никаких новых endpoints,
+прав, SQLite DDL, контрактов или зависимостей. Lifecycle tests в adapters и
+Keystore instrumentation проверяют отказ/повтор/reopen/изоляцию слотов.
+Ограничения — [EV-101](../agent/verification/EV-101-protected-session-lifecycle.md),
+решение — [ADR-0058](../architecture/decisions/0058-protected-session-lifecycle.md).
+
+P06.01.2.5 связывает этот компонент в DeviceHost/SecureListener. TLS-only
+router объединяет прежний общий Service, pairing и фиксированные session.*
+операции управления host. Лимиты соединений/задач/handshake/HTTP ограничены;
+нет нового bootstrap, plaintext fallback и remote-data proxy под admin-ключом.
+Клиентская запись ZDPN v2 сохраняет SocketAddr вместе с pin/ключами, v1 читается.
+CLI поддерживает явный --listen и pinned --endpoint; Android composition
+использует тот же DeviceHost и настоящий закрытый PluginHandle Keystore bridge.
+
+Неверная попытка открытого приглашения получает атомарный отрицательный receipt
+со счётчиком: исходный retry не расходует лимит заново и не становится принятым
+после очистки. Unknown invitation не выделяет receipt и возвращает unavailable;
+locked/expired/cancelled/used не выделяют бесконечные отрицательные записи.
+Storage tests проверяют rollback, reopen и максимум пять таких receipts.
+
+`build-ui-android.mjs x86_64 --pairing-acceptance` включает отдельный debug-стенд.
+Release с feature pairing-acceptance отвергается; обычный APK не содержит стенда.
+`check-pairing-app.mjs` проверяет настоящий APK/Keystore/Rust/TLS/CLI и процессный
+restart. Локально нужен ANDROID_SERIAL открытого Device и его точная
+AGENT_DEVICE_COMMAND; lifecycle не выполняется через adb. CI сохраняет свой
+штатный driver и добавляет проверку после прежнего shell/UI, не меняя budgets.
+В Windows host используется Credential Manager, в Linux CI — явно Memory fixture.
+Исходный APK/файлы восстанавливаются по SHA-256, тестовые OS-ключи/правила очищаются.
+Охват и ограничения — [EV-102](../agent/verification/EV-102-two-device-pairing.md)
+и [ADR-0059](../architecture/decisions/0059-device-host-and-paired-acceptance.md).

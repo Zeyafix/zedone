@@ -20,6 +20,7 @@ class SecretStoreInstrumentation : Instrumentation() {
       .joinToString("") { "%02x".format(it) }
     val store = ProtectedSecrets(targetContext, namespace)
     val pending = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.PENDING_SLOT)
+    val connected = ProtectedSecrets(targetContext, namespace, ProtectedSecrets.CONNECTED_SLOT)
     val directory = File(targetContext.noBackupFilesDir, "host-secrets/$namespace")
     val baseFile = File(directory, "${ProtectedSecrets.SLOT}.bin")
     val alias = "app.zedone.local/$namespace/${ProtectedSecrets.SLOT}"
@@ -54,8 +55,22 @@ class SecretStoreInstrumentation : Instrumentation() {
       pendingFile.writeBytes(baseFile.readBytes())
       fails { pending.load() }; fails { pending.create(pendingSecret) }
       pendingFile.writeBytes(pendingBytes)
+      stage = "connected-slot-isolation"
+      check(connected.load() == null)
+      connected.create(pendingSecret)
+      check(ProtectedSecrets(targetContext, namespace, ProtectedSecrets.CONNECTED_SLOT).load()!!.contentEquals(pendingSecret))
+      fails { connected.create(byteArrayOf(2)) }
+      val connectedFile = File(directory, "${ProtectedSecrets.CONNECTED_SLOT}.bin")
+      val connectedBytes = connectedFile.readBytes()
+      // Same plaintext, different slot/AAD: ciphertext substitution must fail.
+      connectedFile.writeBytes(pendingBytes)
+      fails { connected.load() }; fails { connected.create(pendingSecret) }
+      connectedFile.writeBytes(connectedBytes)
       pending.remove()
       check(pending.load() == null && store.load()!!.contentEquals(secret))
+      check(connected.load()!!.contentEquals(pendingSecret))
+      connected.remove()
+      check(connected.load() == null && store.load()!!.contentEquals(secret))
       val key = keyStore.getKey(alias, null) as javax.crypto.SecretKey
       check(key.encoded == null)
       val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
@@ -106,9 +121,10 @@ class SecretStoreInstrumentation : Instrumentation() {
     } finally {
       runCatching { store.remove() }
       runCatching { pending.remove() }
+      runCatching { connected.remove() }
       check(directory.canonicalPath.startsWith(targetContext.noBackupFilesDir.canonicalPath + File.separator))
       directory.deleteRecursively()
-      if (keyStore.containsAlias(alias) || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.PENDING_SLOT}") || directory.exists()) {
+      if (keyStore.containsAlias(alias) || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.PENDING_SLOT}") || keyStore.containsAlias("app.zedone.local/$namespace/${ProtectedSecrets.CONNECTED_SLOT}") || directory.exists()) {
         succeeded = false; result.putString("zedone_secrets", "cleanup_failed")
       }
       finish(if (succeeded) Activity.RESULT_OK else Activity.RESULT_CANCELED, result)

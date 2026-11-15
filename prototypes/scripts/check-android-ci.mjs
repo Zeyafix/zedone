@@ -8,6 +8,8 @@ const checks = [
   ["prototype-native", ["check-automerge.mjs", "--android"]],
   ["prototype-ui", ["check-android.mjs"]],
   ["shell", ["../../scripts/check-ui-android-ci.mjs"]],
+  ["shell", ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"]],
+  ["shell", ["../../scripts/check-pairing-app.mjs"]],
 ];
 // Explicit CI slices have separate hosts: compilation must not compete with
 // the emulator's timing guards. Standalone/default/native keep the full run.

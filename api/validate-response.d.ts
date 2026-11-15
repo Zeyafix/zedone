@@ -1,5 +1,5 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "invitation.cancel" | "invitation.create" | "invitation.inspect" | "invitation.list" | "pairing.cancel" | "pairing.inspect" | "pairing.list" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
+export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "invitation.cancel" | "invitation.create" | "invitation.inspect" | "invitation.list" | "pairing.cancel" | "pairing.confirm" | "pairing.inspect" | "pairing.list" | "pairing.reject" | "pairing.unlink" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.issue": components["schemas"]["CommandRequest_IssueAccess"]["parameters"];
@@ -35,8 +35,11 @@ export type Parameters = {
   "invitation.inspect": components["schemas"]["CommandRequest_InspectInvitation"]["parameters"];
   "invitation.list": components["schemas"]["CommandRequest_ListInvitations"]["parameters"];
   "pairing.cancel": components["schemas"]["CommandRequest_CancelPairing"]["parameters"];
+  "pairing.confirm": components["schemas"]["CommandRequest_ConfirmPairing"]["parameters"];
   "pairing.inspect": components["schemas"]["CommandRequest_InspectPairing"]["parameters"];
   "pairing.list": components["schemas"]["CommandRequest_ListPairings"]["parameters"];
+  "pairing.reject": components["schemas"]["CommandRequest_RejectPairing"]["parameters"];
+  "pairing.unlink": components["schemas"]["CommandRequest_UnlinkPairing"]["parameters"];
   "space.create": components["schemas"]["CommandRequest_CreateSpace"]["parameters"];
   "space.list": components["schemas"]["CommandRequest_ListSpaces"]["parameters"];
   "space.read": components["schemas"]["CommandRequest_ReadSpace"]["parameters"];

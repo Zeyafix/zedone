@@ -74,5 +74,9 @@ CREATE TABLE pairing_requests (
     access_verifier BLOB NOT NULL UNIQUE CHECK(length(access_verifier) = 32 AND access_verifier != zeroblob(32)),
     label TEXT NOT NULL CHECK(length(label) BETWEEN 1 AND 80),
     created_ms INTEGER NOT NULL CHECK(created_ms BETWEEN 0 AND 253402300799999),
-    cancelled INTEGER NOT NULL CHECK(cancelled IN (0, 1))
+    cancelled INTEGER NOT NULL CHECK(cancelled IN (0, 1)),
+    decision INTEGER NOT NULL CHECK(decision IN (0, 1, 2)),
+    subject TEXT REFERENCES access_principals(subject),
+    CHECK((decision = 1 AND subject IS NOT NULL AND subject = request AND cancelled = 0)
+       OR (decision IN (0, 2) AND subject IS NULL))
 ) STRICT, WITHOUT ROWID;

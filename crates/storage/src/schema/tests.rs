@@ -176,7 +176,7 @@ async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "3dd3843970722881ad6a817d8bbdff6a243e8774db646e717a0df6edab7b7481"
+        "88f4cacc1ef5fa65e78a022a1737264921e480d3ffa27978807a822685acc947"
     );
     let (_root, path) = fixture();
     let storage = Storage::open(&path).await.unwrap();
@@ -391,5 +391,24 @@ async fn readonly_preflight_does_not_roll_back_a_future_database_hot_journal() {
             .is_some_and(|bytes| !bytes.is_empty())
     );
     assert!(Storage::open(&path).await.is_err());
+    assert_eq!(durable_files(&path), before);
+}
+
+#[tokio::test]
+async fn layout_before_pairing_decisions_is_rejected_without_writes() {
+    let (_dir, path) = fixture();
+    let c = Connection::open(&path).unwrap();
+    c.execute_batch("DROP TABLE pairing_requests;").unwrap();
+    let sql = include_str!("v1.sql");
+    let table = &sql[sql.find("CREATE TABLE pairing_requests").unwrap()..];
+    let table =
+        table[..table.find(",\n    decision").unwrap()].to_owned() + "\n) STRICT, WITHOUT ROWID;";
+    c.execute_batch(&table).unwrap();
+    c.close().unwrap();
+    let before = durable_files(&path);
+    assert_eq!(
+        Storage::open(&path).await.err(),
+        Some(StorageError::InvalidDatabase)
+    );
     assert_eq!(durable_files(&path), before);
 }

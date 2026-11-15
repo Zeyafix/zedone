@@ -266,3 +266,11 @@ inspect/cancel по секрету pending-key/v1, без access principal. Pair
 одноразовое использование приглашения и receipts фиксируются одним SQLite writer.
 Административные pairing.* используют прежний Service/ManageDevices. OS-слоты
 хранят секреты отдельно от SQLite; [ADR-0056](decisions/0056-pending-device-request.md).
+
+
+P06.01.2.4 создаёт решением pairing.confirm обычный access principal
+в одной транзакции вместе с receipt. Отдельного реестра прав нет; reject
+не выдаёт доступ, unlink использует общий отзыв. TLS pending secret может
+только читать/отменять/отвязать собственный запрос, никогда подтвердить.
+Обычные отзыв/замена ключа немедленно отражаются в PairingSnapshot и его
+версии. Детали связи/атомарности — [ADR-0057](decisions/0057-pairing-confirmation-and-unlink.md).

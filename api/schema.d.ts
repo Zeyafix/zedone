@@ -543,6 +543,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/pairing.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/pairing.inspect": {
         parameters: {
             query?: never;
@@ -569,6 +585,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["pairing_list"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/pairing.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/pairing.unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pairing_unlink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1086,6 +1134,42 @@ export interface components {
                 card?: string | null;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
+        CommandRequest_ConfirmPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                /** Format: int64 */
+                expires_at_unix_ms?: number | null;
+                request: string;
+                /** @description Explicit scopes only; administration never implies space access. */
+                scope: components["schemas"]["AccessScope"];
             };
         };
         /**
@@ -2042,6 +2126,38 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_RejectPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                request: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_RenameColumn: {
             id: [
                 number,
@@ -2586,6 +2702,38 @@ export interface components {
          *     The Value specialization in OpenAPI describes only this envelope, not an
          *     implemented operation or a substitute for concrete command validation.
          */
+        CommandRequest_UnlinkPairing: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                request: string;
+            };
+        };
+        /**
+         * @description Preserve this entire request, including the ID, for every delivery of an
+         *     intention. New intentions require new client-generated cryptographic IDs.
+         *     Concrete command types define all targets, parameters and original versions.
+         *     The Value specialization in OpenAPI describes only this envelope, not an
+         *     implemented operation or a substitute for concrete command validation.
+         */
         CommandRequest_Value: {
             id: [
                 number,
@@ -2887,6 +3035,8 @@ export interface components {
                 label: string;
                 request: string;
                 status: components["schemas"]["PairingStatus"];
+                /** @description Ordinary access subject for a decided connection, never a secret. */
+                subject?: string | null;
                 version: components["schemas"]["StateVersion"];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -2957,6 +3107,14 @@ export interface components {
             replayed: boolean;
             result: unknown;
             status: components["schemas"]["SuccessStatus"];
+        };
+        ConfirmPairing: {
+            expected: components["schemas"]["StateVersion"];
+            /** Format: int64 */
+            expires_at_unix_ms?: number | null;
+            request: string;
+            /** @description Explicit scopes only; administration never implies space access. */
+            scope: components["schemas"]["AccessScope"];
         };
         CreateCard: {
             card: string;
@@ -3133,10 +3291,12 @@ export interface components {
             label: string;
             request: string;
             status: components["schemas"]["PairingStatus"];
+            /** @description Ordinary access subject for a decided connection, never a secret. */
+            subject?: string | null;
             version: components["schemas"]["StateVersion"];
         };
         /** @enum {string} */
-        PairingStatus: "pending" | "cancelled";
+        PairingStatus: "pending" | "cancelled" | "rejected" | "confirmed" | "unlinked";
         PurgeTrash: {
             expected: components["schemas"]["StateVersion"];
             selection: components["schemas"]["TrashSelection"];
@@ -3171,6 +3331,10 @@ export interface components {
         ReadTag: {
             space: string;
             tag: string;
+        };
+        RejectPairing: {
+            expected: components["schemas"]["StateVersion"];
+            request: string;
         };
         RenameColumn: {
             column: string;
@@ -3359,6 +3523,10 @@ export interface components {
         TrashSpace: {
             expected: components["schemas"]["StateVersion"];
             space: string;
+        };
+        UnlinkPairing: {
+            expected: components["schemas"]["StateVersion"];
+            request: string;
         };
     };
     responses: never;
@@ -4151,6 +4319,29 @@ export interface operations {
             };
         };
     };
+    pairing_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ConfirmPairing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
+                };
+            };
+        };
+    };
     pairing_inspect: {
         parameters: {
             query?: never;
@@ -4193,6 +4384,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_PairingList"];
+                };
+            };
+        };
+    };
+    pairing_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RejectPairing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
+                };
+            };
+        };
+    };
+    pairing_unlink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_UnlinkPairing"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
                 };
             };
         };

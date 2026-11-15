@@ -199,6 +199,32 @@ impl PendingSession {
         )
         .await
     }
+    pub async fn unlink<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
+        &self,
+        stream: S,
+        id: [u8; 16],
+        expected: StateVersion,
+    ) -> Result<CommandResponse<PairingSnapshot>, ErrorCode> {
+        let request = CommandRequest {
+            id,
+            operation: UnlinkPairing::NAME.to_owned(),
+            parameters: UnlinkPairing {
+                request: self.request.parameters.request.clone(),
+                expected,
+            },
+        };
+        self.call(
+            stream,
+            "unlink",
+            Secret::new(serde_json::to_vec(&request).map_err(|_| ErrorCode::InvalidRequest)?),
+        )
+        .await
+    }
+    /// Host-only credential borrowed from the protected session. The server's
+    /// ordinary authorization still decides every operation; a receipt is no permit.
+    pub fn credential(&self) -> zedone_core::access::Credential<'_> {
+        zedone_core::access::Credential(&self.access_key)
+    }
     async fn call<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,
         stream: S,

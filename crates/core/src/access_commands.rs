@@ -227,7 +227,7 @@ fn validate<C: Command>(subject: &str, request: &CommandRequest<C>) -> CommandRe
     Ok(())
 }
 
-fn validate_issue(scope: &AccessScope, verifier: KeyVerifier) -> CommandResult<()> {
+pub(crate) fn validate_issue(scope: &AccessScope, verifier: KeyVerifier) -> CommandResult<()> {
     let spaces = match scope {
         AccessScope::Administration(_) => None,
         AccessScope::AdministrationAndSpaces(scope) => Some(&scope.spaces),
@@ -243,7 +243,10 @@ fn validate_issue(scope: &AccessScope, verifier: KeyVerifier) -> CommandResult<(
     Ok(())
 }
 
-fn future_expiry(clock: &impl Clock, ms: Option<i64>) -> CommandResult<Option<SystemTime>> {
+pub(crate) fn future_expiry(
+    clock: &impl Clock,
+    ms: Option<i64>,
+) -> CommandResult<Option<SystemTime>> {
     ms.map(|ms| {
         let invalid = || CommandError {
             code: ErrorCode::InvalidRequest,

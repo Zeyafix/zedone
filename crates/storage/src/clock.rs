@@ -40,6 +40,7 @@ pub(crate) fn seed(tx: &rusqlite::Transaction<'_>) -> StorageResult<()> {
 
 pub(crate) fn validate(connection: &Connection) -> StorageResult<()> {
     crate::access::validate(connection)?;
+    crate::pairing::validate(connection)?;
     validate_clock(connection)
 }
 

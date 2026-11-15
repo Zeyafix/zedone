@@ -92,3 +92,93 @@ async fn administrators_share_pending_inspect_cancel_and_list_across_http_ipc_cl
     assert!(!listed.to_string().contains("verifier"));
     db.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn confirmation_rejection_and_unlink_share_http_ipc_cli_receipts_and_authority() {
+    let (dir, db, service, admin, member) = setup().await;
+    let secret = key(&admin);
+    for reject in [false, true] {
+        let n = if reject { 20 } else { 10 };
+        let create = request(
+            n,
+            "invitation.create",
+            json!({"invitation":sid(n),"verifier":vec![n;32]}),
+        );
+        assert_eq!(
+            post(&service, "invitation.create", &create, &secret).await["status"],
+            "ok"
+        );
+        let pending = request(
+            n + 1,
+            "pairing.request",
+            json!({"request":sid(n),"invitation":sid(n),"label":"Phone","access_verifier":vec![n;32]}),
+        );
+        let snapshot = db
+            .timed_transact(move |tx, clock| {
+                Ok(pairing::request(
+                    tx,
+                    clock,
+                    &decode_request::<pairing::RequestPairing>(pending.as_bytes())?,
+                    InvitationVerifier([n; 32]),
+                    PendingVerifier([n; 32]),
+                )?)
+            })
+            .await
+            .unwrap()
+            .unwrap()
+            .result;
+        let op = if reject {
+            "pairing.reject"
+        } else {
+            "pairing.confirm"
+        };
+        let p = if reject {
+            json!({"request":sid(n),"expected":snapshot.version})
+        } else {
+            json!({"request":sid(n),"expected":snapshot.version,"scope":{"kind":"administration"},"expires_at_unix_ms":null})
+        };
+        let body = request(n + 2, op, p.clone());
+        assert_eq!(
+            post(&service, op, &body, &key(&member)).await["error"]["code"],
+            "access_denied"
+        );
+        let completed = cli(&dir, &secret, op, &body);
+        assert_eq!(
+            completed["result"]["status"],
+            if reject { "rejected" } else { "confirmed" }
+        );
+        let replay: Value =
+            serde_json::from_str(&ipc::invoke(&service, op, &body, &secret).await).unwrap();
+        assert_eq!(replay["result"], completed["result"]);
+        assert_eq!(replay["replayed"], true);
+        assert_eq!(post(&service, op, &body, &secret).await, replay);
+        if !reject {
+            let unlink = request(
+                n + 3,
+                "pairing.unlink",
+                json!({"request":sid(n),"expected":completed["result"]["version"]}),
+            );
+            assert_eq!(
+                post(&service, "pairing.unlink", &unlink, &key(&member)).await["error"]["code"],
+                "access_denied"
+            );
+            let result = post(&service, "pairing.unlink", &unlink, &secret).await;
+            assert_eq!(result["result"]["status"], "unlinked");
+            let replay = cli(&dir, &secret, "pairing.unlink", &unlink);
+            assert_eq!(replay["result"], result["result"]);
+            assert_eq!(replay["replayed"], true);
+            let stale = request(n + 4, op, p);
+            assert_eq!(
+                post(&service, op, &stale, &secret).await["error"]["code"],
+                "stale_state"
+            );
+        }
+        let mut changed: Value = serde_json::from_str(&body).unwrap();
+        changed["parameters"]["request"] = json!(sid(99));
+        assert_eq!(
+            post(&service, op, &changed.to_string(), &secret).await["error"]["code"],
+            "command_mismatch"
+        );
+    }
+    db.shutdown().await.unwrap();
+}

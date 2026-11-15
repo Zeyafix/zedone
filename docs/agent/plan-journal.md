@@ -3,7 +3,7 @@
 ## Текущий статус
 
 ```yaml
-updated: 2026-11-15
+updated: 2026-11-16
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
@@ -11,7 +11,7 @@ current_step: P06.02
 last_completed_stage: P03
 last_completed_step: P06.01.4
 active_work: null
-next_action: "LOG-569: по поручению разработчика готовится docs-only PR итогов P06.01 и условные merge/delete после применимых проверок/readiness. Реализация остаётся source 02ae231, GAP-029 resolved; QR P06.02 не начат."
+next_action: "LOG-571: комплект документации P06.01 согласован, включая ранее исключённые EV-100/102/103 и записи интеграции PR #94–97. P06.01 done/GAP-029 resolved; далее готов P06.02, реализация не начата."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028]
@@ -20,8 +20,32 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-569
+last_event: LOG-571
 ```
+
+Комплект документации ручного P06.01 согласован: ранее исключённые записи
+публикации/интеграции EV-100, EV-102 и EV-103 включены вместе с журналом/EV-104.
+Сведения о PR #94–97 сверены с GitHub: все MERGED; #94–96 имеют по 17 SUCCESS,
+#97 — docs-only без новых CI по paths. В EV-100/102/103 добавлен текущий статус
+со ссылкой на авторитетный журнал/EV-104; прежние pending/blocked записи сохранены
+как история. Правило состава PR учитывает содержание и происхождение изменений,
+а не только время их появления. Продуктовый код, все 98 определения/состояния,
+GAP/DEC и границы приёмки прежние. P06.01 done/GAP-029 resolved, далее готов
+P06.02, его реализация не начата; active_work null. LOG-571.
+Нижеследующие сводки исторические.
+
+Итоги ручной приёмки P06.01 и инструкции клавиатуры опубликованы и интегрированы:
+[PR #97](https://github.com/Zeyafix/zedone/pull/97), head 05232d2, merge e3a229d,
+шесть документов. Локальные acceptance/evidence/496 links/98 критериев/privacy
+проверены; свежая exact-head readiness MERGEABLE/CLEAN, reviews/requests/comments/
+threads/checks отсутствуют. Для docs-only diff workflows исключены paths; это
+не новые 17 SUCCESS. Продукт source 02ae231 прежний. Merge tree равен reviewed head,
+main=origin/main, feature-ветка удалена local/remote/tracking. Исходные dirty
+EV-100/EV-102/EV-103 побайтово сохранены, остальные worktrees/stash не менялись.
+Записи интеграции журнала/EV-104 остаются локально без нового commit/push.
+P06.01 done в ручном scope/GAP-029 resolved, все 98 состояния/прочие GAP/DEC прежние.
+Далее готов P06.02, его реализация не начата; active_work null. EV-104/LOG-570.
+Нижеследующие сводки исторические.
 
 В test/p06-01-device-acceptance завершена финальная локальная приёмка P06.01:
 EV-104/LOG-568. Обычная видимая LatinIME/адрес/русское имя/код, системная Back
@@ -5542,3 +5566,20 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Разработчик поручил PR и при успехе merge/удаление ветки. Подтверждены base main/origin/main/02ae231 и отсутствие PR текущей ветки. Scope — шесть документов: EV-104, журнал, очередь и user/agent/development guidance; исходные dirty EV-100/EV-102/EV-103 исключены и сохранены побайтово. Продукт/видимый UI не меняются, media не требуются.
 - Текущие workflows запускаются по продуктовым paths и не включают docs-only diff. Активные branch rules отсутствуют; main API сообщает Branch not protected. Новых автоматических CI для данного PR не ожидается, прежние 17 SUCCESS PR #96 не выдаются за проверки нового head. Успех публикации требует проверенного состава/ссылок/98 определений и состояний/приватности/локального evidence плюс свежей readiness exact head/base без применимых pending/failed checks или незавершённых reviews/threads.
 - EV-104/LOG-568 и ограничения ручного scope прежние, GAP-029 resolved. Продуктовый source 02ae231 и все 98 состояния/прочие GAP/DEC сохранены; QR/обмен/Tailscale/физический arm64 отдельно. Объём docs превышает ориентир малого PR из-за неделимого результата приёмки с сохранённой историей; нового поведения нет. Active_work null, новая реализация не начата.
+
+### LOG-570 — 2026-11-15 — агент Codex, PR #97 интегрирован и ветка удалена
+
+- Коммит 05232d2d2197d342bf198aeffd7184ec5b81c4d7 создан и отправлен обычным push/pre-push. [PR #97](https://github.com/Zeyafix/zedone/pull/97) создан и немедленно linked; шесть согласованных документов, точные title/body/три English sections/credit прочитаны обратно. UI/runtime diff отсутствует, media не требуются. Исходные dirty EV-100/EV-102/EV-103 исключены и сохранены побайтово.
+- Полный diff/496 local links/98 неизменных определений и состояний, настоящий локальный EV-104 build/Device/paired runner/restoration, приватность/noreply/пустой tracked-ignored и staged fingerprints проверены. Свежие exact head/base 05232d2/02ae231: OPEN/non-draft/MERGEABLE/CLEAN; checks/comments/reviews/requests/threads отсутствуют. Workflows исключают docs-only diff, активных branch rules нет; нового CI нет, прежние 17 SUCCESS PR #96 не выдаются за новый head.
+- Merge API с точным head создал e3a229db2c0ee71edad050746dbbf8d1b5cc8b04. Родители — прежний main/checked head; merge tree равен checked head. Незанятая main обновлена compare-and-swap и switch сохранил три исходных документа по SHA-256. Remote feature удалён с lease checked head, local branch-d; local/remote/tracking refs проверяются отсутствующими. Main=origin/main, остальные worktrees/stash не менялись, индекс пуст, новых commits/push после merge нет.
+- Пять правил сохранены в согласованном ручном scope: обратимые действия/новая выдача, общий Service/API человека и агента, актуальные user/agent/development/EV docs с прежним ADR-0060, Windows/Android UI/API/CLI и один registry/Rust-derived contract/OS stores. P06.01 done/GAP-029 resolved; все 98 состояния/прочие GAP/DEC и QR/обмен/Tailscale/физический arm64 ограничения прежние.
+- Итоговые записи журнала/EV-104 остаются локально без нового commit/push; исходные EV-100/EV-102/EV-103 прежние. Далее готов P06.02, его реализация не начата; active_work null. Наблюдение PR не включалось, поскольку нет ожидающих checks/reviews и merge выполнен сразу после readiness.
+
+### LOG-571 — 2026-11-16 — разработчик/агент Codex, согласован полный комплект документации P06.01
+
+- По поручению разработчика исправлен ошибочный отбор документов по времени появления изменений. В docs/pairing-integration-records от main/e3a229d включены все пять оставшихся изменённых документов: EV-100/102/103, журнал и EV-104. Исходный diff сохранён побайтово и с binary patch в ignored reports; записи публикации/интеграции не удалялись.
+- PR #94–97 сверены с GitHub: MERGED, head/merge совпадают с журналом; #94–96 имеют по 17 COMPLETED/SUCCESS, #97 не запускал CI по docs-only paths. В EV-100/102/103 добавлена текущая проекция с отсылкой к журналу/EV-104, прежние blocked/pending состояния явно исторические. Scope исходных host/API/app/форм сохранён.
+- В очереди уточнён отбор PR по содержимому и происхождению всех изменённых документов, включая связанные исходные записи. Машинные отчёты остаются ignored, действительно посторонние изменения сохраняются отдельно. Правило не расширяет полномочия публикации.
+- Изменяются только шесть документационных файлов; UI/runtime/зависимости/схема/продуктовые проверки прежние. Для этой правки проверяются ссылки, сохранность исходных записей, 98 определения/состояния, GAP/DEC, приватность и полный staged diff. Новый runtime CI по docs-only paths не ожидается; прежние результаты не объявляются новым запуском.
+- Обратимость/общий API/Windows–Android/единый источник истины сохранены в прежнем scope, документация согласована. P06.01 done/GAP-029 resolved; QR/обмен/Tailscale/физический arm64 и полные T09/A08/A51 отдельно. Далее готов P06.02, реализация не начата; active_work null.
+- Этот комплект включает накопленные записи предыдущей интеграции. Операционный результат публикации самого исправления сохраняется в PR и ignored отчёте; после merge новая неопубликованная порция tracked-документов не создаётся.

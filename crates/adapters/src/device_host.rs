@@ -1,5 +1,6 @@
 //! High-level host operations shared by native IPC and authenticated TLS/CLI.
 //! No operation exposes an OS slot, key, database callback or bootstrap.
+mod offers;
 #[cfg(test)]
 #[path = "device_host_tests.rs"]
 mod tests;
@@ -128,6 +129,15 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
         body: &[u8],
         key: &str,
     ) -> CommandResponse<serde_json::Value> {
+        if matches!(operation, "offer.create" | "offer.read") {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Empty {}
+            if serde_json::from_slice::<Empty>(body).is_err() {
+                return failure(ErrorCode::InvalidRequest);
+            }
+            return self.outgoing_offer(operation == "offer.create", key).await;
+        }
         let result = async {
             let _guard = self.operations.lock().await;
             self.authorize(key).await?;

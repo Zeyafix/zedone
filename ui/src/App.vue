@@ -4,6 +4,8 @@ import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPor
 import { checkConnection, type Connection } from "./connection";
 import { readTheme, saveTheme, type Theme } from "./appearance";
 import SpacesView from "./SpacesView.vue";
+import DevicesPanel from "./DevicesPanel.vue";
+import AccessPanel from "./AccessPanel.vue";
 
 type Page = "spaces" | "settings";
 const pageFromHash = (): Page => location.hash === "#/settings" ? "settings" : "spaces";
@@ -17,6 +19,9 @@ const systemDark = matchMedia("(prefers-color-scheme: dark)");
 const dark = ref(systemDark.matches);
 const effectiveTheme = computed(() => theme.value === "system" ? dark.value ? "dark" : "light" : theme.value);
 const connection = ref<Connection>("checking");
+const managementOpened = ref(false);
+watch(connection, value => { if (value === "ready") managementOpened.value = true; });
+const managementReady = computed(() => connection.value === "ready" || connection.value === "checking");
 let controller: AbortController | undefined;
 let timeout: ReturnType<typeof setTimeout> | undefined;
 let generation = 0;
@@ -139,6 +144,8 @@ onUnmounted(() => {
         </div>
 
         <template v-if="page === 'settings'">
+          <DevicesPanel v-if="managementOpened" :ready="managementReady" />
+          <AccessPanel v-if="managementOpened" :ready="managementReady" />
           <section class="settings-section" aria-labelledby="appearance-title">
             <h2 id="appearance-title">Оформление</h2>
             <p id="theme-description">Настройка применяется к этому браузеру или приложению. Цвета системы учитываются автоматически в режиме «Как на устройстве».</p>

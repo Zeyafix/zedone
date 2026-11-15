@@ -28,3 +28,4 @@ for (const args of [
   ["build", "--bin", "serve-shell", "--example", "shell-fixture", "--locked", "--offline"],
 ]) run(["cargo", `+${versions.rust}`, args[0], "--manifest-path", "ui/src-tauri/Cargo.toml", ...args.slice(1)]);
 run([process.execPath, "scripts/check-ui-browser.mjs"]);
+run([process.execPath, "scripts/check-ui-pairing.mjs"]);

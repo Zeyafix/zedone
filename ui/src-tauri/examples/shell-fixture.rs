@@ -5,6 +5,26 @@ use std::sync::Arc;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    #[cfg(windows)]
+    if args.len() == 2 && args[0] == "--cleanup-devices" {
+        use zedone_adapters::secrets::{SecretStore, Slot};
+        let directory = std::path::Path::new(&args[1]);
+        assert!(directory.join("host-namespace-v1").is_file());
+        let namespace = zedone_adapters::device_host::namespace(directory).unwrap();
+        let store = zedone_adapters::secrets::windows::WindowsSecrets::new(
+            namespace,
+            &directory.join("host-locks"),
+        );
+        for slot in [
+            Slot::ChannelIdentity,
+            Slot::PendingPairing,
+            Slot::ConnectedPairing,
+            Slot::OutgoingInvitation,
+        ] {
+            store.remove(slot).await.unwrap();
+        }
+        return;
+    }
     assert_eq!(
         args.len(),
         2,
@@ -48,11 +68,65 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     println!("http://{address}");
-    let shell = zedone_shell::Shell::new(
+    #[allow(unused_mut)]
+    let mut shell = zedone_shell::Shell::new(
         Some(zedone_adapters::Service::new(storage)),
         directory.join("local-session.json"),
     );
+    // Explicit Linux CI fixture; production shells never fall back to memory.
+    #[cfg(not(windows))]
+    {
+        shell.devices = Some(Arc::new(zedone_adapters::device_control::Controller::new(
+            Arc::new(zedone_adapters::device_host::DeviceHost::new(
+                shell.service.clone().unwrap(),
+                Memory::default(),
+            )),
+        )));
+    }
     axum::serve(listener, zedone_shell::web::router(shell, address))
         .await
         .unwrap();
+}
+
+#[cfg(not(windows))]
+#[derive(Default)]
+struct Memory(
+    std::sync::Mutex<std::collections::HashMap<&'static str, zedone_adapters::secrets::Secret>>,
+);
+#[cfg(not(windows))]
+impl zedone_adapters::secrets::SecretStore for Memory {
+    async fn load(
+        &self,
+        slot: zedone_adapters::secrets::Slot,
+    ) -> Result<Option<zedone_adapters::secrets::Secret>, zedone_adapters::secrets::SecretError>
+    {
+        Ok(self
+            .0
+            .lock()
+            .unwrap()
+            .get(slot.name())
+            .map(|bytes| zedone_adapters::secrets::Secret::new(bytes.to_vec())))
+    }
+    async fn create(
+        &self,
+        slot: zedone_adapters::secrets::Slot,
+        bytes: &[u8],
+    ) -> Result<(), zedone_adapters::secrets::SecretError> {
+        let mut map = self.0.lock().unwrap();
+        if map.contains_key(slot.name()) {
+            return Err(zedone_adapters::secrets::SecretError::AlreadyExists);
+        }
+        map.insert(
+            slot.name(),
+            zedone_adapters::secrets::Secret::new(bytes.to_vec()),
+        );
+        Ok(())
+    }
+    async fn remove(
+        &self,
+        slot: zedone_adapters::secrets::Slot,
+    ) -> Result<(), zedone_adapters::secrets::SecretError> {
+        self.0.lock().unwrap().remove(slot.name());
+        Ok(())
+    }
 }

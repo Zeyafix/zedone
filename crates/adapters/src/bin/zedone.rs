@@ -122,7 +122,7 @@ async fn remote(args: &[String]) -> Result<CommandResponse<serde_json::Value>, E
         .take((MAX_REQUEST_BYTES + 1) as u64)
         .read_to_end(&mut body)
         .map_err(|_| ErrorCode::InvalidRequest)?;
-    let kind = if operation.starts_with("session.") {
+    let kind = if operation.starts_with("session.") || operation.starts_with("offer.") {
         "host"
     } else {
         "commands"

@@ -176,6 +176,13 @@ async fn embedded_host_rejects_foreign_pages_hosts_and_arbitrary_files() {
         ),
         ("/host/session", "127.0.0.1:12345", None, Some("cross-site")),
         ("/host/session", "127.0.0.1:12345", None, Some("same-site")),
+        ("/host/devices/host.start", "evil.test", None, None),
+        (
+            "/host/devices/offer.read",
+            "127.0.0.1:12345",
+            Some("https://evil.test"),
+            None,
+        ),
     ] {
         let mut request = Request::get(uri).header("host", host);
         if let Some(origin) = origin {
@@ -192,6 +199,26 @@ async fn embedded_host_rejects_foreign_pages_hosts_and_arbitrary_files() {
                 .status(),
             403
         );
+    }
+    for key in [None, Some("not-a-key")] {
+        let mut request = Request::post("/host/devices/host.start")
+            .header("host", "127.0.0.1:12345")
+            .header("content-type", "application/json");
+        if let Some(key) = key {
+            request = request.header("authorization", format!("Bearer {key}"));
+        }
+        let response = app
+            .clone()
+            .oneshot(
+                request
+                    .body(Body::from(r#"{"address":"127.0.0.1:0"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let value: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+        assert_eq!(value["status"], "error");
     }
     for (uri, content_type) in [
         ("/", "text/html; charset=utf-8"),

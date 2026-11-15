@@ -30,6 +30,131 @@ impl SecretStore for Memory {
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
+
+#[tokio::test]
+async fn manual_offer_survives_reopen_and_never_revives_a_cancelled_invitation() {
+    use crate::device_control::{Controller, DeviceControl};
+    let directory = tempfile::tempdir().unwrap();
+    let (db, key) = setup(&directory.path().join("db")).await;
+    let store = Arc::new(Memory::default());
+    let host = Arc::new(DeviceHost::new(Service::new(db.clone()), store.clone()));
+    let controller = Controller::new(host.clone());
+    async fn ok(
+        control: &impl DeviceControl,
+        op: &str,
+        body: serde_json::Value,
+        key: &str,
+    ) -> serde_json::Value {
+        match control.dispatch(op, body.to_string().as_bytes(), key).await {
+            CommandResponse::Ok(value) => value.result,
+            CommandResponse::Error(value) => panic!("{:?}", value.error.code),
+        }
+    }
+    assert!(
+        matches!(controller.dispatch("host.start",br#"{"address":"127.0.0.1:0"}"#,&hex(&[5;32])).await,CommandResponse::Error(value) if value.error.code==ErrorCode::AccessDenied)
+    );
+    assert!(store.load(Slot::ChannelIdentity).await.unwrap().is_none());
+    assert!(
+        matches!(controller.dispatch("offer.create",b"{}",&key).await,CommandResponse::Error(value) if value.error.code==ErrorCode::Unavailable)
+    );
+    let status = ok(
+        &controller,
+        "host.start",
+        serde_json::json!({"address":"127.0.0.1:0"}),
+        &key,
+    )
+    .await;
+    let started = ok(
+        &controller,
+        "host.start",
+        serde_json::json!({"address":status["address"]}),
+        &key,
+    )
+    .await;
+    assert_eq!(status, started);
+    let first = ok(&controller, "offer.create", serde_json::json!({}), &key).await;
+    let code = first["offer"].as_str().unwrap();
+    let offer = Offer::decode(code.as_bytes()).unwrap();
+    assert_eq!(first["invitation"]["status"], "open");
+    assert!(!first["invitation"].to_string().contains(code));
+    assert_eq!(
+        ok(&controller, "offer.create", serde_json::json!({}), &key).await["offer"],
+        code
+    );
+    let body = serde_json::json!({"id":vec![9;16],"operation":"invitation.cancel","parameters":{"invitation":offer.invitation,"expected":first["invitation"]["version"]}});
+    assert!(matches!(
+        Service::new(db.clone())
+            .dispatch("invitation.cancel", body.to_string().as_bytes(), &key)
+            .await,
+        CommandResponse::Ok(_)
+    ));
+    assert!(ok(&controller, "offer.read", serde_json::json!({}), &key).await["offer"].is_null());
+    let next = ok(&controller, "offer.create", serde_json::json!({}), &key).await;
+    assert_ne!(next["offer"], code);
+    ok(&controller, "host.stop", serde_json::json!({}), &key).await;
+    ok(&controller, "host.stop", serde_json::json!({}), &key).await;
+    assert!(
+        !ok(&controller, "host.status", serde_json::json!({}), &key).await["listening"]
+            .as_bool()
+            .unwrap()
+    );
+    drop(controller);
+    drop(host);
+    let reopened = Controller::new(Arc::new(DeviceHost::new(
+        Service::new(db.clone()),
+        store.clone(),
+    )));
+    assert_eq!(
+        ok(&reopened, "offer.read", serde_json::json!({}), &key).await["offer"],
+        next["offer"]
+    );
+    assert!(
+        matches!(reopened.dispatch("offer.read",b"{}",&hex(&[5;32])).await,CommandResponse::Error(value) if value.error.code==ErrorCode::AccessDenied)
+    );
+    // A corrupt OS record is an error, never a reason to mint a replacement.
+    store.remove(Slot::OutgoingInvitation).await.unwrap();
+    store
+        .create(Slot::OutgoingInvitation, b"corrupt")
+        .await
+        .unwrap();
+    assert!(matches!(
+        reopened.dispatch("offer.create", b"{}", &key).await,
+        CommandResponse::Error(_)
+    ));
+    assert_eq!(
+        &**store
+            .load(Slot::OutgoingInvitation)
+            .await
+            .unwrap()
+            .as_ref()
+            .unwrap(),
+        b"corrupt"
+    );
+    // Crash after OS persistence, before SQLite publication: read completes
+    // exactly the saved create, without making another code or extending it.
+    store.remove(Slot::OutgoingInvitation).await.unwrap();
+    let pin = channel::load_identity(&store)
+        .await
+        .unwrap()
+        .unwrap()
+        .fingerprint();
+    let saved = Offer::new("1".repeat(32), pin, &[72; 32]).unwrap();
+    store
+        .create(Slot::OutgoingInvitation, &saved.encode())
+        .await
+        .unwrap();
+    let recovered = ok(&reopened, "offer.read", serde_json::json!({}), &key).await;
+    assert_eq!(
+        recovered["offer"],
+        std::str::from_utf8(&saved.encode()).unwrap()
+    );
+    assert_eq!(recovered["invitation"]["invitation"], saved.invitation);
+    assert_eq!(
+        ok(&reopened, "offer.read", serde_json::json!({}), &key).await["invitation"],
+        recovered["invitation"]
+    );
+    db.shutdown().await.unwrap();
+}
 async fn setup(path: &FilePath) -> (Storage, String) {
     let storage = Storage::open(path).await.unwrap();
     let admin = Arc::new(PendingAccess::generate().unwrap());
@@ -225,6 +350,7 @@ async fn acceptance_server() {
         Slot::PendingPairing,
         Slot::ConnectedPairing,
         Slot::ChannelIdentity,
+        Slot::OutgoingInvitation,
     ] {
         store.remove(slot).await.unwrap();
     }

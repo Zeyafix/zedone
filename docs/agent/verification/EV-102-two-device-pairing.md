@@ -131,3 +131,20 @@ Commit/push/PR/новый CI/merge не выполнялись.
 P06.01.2.5 и его внутренние части verified, P06.01.2/P06 in_progress.
 Далее ревью/интеграция всего P06.01.2.5; затем готов UI-шаг P06.01.3 на принятом
 результате. Active_work очищен, следующий продуктовый шаг не начат. LOG-548.
+
+## Публикация и guard CI — LOG-550
+
+[PR #95](https://github.com/Zeyafix/zedone/pull/95) создан на head 2b4c6ae,
+base main/bcc9b20. Опубликованы 35 согласованных файлов; body/readback/credit,
+26 runtime fingerprints и noreply подтверждены. Исходный dirty EV-100 вне
+коммита, обычный push/pre-push passed; визуального diff нет.
+
+Первый Linux prototype-native job отказал в строгом check-android-ci-suites:
+dispatcher уже добавлял debug APK build/сквозной runner после прежнего UI,
+но guard ещё ожидал старый состав. Обновлена точная последовательность full/shell
+и добавлены остановка/сохранение exit code и signal на каждом из трёх shell
+шагов. Suite ownership, число checks, таймауты и строгие aggregates прежние.
+Локальные check-android-ci-suites и check-host-ci-suites passed. Продуктовый
+runtime не менялся; его прежние 26 fingerprints совпадают. Новый полный CI и
+readiness нового head обязательны перед ранее порученными merge/delete.
+Состояния полных критериев/GAP/DEC и пять правил прежние.

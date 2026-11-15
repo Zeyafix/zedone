@@ -11,7 +11,7 @@ current_step: null
 last_completed_stage: P03
 last_completed_step: P06.01.2.4
 active_work: null
-next_action: "Поручены PR и merge/delete после полного успеха CI/readiness; публикуется весь P06.01.2.5, EV-102/LOG-549. Новый продуктовый шаг не начат."
+next_action: "PR #95 опубликован; исправлен guard порядка CI, локальные routing checks passed. Нужен новый полный CI всех 17 SUCCESS и readiness точного head перед порученными merge/delete; EV-102/LOG-550."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-549
+last_event: LOG-550
 ```
 
 Весь P06.01.2.5 verified локально в feat/p06-01-2-5-pairing-acceptance от bcc9b20.
@@ -5312,3 +5312,9 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Поручены PR и, при успехе, merge/удаление ветки feat/p06-01-2-5-pairing-acceptance. Fetch подтвердил main/origin/main/bcc9b20; существующего PR ветки нет. Полный diff и границы одного итогового шага проверены; все 26 fingerprints совпали. Визуального diff нет.
 - Состав/patch/копии новых файлов сохранены в ignored локальном отчёте. Исходный dirty EV-100 сохранён вне коммита; остальные изменения относятся к реализации, проверкам и документации всего P06.01.2.5. Noreply/приватность/отсутствие tracked ignored проверяются до коммита.
 - До merge нужен точный ожидаемый набор всех 17 COMPLETED/SUCCESS и свежая readiness того же head, без незавершённых обязательных reviews/threads. Неполный rollup/pending не разрешает merge; при отказе читать raw logs. Полные T09/A08/A51 и прежние GAP/DEC остаются прежними. Active_work null, новая реализация не начата.
+
+### LOG-550 — 2026-11-15 — агент Codex, PR #95 и исправление guard порядка CI
+
+- Коммит 2b4c6aed527be09c98689083b8e64943e8be8a90 опубликован обычным push/pre-push. PR #95 создан и немедленно linked; head/base bcc9b20, OPEN/non-draft, 35 файлов и body/readback/credit подтверждены. Исходный dirty EV-100 вне коммита; 26 проверенных fingerprints и noreply совпали, tracked ignored нет. Визуального diff нет.
+- Исходный linux-checks (prototype-native) отказал в check-android-ci-suites на ожидаемом составе: добавленные debug build/paired APK runner уже шли после прежнего shell/UI, guard ещё ожидал только прежний шаг. Raw log сохранён локально. Обновлён точный full/shell порядок; добавлены failure/signal на каждом из трёх shell шагов, без ослабления прежних проверок/таймаутов/агрегатов/числа suites.
+- Локальные Android/host routing checks passed; продуктовый runtime и его 26 fingerprints прежние. Исправление готовится отдельным коммитом в тот же PR. Новый полный CI и свежая readiness нового head нужны до порученных merge/delete; старый частичный rollup не принимается. Reviews/comments/requests/threads на первом readback отсутствовали. Новая продуктовая реализация не начата, active_work null; все полные критерии/GAP/DEC прежние.

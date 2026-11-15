@@ -2,6 +2,22 @@
 
 Дата: 2026-11-15. Рабочая карточка P06.01.3/P06.01.4.
 
+## Текущий статус
+
+Реализация интегрирована через [PR #96](https://github.com/Zeyafix/zedone/pull/96),
+merge 02ae231 после всех 17 SUCCESS. Недостающая финальная Device-приёмка
+завершена в [EV-104](EV-104-device-pairing-ui-acceptance.md); документальные
+итоги интегрированы через PR #97. P06.01.3/.3.2/.4 и весь ручной P06.01 done,
+GAP-029 resolved. Обычная IME/Back и парный APK/API/CLI runner приняты без
+изменения продуктового source 02ae231. Текущий статус —
+[журнал](../plan-journal.md), LOG-568/570/571.
+
+Ниже сохранена история реализации и остановки на момент PR #96. Указанные
+здесь blocked/непроверенные финальные формы впоследствии приняты в EV-104;
+причина прежних внешних ошибок не объявляется доказанной. QR/обмен отдельно.
+
+## Рабочая карточка
+
 - База: ee01d65, ветка feat/p06-01-device-access-ui. Четыре исходных dirty
   документа сохранены отдельно с SHA-256; EV-100 не относится к новому коду.
 - Цель: весь оставшийся P06.01 в одной ветке по прямому поручению разработчика,
@@ -30,17 +46,18 @@
   неизвестный исход не создаёт новое намерение или ключ; свежий inspect перед
   новым действием, никакой прямой записи агента в SQLite.
 
-## Реализация и результат
+## Реализация и результат на момент PR #96
 
-P06.01.3.1 проверен локально в компонентном срезе. Controller объединяет старые
+P06.01.3.1 done в компонентном срезе: PR #96/head ac0db9e merged 02ae231
+после всех 17 SUCCESS/readiness; LOG-563. Controller объединяет старые
 native start/stop и новый UI/host dispatch; Windows/web и Android/IPC используют
 один DeviceHost/Service. Новый защищённый outgoing slot содержит исходный Offer,
 проверяется чтением до публикации и сверяется с сохранённой TLS identity.
 SQLite и зависимости не менялись. Код не попадает в намерения/receipts.
 
 P06.01.3.2 реализован, Windows проверен; финальная native UI-приёмка blocked
-по GAP-029. P06.01.4 выполнен частично, весь P06.01 не закрыт. Ветка не
-интегрирована; commit/push/PR/новый CI не выполнялись.
+по GAP-029. P06.01.4 выполнен частично, весь P06.01 не закрыт. Реализация
+интегрирована через PR #96 после всех 17 SUCCESS; финальная local UI-приёмка отдельно.
 
 В настройках есть ручное приглашение/запрос/ожидание, подтверждение выбранных
 пространств, read/до отзыва по умолчанию, явные режимы каждого пространства,
@@ -82,7 +99,7 @@ source fingerprints и manifest сохранены только в ignored `docs
   (Windows Access denied). После завершения UI-процесса финальные host tests,
   build, clippy и targeted UI/CLI прошли; runtime-обхода или изменения CI budgets нет.
 
-## GAP-029 и незавершённая приёмка
+## GAP-029: историческая остановка до EV-104
 
 На обратном направлении (Android вводит адрес Windows) agent-device сообщил
 `Android fill verification failed`. Единственный повтор по совету инструмента
@@ -127,3 +144,49 @@ grant defaults/явные режимы/срок/отзыв, stale/неизвес
 synthetic installation, dark/1280×900, визуально проверены; media и PR body
 хранятся вне репозитория, публикация использует gh --attach. После base capture
 финальный shell build восстановлен, check-ui-pairing passed повторно.
+
+
+## Публикация — LOG-562
+
+[PR #96](https://github.com/Zeyafix/zedone/pull/96), head
+ac0db9e5593f50c859388a6c679b196db687e5f5, base main/ee01d65. 38 файлов,
+все 26 fingerprints и body/readback подтверждены. Два настоящих static UI
+before/after размещены через gh --attach и проверены как hosted PNG/1280×900.
+Исходные media/body вне репозитория; EV-100/EV-102 вне коммита и сохранены.
+
+Первый readback: 14 runtime suites queued/in_progress, три strict aggregates
+ожидаются. Новый полный CI pending, нужны все 17 SUCCESS и свежая readiness
+того же head перед порученными merge/delete. Reviews/comments/requests/threads
+отсутствуют. GAP-029/.3.2/.4 остаются blocked, публикация их не закрывает.
+
+
+## Интеграция — LOG-563
+
+[PR #96](https://github.com/Zeyafix/zedone/pull/96), head
+ac0db9e5593f50c859388a6c679b196db687e5f5, merge
+02ae2310a9c5f0700b2c5f8d1fbb04217c110536 после ровно ожидаемых 17
+COMPLETED/SUCCESS и свежей CLEAN readiness. Comments/reviews/requests/threads
+отсутствовали; финальный body/credit/две hosted images/38 файлов прочитаны обратно.
+
+Raw Windows/Linux shell подтвердили прежний полный UI и новые два pairing
+fixtures/defaults/явные режимы/срок/admin/ключи/stale/retry/обратимость/сохранность.
+Raw Android shell подтвердил новую outgoing-slot instrumentation, весь прежний
+native UI и новый полный paired-APK runner через offer.create/read, Keystore,
+TLS/API/CLI restart/права/replay/reconnect/обратные действия/пять попыток. Cleanup
+OS keys/rules и восстановление APK/всех app files по SHA-256 passed. Обе ABI,
+product/prototype и strict aggregates SUCCESS. Linux CI host Memory не подменяет
+локальное Windows Credential Manager доказательство. Новые локальные APK rerun
+после остановки Device не выполнялись; теперь эти проверки имеют отдельное CI proof.
+
+Merge parents — прежний main и checked head, дерево равно checked head. Main
+обновлена до origin/main; feature-ветка удалена local/remote/tracking. Четыре
+dirty документа сохранены по SHA-256 при switch; EV-100/EV-102 не изменены.
+Индекс пуст, после merge нет новых source commits/push. Итоговые записи
+журнала/очереди/EV-103 остаются локальными.
+
+P06.01.3.1 done в host-control scope; .3.2/.4 остаются blocked GAP-029.
+Полный финальный native UI не входит в выполненную CI-матрицу; успешный CI не
+доказывает причину исходных Device fill failures. Все 98 определения/состояния
+приёмки и прежние GAP/DEC сохранены. Пять правил соблюдены в проверенном срезе,
+полный финальный UI-паритет остаётся незавершённым. Далее — финальная локальная
+Device-приёмка на main после восстановления инструмента.

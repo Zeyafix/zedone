@@ -2,13 +2,15 @@
 
 Дата: 2026-11-15. Продолжение EV-103, шаги P06.01.3.2 и P06.01.4.
 
-## Текущий итог — LOG-568
+## Текущий итог — LOG-568/570/571
 
 P06.01.3.2, P06.01.3, P06.01.4 и весь P06.01 done в согласованном ручном
 UI/API/CLI scope. GAP-029 resolved по финальной native UI-матрице и новому
 полному парному APK/API/CLI runner. Продуктовый source 02ae231 не менялся и уже
 интегрирован через PR #96; его прежние 17 SUCCESS сохраняют исходный охват.
-Нового CI/commit/push/PR/merge не было. Документы результата остаются локальными.
+Документальные итоги интегрированы через PR #97/head 05232d2, merge e3a229d;
+LOG-570. Для docs-only paths новых CI не было. Сведения об интеграции согласованы
+с журналом и итогами EV-100/EV-102/EV-103; исправление комплекта — LOG-571.
 
 Обычная LatinIME, адрес/русское имя/код, системная Back с сохранением полей и
 маршрута и отказ неверному коду с сохранением всей формы прошли. Полный новый
@@ -202,3 +204,30 @@ source остаётся 02ae231. Исходные dirty EV-100/EV-102/EV-103 и�
 head/base, отсутствие отказавших/ожидающих применимых checks и открытых reviews/
 threads. Объём документации больше ориентира малого PR из-за единого результата
 приёмки с сохранённой историей остановки и восстановления; продукт не расширяется.
+
+## Интеграция итогов — LOG-570
+
+[PR #97](https://github.com/Zeyafix/zedone/pull/97), head
+05232d2d2197d342bf198aeffd7184ec5b81c4d7, merge
+e3a229db2c0ee71edad050746dbbf8d1b5cc8b04. Обычный commit/push/pre-push прошёл,
+шесть согласованных документов/title/body/Summary→Changes→Testing/credit прочитаны
+обратно; UI Changes/media отсутствуют, поскольку runtime/UI diff нет.
+
+Локальные build/Device/парный runner/restoration proofs, 496 локальных ссылок,
+98 неизменных определений/состояний, приватность/идентичности и fingerprints
+проверены. Exact head/base 05232d2/02ae231 перед merge — OPEN/non-draft/
+MERGEABLE/CLEAN, checks/comments/reviews/requests/threads отсутствуют. Workflows
+по paths исключают docs-only PR, активных branch rules нет; нового CI SUCCESS
+не заявляется. Исходная продуктовая приёмка относится к source 02ae231.
+
+Merge выполнен API с точным проверенным head; родители и равенство дерева checked
+head подтверждены. Main обновлена compare-and-swap до origin/main, свои feature
+refs удалены local/remote/tracking с проверкой исходного head. Исходные dirty
+EV-100/EV-102/EV-103 исключены из PR и побайтово сохранены при switch. Остальные
+worktrees/stash не менялись; после merge новых commits/push нет, индекс пуст.
+
+P06.01 done/GAP-029 resolved в прежнем ручном scope. Все 98 состояния/прочие
+GAP/DEC и QR/обмен/Tailscale/физический arm64 границы сохранены. Пять правил
+соблюдены в проверенном scope: обратимость, общий API, документация, Windows/
+Android и единый registry/contract/OS stores. Далее готов P06.02, реализация
+не начата; active_work null. Итоговые записи остаются локальными.

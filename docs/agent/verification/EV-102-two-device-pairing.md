@@ -1,5 +1,17 @@
 # EV-102 — Сквозное подключение двух устройств
 
+## Текущий статус
+
+P06.01.2.5 и P06.01.2 done в host/API/CLI/app scope:
+[PR #95](https://github.com/Zeyafix/zedone/pull/95), merge ee01d65 после всех
+17 SUCCESS. Последующие формы и финальная ручная приёмка завершены в
+[EV-104](EV-104-device-pairing-ui-acceptance.md), итоги опубликованы PR #97.
+Весь ручной P06.01 done/GAP-029 resolved; QR и обмен остаются отдельными шагами.
+Авторитетный статус — [журнал](../plan-journal.md), LOG-568/570/571.
+
+Ниже сохранены границы исходного app-среза, остановка CI и успешная интеграция.
+Исторические pending/ограничения не являются текущим статусом всего P06.01.
+
 ## Рабочая карточка
 
 - Шаг: весь P06.01.2.5; ветка feat/p06-01-2-5-pairing-acceptance от bcc9b20.
@@ -15,9 +27,10 @@
   общий API/CLI и Android host bridge, повтор/restart/отказы/сохранность.
 - Обратимость: отмена/отклонение/отвязка/отзыв, новый запрос и новый ключ;
   неизвестный результат не разрешает потерю действующего секрета.
-- Результат: весь P06.01.2.5 verified локально. Сквозной Windows↔Android APK/
-  API/CLI сценарий, обе нативные матрицы/ABI и обычные APK passed; новый CI и
-  интеграция не выполнялись. Далее ревью/интеграция одной ветки целиком.
+- Результат: весь P06.01.2.5 и родитель P06.01.2 done в host/API/CLI/app scope.
+  PR #95/head 4988620 merged ee01d65 после всех 17 SUCCESS/CLEAN readiness;
+  обе платформы/ABI, полный прежний UI и парный APK/cleanup passed. LOG-557.
+  Формы P06.01.3 и полная UI-приёмка .4 отдельно.
 
 ## Реализация
 
@@ -178,3 +191,64 @@ docs/reports отсутствовал в чистом checkout. Runner созд�
 отличается от проверенной версии ровно этой строкой, прежний CI guard не менялся.
 Новый полный CI и readiness нового head требуются до merge/delete; успех
 прежней части shell job не объявляется успехом всей сквозной приёмки CI.
+
+## Ожидание CI исправленного startup — LOG-553
+
+Коммит 498862003d9984bd50d295521ba8e1c229120a6c отправлен обычным push/pre-push
+в PR #95. Body с целевой проверкой чистого checkout прочитан обратно; состав
+36 файлов и credit подтверждены. Продуктовый runtime прежний, manifest с
+точечным runner fix и неизменным routing guard содержит 27 файлов.
+
+Первый readback нового head: OPEN/non-draft/MERGEABLE/CLEAN, reviews/comments/
+requests/threads отсутствуют; checks ещё не зарегистрированы. CLEAN без
+ожидаемых 17 COMPLETED/SUCCESS не разрешает merge. Существующий watch остаётся
+активным; после полного нового CI нужна свежая readiness того же head перед
+порученными merge/delete. Исходный EV-100 сохранён, active_work null.
+
+## Android search timeout и один полный повтор — LOG-555
+
+Attempt 1/head 4988620: 15 checks SUCCESS, android (shell) отказал в прежнем
+checkSearch:48 на втором запросе Café, до acceptance build/paired runner.
+Полные workspace/editor/moves/tags до него passed. Search idle с предложением
+нажать «Найти», session configured, alerts/pageErrors пусты; лог не различает
+неполученное касание и позднюю invalidation ввода. Причина не доказана.
+Strict android aggregate лишь передал RESULT=failure. UI/драйвер прежние;
+разница с aadd273 — только recursive mkdir и документация.
+
+Неизменный shared checkSearch с реальным Service/native CDP touch/CPU4 и без
+checkVisibility прошёл на Windows Chromium в изолированном fixture. Android
+IME не проверялся; локальное устройство/APK/данные не менялись. Исходный CI
+timeout не воспроизведён. 27 source fingerprints совпали, новых правок source,
+коммитов или push нет; все assertion/сроки/попытки/матрица/бюджеты прежние.
+
+Запрошен один полный Android workflow rerun на том же head после завершения
+attempt 1. Новый результат pending; для merge/delete нужны все 17 SUCCESS и
+свежая readiness того же head. Прежние GAP/DEC/полные критерии и пять правил
+не меняются, успех повтора не будет доказательством устранения первопричины.
+Доказательства — ignored publication/*4988620-failure.log и search-probe.log.
+
+## Интеграция — LOG-557
+
+[PR #95](https://github.com/Zeyafix/zedone/pull/95), head 4988620, merged
+ee01d65f377cb92ba4677999c9b5eb88461ca742 после всех 17 ожидаемых COMPLETED/SUCCESS и
+свежей CLEAN readiness; reviews/requests/threads отсутствовали. Финальный body
+прочитан обратно, credit/36 файлов и 27 source fingerprints подтверждены.
+
+Raw Windows/Linux shell подтвердили полный desktop/touch UI. Android attempt 2
+прошёл native UI, acceptance APK и настоящий paired TLS/API/CLI/Keystore
+restart/права/repeat/reconnect/cancel/reject/unlink/revoke/пять попыток, очистку
+ключей/rules и восстановление исходного APK/всех app files по SHA-256.
+CI Linux memory fixture и локальная Windows Credential Manager приёмка
+разделены явно. Причина первого search timeout не доказана; успешный повтор
+не закрывает прежние GAP/DEC и не меняет полные критерии T09/A51.
+
+Дерево merge равно checked head. Main равна origin/main; feature-ветка удалена
+локально/на GitHub/tracking. Три исходных dirty документа сохранены побайтово
+при switch; EV-100 прежний. Другие worktrees/stash не менялись, индекс пуст,
+новых source commits/push после merge нет. Записи журнала/EV-102/очереди
+остаются локально. Пять правил в принятом scope соблюдены.
+
+P06.01.2.5, внутренние .1–.3 и P06.01.2 done; P06.01/P06 in_progress.
+Далее готов UI P06.01.3 по новому поручению, active_work null. Формы, обмен,
+физический arm64/Tailscale и полная UI-приёмка отдельно. Наблюдение PR снимается
+перед передачей управления.

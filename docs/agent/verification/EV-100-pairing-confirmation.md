@@ -1,8 +1,20 @@
 # EV-100 — подтверждение подключения и отзыв доступа
 
+## Текущий статус
+
+P06.01.2.4 done в host/API-срезе: [PR #94](https://github.com/Zeyafix/zedone/pull/94),
+merge bcc9b20 после всех 17 SUCCESS. Последующая сквозная приёмка и формы
+завершены в [EV-102](EV-102-two-device-pairing.md) и
+[EV-104](EV-104-device-pairing-ui-acceptance.md); весь ручной P06.01 done,
+GAP-029 resolved. Текущий статус проекта ведётся в [журнале](../plan-journal.md),
+LOG-568/570/571. Это не расширяет исходный host/API scope EV-100.
+
+Ниже сохранены результаты данного среза и история его публикации. Упоминания
+ещё не выполненных app flow/форм относятся к моменту соответствующей записи.
+
 ## Рабочая карточка
 
-- Шаг: P06.01.2.4, verified локально; ветка feat/p06-01-2-4-pairing-confirmation.
+- Шаг: P06.01.2.4, done в host/API-срезе; PR #94/bcc9b20; ветка feat/p06-01-2-4-pairing-confirmation.
 - База: main/993d98f (продукт 74aa615 плюс документы интеграции); зависимости .2.1–.2.3 интегрированы, EV-099/LOG-538.
 - Цель: только отдельный администратор подтверждает или отклоняет запрос;
   запись прав и решение атомарны. Отвязка отзывает доступ без удаления данных;
@@ -17,7 +29,7 @@
   новое приглашение и новая выдача; старый ключ и код не оживают.
 - Размер: одно решение безопасности от запроса до grant/receipt и обратно;
   отдельные формы и общая приёмка сохранены в очереди.
-- Результаты: Windows/native Android/обе ABI/контракт passed; новый CI и интеграция не выполнялись.
+- Результаты: Windows/Linux/native Android/обе ABI/контракт/полный прежний UI passed; PR #94 слит после всех 17 SUCCESS.
 
 
 ## Реализация и воспроизводимые проверки
@@ -106,3 +118,45 @@ Android Keystore bridge/новый APK/полная UI-матрица/физич
 
 Индекс пуст, commit/push/PR/новый CI/merge не выполнялись. Далее ревью и
 интеграция P06.01.2.4 перед P06.01.2.5; новая реализация не начата.
+
+
+## Публикация — LOG-543
+
+[PR #94](https://github.com/Zeyafix/zedone/pull/94), head
+1eb6776553df135e89a47605629b0048c87abaaa, base main/993d98f. 28 согласованных
+файлов и все 20 tested source fingerprints подтверждены; обычный push/pre-push
+passed. Body/readback подтвердил три English sections/credit и точные границы.
+Comments/reviews/requests/review threads отсутствовали; визуального diff нет.
+
+Новый полный CI pending: 14 runtime suites IN_PROGRESS, три strict aggregates
+ожидаются. Нужны все 17 COMPLETED/SUCCESS и свежая readiness того же head перед
+порученными merge/удалением ветки. Все 98 состояния/GAP/DEC и пять правил EV-100
+прежние; полного процесса/UI/обмена этим не принимаем. Записи публикации пока
+локальные без нового source push, active_work null; новой реализации нет.
+
+
+## Интеграция — LOG-544
+
+[PR #94](https://github.com/Zeyafix/zedone/pull/94) интегрирован: head
+1eb6776553df135e89a47605629b0048c87abaaa, merge
+bcc9b20a034a41e303cd7f8ce2bd95704feb2245 после ровно ожидаемых 17
+COMPLETED/SUCCESS и свежей CLEAN readiness. Body обновлён фактическими
+результатами CI и прочитан обратно; reviews/requests/comments/threads отсутствовали.
+
+Raw product logs Windows/Linux/native Android подтвердили новые
+confirm/reject/unlink/права/SQL/гонки/restart/отзыв/ротацию/сохранность;
+real TLS loopback проверен на каждой платформе. Две прежние парные host/native
+пробы явно выполнены. Raw shell logs подтвердили весь прежний desktop/touch/
+native UI/history/cleanup/accessibility/Markdown и Keystore; обе ABI/prototype
+suites и strict aggregates SUCCESS. Это расширяет доказательства прежнего UI,
+не добавляет приёмку новых форм или итогового двухустройственного confirmation.
+
+Дерево merge равно checked head, main обновлена до origin/main/bcc9b20.
+Два dirty документа сохранены побайтово при switch; feature-ветка удалена
+локально/на GitHub/tracking. Индекс пуст; новый source push/commit после merge
+не выполнялся, записи интеграции остаются локальными.
+
+Пять правил и границы выше сохраняются. P06.01.2.4 done в host/API-срезе,
+все 98 определения/состояния/GAP/DEC прежние. Полный app flow/итог двух устройств
+— .2.5; формы/обмен/физический телефон отдельно. Далее готов P06.01.2.5 по
+новому поручению; active_work null, новая реализация не начата.

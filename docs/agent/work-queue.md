@@ -245,6 +245,12 @@ P02 и не переоткрывают завершённую приёмку P00
 
 ### P06 — Обмен по отдельным сценариям
 
+Продолжение P06.02 по поручению разработчика LOG-576 выполняется в текущей
+ветке до сквозного QR-сценария. Срез API .1 уже verified локально (EV-106);
+для этого продолжения .1–.3 задают порядок проверки внутри одной ветки,
+без промежуточных публикаций. Их доказательства сохраняются раздельно,
+интеграция и новая CI-приёмка всего результата остаются отдельными действиями.
+
 По прямому поручению разработчика LOG-547 части P06.01.2.5.1–.3 выполняются
 в одной ветке до сквозного результата P06.01.2.5, без промежуточных интеграций.
 Их зависимости задают внутренний порядок проверки, а не ожидание отдельных PR.
@@ -266,7 +272,10 @@ P02 и не переоткрывают завершённую приёмку P00
 | P06.01.3.1 | P06.01.2, P05.01 | EV-103/ADR-0060/LOG-563: общий host-control/listener/OS outgoing code и dispatch Windows/Android; PR #96/head ac0db9e merged 02ae231 после всех 17 SUCCESS/readiness. Host/API/CLI/Keystore/retry/restart/terminal/corrupt/cleanup passed; native формы отдельно GAP-029 | T09, A51 | done |
 | P06.01.3.2 | P06.01.3.1 | EV-104/LOG-567: обе стороны UI/defaults/явные права/срок/ключи/stale/retry/обратимость и финальная обычная LatinIME/системная Back/отказ с сохранением формы проверены; source 02ae231 уже интегрирован PR #96 | T09, A08, A51 | done |
 | P06.01.4 | P06.01.3 | EV-104/LOG-568: итог ручного UI/API/CLI Windows/Android, права/срок/replay/restart/обратимость/сохранность принят; новый полный Windows Credential Manager↔Android APK/Keystore runner passed, исходные APK/app files восстановлены по SHA-256, свои OS slots/rules очищены, Device выключен. GAP-029 resolved; source 02ae231 | T09, A08, A51 | done |
-| P06.02 | P06.01, P01.09 | QR использует тот же процесс подключения; проверить точность, разрешения камеры, неготовность модели и ручной путь без ложного отказа приглашения | T09, A51 | planned |
+| P06.02 | P06.02.3 | EV-106/107/LOG-580: API/SVG/scanner и итоговый QR-процесс проверены локально, включая четыре оптических чтения текущего APK Galaxy A32 arm64 с GMS, read-only confirm/restart/unlink/reject/cancel/сохранность и cleanup. GAP-030 resolved; публикация/CI/интеграция отдельно, Tailscale/холодная загрузка модели не заявляются | T09, A51 | verified |
+| P06.02.1 | P06.01, P01.09 | EV-106/ADR-0062: QR qrcodegen 1.8.0, строгий формат и offer.qr/session.decode_qr; Windows 342/native Android 339 Rust, обе ABI/guards, jsQR IPv4/IPv6 × 2/4/8, прежний UI/TLS/pending/права/обратные действия и настоящий CLI passed. Локально без commit/PR/CI/merge; продолжен в той же ветке по LOG-576 | T09, A51 | verified |
+| P06.02.2 | P06.02.1 | EV-107/LOG-577/580: общий SVG/целые масштабы, Android Scanner 2.5.3 и lifecycle patch, 13 state-machine tests с защитой пересоздания формы, полный UI/независимое чтение SVG, обе APK ABI, native permissions/cancel/Back/background/timeout/manual/сохранность passed. Текущая оптика Galaxy A32 подтверждена в .3 | T09, A51 | verified |
+| P06.02.3 | P06.02.2 | EV-107/LOG-580: Windows Credential Manager↔APK/Keystore QR API/TLS/CLI и четыре оптических Windows QR→native scanner→форма на Galaxy A32 arm64 с GMS passed; нет авто-submit/сессии/доступа, Windows UI default read-only, process restart, unlink/reject/cancel, отказ старому отменённому коду, сохранность. Свои OS slots/rules/APK/data очищены, исходное отсутствие установки восстановлено. GAP-030 resolved, локально без нового CI/PR/merge | T09, A51 | verified |
 | P06.03 | P06.01, P04.10 | Выбор пространства, включение/пауза/возобновление обмена; синхронизировать один простой набор и проверить ограничения доступа и локальную сохранность | T09, A03, A08, A48 | planned |
 | P06.04 | P06.03 | Доставка после обрыва/перезапуска, повторы и совместимость версий; проверить отсутствие дубликатов/автоотвязки и сохранение явной паузы | T09, A03, A05, A47, A48, S07 | planned |
 | P06.05 | P06.04, P05.03 | Конфликты полей/имён контейнеров доступны и разрешаются через UI/HTTP/CLI; проверить блокировки, варианты, сохранение ID и конкурентное решение | T09, A04, A23, S03, S04 | planned |

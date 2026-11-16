@@ -1,18 +1,25 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription, DialogClose } from "reka-ui";
 import type { components } from "../../api/schema";
 import { localCredential } from "./connection";
 import { deviceCall, deviceError, type HostStatus, type SessionStatus, type HostOperation } from "./device-api";
+import QrCode from "./QrCode.vue";
+import QrScanner from "./QrScanner.vue";
 type Pairing = components["schemas"]["PairingSnapshot"];
 const props = defineProps<{ ready: boolean }>();
 type Outgoing = { offer: string | null; invitation: components["schemas"]["InvitationSnapshot"] | null };
+type InvitationQr = { text: string; modules: boolean[][]; invitation: components["schemas"]["InvitationSnapshot"] };
 type Change = { subject: string; operation: "session.cancel" | "session.unlink"; parameters: { id: number[]; expected: number[] } };
 const storageKey="zedone:device-change:v1";
 const host=ref<HostStatus>(), session=ref<SessionStatus>(), remote=ref<Pairing>(), outgoing=ref<Outgoing>();
 const address=ref(""), peerAddress=ref(""), code=ref(""), label=ref(""), busy=ref(false), error=ref(""), notice=ref("");
 const change=ref<Change>(), storageFailed=ref(false), confirmOpen=ref(false), requested=ref<"session.cancel"|"session.unlink"|"forget">();
+const qr=ref<InvitationQr>(), qrScale=ref(4), lastQr=ref<string>();
+let qrExpiry: ReturnType<typeof setTimeout> | undefined;
 let alive=true;
+function hideQr(){clearTimeout(qrExpiry);qr.value=undefined;}
+watch(() => props.ready, ready => {if(!ready)hideQr();});
 async function run(work:()=>Promise<void>) {
   if(busy.value || !props.ready)return;busy.value=true;error.value="";notice.value="";
   try{await work();}catch(cause){if(alive)error.value=deviceError(cause);}finally{if(alive)busy.value=false;}
@@ -36,6 +43,7 @@ async function status() {
 }
 async function refresh() {
   await run(async()=>{
+    hideQr();
     loadChange();
     const results=await Promise.allSettled([deviceCall<HostStatus>("host.status"),deviceCall<SessionStatus>("session.status"),deviceCall<Outgoing>("offer.read")]);
     if(!alive)return;
@@ -49,18 +57,55 @@ async function refresh() {
 }
 async function listener(operation:"host.start"|"host.stop") {
   await run(async()=>{
+    hideQr();
     const result=await deviceCall<HostStatus>(operation,operation==="host.start"?{address:address.value.trim()}:{});
     if(alive)host.value=result;
   });
 }
-async function invite() { await run(async()=>{const value=await deviceCall<Outgoing>("offer.create");if(alive)outgoing.value=value;}); }
+async function invite() { await run(async()=>{hideQr();const value=await deviceCall<Outgoing>("offer.create");if(alive)outgoing.value=value;}); }
+async function showQr() {
+  await run(async()=>{
+    hideQr();
+    const current=await deviceCall<HostStatus>("host.status");
+    if(!alive)return;
+    host.value=current;
+    if(!current.listening || !current.address)throw new Error("invalid_request");
+    const value=await deviceCall<InvitationQr>("offer.qr",{address:current.address});
+    const latest=await deviceCall<Outgoing>("offer.read");
+    if(!alive)return;
+    outgoing.value=latest;
+    if(!latest.offer || latest.invitation?.invitation!==value.invitation.invitation
+      || JSON.stringify(latest.invitation.version)!==JSON.stringify(value.invitation.version))throw new Error("stale_state");
+    const remaining=value.invitation.expires_at_unix_ms-Date.now();
+    if(remaining<=0){notice.value="Обновите приглашение перед показом QR. Ручной ввод доступен.";return;}
+    qr.value=value;
+    qrExpiry=setTimeout(hideQr,Math.min(remaining,2_147_483_647));
+  });
+}
+async function readQr(text:string) {
+  if(busy.value || !props.ready || session.value?.status!=="unconfigured" || change.value || storageFailed.value)return;
+  lastQr.value=text;
+  await run(async()=>{
+    try {
+      const input=await deviceCall<{address:string;offer:string}>("session.decode_qr",{text});
+      if(!alive)return;
+      peerAddress.value=input.address;code.value=input.offer;
+      notice.value="Адрес и код прочитаны. Проверьте устройство, укажите название и нажмите «Запросить подключение». Запрос пока не отправлен.";
+    } catch(cause) {
+      if(!alive)return;
+      if(cause instanceof Error && cause.message==="invalid_request")error.value="Этот QR не содержит поддерживаемого приглашения ZeDone. Введённые поля сохранены. Используйте другой QR или введите адрес и код вручную.";
+      else error.value="Не удалось проверить прочитанный QR. Введённые поля сохранены. Повторите проверку или введите адрес и код вручную.";
+    }
+  });
+}
+function clearInput(){peerAddress.value="";code.value="";label.value="";lastQr.value=undefined;error.value="";notice.value="";}
 async function submit() {
   if(change.value || storageFailed.value)return;
   await run(async()=>{
     await status();
     if(session.value?.status==="unconfigured") {
       await deviceCall("session.prepare",{address:peerAddress.value.trim(),offer:code.value.trim(),label:label.value.trim()});
-      if(alive)code.value="";
+      if(alive){code.value="";lastQr.value=undefined;}
       await status();
     }
     const value=await deviceCall<Pairing>("session.submit");
@@ -118,14 +163,15 @@ async function retry(){await run(()=>locked(async()=>{loadChange();await deliver
 const states={unconfigured:"Нет сохранённого подключения",pending:"Запрос сохранён на устройстве",connected:"Подтверждённое подключение сохранено"};
 const remoteStates:Record<Pairing["status"],string>={pending:"Ожидаем подтверждения на другом устройстве. Доступа к данным и обмена пока нет.",confirmed:"Подключение подтверждено. Обмен пространствами включается отдельно.",cancelled:"Подключение отменено. Для нового запроса создайте новое приглашение.",rejected:"Запрос отклонён. Для нового запроса создайте новое приглашение.",unlinked:"Устройство отвязано. Локальные пространства и история сохранены."};
 function changed(){loadChange();}
-onMounted(()=>{window.addEventListener("storage",changed);void refresh();});
-onUnmounted(()=>{alive=false;code.value="";outgoing.value=undefined;window.removeEventListener("storage",changed);});
+function hidden(){if(document.hidden)hideQr();}
+onMounted(()=>{window.addEventListener("storage",changed);document.addEventListener("visibilitychange",hidden);void refresh();});
+onUnmounted(()=>{alive=false;hideQr();lastQr.value=undefined;code.value="";outgoing.value=undefined;window.removeEventListener("storage",changed);document.removeEventListener("visibilitychange",hidden);});
 </script>
 
 <template>
   <section class="settings-section devices-panel" aria-labelledby="devices-title">
     <div class="view-toolbar"><h2 id="devices-title">Подключение устройств</h2><button :disabled="!ready || (busy)" @click="refresh">Обновить подключения</button></div>
-    <p>Для ручного подключения нужен доступный сетевой адрес другого устройства и одноразовый код. Передавайте код доверенным способом. Подключение требует подтверждения на приглашающем устройстве.</p>
+    <p>Сканируйте QR другого устройства или введите его адрес и одноразовый код вручную. Передавайте приглашение доверенным способом. Подключение требует подтверждения на приглашающем устройстве.</p>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p><p v-if="notice" role="status">{{ notice }}</p>
     <h3>Пригласить другое устройство</h3>
     <p>Укажите адрес этого устройства в Tailscale и порт. Приём работает, пока приложение открыто; закрытое приложение не принимает подключения.</p>
@@ -136,17 +182,26 @@ onUnmounted(()=>{alive=false;code.value="";outgoing.value=undefined;window.remov
     <button :disabled="!ready || (busy || !host?.listening)" @click="invite">Создать или показать приглашение</button>
     <div v-if="outgoing?.invitation" class="invitation-code"><p>Приглашение: {{ outgoing.invitation.invitation }}. Срок: {{ new Date(outgoing.invitation.expires_at_unix_ms).toLocaleString() }}.</p>
       <template v-if="outgoing.offer"><label class="name-field" for="outgoing-code">Одноразовый код для другого устройства<textarea id="outgoing-code" :value="outgoing.offer" readonly rows="4" autocomplete="off" spellcheck="false" /></label><p>Код действует десять минут и используется один раз. После отправки запроса сверьте его ID и подтвердите права в разделе «Запросы и доступы».</p></template>
-      <p v-else>Приглашение больше не открыто. Для нового подключения создайте новое приглашение.</p>
+      <div v-if="outgoing.offer" class="view-actions"><button v-if="!qr" type="button" :disabled="!ready || busy || !host?.listening" @click="showQr">Показать QR</button><button v-else type="button" @click="hideQr">Скрыть QR</button></div>
+      <div v-if="qr" class="device-qr">
+        <label class="name-field" for="qr-scale">Масштаб QR<select id="qr-scale" v-model.number="qrScale"><option :value="2">2×</option><option :value="4">4×</option><option :value="8">8×</option></select></label>
+        <div class="qr-viewport" tabindex="0" role="region" aria-label="QR подключения — прокручиваемая область"><QrCode :modules="qr.modules" :scale="qrScale"/></div>
+        <p>Сканируйте этот QR в ZeDone на другом устройстве. После чтения потребуется отправить запрос и подтвердить его здесь. QR содержит тот же секрет, что одноразовый код.</p>
+      </div>
+      <p v-if="!outgoing.offer">Приглашение больше не открыто. Для нового подключения создайте новое приглашение.</p>
     </div>
     <h3>Подключиться по коду</h3>
     <p v-if="session" data-session-state>{{ states[session.status] }}<span v-if="session.request">. ID запроса: {{ session.request }}</span><span v-if="session.address">. Адрес: {{ session.address }}</span></p>
     <p v-if="remote" role="status" data-remote-state>{{ remoteStates[remote.status] }}</p>
     <p v-if="session?.status==='connected'" class="object-note">Сохранённое подтверждение не заменяет проверку текущих прав: истечение или отзыв доступа запрещают действия.</p>
     <form v-if="session?.status==='unconfigured'" class="device-form" @submit.prevent="submit">
+      <QrScanner :disabled="!ready || busy || !!change || storageFailed" @read="readQr"/>
       <label class="name-field" for="peer-address">Адрес другого устройства (IP:порт)<input id="peer-address" v-model="peerAddress" :disabled="!ready || (busy || !!change || storageFailed)" required autocomplete="off" spellcheck="false"/></label>
       <label class="name-field" for="peer-code">Одноразовый код<input id="peer-code" v-model="code" :disabled="!ready || (busy || !!change || storageFailed)" required autocomplete="off" spellcheck="false"/></label>
       <label class="name-field" for="peer-label">Название этого устройства<input id="peer-label" v-model="label" :disabled="!ready || (busy || !!change || storageFailed)" required maxlength="80" autocomplete="off"/></label>
       <button type="submit" :disabled="!ready || (busy || !!change || storageFailed)">Запросить подключение</button>
+      <button v-if="lastQr!==undefined" type="button" :disabled="!ready || busy || !!change || storageFailed" @click="readQr(lastQr)">Проверить прочитанный QR повторно</button>
+      <button type="button" :disabled="!ready || busy || !!change || storageFailed" @click="clearInput">Очистить данные подключения</button>
     </form>
     <div v-if="session && session.status!=='unconfigured'" class="view-actions">
       <button v-if="session.status==='pending'" :disabled="!ready || (busy || !!change || storageFailed)" @click="submit">Отправить сохранённый запрос</button>

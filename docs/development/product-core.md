@@ -4,6 +4,56 @@
 [проверку исходников без комментариев](source-comments.md).
 Сначала нужны корневой `bun install --frozen-lockfile` и PowerShell `pwsh`.
 
+P06.02.1: [ADR-0062](../architecture/decisions/0062-pairing-qr-representation.md).
+`core::qr` использует явно разрешённый qrcodegen 1.8.0 из проверенного P01;
+`adapters::pairing::qr` задаёт единственный QR envelope и строгий разбор
+через существующий Offer. DeviceHost добавляет offer.qr/session.decode_qr
+к прежним HTTP/IPC/CLI с ManageDevices. Сессии/права/SQLite/Service/OpenAPI
+не меняются. Авторитетный статус приглашения читает прежний offer.read,
+не локальная QR-копия. Ни разбор, ни генерация не выполняют session.prepare/submit.
+
+Проверки формата/отказов/сохранности и QR→прежний TLS/pending/confirm/read-only
+входят в прежний adapters library target Windows/native Android. `ui:check`
+дополнительно выполняет независимое чтение матрицы jsQR 1.4.0 (только devDependency)
+для IPv4/IPv6 и масштабов 2/4/8, затем заполняет существующую ручную форму
+полученными полями и проверяет прежние подтверждение/отклонение/отмену/отвязку.
+Это не оптическое чтение камерой. CI-порядок/бюджеты прежние; фактические
+проверки и границы — [EV-106](../agent/verification/EV-106-pairing-qr-contract.md).
+
+P06.02.2: `QrCode.vue` отображает ту же матрицу SVG с quiet zone 4 и целыми
+масштабами 2/4/8. `DevicesPanel` перечитывает приглашение перед показом,
+скрывает QR по сроку, обновлению и уходу со страницы. `QrScanner.vue` использует
+закреплённые Rust/JS Tauri Barcode Scanner 2.5.3: QR-only, задняя камера,
+windowed-режим и только scan/cancel/check-permissions/request-permissions.
+Камера в manifest необязательна. `qr-scanner.ts` сериализует разрешение/остановку,
+игнорирует поздние ответы; 20 секунд без чтения возвращают ручной ввод без
+ложной ошибки приглашения. Ошибка или 5-секундный timeout отмены блокирует
+новое сканирование до перезапуска, сохраняя ручной путь. Состояние принадлежит
+одному driver и сохраняется при пересоздании формы; незавершённое разрешение
+или остановка прежней формы не допускают параллельного сканирования. Back/фон закрывают
+сканер; форма не отправляется автоматически и не сохраняет QR в localStorage.
+
+Android product и prototype переиспользуют один существующий BUG-001 patch:
+`prototypes/src-tauri/gen/android/tauri-lifecycle.gradle.kts` и
+`prototypes/src-tauri/android-patches`. Gradle проверяет upstream SHA-256 и
+генерирует замену в build-каталоге; Cargo registry не меняется. При обновлении
+Tauri нужен пересмотр патча и его удаление после upstream-исправления. Это
+общий build-ресурс, а не runtime-зависимость продуктового Rust от prototype crate.
+Нативный `PluginLifecycleProbe` проверяет актуальные Activity/WebView для всех
+плагинов, включая scanner; он включён в штатную Keystore instrumentation.
+
+`ui:check` выполняет 13 тестов scanner state-machine, независимое чтение
+снимков SVG и синтетический источник scanner → настоящий host API/форма.
+`check-pairing-app.mjs` перед каждым запросом получает QR Windows host и
+разбирает его в APK, затем проверяет прежний TLS/API/CLI процесс и cleanup.
+Эти проверки не заменяют оптику. Device подтвердил разрешения/отмену/Back/фон,
+неготовность GMS и ручной путь. На Galaxy A32/Android 13 arm64 с GMS текущий
+APK выполнил четыре точных оптических чтения Windows SVG без auto-submit;
+подтверждение read-only/Keystore restart/unlink/reject/cancel/сохранность passed,
+GAP-030 resolved. Холодная загрузка модели не воспроизведена; USB reverse
+не заменяет настоящий Tailscale. Результаты —
+[EV-107](../agent/verification/EV-107-pairing-qr-ui.md).
+
 P06.01.2.2: [ADR-0055](../architecture/decisions/0055-protected-device-channel.md),
 [EV-098](../agent/verification/EV-098-protected-device-channel.md).
 `adapters::channel` предоставляет TLS 1.3/ring, фиксированное имя zedone.invalid,

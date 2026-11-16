@@ -9,6 +9,7 @@ pub mod error;
 pub mod invitations;
 pub mod ordering;
 pub mod pairing;
+pub mod qr;
 pub mod replay;
 mod schema_descriptions;
 pub mod search;

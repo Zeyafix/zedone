@@ -12,6 +12,10 @@
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'none'",
       "capabilities": [{
+        "identifier": "qr-scanner",
+        "windows": ["main"],
+        "permissions": ["barcode-scanner:allow-scan", "barcode-scanner:allow-cancel", "barcode-scanner:allow-check-permissions", "barcode-scanner:allow-request-permissions"]
+      }, {
         "identifier": "markdown-http-links",
         "windows": ["main"],
         "permissions": [{

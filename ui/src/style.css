@@ -14,6 +14,12 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 280px; }
+.qr-viewport { max-width: 100%; overflow: auto; margin: 16px 0; }
+.device-qr { min-width: 0; }
+html.qr-scanning, body.qr-scanning, body.qr-scanning #app, body.qr-scanning .shell, body.qr-scanning .workspace { background: transparent !important; }
+body.qr-scanning * { visibility: hidden; }
+body.qr-scanning .qr-scanner-controls, body.qr-scanning .qr-scanner-controls * { visibility: visible; }
+.qr-scanner-controls.active { position: fixed; inset: auto 0 0; z-index: 100; padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); background: var(--surface); color: var(--ink); }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button, .primary-link { min-height: 44px; border: 1px solid var(--border); border-radius: 7px; padding: 10px 16px; background: var(--surface); color: var(--ink); cursor: pointer; }

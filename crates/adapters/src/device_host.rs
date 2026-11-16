@@ -1,4 +1,5 @@
 mod offers;
+mod qr;
 #[cfg(test)]
 #[path = "device_host_tests.rs"]
 mod tests;
@@ -124,6 +125,9 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
         body: &[u8],
         key: &str,
     ) -> CommandResponse<serde_json::Value> {
+        if operation == "offer.qr" {
+            return self.outgoing_qr(body, key).await;
+        }
         if matches!(operation, "offer.create" | "offer.read") {
             #[derive(serde::Deserialize)]
             #[serde(deny_unknown_fields)]
@@ -155,10 +159,20 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
                 id: [u8; 16],
                 expected: StateVersion,
             }
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct DecodeQr {
+                text: String,
+            }
             fn decode<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ErrorCode> {
                 serde_json::from_slice(body).map_err(|_| ErrorCode::InvalidRequest)
             }
             let value = match operation {
+                "session.decode_qr" => {
+                    let input: DecodeQr = decode(body)?;
+                    serde_json::to_value(crate::pairing::qr::decode(&input.text)?)
+                        .map_err(|_| ErrorCode::Unavailable)?
+                }
                 "session.prepare" => {
                     let input: Prepare = decode(body)?;
                     let secret = Secret::new(input.offer.into_bytes());

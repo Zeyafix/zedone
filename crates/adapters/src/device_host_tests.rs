@@ -75,6 +75,46 @@ async fn manual_offer_survives_reopen_and_never_revives_a_cancelled_invitation()
     let first = ok(&controller, "offer.create", serde_json::json!({}), &key).await;
     let code = first["offer"].as_str().unwrap();
     let offer = Offer::decode(code.as_bytes()).unwrap();
+    let qr = ok(
+        &controller,
+        "offer.qr",
+        serde_json::json!({"address":status["address"]}),
+        &key,
+    )
+    .await;
+    let decoded = ok(
+        &controller,
+        "session.decode_qr",
+        serde_json::json!({"text":qr["text"]}),
+        &key,
+    )
+    .await;
+    assert_eq!(
+        decoded,
+        serde_json::json!({"address":status["address"],"offer":code})
+    );
+    assert_eq!(qr["invitation"], first["invitation"]);
+    assert_eq!(
+        ok(&controller, "session.status", serde_json::json!({}), &key).await["status"],
+        "unconfigured"
+    );
+    assert!(store.load(Slot::PendingPairing).await.unwrap().is_none());
+    assert!(store.load(Slot::ConnectedPairing).await.unwrap().is_none());
+    for (operation, body) in [
+        ("offer.qr", serde_json::json!({"address":status["address"]})),
+        ("session.decode_qr", serde_json::json!({"text":qr["text"]})),
+    ] {
+        assert!(
+            matches!(controller.dispatch(operation, body.to_string().as_bytes(), &hex(&[5;32])).await,
+            CommandResponse::Error(value) if value.error.code == ErrorCode::AccessDenied)
+        );
+        let mut invalid = body;
+        invalid["extra"] = true.into();
+        assert!(
+            matches!(controller.dispatch(operation, invalid.to_string().as_bytes(), &key).await,
+            CommandResponse::Error(value) if value.error.code == ErrorCode::InvalidRequest)
+        );
+    }
     assert_eq!(first["invitation"]["status"], "open");
     assert!(!first["invitation"].to_string().contains(code));
     assert_eq!(
@@ -89,6 +129,10 @@ async fn manual_offer_survives_reopen_and_never_revives_a_cancelled_invitation()
         CommandResponse::Ok(_)
     ));
     assert!(ok(&controller, "offer.read", serde_json::json!({}), &key).await["offer"].is_null());
+    assert!(
+        matches!(controller.dispatch("offer.qr", serde_json::json!({"address":status["address"]}).to_string().as_bytes(), &key).await,
+        CommandResponse::Error(value) if value.error.code == ErrorCode::NotFound)
+    );
     let next = ok(&controller, "offer.create", serde_json::json!({}), &key).await;
     assert_ne!(next["offer"], code);
     ok(&controller, "host.stop", serde_json::json!({}), &key).await;
@@ -257,16 +301,40 @@ async fn host_client_uses_saved_address_and_key_with_ordinary_service_permission
         serde_json::json!({"space":space,"name":"Preserved"}),
     )
     .await;
-    let offer = Offer::new(format!("{:032x}", 2), pin, &[11; 32]).unwrap();
-    api(
-        &service,
-        &admin,
-        2,
-        "invitation.create",
-        serde_json::json!({"invitation":offer.invitation,"verifier":offer.verifier().0}),
+    assert!(matches!(
+        server.dispatch("offer.create", b"{}", &admin).await,
+        CommandResponse::Ok(_)
+    ));
+    let qr = match network::command(
+        listener.address,
+        pin,
+        "/v1/host/offer.qr",
+        &crate::decode_key(&admin).unwrap(),
+        serde_json::json!({"address":listener.address})
+            .to_string()
+            .as_bytes(),
     )
-    .await;
-    let prepared = serde_json::json!({"address":listener.address,"offer":std::str::from_utf8(&offer.encode()).unwrap(),"label":"Native device"});
+    .await
+    .unwrap()
+    {
+        CommandResponse::Ok(value) => value.result,
+        _ => panic!("QR generation failed"),
+    };
+    let mut prepared = match client
+        .dispatch(
+            "session.decode_qr",
+            serde_json::json!({"text":qr["text"]})
+                .to_string()
+                .as_bytes(),
+            &owner,
+        )
+        .await
+    {
+        CommandResponse::Ok(value) => value.result,
+        _ => panic!("QR decode failed"),
+    };
+    assert!(store.load(Slot::PendingPairing).await.unwrap().is_none());
+    prepared["label"] = "Native device".into();
     assert!(matches!(
         client
             .dispatch(
@@ -281,6 +349,22 @@ async fn host_client_uses_saved_address_and_key_with_ordinary_service_permission
         CommandResponse::Ok(v) => v.result,
         _ => panic!("submit failed"),
     };
+    let saved = store.load(Slot::PendingPairing).await.unwrap().unwrap();
+    for body in [
+        serde_json::json!({"text":"invalid"})
+            .to_string()
+            .into_bytes(),
+        vec![b'x'; MAX_REQUEST_BYTES + 1],
+    ] {
+        assert!(
+            matches!(client.dispatch("session.decode_qr", &body, &owner).await,
+            CommandResponse::Error(value) if value.error.code == ErrorCode::InvalidRequest)
+        );
+    }
+    assert_eq!(
+        *store.load(Slot::PendingPairing).await.unwrap().unwrap(),
+        *saved
+    );
     assert!(matches!(
         client.peer_command("space.read", b"{}").await,
         Err(ErrorCode::AccessDenied)

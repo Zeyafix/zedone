@@ -11,6 +11,7 @@ serde_json.workspace = true
 utoipa.workspace = true
 icu_casemap.workspace = true
 icu_normalizer.workspace = true
+qrcodegen.workspace = true
 
 [lints]
 workspace = true

@@ -2,9 +2,10 @@
 
 Дата: 2026-11-16. Рабочая карточка P06.02.1.
 
-Текущий итог продолжения P06.02.2/.3 —
-[EV-107](EV-107-pairing-qr-ui.md)/LOG-580: UI и оптика текущего APK на Galaxy A32
-проверены локально, GAP-030 resolved. Ниже сохраняется исходный scope API .1.
+Текущий итог — [PR #100](https://github.com/Zeyafix/zedone/pull/100), head 9551a35,
+merge caaf6df после всех 17 SUCCESS; P06.02.1–.3 done, GAP-030 resolved.
+[EV-107](EV-107-pairing-qr-ui.md)/LOG-582 сохраняет UI/оптику Galaxy A32 и новый
+Windows/Linux/Android CI. Ниже сохраняется исходный scope API .1.
 
 ## Рабочая карточка
 

@@ -2,6 +2,8 @@ use super::*;
 use crate::secrets::{SecretError, Slot};
 use std::{collections::HashMap, sync::Mutex};
 use zedone_storage::{Storage, access::PendingAccess};
+#[path = "device_host/exchange_tests.rs"]
+mod exchange_tests;
 
 #[derive(Default)]
 struct Memory(Mutex<HashMap<&'static str, Secret>>);
@@ -420,11 +422,18 @@ async fn acceptance_server() {
         serde_json::to_vec(&serde_json::json!({"address":listener.address,"pin":pin.0})).unwrap(),
     )
     .unwrap();
-    let stopped = tokio::time::timeout(std::time::Duration::from_secs(240), async {
-        while !directory.join("stop").exists() {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        }
-    })
+    let stopped = tokio::time::timeout(
+        std::time::Duration::from_secs(if std::env::var_os("P06_EXCHANGE_UI").is_some() {
+            600
+        } else {
+            240
+        }),
+        async {
+            while !directory.join("stop").exists() {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        },
+    )
     .await;
     listener.shutdown().await;
     for slot in [

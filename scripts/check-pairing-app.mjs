@@ -1,3 +1,4 @@
+import { checkSpaceExchange } from "./check-space-exchange.mjs";
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -78,7 +79,15 @@ await mkdir(serverDirectory);
 const server = Bun.spawn([testBinary, '--ignored', '--exact', 'device_host::tests::acceptance_server'], {
     cwd: root, env: { ...process.env, ZEDONE_PAIRING_FIXTURE: serverDirectory }, stdin: 'ignore', stdout: Bun.file(resolve(report, 'server.log')), stderr: Bun.file(resolve(report, 'server-errors.log')),
 });
-let installed = false, reverse, forward, android, passedChecks;
+let installed = false, reverse, forward, android, passedChecks, uiFixture;
+async function cleanupUiFixture() {
+    if (!uiFixture) return;
+    close(); write('pairing-ui-cleanup',uiFixture); launch();
+    await until(()=>read('pairing-ui-cleaned').stdout.toString()==='cleaned','UI fixture OS cleanup');
+    close();
+    for (const path of ['pairing-ui-run','pairing-ui-cleanup','pairing-ui-cleaned']) device('shell','run-as',app,'rm','-f',path);
+    uiFixture=undefined;
+}
 const marker = 'pairing-acceptance-run';
 const fixture = `pairing-acceptance-${run}`;
 async function fixtureReady() {
@@ -124,7 +133,7 @@ function call(target, operation, parameters) {
 const request = (operation, parameters) => ({ id: [...randomBytes(16)], operation, parameters });
 const ok = response => { assert.equal(response.status, 'ok', `Unexpected command failure: ${response.error?.code}`); return response.result; };
 const error = (response, code) => assert.equal(response.error?.code, code);
-let host, space, lastOffer;
+let host, space, lastOffer, exchangeIds;
 function command(target, operation, parameters) { return call(target, operation, request(operation, parameters)); }
 async function invitation() {
     const created = ok(call(host, 'offer.create', {}));
@@ -177,6 +186,7 @@ try {
     ok(command(host, 'pairing.confirm', { request: pending.request, expected: pending.version, scope: { kind: 'spaces', spaces: { [space]: 'read' } }, expires_at_unix_ms: null }));
     const linked = ok(call(android, 'session.refresh', {}));
     assert.equal(linked.status, 'confirmed');
+    exchangeIds = checkSpaceExchange({host,android,space,pairing:pending.request,writable:false,call,command,ok,error});
     const readIntention = request('space.read', { space });
     const saved = ok(deliver('space.read', { space }, readIntention));
     assert.deepEqual(saved.names, ['Pairing acceptance preserved']);
@@ -207,6 +217,7 @@ try {
     const current = ok(deliver('space.read', { space }));
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
+    checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
     const access = ok(command(host, 'access.inspect', { subject: second.request }));
     ok(command(host, 'access.revoke', { subject: second.request, expected: access.version }));
     error(deliver('space.read', { space }), 'access_denied');
@@ -241,7 +252,38 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    passedChecks = ['QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
+    if (process.env.P06_EXCHANGE_UI === '1') {
+        const incomingOffer=ok(call(android,'offer.create',{}));
+        ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
+        const uiRequest=ok(call(host,'session.submit',{}));
+        ok(command(android,'pairing.confirm',{request:uiRequest.request,expected:uiRequest.version,scope:{kind:'spaces',spaces:{[space]:'read'}},expires_at_unix_ms:null}));
+        ok(call(host,'session.refresh',{}));
+        const uiRun = randomBytes(16).toString('hex');
+        const uiFolder = `pairing-ui-${uiRun}`;
+        const seed = resolve(report,'ui-seed.sqlite');
+        close();
+        const nativeSeed=resolve(report,'ui-native.sqlite');
+        for(const ext of ['', '-wal', '-shm']){const file=invoke([adb,'-s',serial,'exec-out','run-as',app,'cat',`${fixture}/data.sqlite${ext}`],{allowFailure:true});if(file.exitCode===0)await Bun.write(nativeSeed+ext,file.stdout);else assert.notEqual(ext,'','Missing native fixture');}
+        const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
+        const subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
+        device('shell','run-as',app,'mkdir',uiFolder);
+        const uiRemote=`/data/local/tmp/zedone-ui-seed-${uiRun}.sqlite`;
+        device('push',seed,uiRemote);
+        device('shell','run-as',app,'cp',uiRemote,`${uiFolder}/zedone.sqlite`);
+        device('shell','rm',uiRemote);
+        const copied=device('exec-out','run-as',app,'cat',`${uiFolder}/zedone.sqlite`);
+        assert.equal(createHash('sha256').update(copied).digest('hex'),createHash('sha256').update(Buffer.from(await Bun.file(seed).arrayBuffer())).digest('hex'),'UI seed transfer checksum mismatch');
+        write(`${uiFolder}/local-session.json`,JSON.stringify({subject,key:(await Bun.file(android.keyFile).text()).trim()}));
+        write('pairing-ui-run',uiRun);uiFixture=uiFolder;
+        await Bun.write(resolve(report,'ui-checkpoint.json'),JSON.stringify({uiRun,uiFolder,space,pairing:uiRequest.request}));
+        console.log(`Device UI checkpoint ready: ${report}`);
+        launch();
+        await until(()=>Bun.file(resolve(report,'ui-continue')).exists(),'Device UI exchange verification',300000);
+        const outcome=(await Bun.file(resolve(report,'ui-continue')).text()).trim();
+        await cleanupUiFixture();
+        assert.equal(outcome,'passed','Device UI exchange verification did not pass');
+    }
+    passedChecks = ['space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
     console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
 }
 catch (error) {
@@ -257,6 +299,7 @@ finally {
     let cleanupError;
     if (installed) {
         try {
+            await cleanupUiFixture();
             close();
             const namespace = read(`${fixture}/host-namespace-v1`);
             if (namespace.exitCode === 0) {

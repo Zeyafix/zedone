@@ -11,7 +11,7 @@ use zedone_core::{
     wire::CommandResponse,
 };
 
-use crate::{MAX_REQUEST_BYTES, Service};
+use crate::Service;
 
 pub fn router(service: Service) -> Router {
     router_with_origin(service, None)
@@ -28,7 +28,7 @@ pub fn router_with_origin(service: Service, browser_origin: Option<String>) -> R
         .route("/v1/commands/{operation}", post(dispatch))
         .fallback(|| async { failure(ErrorCode::InvalidRequest) })
         .method_not_allowed_fallback(|| async { failure(ErrorCode::InvalidRequest) })
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
+        .layer(DefaultBodyLimit::max(crate::MAX_EXCHANGE_BYTES))
         .with_state(HttpState {
             service,
             browser_origin,

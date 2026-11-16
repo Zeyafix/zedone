@@ -28,7 +28,12 @@ pub async fn command(
     key: &[u8],
     body: &[u8],
 ) -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
-    if body.len() > MAX_REQUEST_BYTES
+    if body.len()
+        > if path == "/v1/commands/sync.push" {
+            crate::MAX_EXCHANGE_BYTES
+        } else {
+            MAX_REQUEST_BYTES
+        }
         || !path.starts_with("/v1/")
         || path.contains(['\r', '\n', '?', '#'])
     {

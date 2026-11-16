@@ -14,6 +14,7 @@ pub mod replay;
 mod schema_descriptions;
 pub mod search;
 pub mod spaces;
+pub mod sync;
 pub mod tags;
 mod text;
 pub mod wire;
@@ -28,6 +29,7 @@ use utoipa::OpenApi;
         access_commands::issue, access_commands::replace, access_commands::list,
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
         pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,
+        sync::inspect, sync::select, sync::pause, sync::catalog, sync::pull, sync::push,
         spaces::create, spaces::read, spaces::list, spaces::rename,
         spaces::trash, spaces::restore,
         columns::create, columns::read, columns::list, columns::rename,

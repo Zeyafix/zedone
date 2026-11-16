@@ -719,6 +719,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/sync.catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/sync.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/sync.pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/sync.pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_pull"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/sync.push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_push"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/sync.select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_select"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/tag.create": {
         parameters: {
             query?: never;
@@ -915,6 +1011,7 @@ export interface components {
             subject: string;
             title: string;
         };
+        CatalogSync: Record<string, never>;
         ClearHistory: {
             card?: string | null;
             expected: components["schemas"]["StateVersion"];
@@ -1045,6 +1142,28 @@ export interface components {
                 expected: components["schemas"]["StateVersion"];
                 request: string;
             };
+        };
+        CommandRequest_CatalogSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: Record<string, never>;
         };
         CommandRequest_ClearHistory: {
             id: [
@@ -1407,6 +1526,31 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_InspectSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                pairing: string;
+                space: string;
+            };
+        };
         CommandRequest_InspectTrash: {
             id: [
                 number,
@@ -1685,6 +1829,59 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_PauseSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                pairing: string;
+                paused: boolean;
+                space: string;
+            };
+        };
+        CommandRequest_PullSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                known: number[][];
+                protocol: number;
+                space: string;
+            };
+        };
         CommandRequest_PurgeTrash: {
             id: [
                 number,
@@ -1708,6 +1905,33 @@ export interface components {
             parameters: {
                 expected: components["schemas"]["StateVersion"];
                 selection: components["schemas"]["TrashSelection"];
+                space: string;
+            };
+        };
+        CommandRequest_PushSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                base: number[][];
+                changes: string[];
+                protocol: number;
                 space: string;
             };
         };
@@ -2154,6 +2378,33 @@ export interface components {
                 scope: components["schemas"]["SearchScope"];
             };
         };
+        CommandRequest_SelectSync: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                pairing: string;
+                selected: boolean;
+                space: string;
+            };
+        };
         CommandRequest_SetCardCompleted: {
             id: [
                 number,
@@ -2349,6 +2600,9 @@ export interface components {
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceSnapshot: components["schemas"]["CommandSuccess_SpaceSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_SyncCatalog: components["schemas"]["CommandSuccess_SyncCatalog"] | components["schemas"]["CommandFailure"];
+        CommandResponse_SyncControl: components["schemas"]["CommandSuccess_SyncControl"] | components["schemas"]["CommandFailure"];
+        CommandResponse_SyncPage: components["schemas"]["CommandSuccess_SyncPage"] | components["schemas"]["CommandFailure"];
         CommandResponse_TagList: components["schemas"]["CommandSuccess_TagList"] | components["schemas"]["CommandFailure"];
         CommandResponse_TagSnapshot: components["schemas"]["CommandSuccess_TagSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_TrashPreview: components["schemas"]["CommandSuccess_TrashPreview"] | components["schemas"]["CommandFailure"];
@@ -2509,6 +2763,40 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_SyncCatalog: {
+            replayed: boolean;
+            result: {
+                format: number;
+                pairing: string;
+                protocol: number;
+                spaces: components["schemas"]["SyncEntry"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_SyncControl: {
+            replayed: boolean;
+            result: {
+                pairing: string;
+                pause_version: components["schemas"]["StateVersion"];
+                paused: boolean;
+                selected: boolean;
+                selection_version: components["schemas"]["StateVersion"];
+                space: string;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_SyncPage: {
+            replayed: boolean;
+            result: {
+                base: number[][];
+                changes: string[];
+                complete: boolean;
+                heads: number[][];
+                protocol: number;
+                space: string;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_TagList: {
             replayed: boolean;
             result: {
@@ -2622,6 +2910,10 @@ export interface components {
         InspectPairing: {
             request: string;
         };
+        InspectSync: {
+            pairing: string;
+            space: string;
+        };
         InspectTrash: {
             selection: components["schemas"]["TrashSelection"];
             space: string;
@@ -2701,9 +2993,26 @@ export interface components {
             version: components["schemas"]["StateVersion"];
         };
         PairingStatus: "pending" | "cancelled" | "rejected" | "confirmed" | "unlinked";
+        PauseSync: {
+            expected: components["schemas"]["StateVersion"];
+            pairing: string;
+            paused: boolean;
+            space: string;
+        };
+        PullSync: {
+            known: number[][];
+            protocol: number;
+            space: string;
+        };
         PurgeTrash: {
             expected: components["schemas"]["StateVersion"];
             selection: components["schemas"]["TrashSelection"];
+            space: string;
+        };
+        PushSync: {
+            base: number[][];
+            changes: string[];
+            protocol: number;
             space: string;
         };
         Rank: number | components["schemas"]["RankPart"][];
@@ -2818,6 +3127,12 @@ export interface components {
             kind: components["schemas"]["SearchSpaceKind"];
             space: string;
         };
+        SelectSync: {
+            expected: components["schemas"]["StateVersion"];
+            pairing: string;
+            selected: boolean;
+            space: string;
+        };
         SetCardCompleted: {
             card: string;
             completed: boolean;
@@ -2859,6 +3174,35 @@ export interface components {
         };
         StateVersion: number[];
         SuccessStatus: "ok";
+        SyncCatalog: {
+            format: number;
+            pairing: string;
+            protocol: number;
+            spaces: components["schemas"]["SyncEntry"][];
+        };
+        SyncControl: {
+            pairing: string;
+            pause_version: components["schemas"]["StateVersion"];
+            paused: boolean;
+            selected: boolean;
+            selection_version: components["schemas"]["StateVersion"];
+            space: string;
+        };
+        SyncEntry: {
+            names: string[];
+            paused: boolean;
+            selected: boolean;
+            space: string;
+            writable: boolean;
+        };
+        SyncPage: {
+            base: number[][];
+            changes: string[];
+            complete: boolean;
+            heads: number[][];
+            protocol: number;
+            space: string;
+        };
         TagList: {
             tags: components["schemas"]["TagSnapshot"][];
         };
@@ -3946,6 +4290,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
+    sync_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CatalogSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncCatalog"];
+                };
+            };
+        };
+    };
+    sync_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncControl"];
+                };
+            };
+        };
+    };
+    sync_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_PauseSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncControl"];
+                };
+            };
+        };
+    };
+    sync_pull: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_PullSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncPage"];
+                };
+            };
+        };
+    };
+    sync_push: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_PushSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncPage"];
+                };
+            };
+        };
+    };
+    sync_select: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_SelectSync"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SyncControl"];
                 };
             };
         };

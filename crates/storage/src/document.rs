@@ -19,6 +19,10 @@ pub struct ReadContext<'a> {
 }
 
 impl<'a> ReadContext<'a> {
+    pub(crate) fn connection(&self) -> &'a Connection {
+        self.connection
+    }
+
     pub(crate) fn new(connection: &'a Connection) -> Self {
         Self {
             connection,

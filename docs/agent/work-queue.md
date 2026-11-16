@@ -245,6 +245,14 @@ P02 и не переоткрывают завершённую приёмку P00
 
 ### P06 — Обмен по отдельным сценариям
 
+P06.03 разделён до реализации по LOG-583: локальное намерение/пауза (.1),
+защищённая передача (.2), общие API/CLI/UI (.3), сквозная приёмка (.4).
+Текущая карточка .1 — [EV-108](verification/EV-108-sync-control-storage.md).
+Промежуточные storage-примитивы не открываются пользователю/внешней сети;
+по прямому поручению LOG-585 срезы .1–.4 выполняются последовательно в одной
+ветке до полного P06.03, без промежуточной интеграции. Проверки сохраняются
+раздельно; итоговая публикация остаётся отдельным действием.
+
 Продолжение P06.02 по поручению разработчика LOG-576 выполняется в текущей
 ветке до сквозного QR-сценария. Срез API .1 уже verified локально (EV-106);
 для этого продолжения .1–.3 задают порядок проверки внутри одной ветки,
@@ -272,11 +280,15 @@ P02 и не переоткрывают завершённую приёмку P00
 | P06.01.3.1 | P06.01.2, P05.01 | EV-103/ADR-0060/LOG-563: общий host-control/listener/OS outgoing code и dispatch Windows/Android; PR #96/head ac0db9e merged 02ae231 после всех 17 SUCCESS/readiness. Host/API/CLI/Keystore/retry/restart/terminal/corrupt/cleanup passed; native формы отдельно GAP-029 | T09, A51 | done |
 | P06.01.3.2 | P06.01.3.1 | EV-104/LOG-567: обе стороны UI/defaults/явные права/срок/ключи/stale/retry/обратимость и финальная обычная LatinIME/системная Back/отказ с сохранением формы проверены; source 02ae231 уже интегрирован PR #96 | T09, A08, A51 | done |
 | P06.01.4 | P06.01.3 | EV-104/LOG-568: итог ручного UI/API/CLI Windows/Android, права/срок/replay/restart/обратимость/сохранность принят; новый полный Windows Credential Manager↔Android APK/Keystore runner passed, исходные APK/app files восстановлены по SHA-256, свои OS slots/rules очищены, Device выключен. GAP-029 resolved; source 02ae231 | T09, A08, A51 | done |
-| P06.02 | P06.02.3 | EV-106/107/LOG-580: API/SVG/scanner и итоговый QR-процесс проверены локально, включая четыре оптических чтения текущего APK Galaxy A32 arm64 с GMS, read-only confirm/restart/unlink/reject/cancel/сохранность и cleanup. GAP-030 resolved; публикация/CI/интеграция отдельно, Tailscale/холодная загрузка модели не заявляются | T09, A51 | verified |
-| P06.02.1 | P06.01, P01.09 | EV-106/ADR-0062: QR qrcodegen 1.8.0, строгий формат и offer.qr/session.decode_qr; Windows 342/native Android 339 Rust, обе ABI/guards, jsQR IPv4/IPv6 × 2/4/8, прежний UI/TLS/pending/права/обратные действия и настоящий CLI passed. Локально без commit/PR/CI/merge; продолжен в той же ветке по LOG-576 | T09, A51 | verified |
-| P06.02.2 | P06.02.1 | EV-107/LOG-577/580: общий SVG/целые масштабы, Android Scanner 2.5.3 и lifecycle patch, 13 state-machine tests с защитой пересоздания формы, полный UI/независимое чтение SVG, обе APK ABI, native permissions/cancel/Back/background/timeout/manual/сохранность passed. Текущая оптика Galaxy A32 подтверждена в .3 | T09, A51 | verified |
-| P06.02.3 | P06.02.2 | EV-107/LOG-580: Windows Credential Manager↔APK/Keystore QR API/TLS/CLI и четыре оптических Windows QR→native scanner→форма на Galaxy A32 arm64 с GMS passed; нет авто-submit/сессии/доступа, Windows UI default read-only, process restart, unlink/reject/cancel, отказ старому отменённому коду, сохранность. Свои OS slots/rules/APK/data очищены, исходное отсутствие установки восстановлено. GAP-030 resolved, локально без нового CI/PR/merge | T09, A51 | verified |
-| P06.03 | P06.01, P04.10 | Выбор пространства, включение/пауза/возобновление обмена; синхронизировать один простой набор и проверить ограничения доступа и локальную сохранность | T09, A03, A08, A48 | planned |
+| P06.02 | P06.02.3 | EV-106/107/LOG-582: PR #100/head 9551a35 merged caaf6df после всех 17 SUCCESS. Общий QR API/SVG/scanner, Windows/Linux desktop/touch и native Android/обе ABI/Keystore/парный APK runner подтверждены; четыре оптических чтения Galaxy A32, read-only confirm/restart/обратимость/сохранность/cleanup passed. GAP-030 resolved; Tailscale/холодная модель/обмен отдельно | T09, A51 | done |
+| P06.02.1 | P06.01, P01.09 | EV-106/LOG-582: общий строгий формат/qrcodegen 1.8.0/offer.qr/session.decode_qr интегрированы PR #100/caaf6df после 17 SUCCESS; общий API/CLI/IPv4/IPv6/сохранность/права и native Windows/Android подтверждены | T09, A51 | done |
+| P06.02.2 | P06.02.1 | EV-107/LOG-582: общий SVG/целые масштабы, Scanner 2.5.3/lifecycle patch, 13 state-machine tests и защита пересоздания формы, permissions/cancel/Back/background/manual; Windows/Linux/Android CI passed. Интегрировано PR #100/caaf6df, оптика принята в .3 | T09, A51 | done |
+| P06.02.3 | P06.02.2 | EV-107/LOG-582: итог QR UI/API/CLI и оптика текущего APK Galaxy A32 arm64 с GMS приняты; точный ввод без auto-submit, pending/Windows UI read-only confirm, Keystore restart/unlink/reject/cancel/старый код/сохранность/cleanup passed. PR #100/head 9551a35/17 SUCCESS merged caaf6df; ветка удалена | T09, A51 | done |
+| P06.03 | P06.03.4 | EV-109/ADR-0064/LOG-586: полный локальный выбор/пауза/reverse, простой обмен колонкой/карточкой/тегом/историей через общий API/CLI/UI проверены; Windows 356/native Android 353 Rust, полный UI/закрытая вкладка, настоящий APK/TLS/Keystore/Device UI/restoration и обе APK ABI passed. Без commit/PR/нового CI/merge | T09, A03, A08, A48 | verified |
+| P06.03.1 | P06.01, P04.10 | EV-108/109/LOG-586: долговечные выбор/общая пауза и ABA/reverse/сохранность проверены; в полном .2 выбор может предшествовать документу, staging FK сохраняет пару. Включён в финальную общую приёмку, локально без интеграции | T09, A48 | verified |
+| P06.03.2 | P06.03.1 | EV-109/ADR-0064/LOG-586: текущие paired read/write, страницы Automerge/атомарный progress, скрытый до завершения staging/restart/actor/отказы проверены; Windows/native Android/настоящий APK TLS/API/CLI passed, обе ABI; локально без интеграции | T09, A03, A08 | verified |
+| P06.03.3 | P06.03.2, P05.01 | EV-109/LOG-586: общий core/Service/host API/CLI/UI, выбор/reverse/общая пауза, ручной запуск на исходящей роли и цикл при работающем процессе; полный UI/закрытая вкладка, Device IPC/restart и обе APK ABI passed. Локально без интеграции | T09, A08, A48 | verified |
+| P06.03.4 | P06.03.3 | EV-109/LOG-586: Windows Credential Manager↔APK/Keystore передали колонку/карточку/тег/историю, read-only/write, паузу/reverse/новый pairing/revoke/сохранность; Device UI select/pause/reverse/restart/resume passed. Исходные APK/app files восстановлены по SHA-256, свои slots/rules/фикстуры очищены. Локально без нового CI/интеграции | T09, A03, A08, A48 | verified |
 | P06.04 | P06.03 | Доставка после обрыва/перезапуска, повторы и совместимость версий; проверить отсутствие дубликатов/автоотвязки и сохранение явной паузы | T09, A03, A05, A47, A48, S07 | planned |
 | P06.05 | P06.04, P05.03 | Конфликты полей/имён контейнеров доступны и разрешаются через UI/HTTP/CLI; проверить блокировки, варианты, сохранение ID и конкурентное решение | T09, A04, A23, S03, S04 | planned |
 | P06.06 | P06.04, P05.05 | Конфликты мест карточек/колонок и одинаковые соседи; проверить согласованный порядок и доступные действия с содержимым | T09, A35, A38, S01, S02, S08 | planned |

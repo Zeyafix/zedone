@@ -1,6 +1,7 @@
 pub mod channel;
 pub mod device_control;
 pub mod device_host;
+mod exchange;
 pub mod http;
 pub mod ipc;
 pub mod network;
@@ -36,6 +37,7 @@ use zedone_core::{
 use zedone_storage::Storage;
 
 pub const MAX_REQUEST_BYTES: usize = 64 * 1024;
+pub const MAX_EXCHANGE_BYTES: usize = 3 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct Service {
@@ -58,7 +60,7 @@ impl Service {
         };
         let result = async {
             let secret = decode_key(key)?;
-            if body.len() > MAX_REQUEST_BYTES {
+            if body.len() > if operation == "sync.push" { MAX_EXCHANGE_BYTES } else { MAX_REQUEST_BYTES } {
                 return Err(invalid());
             }
             macro_rules! run {
@@ -87,6 +89,12 @@ impl Service {
                 }};
             }
             match operation {
+                "sync.inspect" => run!(zedone_core::sync::InspectSync, zedone_core::sync::inspect),
+                "sync.select" => run!(zedone_core::sync::SelectSync, zedone_core::sync::select),
+                "sync.pause" => run!(zedone_core::sync::PauseSync, zedone_core::sync::pause),
+                "sync.catalog" => run!(zedone_core::sync::CatalogSync, zedone_core::sync::catalog),
+                "sync.pull" => run!(zedone_core::sync::PullSync, zedone_core::sync::pull),
+                "sync.push" => run!(zedone_core::sync::PushSync, zedone_core::sync::push),
                 InspectAccess::NAME => run!(InspectAccess, access_commands::inspect),
                 RevokeAccess::NAME => run!(RevokeAccess, access_commands::revoke),
                 IssueAccess::NAME => run!(IssueAccess, access_commands::issue),

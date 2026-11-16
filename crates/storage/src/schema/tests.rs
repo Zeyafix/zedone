@@ -36,6 +36,8 @@ async fn only_initial_schema_is_registered_and_new_installation_needs_no_backup(
         "access_keys",
         "access_spaces",
         "access_bootstrap",
+        "sync_spaces",
+        "sync_selections",
     ] {
         let count: i64 = connection
             .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
@@ -174,7 +176,7 @@ async fn initial_v1_opens_keeps_receipts_and_supports_reverse_after_restart() {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>(),
-        "88f4cacc1ef5fa65e78a022a1737264921e480d3ffa27978807a822685acc947"
+        "626f0bbe1761a5b4d7c0f94ff4b85cf726f833049238c878f3b669e9437525aa"
     );
     let (_root, path) = fixture();
     let storage = Storage::open(&path).await.unwrap();
@@ -401,6 +403,21 @@ async fn layout_before_pairing_decisions_is_rejected_without_writes() {
     let table =
         table[..table.find(",\n    decision").unwrap()].to_owned() + "\n) STRICT, WITHOUT ROWID;";
     c.execute_batch(&table).unwrap();
+    c.close().unwrap();
+    let before = durable_files(&path);
+    assert_eq!(
+        Storage::open(&path).await.err(),
+        Some(StorageError::InvalidDatabase)
+    );
+    assert_eq!(durable_files(&path), before);
+}
+
+#[tokio::test]
+async fn layout_before_sync_control_is_rejected_without_writes() {
+    let (_dir, path) = fixture();
+    let c = Connection::open(&path).unwrap();
+    c.execute_batch("DROP TABLE sync_selections; DROP TABLE sync_spaces;")
+        .unwrap();
     c.close().unwrap();
     let before = durable_files(&path);
     assert_eq!(

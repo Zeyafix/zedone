@@ -1,8 +1,9 @@
 # ADR-0062: QR как представление существующего приглашения
 
-Дата: 2026-11-16. Статус: P06.02.1–.3 verified локально, EV-106/EV-107.
-Оптика текущего APK на Galaxy A32 принята локально, GAP-030 resolved;
-публикация/CI/интеграция остаются отдельно.
+Дата: 2026-11-16. Статус: P06.02.1–.3 интегрированы в main/caaf6df через
+[PR #100](https://github.com/Zeyafix/zedone/pull/100), head 9551a35,
+все 17 Windows/Linux/Android checks SUCCESS; EV-106/EV-107/LOG-582.
+Оптика текущего APK на Galaxy A32 принята локально, GAP-030 resolved.
 
 ## Решение
 

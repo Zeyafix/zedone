@@ -13,6 +13,8 @@ mod schema;
 pub mod snapshot;
 mod spaces;
 pub mod startup;
+pub mod sync_control;
+pub mod sync_engine;
 mod tags;
 mod version;
 

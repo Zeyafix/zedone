@@ -20,7 +20,7 @@ impl<R: Runtime> Devices<R> {
             .map_err(|_| ErrorCode::Unavailable)?;
         let host = Arc::new(DeviceHost::new(service, store));
         Ok(Self {
-            control: Controller::new(host),
+            control: Controller::new(host).with_automatic(directory.join("local-session.json")),
         })
     }
 }

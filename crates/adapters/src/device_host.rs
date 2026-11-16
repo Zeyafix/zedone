@@ -25,10 +25,10 @@ use zedone_core::{
 };
 
 pub struct DeviceHost<S> {
-    service: Service,
+    pub(crate) service: Service,
     store: Arc<S>,
-    sessions: SessionLifecycle<Arc<S>>,
-    operations: tokio::sync::Mutex<()>,
+    pub(crate) sessions: SessionLifecycle<Arc<S>>,
+    pub(crate) operations: tokio::sync::Mutex<()>,
 }
 
 impl<S: SecretStore + 'static> DeviceHost<S> {
@@ -125,6 +125,9 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
         body: &[u8],
         key: &str,
     ) -> CommandResponse<serde_json::Value> {
+        if operation.starts_with("exchange.") {
+            return self.exchange_dispatch(operation, body, key).await;
+        }
         if operation == "offer.qr" {
             return self.outgoing_qr(body, key).await;
         }

@@ -3,7 +3,7 @@ import { localCredential } from "./connection";
 
 export type HostStatus = { listening: boolean; address?: string; pin?: number[] };
 export type SessionStatus = { status: "unconfigured" | "pending" | "connected"; request?: string; address?: string };
-export type HostOperation = "host.start" | "host.stop" | "host.status" | "offer.create" | "offer.read" | "offer.qr" | "session.decode_qr" | "session.prepare" | "session.status" | "session.submit" | "session.refresh" | "session.cancel" | "session.unlink";
+export type HostOperation = "exchange.catalog" | "exchange.run" | "host.start" | "host.stop" | "host.status" | "offer.create" | "offer.read" | "offer.qr" | "session.decode_qr" | "session.prepare" | "session.status" | "session.submit" | "session.refresh" | "session.cancel" | "session.unlink";
 
 export async function deviceCall<T>(operation: HostOperation, parameters: object = {}): Promise<T> {
   const controller = new AbortController();

@@ -2,13 +2,15 @@
 
 Дата: 2026-11-16. Рабочая карточка P06.02.2/P06.02.3.
 
-Текущий итог — LOG-580: весь P06.02 verified локально, GAP-030 resolved.
+Текущий итог — LOG-582: весь P06.02 интегрирован и done, GAP-030 resolved.
+[PR #100](https://github.com/Zeyafix/zedone/pull/100), head 9551a35,
+merge caaf6df после всех 17 Windows/Linux/Android checks SUCCESS.
 Текущий APK выполнил четыре точных оптических чтения на Galaxy A32/Android 13
 arm64 с GMS и прошёл QR→форма→явный запрос→Windows UI read-only confirm,
 restart/отвязку/отказ/отмену/сохранность. Свои OS slots/rules/APK/data очищены;
 исходное отсутствие продуктовой установки на телефоне восстановлено.
-Публикация/новый CI/интеграция, настоящий Tailscale и холодная загрузка модели
-остаются отдельно; T09 not_run/A51 partial. Нижеследующие промежуточные
+Настоящий Tailscale и холодная загрузка модели остаются отдельно;
+T09 not_run/A51 partial. Нижеследующие промежуточные
 blocked/paused записи исторические; подробности нового прогона в конце отчёта.
 
 - База main/8707af0, текущая `feat/p06-02-qr-pairing` с 23 файлами локального
@@ -253,3 +255,35 @@ Raw scripts, четыре optical-results, preservation/cleanup manifests, бе�
 целевого телефона этим результатом не принимаются. Новых core/UI regression
 прогонов ради отсутствующего source diff не было; прежние результаты выше
 сохраняют свой охват. Commit/push/PR/новый CI/merge не выполнялись.
+
+## Интеграция P06.02 — LOG-582
+
+[PR #100](https://github.com/Zeyafix/zedone/pull/100) опубликован с полным
+составом 43 файлов и реальными Before/After с базы 8707af0/финальной версии.
+Оба hosted PNG 1280×1080 прочитаны обратно и совпали по SHA-256; чувствительный
+код/QR/временные метаданные скрыты. Медиа остались вне репозитория.
+Head `9551a3555652b15dcbe88f6c2280483b35e8e54a` получил все 17
+COMPLETED/SUCCESS в attempt 1: [Windows/Linux CI](https://github.com/Zeyafix/zedone/actions/runs/43880718195),
+[Android CI](https://github.com/Zeyafix/zedone/actions/runs/43880718189).
+
+Raw Windows/Linux shell подтвердили Node baseline 24.22.1, 13 scanner tests,
+настоящий host/form/scanner-source regression и полные прежние desktop/touch
+сценарии. Android подтвердил Keystore/пересозданные Activity/WebView всех
+плагинов, парный APK/TLS/API/CLI runner, восстановление исходного APK и всех
+app files по SHA-256, очистку OS keys/rules. Это CI host memory fixture;
+локальный Windows Credential Manager и настоящие четыре оптических чтения
+Galaxy A32 остаются отдельными доказательствами, не приписываются CI.
+
+Перед merge свежие exact head/base 9551a35/8707af0 — OPEN/non-draft/
+MERGEABLE/CLEAN, все 17 expected checks SUCCESS; comments/reviews/requests/
+threads отсутствуют. Merge API с точным head создал
+`caaf6dffcf67e3be63532ef730e693924502672f`. Родители — проверенные base/head,
+merge tree равен reviewed head. Чистая main fast-forward до origin/main;
+remote branch удалён с lease проверенного head, local branch удалён штатным
+branch-d. Local/remote/tracking refs отсутствуют, прочие worktrees/stash прежние.
+
+P06.02/.1–.3 done в согласованном QR scope. Все пять правил соблюдены в нём;
+GAP-030 resolved, все 98 определения/состояния критериев и остальные GAP/DEC
+прежние. Обмен/Tailscale/холодная модель/целевые бюджеты отдельно. Итоговые
+записи интеграции в журнале/очереди/EV/ADR остаются локально после merge,
+без нового commit/push; продуктовый код равен проверенному merge tree.

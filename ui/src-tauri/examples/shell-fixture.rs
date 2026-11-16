@@ -74,12 +74,15 @@ async fn main() {
     );
     #[cfg(not(windows))]
     {
-        shell.devices = Some(Arc::new(zedone_adapters::device_control::Controller::new(
-            Arc::new(zedone_adapters::device_host::DeviceHost::new(
-                shell.service.clone().unwrap(),
-                Memory::default(),
-            )),
-        )));
+        shell.devices = Some(Arc::new(
+            zedone_adapters::device_control::Controller::new(Arc::new(
+                zedone_adapters::device_host::DeviceHost::new(
+                    shell.service.clone().unwrap(),
+                    Memory::default(),
+                ),
+            ))
+            .with_automatic(directory.join("local-session.json")),
+        ));
     }
     axum::serve(listener, zedone_shell::web::router(shell, address))
         .await

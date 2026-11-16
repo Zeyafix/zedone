@@ -1,5 +1,13 @@
 # Продуктовое Rust-ядро
 
+Локальный выбор пространства для подключения и общая явная пауза пространства —
+[ADR-0063](decisions/0063-local-sync-control.md). Доверенный storage сохраняет
+их атомарно и отдельно от графа/Automerge progress. В полном P06.03
+[ADR-0064](decisions/0064-space-exchange.md) подключает общий core guard,
+Service/API/CLI/UI и защищённую доставку changes со staging первой загрузки.
+Настройки не подтверждают подключение и не выдают прав; текущее разрешение
+и пауза проверяются при допуске и фиксации передачи.
+
 Защищённый канал и системные host secrets —
 [ADR-0055](decisions/0055-protected-device-channel.md). TLS/ring, certificate
 pinning и порт SecretStore находятся в adapters; Windows backend — там же под

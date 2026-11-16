@@ -225,5 +225,6 @@ Android: `device_session {operation, parameters: JSON-string, credential}`.
 показывает существующую попытку; submit продолжает её. Session cancel/unlink
 хранят только subject/id/expected, сериализованы Web Locks; отсутствие безопасного
 хранения запрещает отправку. Очистка — только прежним свежим TLS refresh.
-ADR-0060/EV-103. Представление QR — ADR-0062/EV-107; обмен и фоновая работа
-закрытого приложения отдельно.
+ADR-0060/EV-103. Представление QR — ADR-0062/EV-107;
+[обмен пространствами](space-exchange.md) — ADR-0064/EV-109.
+Работа при закрытом Android-приложении по-прежнему не гарантируется.

@@ -5,6 +5,7 @@ import { checkConnection, type Connection } from "./connection";
 import { readTheme, saveTheme, type Theme } from "./appearance";
 import SpacesView from "./SpacesView.vue";
 import DevicesPanel from "./DevicesPanel.vue";
+import ExchangePanel from "./ExchangePanel.vue";
 import AccessPanel from "./AccessPanel.vue";
 
 type Page = "spaces" | "settings";
@@ -145,6 +146,7 @@ onUnmounted(() => {
         <template v-if="page === 'settings'">
           <DevicesPanel v-if="managementOpened" :ready="managementReady" />
           <AccessPanel v-if="managementOpened" :ready="managementReady" />
+          <ExchangePanel v-if="managementOpened" :ready="managementReady" />
           <section class="settings-section" aria-labelledby="appearance-title">
             <h2 id="appearance-title">Оформление</h2>
             <p id="theme-description">Настройка применяется к этому браузеру или приложению. Цвета системы учитываются автоматически в режиме «Как на устройстве».</p>

@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+
+export async function checkExchangeUI({ first, second, a, b, api, space, pairing }) {
+  const source=first.locator('.exchange-panel'),receiver=second.locator('.exchange-panel');
+  const update=async section=>{await section.getByRole('button',{name:'Обновить обмен',exact:true}).click();await section.page().waitForFunction(()=>document.querySelector(".exchange-panel")?.getAttribute("aria-busy")==="false");};
+  await update(source);await update(receiver);
+  await source.locator('#exchange-peer').selectOption(pairing);
+  await source.locator('#exchange-space').selectOption(space);
+  await source.locator('[data-local-exchange]').getByRole('button',{name:'Включить обмен',exact:true}).click();
+  await source.getByText('Пространство выбрано.',{exact:false}).waitFor();
+  await receiver.getByRole('button',{name:'Показать пространства устройства',exact:true}).click();
+  const row=receiver.locator(`[data-exchange-space="${space}"]`);
+  await row.getByRole('button',{name:'Выбрать пространство',exact:true}).click();
+  await row.getByRole('button',{name:'Обменяться сейчас',exact:true}).click();
+  await receiver.locator('[data-exchange-result]').filter({hasText:'Доступ на другом устройстве разрешает только чтение'}).waitFor();
+  const imported=await api(b,'space.read',{space});assert.equal(imported.status,'ok');
+  assert.deepEqual(imported.result.names,(await api(a,'space.read',{space})).result.names);
+  const original=(await api(a,'space.read',{space})).result;
+  await second.goto('about:blank');
+  const automatic=(await api(a,'space.rename',{space,name:original.names[0]+' — automatic',expected:original.version})).result;
+  const until=async name=>{const deadline=Date.now()+15000;while(Date.now()<deadline){if((await api(b,'space.read',{space})).result?.names[0]===name)return;await Bun.sleep(150);}throw new Error('Automatic exchange did not deliver while the browser page was closed');};
+  await until(automatic.names[0]);
+  const restored=await api(a,'space.rename',{space,name:original.names[0],expected:automatic.version});assert.equal(restored.status,'ok');await until(original.names[0]);
+  await second.goto(`${b.url}/#/settings`);await receiver.getByRole('button',{name:'Показать пространства устройства',exact:true}).click();
+  await row.getByRole('button',{name:'Приостановить получение',exact:true}).click();
+  await row.getByText('Пространство на явной паузе.',{exact:false}).waitFor();
+  assert.equal(await row.getByRole('button',{name:'Обменяться сейчас',exact:true}).count(),0);
+  await row.getByRole('button',{name:'Выключить получение',exact:true}).click();
+  await row.getByRole('button',{name:'Выбрать пространство',exact:true}).click();
+  await row.getByText('Пространство на явной паузе.',{exact:false}).waitFor();
+  await row.getByText('Обмен включён на этом устройстве.',{exact:false}).waitFor();
+  const control=(await api(b,'sync.inspect',{space,pairing})).result;assert.equal(control.paused,true);assert.equal(control.selected,true);
+  await second.reload();await receiver.getByRole('button',{name:'Показать пространства устройства',exact:true}).click();
+  await row.getByRole('button',{name:'Возобновить получение',exact:true}).click();
+  await row.getByRole('button',{name:'Обменяться сейчас',exact:true}).click();
+  await receiver.locator('[data-exchange-result]').filter({hasText:'Доступ на другом устройстве разрешает только чтение'}).waitFor();
+  assert.equal(await second.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await row.getByRole('button',{name:'Выключить получение',exact:true}).click();
+  assert.equal((await api(b,'space.read',{space})).status,'ok');
+  console.log('Exchange UI: explicit selections, first import, background delivery with closed page, read-only mode, pause/reverse/reload/resume and retained local data passed.');
+}

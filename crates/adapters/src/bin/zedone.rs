@@ -58,7 +58,13 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
         .map_err(|_| ErrorCode::AccessDenied)?;
     let mut body = Vec::new();
     std::io::stdin()
-        .take((MAX_REQUEST_BYTES + 1) as u64)
+        .take(
+            (if args[5] == "sync.push" {
+                zedone_adapters::MAX_EXCHANGE_BYTES
+            } else {
+                MAX_REQUEST_BYTES
+            } + 1) as u64,
+        )
         .read_to_end(&mut body)
         .map_err(|_| ErrorCode::InvalidRequest)?;
     let storage = zedone_storage::Storage::open(&args[1])
@@ -114,10 +120,19 @@ async fn remote(args: &[String]) -> Result<CommandResponse<serde_json::Value>, E
     }
     let mut body = zedone_adapters::secrets::Secret::new(Vec::new());
     std::io::stdin()
-        .take((MAX_REQUEST_BYTES + 1) as u64)
+        .take(
+            (if operation == "sync.push" {
+                zedone_adapters::MAX_EXCHANGE_BYTES
+            } else {
+                MAX_REQUEST_BYTES
+            } + 1) as u64,
+        )
         .read_to_end(&mut body)
         .map_err(|_| ErrorCode::InvalidRequest)?;
-    let kind = if operation.starts_with("session.") || operation.starts_with("offer.") {
+    let kind = if operation.starts_with("session.")
+        || operation.starts_with("offer.")
+        || operation.starts_with("exchange.")
+    {
         "host"
     } else {
         "commands"
@@ -171,6 +186,8 @@ async fn listen() -> Result<(), ErrorCode> {
                 &read_key(&args[5])?,
             )
             .await?;
+        let _automatic = zedone_adapters::device_control::Controller::new(host.clone())
+            .with_automatic(std::path::PathBuf::from(&args[5]));
         let output = serde_json::json!({"address":listener.address,"pin":pin.0.iter().map(|b|format!("{b:02x}")).collect::<String>()});
         serde_json::to_writer(std::io::stdout(), &output).map_err(|_| ErrorCode::Unavailable)?;
         std::io::stdout()

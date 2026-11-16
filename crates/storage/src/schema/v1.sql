@@ -19,6 +19,26 @@ CREATE TABLE command_results (
     request BLOB NOT NULL,
     result BLOB NOT NULL
 ) STRICT, WITHOUT ROWID;
+CREATE TABLE sync_spaces (
+    space TEXT PRIMARY KEY NOT NULL CHECK(length(space) > 0),
+    paused INTEGER NOT NULL CHECK(paused IN (0, 1)),
+    revision INTEGER NOT NULL CHECK(revision > 0)
+) STRICT, WITHOUT ROWID;
+CREATE TABLE sync_selections (
+    space TEXT NOT NULL CHECK(length(space) > 0),
+    pairing TEXT NOT NULL CHECK(length(pairing) = 32 AND pairing NOT GLOB '*[^0-9a-f]*' AND pairing != '00000000000000000000000000000000'),
+    selected INTEGER NOT NULL CHECK(selected IN (0, 1)),
+    revision INTEGER NOT NULL CHECK(revision > 0),
+    PRIMARY KEY(space, pairing)
+) STRICT, WITHOUT ROWID;
+CREATE TABLE sync_incoming (
+    space TEXT NOT NULL,
+    pairing TEXT NOT NULL,
+    hash BLOB NOT NULL CHECK(length(hash) = 32),
+    bytes BLOB NOT NULL CHECK(length(bytes) > 0),
+    PRIMARY KEY(space, pairing, hash),
+    FOREIGN KEY(space, pairing) REFERENCES sync_selections(space, pairing)
+) STRICT, WITHOUT ROWID;
 CREATE TABLE access_principals (
     subject TEXT PRIMARY KEY NOT NULL CHECK(length(subject) = 32),
     administration INTEGER NOT NULL CHECK(administration IN (0, 1)),

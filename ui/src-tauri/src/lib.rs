@@ -46,15 +46,15 @@ impl Shell {
                 namespace,
                 &directory.join("host-locks"),
             );
-            Some(
-                std::sync::Arc::new(zedone_adapters::device_control::Controller::new(
-                    std::sync::Arc::new(zedone_adapters::device_host::DeviceHost::new(
-                        service.clone(),
-                        store,
-                    )),
+            Some(std::sync::Arc::new(
+                zedone_adapters::device_control::Controller::new(std::sync::Arc::new(
+                    zedone_adapters::device_host::DeviceHost::new(service.clone(), store),
                 ))
-                    as std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>,
+                .with_automatic(credential_path.clone()),
             )
+                as std::sync::Arc<
+                    dyn zedone_adapters::device_control::DeviceControl,
+                >)
         });
         #[cfg(not(windows))]
         let devices = None;
@@ -169,9 +169,9 @@ mod entry_point {
                 let directory = super::pairing_acceptance::ui_directory(&base).unwrap_or(directory);
                 let shell = tauri::async_runtime::block_on(super::open_shell(&directory));
                 if let Some(service) = &shell.service {
-                    if let Ok(devices) =
+                    if let Ok(devices) = tauri::async_runtime::block_on(async {
                         super::devices::Devices::new(app.handle(), service.clone(), &directory)
-                    {
+                    }) {
                         app.manage(devices);
                     }
                 }

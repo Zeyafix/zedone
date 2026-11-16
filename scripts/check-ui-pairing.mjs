@@ -1,3 +1,4 @@
+import { checkExchangeUI } from "./check-ui-exchange.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -121,6 +122,7 @@ try {
   const grant=(await api(a,"access.inspect",{subject:firstRequest.pending.request})).result;
   assert.deepEqual(grant.scope,{kind:"spaces",spaces:{[space]:"read"}});assert.equal(grant.expires_at_unix_ms,null);
   await second.reload();await second.locator("[data-session-state]").filter({hasText:"Подтверждённое подключение сохранено"}).waitFor();
+  await checkExchangeUI({first,second,a,b,api,space,pairing:firstRequest.pending.request});
   await click(second,"Отвязаться от устройства");await second.locator('[role="dialog"]').waitFor();await second.locator('[role="dialog"]').getByRole("button",{name:"Подтвердить",exact:true}).click();await done(second);
   await second.locator("[data-session-state]").filter({hasText:"Нет сохранённого подключения"}).waitFor();
   await click(first,"Обновить подключения");await first.locator("#outgoing-code").waitFor({state:"detached"});

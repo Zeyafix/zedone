@@ -1,5 +1,38 @@
 # Разработка продуктового Rust-ядра
 
+Полный P06.03: [ADR-0064](../architecture/decisions/0064-space-exchange.md),
+[EV-109](../agent/verification/EV-109-space-exchange.md). `core::sync`
+проверяет управление/текущие paired grants; `storage::sync_engine` владеет
+страницами Automerge, durable frontier и атомарным staging первой доставки.
+`DeviceHost` использует существующую OS-сессию; `Controller::with_automatic`
+запускает цикл при работе процесса, независимо от браузерной вкладки.
+Android строит тот же механизм через Devices и Keystore; UI вызывает те же
+Service/DeviceControl, что CLI. Исходная граница .1 ниже историческая:
+настройки теперь могут предшествовать существованию документа, без выдачи прав
+и частичного пространства. Новый `sync_incoming` — только staging этой пары.
+
+Штатные `check-product.mjs`/`--android` включают новые store/TLS tests;
+`ui:check` — выбор/импорт/read-only/паузу/reload и автоматическую доставку с
+закрытой страницей. `check-pairing-app.mjs` дополнительно проверяет настоящее
+содержимое Windows↔APK через TLS/API/CLI. Локальный `P06_EXCHANGE_UI=1`
+останавливает этот тест в отдельной UI-фикстуре для Device/agent-device;
+продолжение — собственный ignored marker `ui-continue` со значением passed.
+Это не ослабляет проверки, локальную реставрацию APK/app files или CI-порядок;
+в CI интерактивная точка выключена. Runtime-результаты фиксируются отдельно.
+
+P06.03.1 добавляет доверенный `storage::sync_control`:
+`ReadContext::space_sync_control/sync_selection` и
+`WriteContext::set_space_sync_paused/set_sync_selected`. Пауза относится ко
+всему пространству, выбор — к паре пространство/pairing request ID.
+Оба изменяющих примитива требуют прочитанную `StateVersion`, защищают от ABA
+и участвуют в общем rollback/commit. Их вызывают только доверенные callbacks;
+это ещё не API пользователя/агента и не разрешение сетевого обмена.
+[ADR-0063](../architecture/decisions/0063-local-sync-control.md) задаёт
+границы следующей интеграции: актуальные права, подтверждённое подключение,
+проверки обоих направлений и паузы перед commit. Новых внешних операций нет.
+Проверки .1 включены в штатные storage tests Windows/native Android;
+результаты — [EV-108](../agent/verification/EV-108-sync-control-storage.md).
+
 Все сборки, включая прямой Cargo, выполняют
 [проверку исходников без комментариев](source-comments.md).
 Сначала нужны корневой `bun install --frozen-lockfile` и PowerShell `pwsh`.
@@ -189,7 +222,10 @@ Windows/Android; есть проба 1000 карточек, не заменяю�
 seed часов и общий validator прав/часов. При изменении этой схемы обновлять
 текущие тесты и эталон, не добавляя промежуточных продуктовых переходов.
 `crates/storage/tests/fixtures/schema-v1.sqlite` — синтетический эталон текущей
-стартовой схемы, SHA-256 `88f4cacc1ef5fa65e78a022a1737264921e480d3ffa27978807a822685acc947`.
+стартовой схемы, SHA-256 `626f0bbe1761a5b4d7c0f94ff4b85cf726f833049238c878f3b669e9437525aa`.
+P06.03.1 добавляет пустые `sync_spaces`/`sync_selections`, сохраняя все прежние
+строки. Выбор и явная пауза хранятся локально отдельно от Automerge progress;
+отключение не удаляет графы, историю или `peers.state`.
 В P04.08 добавлена пустая card_editing, в P06.01.2.1 — pairing_invitations;
 исходные документы/actor/receipts сохранены. P06.01.2.3 добавляет pairing_requests
 и сохраняемый счётчик неудачных попыток приглашения; эталон обновлён без изменения

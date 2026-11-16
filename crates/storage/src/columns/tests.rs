@@ -376,7 +376,6 @@ async fn projection_is_scoped_causal_and_unknown_descendants_fail_closed() {
         ),
         ErrorCode::StaleState,
     );
-    // Unknown root content may reference a column without being its child.
     storage
         .transact(|ctx| {
             ctx.edit(&sid(1), |doc| {

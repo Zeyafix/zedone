@@ -1,5 +1,3 @@
-//! Installation-local invitations share the command transaction, not the
-//! replicated graph or a space export. IDs/verifiers are retained as tombstones.
 use rusqlite::{OptionalExtension, Row};
 use zedone_core::{
     command::CommandResult,

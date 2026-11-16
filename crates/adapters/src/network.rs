@@ -1,4 +1,3 @@
-//! Bounded pinned TLS transport. No plaintext fallback, redirects or trust-on-first-use.
 use crate::{
     MAX_REQUEST_BYTES,
     channel::{self, Fingerprint, Identity},
@@ -93,7 +92,6 @@ impl SecureListener {
         identity: Arc<Identity>,
         router: Router,
     ) -> Result<Self, ErrorCode> {
-        // Validate identity before publishing the listener.
         let acceptor = identity.acceptor().map_err(|_| ErrorCode::Unavailable)?;
         let listener = TcpListener::bind(address)
             .await
@@ -121,7 +119,6 @@ impl SecureListener {
                     }
                 }
             }
-            // Finish admitted work; do not abandon an in-flight storage commit.
             while tasks.join_next().await.is_some() {}
         });
         Ok(Self {

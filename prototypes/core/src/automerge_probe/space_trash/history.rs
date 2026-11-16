@@ -1,4 +1,3 @@
-//! P02.05.4: causal deletion of known visible versions, not autosave grouping.
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -39,8 +38,6 @@ pub(super) fn versions(doc: &Automerge) -> Result<Vec<Version>> {
     Ok(entries)
 }
 
-// One discrete synthetic command = one saved pair and one visible version.
-// Participant sessions, autosave series and product permission checks are P03/P04.
 fn record(doc: &mut Automerge, key: &str, observed: &Node, title: &str, text: &str) -> Result<()> {
     let nodes = view(doc)?;
     let n = node(&nodes, key)?;
@@ -144,8 +141,6 @@ pub(super) fn clear(doc: &mut Automerge, plan: &ClearPlan) -> Result<()> {
     let entries = versions(doc)?;
     let root = doc.get(ROOT, "history")?.ok_or("Missing history")?.1;
     let mut tx = doc.transaction();
-    // List deletion addresses the observed element's operation. Concurrent inserts
-    // and versions absent from this replica cannot be accidentally deleted.
     for (index, v) in entries.iter().enumerate().rev() {
         if plan.removed.contains(&v.id) {
             tx.delete(&root, index)?;
@@ -155,8 +150,6 @@ pub(super) fn clear(doc: &mut Automerge, plan: &ClearPlan) -> Result<()> {
     Ok(())
 }
 
-// Purging contents also removes their known user-visible history in the SAME
-// Automerge change. Concurrent versions are not in these observed list slots.
 pub(super) fn purge_slots(doc: &Automerge, keys: &[String]) -> Result<Option<(ObjId, Vec<usize>)>> {
     let Some((_, root)) = doc.get(ROOT, "history")? else {
         return Ok(None);
@@ -183,7 +176,6 @@ pub(super) fn purge_known(
 }
 
 pub(in super::super) fn snapshot(doc: &Automerge) -> Result<Value> {
-    // List order is deterministic but is not a wall-clock ordering of offline edits.
     Ok(serde_json::to_value(versions(doc)?)?)
 }
 

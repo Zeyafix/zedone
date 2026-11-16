@@ -139,7 +139,6 @@ async function refresh() {
   loading.value = true;
   error.value = "";
   try {
-    // Await both even when one fails; no abandoned read can overwrite a newer view.
     const results = await Promise.allSettled([
       read("space.list", { include_trashed: true }),
       selected.value ? read("space.read", { space: selected.value }) : Promise.resolve(undefined),
@@ -232,7 +231,6 @@ async function open(next: Action, event: Event) {
     purgeConfirmed.value = false; actionRefused.value = false;
     historyPreview.value = undefined;
     scopeTags.value = [...tags.value];
-    // Freeze the fresh original version at dialog opening. Refresh never rebases it.
     switch (next.kind) {
       case "column.rename": case "column.trash": case "column.restore":
         next = { kind: next.kind, target: await read("column.read", { space: next.target.space, column: next.target.column }) }; break;
@@ -293,7 +291,6 @@ async function retry(id: string) {
       dialogOpen.value = false;
       if (original?.intention.operation === "trash.purge") {
         const parameters = JSON.parse(original.intention.body).parameters;
-        // A purged root no longer has a readable board; reconcile from the list.
         if (selected.value === parameters.space && result.response?.status === "ok" && result.response.result && "includes_space" in result.response.result && result.response.result.includes_space) {
           location.hash = "#/spaces"; await routeChanged();
         } else await refresh();

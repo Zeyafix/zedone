@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 
-// Uses real HTTP; only local session control differs between desktop stdin and APK IPC.
 export async function checkHttpSession(control, storage, connect = async status => ({ endpoint: status.endpoint, close() {} })) {
   await control({ action: "stop" });
   assert.equal((await control({ action: "status" })).endpoint, null);
@@ -43,7 +42,6 @@ export async function checkHttpSession(control, storage, connect = async status 
     assert.equal((await post({ action: "stop" }, status.token, "/prototype/http-session")).status, 404);
     const old = status;
     await control({ action: "stop" });
-    // Existing HTTP pools may observe either a closed connection or a revoked grant.
     try { assert.equal((await post({ text }, old.token, "/prototype/echo")).status, 401); }
     catch (error) { if (error instanceof assert.AssertionError) throw error; }
     await connection.close();

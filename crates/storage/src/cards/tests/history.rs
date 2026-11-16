@@ -285,7 +285,6 @@ async fn participants_discrete_commands_and_client_restart_preserve_each_stage_w
     )
     .unwrap()
     .result;
-    // A read by another participant is not an editing boundary.
     assert_eq!(fresh(&storage, &agent, 4, 9).await, one);
     assert_eq!(versions(&storage, 9).await.len(), 1);
     let two = run!(
@@ -315,7 +314,6 @@ async fn participants_discrete_commands_and_client_restart_preserve_each_stage_w
     .unwrap()
     .result;
     let old_history = versions(&storage, 9).await;
-    // A new tab/app client explicitly begins before showing history or saving.
     run!(storage, admin, begin_editing, begin(8, four.version)).unwrap();
     let v = versions(&storage, 9).await;
     assert_eq!(v.len(), 5);
@@ -393,7 +391,7 @@ async fn restore_pair_is_a_separate_version_even_if_equal_and_can_be_reversed_wi
     )
     .unwrap()
     .result;
-    assert_eq!(same.version, fifth.version); // Same current pair; the new visible history version is independent.
+    assert_eq!(same.version, fifth.version);
     let all = versions(&storage, 9).await;
     assert_eq!(all.len(), 6);
     assert_eq!(&all[..3], original);
@@ -459,7 +457,6 @@ async fn recovery_finishes_saved_series_once_without_overwriting_newer_current_t
         save(4, 2, "two", "d2", one.version)
     )
     .unwrap();
-    // A later imported/current change must survive recovery of the older pair.
     storage
         .transact(|ctx| {
             let obj = object(ctx.read().document(&sid(1))?, &sid(9))?;

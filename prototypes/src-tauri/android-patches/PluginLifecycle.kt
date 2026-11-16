@@ -1,5 +1,3 @@
-// Copyright 2026 ZeDone contributors
-// SPDX-License-Identifier: MIT
 
 package app.tauri.plugin
 
@@ -11,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import app.tauri.Logger
 import com.fasterxml.jackson.databind.ObjectMapper
 
-/** Main-thread ownership of native plugins; registrations retain no Activity or WebView. */
 class PluginLifecycle(
   private val manager: PluginManager,
   private val plugins: MutableMap<String, PluginHandle>
@@ -19,7 +16,6 @@ class PluginLifecycle(
   private data class Registration(
     val type: Class<out Plugin>, val config: String, val mapper: ObjectMapper
   ) {
-    // This is the same public constructor contract used by Tauri's Rust registration.
     fun create(activity: AppCompatActivity): Plugin =
       type.getConstructor(Activity::class.java).newInstance(activity)
   }
@@ -81,7 +77,7 @@ class PluginLifecycle(
     val viewOwner = webView?.let { activityOf(it.context) }
     if (viewOwner != null && !viewOwner.isDestroyed) views[viewOwner] = webView
     val target = current ?: viewOwner ?: return
-    if (target.isDestroyed) return // onCreate will materialize the saved registration.
+    if (target.isDestroyed) return
     if (owner !== target) {
       attach(target, views[target])
       return

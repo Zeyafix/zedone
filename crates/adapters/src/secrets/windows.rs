@@ -1,4 +1,3 @@
-//! Current Windows user, this machine, explicit installation namespace.
 use super::{MAX_SECRET_BYTES, Secret, SecretError, SecretStore, Slot};
 use keyring_core::{Entry, api::CredentialStoreApi};
 use std::{
@@ -8,8 +7,6 @@ use std::{
     sync::Mutex,
 };
 
-// Credential Manager does not reliably order operations on separate threads.
-// No global default store is installed, and tests never enumerate user entries.
 static OPERATIONS: Mutex<()> = Mutex::new(());
 
 pub struct WindowsSecrets {

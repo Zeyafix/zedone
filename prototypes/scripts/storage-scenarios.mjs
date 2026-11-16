@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-// Shared checks call the real Rust API via HTTP or Android IPC; no SQLite writes.
 export async function checkStorage(call) {
   for (const space of ["A", "B"]) await call({ action: "delete", space });
   const a = (await call({ action: "seed", space: "A" })).snapshot;

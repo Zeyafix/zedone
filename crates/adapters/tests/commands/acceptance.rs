@@ -70,7 +70,6 @@ async fn competing_adapter_changes_require_a_new_intention_for_the_loser() {
         "stale_state"
     );
     assert_eq!(b.read("card").await, winner["result"]);
-    // A new ID and an explicit fresh condition make the losing action valid.
     let mut p = serde_json::from_str::<Value>(&lose_body).unwrap()["parameters"].clone();
     p["expected"] = winner["result"]["version"].clone();
     let latest = b.call(lose_op, p).await;
@@ -249,8 +248,6 @@ async fn every_card_field_invalidates_every_mutation_at_all_entries_even_after_u
         assert_eq!(b.read("column").await, current_column, "{field}");
         assert_eq!(b.read("space").await, current_space, "{field}");
         assert_eq!(b.history().await, current_history, "{field}");
-        // A freshly prepared reverse succeeds; identical visible fields do not
-        // revive any rejected ID or its original causal condition.
         let reverse = match field {
             "trash" => "card.restore",
             "restore" => "card.trash",

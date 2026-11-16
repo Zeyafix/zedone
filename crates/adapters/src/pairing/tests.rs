@@ -157,7 +157,6 @@ async fn real_tls_request_restart_cancel_and_replay_keep_secrets_and_data_separa
     let list = command(&service, &admin, 4, "pairing.list", json!({"after":null})).await;
     assert_eq!(list["result"]["entries"][0]["request"], saved_id);
     assert_eq!(list["result"]["entries"][0]["status"], "cancelled");
-    // Neither the invitation code nor the pending token can call data/admin APIs.
     let pending = store.load(Slot::PendingPairing).await.unwrap().unwrap();
     for key in [&pending[171..203], &pending[203..235], &[0x11; 32]] {
         let response = service
@@ -473,8 +472,6 @@ async fn tls_confirmation_enforces_scopes_own_unlink_and_fresh_reconnection() {
         assert!(
             matches!(denied,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied)
         );
-        // The TLS-only router cannot accept a confirmation, even with the
-        // pending bearer and a well-formed administrative command.
         let mut headers = HeaderMap::new();
         headers.insert(
             "authorization",

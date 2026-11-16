@@ -4,7 +4,6 @@ import type { QrResponse } from "./qr";
 
 const props = defineProps<{ code: QrResponse; scale: number }>();
 const side = computed(() => props.code.modules.length + 8);
-// Only numeric coordinates from Rust's matrix, never source text or HTML.
 const path = computed(() => props.code.modules.flatMap((row, y) =>
   row.flatMap((dark, x) => dark ? [`M${x + 4},${y + 4}h1v1h-1z`] : [])
 ).join(""));

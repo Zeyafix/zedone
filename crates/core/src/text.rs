@@ -1,4 +1,3 @@
-//! Canonical caseless comparison without changing source text or whitespace.
 use icu_casemap::CaseMapper;
 use icu_normalizer::{ComposingNormalizer, DecomposingNormalizer};
 

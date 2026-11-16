@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 
-// Execute the real dispatcher with only its process boundary stubbed. Never
-// launch Cargo, an emulator or a second check while validating suite routing.
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
   .replace('import assert from "node:assert/strict";', "")
   .replaceAll("import.meta.dir", '"/fixture"');
@@ -51,8 +49,6 @@ for (const [args, expected] of [
 for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", "extra"], ["shell", "extra"]]) {
   assert.throws(() => dispatch(args), /Unknown Android suite/);
 }
-// Validate the real workflow's build/runtime boundary independently of the
-// dispatcher. The arm64 shell job builds an APK; it never owns an emulator.
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
 const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "shell-arm64"];

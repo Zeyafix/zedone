@@ -1,5 +1,3 @@
-//! A pending credential authorizes only its own inspection/cancellation/unlink.
-//! It is never resolved as a normal access principal or an administrator.
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -23,7 +21,6 @@ pub struct PendingVerifier(pub [u8; 32]);
 pub struct RequestPairing {
     pub request: String,
     pub invitation: String,
-    /// Claimed display name, never an authenticated device identity.
     pub label: String,
     pub access_verifier: KeyVerifier,
 }
@@ -56,7 +53,6 @@ impl Command for CancelPairing {
 pub struct ConfirmPairing {
     pub request: String,
     pub expected: StateVersion,
-    /// Explicit scopes only; administration never implies space access.
     pub scope: AccessScope,
     #[schema(minimum = 0, maximum = 253402300799999_i64)]
     pub expires_at_unix_ms: Option<i64>,
@@ -119,7 +115,6 @@ pub struct PairingSnapshot {
     #[schema(minimum = 0, maximum = 253402300799999_i64)]
     pub created_at_unix_ms: i64,
     pub status: PairingStatus,
-    /// Ordinary access subject for a decided connection, never a secret.
     pub subject: Option<String>,
     pub version: StateVersion,
 }
@@ -140,7 +135,6 @@ pub trait PairingStore: InvitationStore + AccessStore {
     fn cancel_pairing(&mut self, id: &str) -> CommandResult<()>;
     fn decide_pairing(&mut self, id: &str, confirmed: bool) -> CommandResult<()>;
     fn pairings(&mut self, after: Option<&str>) -> CommandResult<Vec<PairingSnapshot>>;
-    /// Compare secrets in constant time in the crypto-capable persistence layer.
     fn verifier_matches(&self, left: &[u8; 32], right: &[u8; 32]) -> bool;
 }
 fn error(code: ErrorCode) -> CommandError {
@@ -190,8 +184,6 @@ where
     })
 }
 
-/// None is a committed authentication failure, including its attempt counter.
-/// Err is rolled back. The adapter must preserve this distinction.
 pub fn request(
     tx: &mut impl PairingStore,
     clock: &impl Clock,
@@ -210,9 +202,6 @@ pub fn request(
     {
         return Err(error(ErrorCode::InvalidRequest));
     }
-    // A rejected immutable attempt must never become accepted later (e.g. a
-    // delayed duplicate after the client discarded its rejected OS record).
-    // Only verifiers enter this receipt; neither code nor pending key is stored.
     let denied_key = replay::canonical_json(&("zedone.pending-denied.v1", &p.request, pending.0))?;
     let denied_request = replay::canonical_json(&(r, code.0))?;
     if let Some(previous) = tx.recorded(&denied_key)? {
@@ -236,12 +225,9 @@ pub fn request(
         Ok(None)
     }
     let Some(invitation) = tx.invitation(&p.invitation)? else {
-        // Unknown IDs must not allocate unauthenticated receipts. Nor is this
-        // proof of a permanent rejection: invitation publication may be in flight.
         return Err(error(ErrorCode::Unavailable));
     };
     let correct = tx.verifier_matches(&invitation.verifier.0, &code.0);
-    // A retry must prove the same pending secret, not merely know the invite.
     if let Some(existing) = tx.pairing(&p.request)? {
         if !correct || !tx.verifier_matches(&existing.verifier.0, &pending.0) {
             return Ok(None);
@@ -253,8 +239,6 @@ pub fn request(
         || invitation.failures >= MAX_ATTEMPTS
         || now_ms(clock)? >= invitation.expires_ms
     {
-        // These invitation states are permanent under the trusted clock and
-        // tombstone rules. Never allocate receipts for unlimited locked retries.
         return Ok(None);
     }
     if !correct {
@@ -350,7 +334,6 @@ pub fn confirm(
             access_commands::validate_issue(&p.scope, before.access_verifier)?;
             let expires = access_commands::future_expiry(clock, p.expires_at_unix_ms)?;
             clock.check_expiry(expires)?;
-            // Never replace an existing principal, including a revoked one.
             tx.issue_subject(&p.request, before.access_verifier, &p.scope, expires)?;
             tx.decide_pairing(&p.request, true)?;
             Ok(load(tx, &p.request)?.snapshot)

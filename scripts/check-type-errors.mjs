@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import ts from "typescript";
+
+const root = resolve(import.meta.dirname, "..");
+const prototype = process.argv[2] === "--prototype";
+assert.ok(process.argv.length === (prototype ? 3 : 2), "Expected no arguments or --prototype");
+const configPath = resolve(root, prototype ? "prototypes/tsconfig.json" : "tsconfig.contract.json");
+const fixture = resolve(root, prototype ? "prototypes/type-errors/client.ts" : "tests/type-errors/product.ts");
+const expected = JSON.parse(readFileSync(fixture + ".json", "utf8"));
+const config = ts.readConfigFile(configPath, ts.sys.readFile);
+assert.ok(!config.error, "Cannot read TypeScript configuration");
+const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, resolve(configPath, ".."));
+assert.deepEqual(parsed.errors, []);
+const program = ts.createProgram([fixture], parsed.options);
+const diagnostics = ts.getPreEmitDiagnostics(program);
+const unrelated = diagnostics.filter(d => !d.file || resolve(d.file.fileName) !== fixture);
+assert.deepEqual(unrelated.map(d => ts.flattenDiagnosticMessageText(d.messageText, "\n")), [], "Unexpected TypeScript errors outside the negative fixture");
+const actual = diagnostics.map(d => ({ line: d.file.getLineAndCharacterOfPosition(d.start).line + 1, code: d.code }));
+assert.deepEqual(actual, expected, "Every negative type assertion must produce its expected compiler diagnostic");
+console.log(`${prototype ? "Prototype" : "Product"} TypeScript rejects ${actual.length} invalid calls/shapes.`);

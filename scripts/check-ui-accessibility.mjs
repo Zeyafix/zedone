@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Inspect rendered content, including nested scroll areas; no application state writes. */
 export async function checkPresentation(page) {
   const result = await page.evaluate(() => {
     const failures = [];
@@ -34,8 +33,6 @@ export async function checkPresentation(page) {
       while (background && (rgb(getComputedStyle(background).backgroundColor)?.[3] ?? 1) === 0) background = background.parentElement;
       if (!background) { failures.push("missing opaque background"); continue; }
       const back = getComputedStyle(background).backgroundColor;
-      // Current UI uses opaque text and surfaces. Report an unsupported blend,
-      // rather than silently treating it as an opaque contrast measurement.
       if ((rgb(back)?.[3] ?? 1) !== 1 || (rgb(style.color)?.[3] ?? 1) !== 1) { failures.push("unmeasured translucent text/background"); continue; }
       const a = luminance(style.color), b = luminance(back);
       const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
@@ -51,7 +48,6 @@ export async function checkPresentation(page) {
   return result;
 }
 
-/** Keyboard-only on desktop; same presentation/cancellation contract in touch CI. */
 export async function checkAccessibility(page, { tap, back = () => page.keyboard.press("Escape") } = {}) {
   async function activate(selector) {
     await page.waitForFunction(selector => {
@@ -59,8 +55,6 @@ export async function checkAccessibility(page, { tap, back = () => page.keyboard
       return element && !element.disabled && element.getClientRects().length;
     }, selector);
     if (tap) return tap(selector);
-    // Traverse the actual tab order. Direct focus()/DOM click would miss traps
-    // and unreachable controls. The bound detects a broken path deterministically.
     for (let count = 0; count < 160; count++) {
       if (selector.includes('type="radio"')) {
         const sameGroup = await page.evaluate(selector => {
@@ -106,8 +100,6 @@ export async function checkAccessibility(page, { tap, back = () => page.keyboard
   const versions = await command("card.history", { space, card, after: null, limit: 100, expected: null });
   const route = async hash => {
     await page.evaluate(hash => { location.hash = hash; }, hash);
-    // Entering the Spaces section focuses its h1. A completing list read may
-    // focus its h2 instead; either visible heading belongs to the same screen.
     const heading = hash === "#/settings" ? "main h1" : hash === "#/spaces" ? "main h1, .view-toolbar h2" : ".board-heading h2";
     await page.waitForFunction(({ hash, heading }) => location.hash === hash
       && document.querySelector("main h1")?.textContent === (hash === "#/settings" ? "Настройки" : "Пространства")
@@ -144,7 +136,6 @@ export async function checkAccessibility(page, { tap, back = () => page.keyboard
     report.push({ theme, screen: "cleanup", ...await checkPresentation(page) });
     await activate('.history-confirmation input[type="checkbox"]');
     await back(); await closed();
-    // Enlarging content must preserve access through local scrolling.
     await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
     try { report.push({ theme, screen: "board-200%", ...await checkPresentation(page) }); }
     finally { await page.evaluate(() => { document.documentElement.style.fontSize = ""; }); }

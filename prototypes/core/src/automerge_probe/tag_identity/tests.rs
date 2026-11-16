@@ -144,7 +144,6 @@ fn invalid_creation_rename_and_assignment_do_not_mutate_the_document() {
     assert!(assign(&mut a.doc, "unknown", &left, false).is_err());
     assert!(assign(&mut a.doc, "k0", &ROOT, true).is_err());
     assert_eq!(a.fingerprint().unwrap(), before);
-    // Е and Ё remain distinct, including when changing an existing tag's name.
     rename(&mut a.doc, &other, "Новый").unwrap();
     rename(&mut a.doc, &other, "Все").unwrap();
 }

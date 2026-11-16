@@ -1,4 +1,3 @@
-//! Fixed synthetic topology; names never identify or replace a container.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, Value as AmValue};
 
@@ -94,7 +93,6 @@ fn change(
         _ => return Err("Unknown fixture field".into()),
     };
     if let Some(observed) = observed {
-        // Child edits neither unlock this object nor invalidate an unchanged choice.
         if current != *observed || !conflicting(selected) {
             return Err("Stale resolution or selected field has no conflict".into());
         }
@@ -107,7 +105,6 @@ fn change(
 
 fn seed(store: &mut Store) -> Result<()> {
     let mut a = Replica::new();
-    // Construct only a fixed fixture, atomically. No product creation endpoint.
     let mut tx = a.doc.transaction();
     let mut parents = Vec::new();
     for node in NODES {
@@ -172,7 +169,6 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
                         expect(&replica.doc, node, &["Название A", "Название B"])?;
                         let observed = view(&replica.doc, node)?;
                         assert!(change(&mut replica.doc, node, "name", "Blocked", None).is_err());
-                        // The parent's name conflict does not block the card.
                         change(
                             &mut replica.doc,
                             Node::Card,

@@ -37,8 +37,6 @@ fn object(graph: &Automerge, tag: &str) -> StorageResult<ObjId> {
     Ok(values[0].1.clone())
 }
 
-/// False is retained as a causal assignment value. Deleting a map entry would
-/// silently lose removal against a concurrent re-assignment in Automerge.
 pub(crate) fn assignments(
     graph: &Automerge,
     card: &ObjId,
@@ -103,13 +101,10 @@ fn raw(graph: &Automerge, tag: &str) -> StorageResult<RawTag> {
     })
 }
 
-/// A disputed name blocks assignment of that tag, not ordinary card edits.
-/// Deletion against assignment is a conflict belonging to the card itself.
 pub(crate) fn blocks_card(graph: &Automerge, tag: &str) -> StorageResult<bool> {
     Ok(deleted(graph, &object(graph, tag)?)? != [false])
 }
 
-/// One decode per list; no tag snapshot recursively reads card snapshots.
 pub(crate) fn snapshots(
     graph: &Automerge,
     space: &str,
@@ -136,14 +131,11 @@ pub(crate) fn snapshots(
             let assignment_map = map.to_string();
             for (tag, values) in assignments {
                 if !raw_tags.contains_key(&tag) {
-                    // The card reader marks dangling assignments conflicted.
                     continue;
                 }
                 if values.contains(&true) {
                     live.insert(tag.clone());
                 }
-                // Includes false assignments: ABA never revives old deletions.
-                // Scope only assignment operations, not unrelated card text.
                 let projection = projections.get(&root).ok_or_else(invalid)?;
                 let related = projection
                     .iter()
@@ -187,8 +179,6 @@ pub(crate) fn snapshots(
             TagState::Active
         };
         let projection = projections.get(&key(tag)).ok_or_else(invalid)?;
-        // Name collisions affect authorization of ordinary actions, so their
-        // causal roots must also affect this token, including collision ABA.
         let version = state_version(
             &("tag.v1", space, tag),
             &(projection, links.get(tag), &unknown, &names),

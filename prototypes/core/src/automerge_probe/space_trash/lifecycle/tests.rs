@@ -12,8 +12,6 @@ fn restore_initial(store: &mut Store) {
     restore(store, "initial", &before).unwrap();
 }
 
-// Compare user data, not identities of newly created field assignments/history
-// slots. Entity identity, trash groups and field multiplicity ARE preserved.
 fn semantic(doc: &Automerge) -> Value {
     let nodes = view(doc).unwrap();
     let content: BTreeMap<_, _> = nodes

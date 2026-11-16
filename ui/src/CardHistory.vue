@@ -28,7 +28,6 @@ async function more() {
     const result = await read("card.history", { space: props.card.space, card: props.card.card,
       after: page.value?.next ?? null, expected: page.value?.version ?? null, limit: 25 });
     if (disposed) return;
-    // Every later page is guarded by the first history token in the core.
     versions.value.push(...result.versions); page.value = result; loaded.value = true;
   } catch (cause) {
     if (!disposed) error.value = errorMessage(cause);

@@ -18,14 +18,10 @@ fn invalid() -> StorageError {
     StorageError::InvalidDatabase
 }
 
-/// Domain operation identities and values, including overwritten/deleted data.
-/// Exclude only the reserved technical history branch and its descendants.
-/// Never hash global heads, timestamps, receipt writes or peer progress.
 fn projection(graph: &Automerge) -> StorageResult<BTreeMap<String, serde_json::Value>> {
     Ok(domain_projections(graph)?.into_values().flatten().collect())
 }
 
-/// A column owns its root entry and all descendants, including deleted ones.
 pub(crate) fn domain_projections(
     graph: &Automerge,
 ) -> StorageResult<BTreeMap<String, BTreeMap<String, serde_json::Value>>> {
@@ -71,8 +67,6 @@ fn projections(
         let Key::Map(name) = key else {
             return Err(invalid());
         };
-        // Text history is shared data, but changing only its bookkeeping must
-        // not invalidate a prepared edit or a container membership token.
         let is_history = name
             .strip_prefix("card:")
             .is_some_and(crate::columns::valid_id)
@@ -131,7 +125,6 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
         SpaceState::Trashed
     };
     let deletion_groups = lifecycle.into_iter().filter(|s| s != "active").collect();
-    // Unknown/future content fails closed until its full lifecycle is supported.
     let empty = graph
         .keys(ROOT)
         .all(|key| matches!(key.as_str(), "format" | "name" | "lifecycle" | "history"));
@@ -195,8 +188,6 @@ impl SpaceStore for WriteContext<'_> {
                 doc.put(ROOT, "lifecycle", "active")?;
                 Ok(())
             })?;
-            // The authenticated subject's existing key, administration, expiry
-            // and other exact permissions are unchanged. No wildcard/owner.
             self.connection().execute(
                 "INSERT INTO access_spaces VALUES (?1, ?2, 1)",
                 (subject, space),

@@ -18,8 +18,6 @@ class SecretArgs {
 
 @TauriPlugin
 class SecretsPlugin(private val activity: Activity) : Plugin(activity) {
-  // Rust's plugin dispatcher rejects all renderer calls. This command is invoked
-  // only by the Rust host handle, never registered as an application command.
   @Command
   fun access(invoke: Invoke) {
     val result = JSObject()

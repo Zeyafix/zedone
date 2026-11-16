@@ -59,7 +59,6 @@ fn trash_against_each_independent_field_preserves_both_choices_and_inverse() {
                 );
             }
             assert_eq!(a.fingerprint().unwrap(), before);
-            // The other card remains editable; it does not stale this card's choice.
             let observed = view(&a.doc, "k0").unwrap();
             let other_view = view(&a.doc, "k1").unwrap();
             edit(
@@ -148,9 +147,8 @@ fn equal_and_different_concurrent_choices_and_late_edits_remain_explicit() {
         assert_eq!(view(&a.doc, "k0").unwrap().blocked(), !equal);
         if !equal {
             let stale = view(&a.doc, "k0").unwrap();
-            // A restored replica may continue working before it hears the other choice.
             let mut late = store.read("B").unwrap();
-            late.doc = late.doc.fork(); // A third independent writer, not a reused actor sequence.
+            late.doc = late.doc.fork();
             choose(&mut late.doc, "active");
             change(&mut late.doc, "title", "Поздняя правка");
             a.doc.merge(&mut late.doc).unwrap();

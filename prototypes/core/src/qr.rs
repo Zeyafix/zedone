@@ -1,5 +1,3 @@
-//! Stateless encoding only; synthetic text grants no pairing or access rights.
-
 use qrcodegen::{QrCode, QrCodeEcc, QrSegment};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -21,21 +19,16 @@ pub enum QrError {
     TooLong,
 }
 
-/// Encode every UTF-8 byte, without normalization, truncation or network access.
 #[utoipa::path(
     post,
     path = "/prototype/qr",
     operation_id = "qr",
     request_body = QrRequest,
-    responses(
-        (status = 200, description = "QR modules without quiet zone", body = QrResponse),
-        (status = 422, description = "Entire text cannot fit in a QR", body = QrError)
-    )
+    responses((status = 200, description = "QR modules without quiet zone", body = QrResponse),
+        (status = 422, description = "Entire text cannot fit in a QR", body = QrError)),
+    summary = "Encode every UTF-8 byte, without normalization, truncation or network access."
 )]
 pub fn qr(request: QrRequest) -> Result<QrResponse, QrError> {
-    // Even version 40 at the lowest ECC cannot hold more than 2953 byte-mode
-    // bytes. Reject larger input before allocating segment bits; the library
-    // checks the actual capacity at Medium ECC, including the UTF-8 ECI header.
     if request.text.len() > 2953 {
         return Err(QrError::TooLong);
     }

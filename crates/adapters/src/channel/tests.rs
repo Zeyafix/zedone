@@ -165,7 +165,6 @@ async fn pinned_certificate_still_requires_name_time_usage_and_signature() {
         )
         .is_err()
     );
-    // rcgen's fixed default validity ends in year 4096.
     assert!(
         pin.verify_server_cert(
             &certificate,
@@ -281,8 +280,6 @@ async fn copying_the_pinned_certificate_without_its_private_key_is_rejected() {
     assert!(server.is_err());
 }
 
-// Invoked explicitly by product-check while its own Android sandbox is alive.
-// Only public port/fingerprint travel through the environment/metadata file.
 #[tokio::test]
 #[ignore = "requires paired host and Device-owned native Android process"]
 async fn cross_platform_probe() {
@@ -365,7 +362,6 @@ async fn windows_native_store_persistence_isolation_no_overwrite_and_removal() {
     use crate::secrets::windows::WindowsSecrets;
     let directory = tempfile::tempdir().unwrap();
     let mut namespace = [0; 32];
-    // Random test namespace: never touch, enumerate or log existing user entries.
     namespace.copy_from_slice(&Sha256::digest(
         directory.path().as_os_str().as_encoded_bytes(),
     ));

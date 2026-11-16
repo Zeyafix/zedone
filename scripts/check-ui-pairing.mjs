@@ -1,4 +1,3 @@
-// Independent installations, real Service/TLS and platform OS stores on Windows.
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -122,7 +121,6 @@ try {
   assert.equal((await api(a,'space.rename',{space,name:'Изменено явно',expected:current.version},updated)).status,'ok');
   const renamed=(await api(a,'space.read',{space},updated)).result;
   assert.equal((await api(a,'space.rename',{space,name:'Личное',expected:renamed.version},updated)).status,'ok');
-  // A fresh remote replacement invalidates an already opened revocation form.
   await accessRow.getByRole('button',{name:'Отозвать доступ',exact:true}).click();
   await first.locator('[role="dialog"]').waitFor();
   const newest=await newAccessCredential();

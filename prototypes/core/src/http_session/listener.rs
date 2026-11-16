@@ -1,6 +1,3 @@
-//! Android destroys listening sockets when their bound address disappears.
-//! Recover the transport for the existing grant, never choose another endpoint.
-
 use std::{
     io,
     net::SocketAddr,
@@ -18,9 +15,6 @@ pub(super) fn bind(address: SocketAddr) -> io::Result<TcpListener> {
     } else {
         TcpSocket::new_v6()?
     };
-    // Match Tokio's Unix listener policy. Both the original and replacement
-    // need this to rebind while admitted connections are draining/TIME_WAIT.
-    // Windows SO_REUSEADDR can let a second listener hijack the endpoint.
     #[cfg(unix)]
     socket.set_reuseaddr(true)?;
     socket.bind(address)?;
@@ -64,8 +58,6 @@ impl axum::serve::Listener for RecoveringListener {
             let listener = self.listener.as_ref().expect("listener was bound above");
             match listener.accept().await {
                 Ok(connection) => return connection,
-                // SOCK_DESTROY leaves an open fd which is no longer listening.
-                // Retrying accept on that fd can never restore service (BUG-002).
                 Err(error)
                     if matches!(
                         error.kind(),
@@ -82,8 +74,6 @@ impl axum::serve::Listener for RecoveringListener {
                             | io::ErrorKind::ConnectionAborted
                             | io::ErrorKind::ConnectionReset
                     ) => {}
-                // Keep the listener for transient resource/connection failures,
-                // as Axum does. Do not turn EMFILE into a new bind attempt.
                 Err(_) => tokio::time::sleep(Duration::from_secs(1)).await,
             }
         }
@@ -113,12 +103,9 @@ mod tests {
     fn destroyed_listener() -> (RecoveringListener, TcpListener, Arc<AtomicBool>) {
         let original = bind("127.0.0.1:0".parse().unwrap()).unwrap();
         let address = original.local_addr().unwrap();
-        // Shut down the protocol while leaving the original descriptor open,
-        // just as SOCK_DESTROY does. No synthetic accept error is injected.
         socket2::SockRef::from(&original)
             .shutdown(Shutdown::Both)
             .unwrap();
-        // Hold the exact endpoint to exercise unsuccessful rebinds as well.
         let occupied = bind(address).unwrap();
         let recovering = Arc::new(AtomicBool::new(false));
         (

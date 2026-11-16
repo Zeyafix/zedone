@@ -1,4 +1,3 @@
-//! Whole-field registers with explicit resolution; one synthetic card per document.
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -66,8 +65,6 @@ impl Replica {
         }) {
             return Err("Selected field has no different competing values".into());
         }
-        // A new assignment supersedes precisely the operations visible here.
-        // An unseen concurrent edit/decision remains a variant when it arrives.
         self.put_field(field, value)
     }
 
@@ -112,9 +109,6 @@ pub(super) fn write_assignment(
     value: &str,
 ) -> Result<()> {
     let mut tx = doc.transaction();
-    // Scalar put(existing winner) may only delete competing values in 0.12.0.
-    // A fresh immutable map gives *every* decision a distinct assignment ID,
-    // including a choice of an existing text. Never mutate this map later.
     let assignment = tx.put_object(object, key, automerge::ObjType::Map)?;
     tx.put(assignment, "value", value)?;
     tx.commit();
@@ -213,7 +207,6 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
                 replica.resolve(&replica.view()?, Field::Title, title)?;
                 store.write(id, &replica)?;
             }
-            // Both different decisions remain offline until the next process.
             checkpoint(&store, &checkpoint_path, false)?;
         }
         "conflicts-resume" => {

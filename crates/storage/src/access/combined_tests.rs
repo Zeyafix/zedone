@@ -196,7 +196,6 @@ async fn invalid_or_failed_combined_issuance_cannot_commit_partial_data_rights_o
         assert!(
             storage
                 .transact(move |ctx| {
-                    // A swallowed failed mutator still poisons the whole transaction.
                     let _ = ctx.issue_access(
                         &a.credential(),
                         &NOW,

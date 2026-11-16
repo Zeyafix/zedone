@@ -53,7 +53,6 @@ pub(in super::super) fn run(directory: &Path, phase: &str) -> Result<()> {
             }
             "trash-resolve" => {
                 conflicts::checkpoint(&store, &checkpoint, true)?;
-                // Equal choices must converge without a false conflict after restart.
                 for id in ["A", "B"] {
                     let mut replica = store.read(id)?;
                     let observed = view(&replica.doc, "k0")?;
@@ -71,7 +70,6 @@ pub(in super::super) fn run(directory: &Path, phase: &str) -> Result<()> {
                 }
                 let mut a = store.read("A")?;
                 let before = view(&a.doc, "k0")?;
-                // Normal trash/restore are inverse operations preserving identity/data.
                 for next in [if state == "active" { "trash" } else { "active" }, state] {
                     let observed = view(&a.doc, "k0")?;
                     set_life(&mut a.doc, "k0", &observed, next)?;

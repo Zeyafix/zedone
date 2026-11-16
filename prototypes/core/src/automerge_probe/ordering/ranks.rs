@@ -1,4 +1,3 @@
-//! Lexicographic paths with object-ID tie-breaks, without floating-point rounding.
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

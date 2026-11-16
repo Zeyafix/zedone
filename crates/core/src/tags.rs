@@ -1,4 +1,3 @@
-//! Tag identity and assignment policy, shared by HTTP, CLI and IPC.
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission},
     cards::{CardSnapshot, CardStore},
@@ -11,9 +10,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Canonical Unicode caseless comparison, with an NFC key. The intermediate
-/// decomposition handles combining Greek ypogegrammeni before case folding.
-/// Only the comparison key is normalized; never rewrite the entered spelling.
 pub fn name_key(name: &str) -> String {
     crate::text::comparison_key(name.trim())
 }
@@ -62,7 +58,6 @@ pub struct TagSnapshot {
     pub tag: String,
     pub names: Vec<String>,
     pub state: TagState,
-    /// Includes causal assignment history, so deletion cannot expand silently.
     pub version: StateVersion,
 }
 
@@ -146,7 +141,6 @@ pub trait TagStore: CardStore {
     fn tag_snapshot(&mut self, space: &str, tag: &str) -> CommandResult<TagSnapshot>;
     fn tags(&mut self, space: &str) -> CommandResult<Vec<TagSnapshot>>;
     fn rename_tag(&mut self, space: &str, tag: &str, name: &str) -> CommandResult<()>;
-    /// Removes every known assignment, including cards in the trash, atomically.
     fn delete_tag(&mut self, space: &str, tag: &str) -> CommandResult<()>;
     fn set_card_tag(&mut self, parameters: &SetCardTag) -> CommandResult<()>;
 }
@@ -324,7 +318,6 @@ pub fn delete(
             let before = tx.tag_snapshot(&p.space, &p.tag)?;
             replay::require_current(p.expected, before.version)?;
             active_tag(&before)?;
-            // A conflicted affected card must not be changed as a side effect.
             for card in tx
                 .cards(&p.space)?
                 .iter()

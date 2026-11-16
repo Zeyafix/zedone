@@ -50,9 +50,7 @@ async function connect() {
   port = device("forward", "tcp:0", `localabstract:webview_devtools_remote_${pid}`);
   const endpoint = `http://127.0.0.1:${port}`;
   try {
-    // Socket readiness does not guarantee that the new WebView has a page yet.
     await waitForWebViewTarget(endpoint, until);
-    // WebView does not implement desktop browser context/download management.
     browser = await chromium.connectOverCDP(endpoint, { timeout: 10000, noDefaults: true });
     const page = await until(() => browser.contexts().flatMap(context => context.pages()).find(p => !p.isClosed()), "APK WebView page target");
     page.setDefaultTimeout(10000);
@@ -60,7 +58,6 @@ async function connect() {
     await page.waitForFunction(() => document.querySelector("h1"));
     return page;
   } catch (error) {
-    // Collect evidence before force-stop/cleanup; retain the original failure.
     for (const [label, collect] of [
       ["WebView targets", async () => (await fetch(`${endpoint}/json/list`, { signal: AbortSignal.timeout(1000) })).text()],
       ["Playwright pages", () => JSON.stringify(browser?.contexts().map(context => context.pages().map(p => ({ url: p.url(), closed: p.isClosed() }))))],
@@ -91,11 +88,7 @@ try {
   assert.equal(device("shell", "pm", "list", "packages", "com.google.android.gms"), "", "Use the AOSP image without GMS");
   device("install", "-r", apk);
   device("install", "-r", testApk);
-  // Tauri exits when the final window closes. Let the runner publish the result
-  // before Android tears down the process instead of finishing that window first.
   for (const test of ["PluginLifecycleTest", "HttpLifecycleTest"]) {
-    // Each scenario owns Tauri's final window: use independent instrumentation
-    // processes rather than launching a second window in the previous scenario.
     device("shell", "am", "force-stop", app);
     const instrumentation = device("shell", "am", "instrument", "-w", "-r", "-e", "waitForActivitiesToComplete", "false",
       "-e", "class", `${app}.${test}`, `${app}.test/androidx.test.runner.AndroidJUnitRunner`);
@@ -122,8 +115,6 @@ try {
   reader.releaseLock();
   assert.match(address.trim(), /^http:\/\/127\.0\.0\.1:\d+$/);
   const cdp = await page.context().newCDPSession(page);
-  // Playwright 1.64 visibility checks require newer Chromium than AOSP WebView 101.
-  // Use native CDP touch events and DOM assertions; do not patch the application.
   const input = () => page.evaluate(() => document.querySelector("#text").value);
   const result = () => page.evaluate(() => document.querySelector('[role="status"]').textContent);
   const count = role => page.evaluate(role => document.querySelectorAll(`[role="${role}"]`).length, role);
@@ -149,7 +140,6 @@ try {
     await until(async () => await input() === "" && await count("status") === 0 && await count("alert") === 0, "clear form");
   };
   const invoke = args => page.evaluate(({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args), { command, args });
-  // Block WebView networking: successful form requests must still reach local Rust.
   await page.context().setOffline(true);
   for (const text of ["", "Ёж, ЕЖ, café, 😀\n\"строка\"\\\t <script>alert(1)</script>"]) {
     console.log(`Checking IPC/HTTP and form: ${JSON.stringify(text)}`);
@@ -172,7 +162,6 @@ try {
   }
   await assert.rejects(page.evaluate(() => window.__TAURI_INTERNALS__.invoke("unknown_command")));
   console.log("IPC parity, offline form, clear and argument rejection passed.");
-  // One injected IPC failure must retain input, clear a previous success and allow retry.
   await fill("Повтор после отказа");
   assert.equal(await page.evaluate(() => {
     const original = window.ipc;
@@ -284,7 +273,6 @@ try {
   device("shell", "input", "keyevent", "KEYCODE_BACK");
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
   assert.equal(await page.evaluate(() => document.activeElement.id), "card-move-1");
-  // Real IPC write first, then lose only its reply. A read must recover the committed order.
   assert.equal(await page.evaluate(() => {
     const original = window.ipc;
     window.ipc = { postMessage(message) {
@@ -323,7 +311,6 @@ try {
     assert.equal(await page.evaluate(() => document.querySelector('.card-list[data-column="0"] .board-card').dataset.card), "1");
   } finally { boardSql("DROP TRIGGER IF EXISTS board_fail;"); }
   console.log("Android board: system Back, real SQL rollback and lost committed IPC reply reconciled without duplicates.");
-  // Test-only sqlite3 holds a real lock; all data changes still go through Rust.
   lock = Bun.spawn([adb, "-s", serial, "shell", "run-as", app, "sqlite3", "p01-05-synthetic/synthetic.sqlite3"], {
     stdin: "pipe", stdout: "pipe", stderr: "inherit",
   });

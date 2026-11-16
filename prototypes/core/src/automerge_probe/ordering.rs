@@ -1,4 +1,3 @@
-//! Disposable topology and whole-position registers; no product commands.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, Value as AmValue};
 use serde::{Deserialize, Serialize};
@@ -13,7 +12,6 @@ enum Kind {
     Card,
 }
 
-// key, kind, immutable home space, initial parent, initial rank/name.
 const FIXTURE: &[(&str, Kind, &str, &str, u32, &str)] = &[
     ("s", Kind::Space, "", "", 0, "М"),
     ("a", Kind::Space, "", "", 0, "А"),
@@ -138,8 +136,6 @@ fn ordered(doc: &Automerge, parent: &str) -> Result<Vec<String>> {
     Ok(children.into_iter().map(|(_, _, key)| key).collect())
 }
 
-// The caller chooses a gap in the current list with the moved object removed.
-// Parent and rank are committed as one register, never merged independently.
 fn relocate(
     doc: &mut Automerge,
     key: &str,
@@ -208,7 +204,6 @@ pub(super) fn snapshot(doc: &Automerge) -> Result<Value> {
         let item = view(doc, key)?;
         if *kind == Kind::Space {
             let conflict = conflicting(&item.name);
-            // Exact Unicode scalar order, ID tie-break; conflicts ordered by ID.
             spaces.push((
                 !conflict,
                 if conflict {
@@ -287,7 +282,6 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
             relocate(&mut replica.doc, "k1", parent, None, None, None)?;
             relocate(&mut replica.doc, "c1", "s", left, right, None)?;
             edit(&mut replica.doc, "s", "name", id, None)?;
-            // Different cards concurrently enter the same empty gap of c3.
             relocate(
                 &mut replica.doc,
                 if id == "A" { "k2" } else { "k3" },
@@ -311,7 +305,6 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
                     let card = view(&replica.doc, "k1")?;
                     assert!(card.blocked());
                     assert!(edit(&mut replica.doc, "k1", "text", "Blocked", None).is_err());
-                    // Column conflicts do not block its unconflicted contents.
                     edit(&mut replica.doc, "k0", "text", "Доступное содержимое", None)?;
                     relocate(&mut replica.doc, "k1", parent, None, None, Some(&card))?;
                     let column = view(&replica.doc, "c1")?;
@@ -330,7 +323,6 @@ pub(super) fn run(directory: &Path, phase: &str) -> Result<()> {
                 let observed = view(&a.doc, "k1")?;
                 assert!(observed.blocked());
                 relocate(&mut a.doc, "k1", "c1", None, None, Some(&observed))?;
-                // Return through the same operation; no identity or history replacement.
                 relocate(&mut a.doc, "k1", "c0", Some("k0"), None, None)?;
                 let column = view(&a.doc, "c1")?;
                 assert!(column.blocked());

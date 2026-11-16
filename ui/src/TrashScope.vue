@@ -3,7 +3,6 @@ import type { Card, Column, Space, Tag } from "./workspace-api";
 import { cardTitle, objectTitle } from "./board-order";
 
 defineProps<{ columns: Column[]; cards: Card[]; tags?: Tag[]; lifecycle?: Space | Column }>();
-// Presentation only. The original root version, never these lists, goes to the core.
 function outcome(item: Card | Column, root?: Space | Column) {
   if (!root) return "Будет очищено";
   if (root.state === "active") return item.state === "active" ? "В корзину вместе с контейнером" : "Останется в прежней корзине";

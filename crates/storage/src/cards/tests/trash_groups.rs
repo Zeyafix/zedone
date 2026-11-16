@@ -200,8 +200,6 @@ async fn group_failure_rolls_back_every_member_pending_history_and_receipt() {
         assert_eq!(column(&s, 2).await, before);
         assert_eq!(versions(&s, 9).await, history);
     }
-    // Fail between individual members, after a pending text version may have
-    // been finalized, rather than only at the outer transaction checkpoints.
     s.transact(|ctx| {
         ctx.connection().execute_batch("CREATE TRIGGER fail_group_member BEFORE DELETE ON card_editing BEGIN SELECT RAISE(ABORT, 'injected'); END;")?;
         Ok(())
@@ -393,8 +391,6 @@ async fn group_freshness_covers_every_member_and_column_field_including_causal_r
             ErrorCode::StaleState,
         );
         assert_eq!(column(&s, 2).await, after);
-        // Returning the old value is a new causal action, never a freshening
-        // of an old deletion. Include name changes of assigned tags.
         if field == "tag_name" {
             s.transact(|ctx| Ok(ctx.rename_tag(&sid(1), &sid(5), "Tag")?))
                 .await

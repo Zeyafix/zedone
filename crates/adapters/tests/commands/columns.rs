@@ -333,7 +333,6 @@ async fn column_decoding_rights_and_receipt_authorization_are_identical_at_every
         .unwrap(),
         denied
     );
-    // Even a creator's already committed receipt cannot bypass lost RW rights.
     let backup = Arc::new(PendingAccess::generate().unwrap());
     let (a, b) = (admin.clone(), backup.clone());
     storage

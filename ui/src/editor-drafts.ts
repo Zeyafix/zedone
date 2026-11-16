@@ -1,6 +1,5 @@
 import type { Card } from "./workspace-api";
 
-/** Input and its original precondition, never an authoritative card cache. */
 export interface EditorDraft {
   id: string;
   subject: string;
@@ -40,7 +39,6 @@ export function removeDraft(id: string) {
   window.dispatchEvent(new Event(draftsChanged));
 }
 
-/** A lifetime lease, automatically released by the browser on a tab crash. */
 export async function lockDraft(id: string): Promise<() => void> {
   if (!navigator.locks) throw new Error("draft_lock_unavailable");
   return new Promise((resolve, reject) => {

@@ -10,7 +10,6 @@ import { createMutation, deliverMutation, errorMessage, forgetMutation, mutation
 const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: string }>();
 const emit = defineEmits<{ changed: []; close: []; stay: []; cleanup: [card: Card, event: Event] }>();
 const snapshot = ref<Card>(props.card);
-// Freeze the displayed tag versions with the card; parent refresh never rebases an action.
 const tags = ref<Tag[]>(props.tags);
 const tagNames = computed(() => new Map(tags.value.map(tag => [tag.tag, tag.names.join(' / ')])));
 const draft = ref<EditorDraft>();
@@ -95,7 +94,6 @@ async function confirmDelivery(id: string) {
     blocked.value = true; return false;
   }
   pending.value = undefined;
-  // The shared operation-specific validator establishes this CardSnapshot.
   const receipt = result.response.result as Card;
   if (draft.value) {
     draft.value.savedTitle = receipt.titles[0] ?? "";
@@ -181,7 +179,6 @@ async function applyDraft() {
   if (!comparison.value || !draft.value || pending.value || !validTitle.value || !props.ready) return;
   await task(async () => {
     const fresh = comparison.value!;
-    // Explicit consent to the displayed version, never an automatic rebase.
     draft.value!.version = fresh.version;
     draft.value!.savedTitle = fresh.titles[0] ?? ""; draft.value!.savedDescription = fresh.descriptions[0] ?? "";
     snapshot.value = fresh; session.value = ""; blocked.value = false; error.value = "";
@@ -228,8 +225,6 @@ async function openHistory() {
   if (historyOpening.value || closing.value || !props.ready || pending.value && !busy.value) return;
   historyOpening.value = true;
   try {
-    // Finish the same autosave series as a normal editor close. Invalid or
-    // uncertain drafts keep their existing guard and never disappear into history.
     if (!await requestClose()) return;
     editing.value = false;
     await task(async () => {
@@ -357,7 +352,6 @@ defineExpose({ requestClose });
       <button v-if="!historyOpen" ref="historyButton" data-history-open :disabled="historyOpening || closing || !ready || !!pending && !busy || storageError" @click="openHistory">История версий</button>
       <button v-if="editing" :disabled="busy || !ready || !validTitle || blocked || !!pending" @click="flush">Сохранить сейчас</button>
       <button v-if="!historyOpen && mutable" :aria-pressed="!!snapshot.completed[0]" :disabled="busy || !ready || dirty || blocked || !!pending" @click="toggleCompleted">{{ snapshot.completed[0] ? 'Снять отметку выполнения' : 'Отметить выполненной' }}</button>
-      <!-- Recovery actions belong to an unresolved result, not an in-flight save. -->
       <button v-if="pending && blocked" data-editor-retry :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
       <button v-if="pending && blocked" data-editor-forget :disabled="busy" @click="forgetWarning = true">Убрать исходное действие</button>
       <button v-if="blocked" :disabled="busy || !ready" @click="inspectCurrent">Сверить с сохранённым</button>

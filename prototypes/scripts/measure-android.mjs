@@ -123,8 +123,6 @@ async function measure() {
     const backupModule = await import("./android-physical-backup.mjs");
     originalPhysicalSnapshots = backupModule.originalPhysicalSnapshots;
     physicalBackup = await backupModule.backupPhysical({ root, apk, device, reportDirectory, report });
-    // Keep only the test interval awake while USB-powered; restore the exact
-    // original global setting in finally, including an originally absent key.
     device("shell", "svc", "power", "stayon", "usb");
   }
   device("install", "-r", apk);
@@ -143,9 +141,6 @@ async function measure() {
     const pid = device("shell", "pidof", app);
     const socketPresent = device("shell", "cat", "/proc/net/unix").split("\n").some(line => line.trim().endsWith(`@webview_devtools_remote_${pid}`));
     const osBuild = device("shell", "getprop", "ro.build.type");
-    // Chromium enables WebView debugging unconditionally on eng/userdebug OS
-    // images, even in uninstrumented non-debuggable applications. Record this
-    // environment limitation rather than modifying the OS or application.
     assert.ok(!socketPresent || ["eng", "userdebug"].includes(osBuild), "Unexpected WebView debugging socket on a user OS build");
     report.environment.os_build_type = osBuild;
     report.environment.webview_debug_socket_present = socketPresent;
@@ -192,7 +187,6 @@ try {
   await Promise.race([measurement, deadline]);
 } catch (error) {
   cancellation ||= error;
-  // Drain bounded operations before restoring A: no late command may race cleanup.
   await measurement.catch(() => {});
   report.status = "failed"; report.error = String(error.stack || error); process.exitCode = 1;
 } finally {

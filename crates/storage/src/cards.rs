@@ -199,8 +199,6 @@ fn snapshot(
     let version = if tag_projections.is_empty() {
         state_version(&("card.v1", space, card), &(projection, unknown))?
     } else {
-        // A collision may involve another tag root; retaining all name roots
-        // prevents a conflict appearing and disappearing from reviving a token.
         tag_projections.extend(
             projections
                 .iter()
@@ -229,8 +227,6 @@ fn snapshot(
     })
 }
 
-/// Current AND removed memberships participate in column freshness. A card
-/// stays one root object across moves; no clone is used as membership.
 pub(crate) struct Memberships<'a> {
     pub related: BTreeMap<String, BTreeMap<&'a str, &'a Projection>>,
     pub occupied: BTreeSet<String>,
@@ -307,7 +303,6 @@ pub(crate) fn snapshots(
     Ok(result)
 }
 
-/// Visible cleanup never resets the causal ordering of later versions.
 pub(crate) fn next_sequence(graph: &Automerge, card: &str) -> StorageResult<u64> {
     let projections = history_projections(graph)?;
     let max = projections

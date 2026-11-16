@@ -30,7 +30,6 @@ const result = await waitForWebViewTarget(endpoint, async (poll, description) =>
 assert.equal(result, ready);
 assert.equal(requests, replies.length);
 
-// The caller's deadline still fails the run: no retry of launch or assertions.
 const timeout = new Error("target deadline expired");
 await assert.rejects(waitForWebViewTarget(endpoint, async poll => {
   assert.equal(await poll(), undefined);

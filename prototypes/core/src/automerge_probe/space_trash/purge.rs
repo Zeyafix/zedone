@@ -1,4 +1,3 @@
-//! Logical purge boundaries. Automerge's physical change graph is measured in P02.06.
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -153,8 +152,6 @@ pub(super) fn resolve(doc: &mut Automerge, plan: &Plan, restore: bool) -> Result
     if late_preview(doc, &plan.space)? != *plan || plan.targets.is_empty() {
         return Err("Stale or empty late-change selection".into());
     }
-    // Every target is either an independently changed/created object or one of
-    // its required original ancestors. Untouched purged siblings stay purged.
     let slots = if restore {
         None
     } else {
@@ -193,8 +190,6 @@ pub(super) fn purge(doc: &mut Automerge, space: &str, selected: &[&str], all: bo
 
 pub(in super::super) fn snapshot(doc: &Automerge) -> Result<Value> {
     let nodes = view(doc)?;
-    // This is the logical read model. Raw Automerge/SQLite bytes are not erased
-    // by tombstones and must not be confused with secure physical deletion.
     let visible: View = nodes
         .iter()
         .filter(|(k, _)| location(&nodes, k) != "purged")

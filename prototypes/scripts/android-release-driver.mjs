@@ -3,8 +3,6 @@ import { connect as openSocket } from "node:net";
 import { randomUUID } from "node:crypto";
 import { responseDecoder } from "./android-release-protocol.mjs";
 
-// Minimal evaluate/wait adapter for the same pixel scenario used with debug CDP.
-// Only the separately installed instrumentation APK exposes this local transport.
 export function releaseDriver({ adb, serial, device, ensureActive, report, reportDirectory }) {
   let socket, port, instrumentation, pending;
   let connected = false, currentLog;
@@ -52,7 +50,6 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
     if (port) device("forward", "--remove", `tcp:${port}`);
     port = undefined;
     if (instrumentation) {
-      // Runner teardown can terminate Tauri. Drain it before the next launch.
       await Promise.race([instrumentation.exited, pause(3000)]);
       if (instrumentation.exitCode === null) { instrumentation.kill(); await instrumentation.exited; }
       instrumentation = undefined;
@@ -78,8 +75,6 @@ export function releaseDriver({ adb, serial, device, ensureActive, report, repor
         let timer;
         const finish = value => { clearTimeout(timer); connection.removeAllListeners(); resolve(value); };
         connection.once("error", () => { connection.destroy(); finish(undefined); });
-        // adbd accepts TCP before its localabstract target exists. The first
-        // command below is the readiness handshake; EOF must be retryable.
         connection.once("connect", () => finish(connection));
         timer = setTimeout(() => { connection.destroy(); finish(undefined); }, 1000);
       });

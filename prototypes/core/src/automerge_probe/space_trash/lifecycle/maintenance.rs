@@ -1,4 +1,3 @@
-//! Lossless graph packing and SQLite free-page reclamation, not history pruning.
 use super::*;
 
 fn pack(store: &mut Store) -> Result<Value> {
@@ -25,7 +24,6 @@ fn pack(store: &mut Store) -> Result<Value> {
         let mut doc = Automerge::load(&bytes)?;
         doc.set_actor(actor.clone().into());
         State::decode(&peer)?;
-        // Default SaveOptions retains queued changes with missing dependencies.
         let compact = doc.save_and_verify()?;
         let mut checked = Automerge::load(&compact)?;
         checked.set_actor(actor.into());
@@ -47,7 +45,6 @@ fn pack(store: &mut Store) -> Result<Value> {
         }
         before_bytes += bytes.len();
         after_bytes += compact.len();
-        // Do not rewrite actor, peer, snapshots, pause, settings or other spaces.
         tx.execute(
             "UPDATE replicas SET document=?1 WHERE id=?2",
             params![compact, id],
@@ -58,8 +55,6 @@ fn pack(store: &mut Store) -> Result<Value> {
 }
 
 fn reclaim(store: &Store) -> Result<()> {
-    // VACUUM is transactional inside SQLite and cannot be nested in pack's tx.
-    // If it fails, the packed graph remains valid; report failure and allow retry.
     store.0.execute_batch("VACUUM;")?;
     let integrity: String = store
         .0
@@ -76,7 +71,6 @@ pub(super) fn compact(store: &mut Store) -> Result<Value> {
     Ok(report)
 }
 
-// Construct a real persisted base + incremental suffix, not redundant JSON.
 fn incremental_edits(store: &mut Store, count: usize) -> Result<()> {
     let mut a = store.read("A")?;
     let mut stream = a.doc.save();

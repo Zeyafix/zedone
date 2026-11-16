@@ -66,7 +66,6 @@ pub(crate) fn object(graph: &Automerge, column: &str) -> StorageResult<ObjId> {
         }
         .into());
     }
-    // Never silently choose a branch of conflicting container identity.
     if values.len() != 1 || values[0].0 != automerge::Value::Object(ObjType::Map) {
         return Err(invalid());
     }
@@ -121,8 +120,6 @@ fn snapshot(
         .filter(|c| c.columns.iter().any(|id| id == column))
         .cloned()
         .collect();
-    // Opaque root content could reference this column. Include its causal
-    // history conservatively, including removal, until its schema is supported.
     let version = if let Some(cards) = scope.cards.related.get(column) {
         state_version(
             &("column.v1", space, column),
@@ -137,7 +134,6 @@ fn snapshot(
             ),
         )?
     } else {
-        // Keep the original token for columns which have never had cards.
         state_version(&("column.v1", space, column), &(projection, &scope.unknown))?
     };
     Ok(ColumnSnapshot {
@@ -154,7 +150,6 @@ fn snapshot(
 }
 
 pub(crate) fn snapshots(graph: &Automerge, space: &str) -> StorageResult<Vec<ColumnSnapshot>> {
-    // Decode the graph once for the whole list, not once per column.
     let projections = domain_projections(graph)?;
     let scope = scope(graph, space, &projections)?;
     let mut result = Vec::new();
@@ -194,8 +189,6 @@ impl ColumnStore for WriteContext<'_> {
                 }
                 .into());
             }
-            // Append after every existing position, including trash, so restore
-            // retains the original place. Relative moves allocate dense paths.
             let position = crate::ordering::append(
                 self.columns(space)?.into_iter().flat_map(|c| {
                     c.positions
@@ -217,7 +210,7 @@ impl ColumnStore for WriteContext<'_> {
         Ok(self.checked(result)?)
     }
     fn column_snapshot(&mut self, space: &str, column: &str) -> CommandResult<ColumnSnapshot> {
-        self.space_snapshot(space)?; // Validate the enclosing document format.
+        self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
         let projections = domain_projections(graph)?;
         let scope = scope(graph, space, &projections)?;

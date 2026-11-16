@@ -6,12 +6,6 @@ use zedone_core::{
     replay::{StateVersion, canonical_json},
 };
 
-/// Fixed-size token derived from a versioned, identity-bound semantic projection.
-/// Scope must include projection format, space, object kind and object ID.
-/// State must include all checked data/variants/membership AND their causal
-/// identities (including removed membership), in stable order to reject ABA,
-/// excluding unrelated objects and technical history/progress. Domain handlers
-/// define the projection; CRDT heads alone violate these rules. No token cache.
 pub fn state_version(
     scope: &impl Serialize,
     state: &impl Serialize,

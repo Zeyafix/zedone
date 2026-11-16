@@ -1,4 +1,3 @@
-//! Version-5 additive encoding. Legacy scalar ranks/receipts are read unchanged.
 use crate::{StorageError, StorageResult, WriteContext};
 use automerge::{Automerge, ObjId, ReadDoc, transaction::Transactable};
 use zedone_core::{
@@ -92,8 +91,6 @@ impl OrderStore for WriteContext<'_> {
     fn place_card(&mut self, space: &str, card: &str, place: &CardPlacement) -> CommandResult<()> {
         let object = crate::cards::object(self.read().document(space)?, card)?;
         let encoded = serde_json::to_string(place).map_err(|_| StorageError::InvalidDatabase)?;
-        // Old column/position remain historical baseline only. Once placement
-        // exists it is the sole current authority for BOTH parent and rank.
         Ok(self.edit(space, |doc| {
             doc.put(&object, "placement", encoded)?;
             Ok(())

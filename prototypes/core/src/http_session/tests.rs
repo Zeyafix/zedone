@@ -74,7 +74,6 @@ async fn actual_http_limits_each_operation_and_shares_the_local_database() {
         .snapshot
         .unwrap();
     let manager = HttpSession::default();
-    // Missing access explicitly defaults to read, also for non-UI callers.
     let request =
         serde_json::from_value(json!({"action":"start","address":"127.0.0.1","port":0})).unwrap();
     let session = manager.execute(request, storage.clone()).await.unwrap();
@@ -189,7 +188,6 @@ async fn actual_http_limits_each_operation_and_shares_the_local_database() {
         .execute(HttpSessionRequest::Stop, storage.clone())
         .await
         .unwrap();
-    // Stop has released the old listener before returning, including fixed ports.
     let port = session
         .endpoint
         .as_ref()

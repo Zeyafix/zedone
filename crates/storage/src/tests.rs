@@ -861,7 +861,6 @@ async fn crash_child() {
     let Some(path) = std::env::var_os("ZEDONE_STORAGE_CRASH_DB") else {
         return;
     };
-    // Only a parent-created isolated fixture can enable this process exit.
     assert_eq!(Path::new(&path).file_name().unwrap(), "device.db");
     let stage = std::env::var("ZEDONE_STORAGE_CRASH_STAGE").unwrap();
     let storage = Storage::open(path).await.unwrap();

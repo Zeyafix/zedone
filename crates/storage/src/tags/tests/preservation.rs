@@ -312,8 +312,6 @@ async fn different_assignments_merge_but_removal_against_reassignment_is_a_confl
             let mut left = graph.fork().with_actor(ActorId::from(vec![31]));
             let mut right = graph.fork().with_actor(ActorId::from(vec![32]));
             if conflict {
-                // A real re-assignment needs a causal return; Automerge elides
-                // assigning an already equal scalar in one branch.
                 let mut tx = right.transaction();
                 tx.put(&map, sid(5), false)?;
                 tx.commit();

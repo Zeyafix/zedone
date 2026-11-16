@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { alignAndroidPixelResult, evaluatePixelAlignment } from "./android-webview-phases.mjs";
 
-// Execute the serialized browser function with a deterministic event loop. A
-// saved DOM must wait for the async completion; click alone cannot end a phase.
 function fixture({ delay = 30, disabled = false, clipped = false, clickError = false, never = false } = {}) {
   let time = 100, clicked = false, readyAt = Infinity, scrolls = 0, evaluations = 0;
   const rectangle = { left: 10, top: 100, right: 100, bottom: 140 };
@@ -36,7 +34,6 @@ function fixture({ delay = 30, disabled = false, clipped = false, clickError = f
     async evaluate(fn, args) {
       evaluations++;
       const result = await runInNewContext(`(${fn.toString()})(${JSON.stringify(args)})`, context);
-      // Match the real JSON transport, not cross-realm prototype identities.
       return JSON.parse(JSON.stringify(result));
     },
   };

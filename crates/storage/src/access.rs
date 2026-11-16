@@ -1,6 +1,3 @@
-//! Trusted installation access, serialized with domain work on the SQL worker.
-//! Not a network API. Transports cannot call bootstrap or supply a Clock/handler.
-
 use std::{
     collections::BTreeMap,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -28,9 +25,6 @@ mod issuance_tests;
 #[cfg(test)]
 mod tests;
 
-/// Generated before starting an issuance/replacement transaction. Keep it until
-/// the outcome is known; never log, serialize in receipts, or regenerate on retry.
-/// No Debug/Serialize/Clone implementations by design.
 pub struct AccessKey([u8; 32]);
 
 impl AccessKey {
@@ -44,8 +38,6 @@ impl AccessKey {
         Credential(&self.0)
     }
 
-    /// Safe registration material for the authenticated administration API.
-    /// The original key remains in the recipient's protected credential facility.
     pub fn registration_verifier(&self) -> KeyVerifier {
         KeyVerifier(self.verifier())
     }
@@ -55,8 +47,6 @@ impl AccessKey {
     }
 }
 
-/// A fresh stable subject and independent key. This object grants nothing until
-/// an explicit bootstrap/authorized issuance transaction has committed.
 pub struct PendingAccess {
     subject: String,
     key: AccessKey,
@@ -103,7 +93,6 @@ fn expiry(time: Option<SystemTime>) -> StorageResult<Option<i64>> {
             .map_err(|_| error(ErrorCode::InvalidRequest))?;
         let ms =
             i64::try_from(duration.as_millis()).map_err(|_| error(ErrorCode::InvalidRequest))?;
-        // No silent truncation that would alter the exclusive expiry boundary.
         if duration != Duration::from_millis(ms as u64) {
             return Err(error(ErrorCode::InvalidRequest));
         }
@@ -124,10 +113,6 @@ fn future_expiry(clock: &impl Clock, time: Option<SystemTime>) -> CommandResult<
 }
 
 impl WriteContext<'_> {
-    /// Initial installation provisioning only. Host must obtain explicit local
-    /// confirmation and retain the pending key through commit. No localhost,
-    /// IPC or transport request can invoke this trusted infrastructure entry.
-    /// Revoking every admin never makes the installation eligible again.
     pub fn bootstrap_access(&mut self, pending: &PendingAccess) -> StorageResult<()> {
         let result = (|| {
             let count: i64 = self.connection().query_row(
@@ -154,8 +139,6 @@ impl WriteContext<'_> {
         self.checked(result)
     }
 
-    /// Fixed ManageAccess policy, checked after queue admission and before any
-    /// target lookup. A newly issued credential has an independent stable subject.
     pub fn issue_access(
         &mut self,
         credential: &Credential<'_>,
@@ -183,8 +166,6 @@ impl WriteContext<'_> {
         self.checked(result.map_err(StorageError::from))
     }
 
-    /// Explicit regrant/permission change, always with a fresh key. The subject
-    /// and its receipts persist, while every previous key remains invalid.
     pub fn replace_access(
         &mut self,
         credential: &Credential<'_>,
@@ -267,7 +248,6 @@ impl WriteContext<'_> {
         {
             return Err(error(ErrorCode::InvalidRequest));
         }
-        // Every old verifier remains a tombstone, even after replacement/restart.
         let reused: bool = self.connection().query_row(
             "SELECT EXISTS(SELECT 1 FROM access_keys WHERE verifier = ?1)",
             [verifier.0.as_slice()],
@@ -305,8 +285,6 @@ impl WriteContext<'_> {
         Ok(())
     }
 
-    // Keep a reversible management path. Transfer administration first, then
-    // revoke/downgrade the old grant; never introduce an implicit owner bypass.
     fn ensure_administrator(&self) -> StorageResult<()> {
         let present: bool = self.connection().query_row(
             "SELECT EXISTS(SELECT 1 FROM access_principals
@@ -578,8 +556,6 @@ impl WriteContext<'_> {
     }
 }
 
-/// In addition to DDL/FK checks, reject incomplete bootstrap/key/grant state.
-/// No missing or damaged authorization state is treated as a new installation.
 pub(crate) fn validate(connection: &rusqlite::Connection) -> StorageResult<()> {
     let invalid: bool = connection.query_row(
         "SELECT EXISTS(

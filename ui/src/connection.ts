@@ -20,13 +20,10 @@ export async function localCredential(signal?: AbortSignal): Promise<CredentialM
   return session.credential;
 }
 
-// Re-read the host's approved identity on every delivery, including retries.
 export const localTransport = () => isTauri()
   ? ipcTransport(invoke, localCredential)
   : httpTransport(`${location.origin}/`, localCredential);
 
-/** A fresh, read-only probe. Its returned list is deliberately not cached or
- * used as a current board. Domain UI fetches its own current view. */
 export async function checkConnection(signal: AbortSignal): Promise<Connection> {
   try {
     const session = await localCredential(signal);

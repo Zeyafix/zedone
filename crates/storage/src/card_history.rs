@@ -1,6 +1,3 @@
-//! Local, durable editing lifecycle. Completed versions live only in the shared
-//! Automerge history. The pending pair is a journal snapshot, committed with its
-//! current text and receipt, never a second editable copy of card content.
 use crate::{Storage, StorageError, StorageResult, WriteContext, cards};
 use automerge::transaction::Transactable;
 use rusqlite::OptionalExtension;
@@ -52,8 +49,6 @@ impl WriteContext<'_> {
             };
             let title = session.title.ok_or(StorageError::InvalidDatabase)?;
             let description = session.description.ok_or(StorageError::InvalidDatabase)?;
-            // Use the saved pair, never reread current text: a later client may
-            // already have written different current values through sync.
             self.append_text_version(space, card, &id, &title, &description, false)?;
             self.connection().execute(
                 "UPDATE card_editing SET pending_id = NULL, title = NULL, description = NULL, changed_ms = NULL WHERE space = ?1 AND card = ?2",
@@ -206,7 +201,6 @@ impl WriteContext<'_> {
         self.checked(result)
     }
 
-    /// Trusted application-run recovery, not invoked by one-shot CLI readers.
     pub(crate) fn recover_text_sessions(&mut self) -> StorageResult<()> {
         let result = (|| {
             let sessions = self
@@ -233,9 +227,6 @@ impl WriteContext<'_> {
 }
 
 impl Storage {
-    /// Call once before exposing a newly started application host. Completes
-    /// durable series and invalidates pre-crash sessions atomically. New tabs
-    /// use card.begin_editing for the same boundary on their chosen card.
     pub async fn recover_editing_sessions(&self) -> StorageResult<()> {
         self.transact(|ctx| ctx.recover_text_sessions()).await
     }

@@ -1,5 +1,3 @@
-//! One HTTP adapter for desktop and APK; remote grants are synthetic, not product rights.
-
 use axum::{Json, Router, extract::State, http::StatusCode, middleware, routing::post};
 
 use crate::http_session::TestGrant;
@@ -24,7 +22,6 @@ pub(crate) fn limited_router(storage: Storage, grant: TestGrant) -> Router {
                 {
                     return Err(StatusCode::UNAUTHORIZED);
                 }
-                // This is an agent API, with no browser cross-origin access.
                 if request.headers().contains_key("origin") {
                     return Err(StatusCode::FORBIDDEN);
                 }

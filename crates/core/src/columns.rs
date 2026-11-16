@@ -1,4 +1,3 @@
-//! Column policy shared by HTTP, CLI and IPC. No adapter supplies authority.
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission},
     cards::{CardSnapshot, CardStore},
@@ -19,12 +18,8 @@ pub struct ColumnSnapshot {
     pub names: Vec<String>,
     pub state: SpaceState,
     pub deletion_groups: Vec<String>,
-    /// All distinct position registers; conflicting values are never overwritten.
     pub positions: Vec<crate::ordering::Rank>,
-    /// True only when there are no cards or unknown contents.
     pub empty: bool,
-    /// Current members, including earlier trash and conflicts, for scope preview.
-    /// None means unsupported contents; legacy receipts also omit this field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contents: Option<Vec<CardSnapshot>>,
     pub version: StateVersion,
@@ -209,7 +204,6 @@ pub fn list(
         |tx| {
             let mut columns = tx.columns(&p.space)?;
             columns.retain(|c| p.include_trashed || c.state != SpaceState::Trashed);
-            // Concurrent appends may share a position. Identity is the stable tie-break.
             columns.sort_by(|a, b| {
                 a.positions
                     .iter()
@@ -292,8 +286,6 @@ fn group_members<'a>(
         .contents
         .as_ref()
         .ok_or_else(|| error(ErrorCode::InvalidRequest))?;
-    // Validate the entire scope before mutating anything. Never resolve a
-    // disputed placement, text, tag or lifecycle as a side effect of deletion.
     if contents
         .iter()
         .any(|c| c.state == SpaceState::Conflicted || c.columns != [column.column.as_str()])

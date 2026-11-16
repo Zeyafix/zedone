@@ -3,8 +3,6 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
-// Called inside product-check's existing emulator/sandbox lifetime. The host
-// server owns the OS credential; only its public pin and port leave the host.
 export async function checkChannelPair({ root, env, hostBinary, androidBinary, adb, serial, test = "channel::tests::cross_platform_probe" }) {
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-channel-pair-"));
   const metadataFile = resolve(directory, "public.json");
@@ -35,7 +33,6 @@ export async function checkChannelPair({ root, env, hostBinary, androidBinary, a
     assert.ok(Array.isArray(metadata) && metadata.length === 2 && Number.isInteger(metadata[0]) && metadata[0] > 0 && metadata[0] < 65536);
     assert.ok(Array.isArray(metadata[1]) && metadata[1].length === 32 && metadata[1].every(b => Number.isInteger(b) && b >= 0 && b <= 255));
     port = `tcp:${metadata[0]}`;
-    // Keep any existing reverse rule intact. A reused port fails this check.
     device("reverse", "--no-rebind", port, port);
     ownsReverse = true;
     const result = device("shell", "ZEDONE_CHANNEL_PROBE_ROLE=client", `ZEDONE_CHANNEL_PROBE_METADATA='${JSON.stringify(metadata)}'`, androidBinary, "--ignored", "--exact", test);
@@ -47,8 +44,6 @@ export async function checkChannelPair({ root, env, hostBinary, androidBinary, a
       : "Host ↔ native Android TLS 1.3: wrong pin rejected, persisted host identity and bidirectional private payload passed.");
   } finally {
     if (ownsReverse) device("reverse", "--remove", port);
-    // The server's own 30-second bound performs credential cleanup. Do not kill
-    // it while it owns the temporary Credential Manager entry.
     await server.exited;
     await Promise.all([output, errors]);
     assert.ok(directory.startsWith(resolve(tmpdir(), "zedone-channel-pair-")));

@@ -39,15 +39,12 @@ class PluginLifecycleTest {
     error("Native plugins did not bind to the WebView")
   }
 
-  // This is intentionally a real framework recreation, not a mocked lifecycle.
   @Test fun recreatesNativeOwnersAndPreservesConfiguration() {
     val handles = linkedMapOf<String, PluginHandle>()
     val lifecycle = PluginLifecycle(PluginManager, handles)
     var original: ProbePlugin? = null
     var oldActivity: MainActivity? = null
     val config = "{\"synthetic\":\"Ёж\"}"
-    // Closing Tauri's final window exits the native process before JUnit can
-    // report its result. The instrumentation runner owns final process teardown.
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     run {
       awaitPlugins(scenario)
@@ -81,7 +78,6 @@ class PluginLifecycleTest {
         assertSame(view, probe.view)
         assertEquals(config, handle.config)
         assertTrue(handle.loaded)
-        // Verify the actual Tauri registrations, not just the isolated probe.
         assertSame(activity, PluginManager.activity)
         val field = PluginManager.javaClass.getDeclaredField("plugins").apply { isAccessible = true }
         @Suppress("UNCHECKED_CAST")

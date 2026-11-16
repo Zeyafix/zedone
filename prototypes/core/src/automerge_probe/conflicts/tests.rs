@@ -2,7 +2,6 @@ use super::*;
 
 #[test]
 fn opposite_existing_choices_always_create_new_assignments() {
-    // Choose both the visible winner and the other variant on each actor.
     for swap in [false, true] {
         let directory = tempfile::tempdir().unwrap();
         run(directory.path(), "conflicts-prepare").unwrap();
@@ -101,7 +100,6 @@ fn stale_resolution_rejects_new_version_without_mutating_any_field() {
     );
     assert_eq!(a.fingerprint().unwrap(), before);
     expect(&a, Field::Text, &[RIGHT]).unwrap();
-    // The title is still conflicted; a fresh explicit choice is permitted.
     a.resolve(&a.view().unwrap(), Field::Title, "Fresh choice")
         .unwrap();
     a.edit(Field::Text, COMBINED).unwrap();
@@ -145,8 +143,6 @@ fn duplicate_reordered_changes_preserve_variant_ids_and_competing_decisions() {
     let view = expected.view().unwrap();
     assert_eq!(view, store.read("B").unwrap().view().unwrap());
     expect(&expected, Field::Text, &[LEFT, COMBINED]).unwrap();
-    // Every cyclic offset in both directions, with each change delivered twice.
-    // This tests the CRDT change set, not out-of-order sync-session messages.
     for reverse in [false, true] {
         for offset in 0..changes.len() {
             let mut delivery = changes.clone();

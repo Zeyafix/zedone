@@ -113,7 +113,7 @@ fn snapshot_restore_and_delete_preserve_other_space_and_rollback_bad_write() {
     assert!(!serialized.contains("B_ONLY_SENTINEL"));
     assert!(!serialized.contains("\"space\":\"B\""));
     let mut invalid = a.clone();
-    invalid.cards[1].column = 99; // Fails after destructive statements and first insert.
+    invalid.cards[1].column = 99;
     assert!(run(&mut db, StorageRequest::Restore { snapshot: invalid }).is_err());
     assert_eq!(load(&db, Space::A).unwrap(), Some(a.clone()));
     for _ in 0..2 {
@@ -145,7 +145,6 @@ fn logical_snapshot_keeps_one_revision_across_concurrent_commit() {
     .unwrap();
     let mut writer = connect(directory.path().join("synthetic.sqlite3")).unwrap();
     let tx = db.transaction().unwrap();
-    // Pin the read version before another connection commits all related tables.
     tx.query_row("SELECT id FROM prototype_spaces WHERE id = 'A'", [], |_| {
         Ok(())
     })
@@ -188,7 +187,7 @@ async fn locked_database_does_not_block_async_runtime_and_failed_write_is_unchan
         !task.is_finished(),
         "The storage call must be waiting for the real database lock"
     );
-    assert!(task.await.unwrap().is_err()); // Real SQLITE_BUSY, no injected success.
+    assert!(task.await.unwrap().is_err());
     db.execute_batch("ROLLBACK").unwrap();
     assert_eq!(load(&db, Space::A).unwrap(), expected);
 }

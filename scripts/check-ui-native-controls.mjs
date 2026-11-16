@@ -33,8 +33,6 @@ async function checkReadLifecycle(secret) {
   assert.notEqual(snapshot()[0].phase, "changed");
 }
 
-/** Host-only negative control: failure evidence must belong to the live touch
- * page, survive context disposal and preserve the exact scenario error. */
 export async function checkShellFailureDiagnostics(browser, url, secret) {
   await checkReadLifecycle(secret);
   const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });
@@ -57,8 +55,6 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
     let attempts = 0;
     await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => {
       attempts++;
-      // This impossible probe has its own short deadline; the real UI actions
-      // retain their existing 10s deadline and are never retried by diagnostics.
       try { await touch.waitForFunction(() => false, undefined, { timeout: 50 }); }
       catch (error) { original = error; throw error; }
     }), error => error === original && error.name === "TimeoutError");
@@ -71,7 +67,6 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
     assert.ok(!JSON.stringify(lines).includes(secret));
     assert.equal(state.reads.length, 30); assert.equal(state.reads[0].path, "/v1/commands/tag.list");
     assert.equal(state.reads[0].error, "access_denied");
-    // A stalled real browser request must be captured even without a response.
     const readLifecycle = observeShellReadLifecycle(touch);
     let stalledRoute, captured;
     const intercepted = new Promise(resolve => { captured = resolve; });
@@ -99,7 +94,6 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
   } finally { console.error = report; await context.close(); }
 }
 
-/** Host-only regression: old WebView lacks this API in every execution realm. */
 export async function withoutVisibilityApi(page) {
   const cdp = await page.context().newCDPSession(page);
   const contexts = [];
@@ -117,7 +111,6 @@ export async function withoutVisibilityApi(page) {
   } finally { await cdp.detach(); }
 }
 
-/** Real CDP touch against changing layout, without application state or clicks. */
 export async function checkNativeControls(browser) {
   const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });
   try {
@@ -129,7 +122,6 @@ export async function checkNativeControls(browser) {
       if (name === "context") return () => ({ newCDPSession: async () => ({ send: async (method, parameters) => {
         if (method === "Input.dispatchTouchEvent" && parameters.type === "touchStart") {
           touches++;
-          // One display frame of transport latency exposes stale coordinates.
           await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
         }
         return cdp.send(method, parameters);
@@ -155,7 +147,6 @@ export async function checkNativeControls(browser) {
     assert.deepEqual(await page.evaluate(() => [window.clicks, window.clickedSettled]), [1, true],
       "A single touch must activate the settled target, not its old position");
     assert.equal(touches, 1, "Never retry a lost touch");
-    // The application exposes a pending refresh through aria-busy.
     await page.evaluate(() => {
       window.settled = false;
       document.body.setAttribute("aria-busy", "true");

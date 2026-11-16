@@ -30,7 +30,6 @@ export async function checkAndroidHttp(page, { control, connect, tap, device, un
   };
   try {
     assert.equal((await echo()).status, 200);
-    // Navigation to Home is a real Activity onPause, with JS unrelated to revocation.
     device("shell", "input", "keyevent", "KEYCODE_HOME");
     await until(revoked, "native HTTP grant revoked after Home");
     launch();
@@ -51,7 +50,6 @@ export async function checkAndroidHttp(page, { control, connect, tap, device, un
     device("shell", "wm", "dismiss-keyguard");
     launch();
     assert.equal((await control({ action: "status" })).endpoint, null);
-    // Explicit write opt-in is passed through the actual Vue form.
     await tap("#http-status");
     await page.waitForFunction(() => !document.querySelector("#http-status").disabled);
     await tap("#http-write");

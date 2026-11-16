@@ -1,4 +1,3 @@
-//! Installation-local decisions composed with the ordinary access registry.
 use crate::{StorageError, StorageResult, WriteContext, state_version};
 use rusqlite::{OptionalExtension, Row};
 use subtle::ConstantTimeEq;

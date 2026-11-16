@@ -296,7 +296,6 @@ async fn failed_second_transition_rolls_back_everything_and_explicit_retry_captu
         Some(StorageError::RetryRequired)
     );
     assert_eq!(old, candidates(&options.folder));
-    // A retry uses new budgets and rechecks its source, rather than reusing a candidate.
     startup.registry = GOOD;
     options.limits.max_database_bytes = 1;
     assert!(startup.retry(Some(options.clone())).await.is_err());
@@ -474,7 +473,6 @@ async fn legacy_open_cannot_bypass_commit_witness_reconciliation() {
 async fn cancelled_wait_retains_one_attempt_and_retry_waits_for_its_result() {
     let (_root, path, options) = fixture();
     let mut startup = controller(&path, GOOD);
-    // Hold the writer lock while the admitted worker is trying to initialize.
     let connection = Connection::open(&path).unwrap();
     connection.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut attempt = Box::pin(startup.automatic(Some(options.clone())));
@@ -490,7 +488,6 @@ async fn cancelled_wait_retains_one_attempt_and_retry_waits_for_its_result() {
         Some(StorageError::RetryRequired)
     );
     connection.execute_batch("ROLLBACK").unwrap();
-    // Changed retry options cannot replace the still-running attempt.
     let storage = startup.retry(None).await.unwrap();
     assert_eq!(candidates(&options.folder).len(), 1);
     storage.shutdown().await.unwrap();
@@ -542,13 +539,9 @@ async fn process_crash_restarts_at_source_or_target_and_never_commits_intermedia
             .unwrap();
         assert_eq!(output.status.code(), Some(73), "{point}: {output:?}");
         let committed = matches!(point, "AfterCommit" | "BeforePublish" | "AfterPublish");
-        // May need hot-journal recovery after precommit crash; no ordinary handle
-        // may perform that write merely to identify the schema.
         if !committed && schema::preflight_with(&path, GOOD).is_err() {
             let mut startup = controller(&path, GOOD);
             assert!(startup.automatic(Some(options.clone())).await.is_err());
-            // Test-only external recovery of our synthetic fixture. Production
-            // does NOT do this: explicit service recovery belongs to P07.09.
         }
         let connection = Connection::open(&path).unwrap();
         assert_eq!(
@@ -658,8 +651,6 @@ fn real_commit_failure_rolls_back_the_entire_chain_and_preserves_original() {
     let (_root, path, options) = fixture();
     let mut c = Connection::open(&path).unwrap();
     c.pragma_update(None, "foreign_keys", true).unwrap();
-    // The shared commit path must encounter the deferred violation at COMMIT;
-    // this fault-only validator deliberately admits it before then.
     let error = publication::execute_with(&mut c, &options.folder, 10, LIMITS, GOOD, false,
         |tx| {
             GOOD.migrate(tx)?;
@@ -706,7 +697,6 @@ async fn successful_callback_with_wrong_target_layout_still_rolls_back_the_chain
             sql: V3,
             seed: Some(crate::clock::seed),
             upgrade: Some(|tx| {
-                // Claims success after a partial service mutation, without creating b.
                 tx.execute("DELETE FROM command_results", [])?;
                 Ok(())
             }),

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** One Service contract on desktop/touch and native IPC; no direct data writes. */
 export async function checkHistoryCleanup(page, { tap, back = () => page.keyboard.press("Escape") } = {}) {
   const settled = () => page.waitForFunction(() => document.querySelector(".spaces-view")?.getAttribute("aria-busy") === "false");
   const click = async selector => { if (tap) await tap(selector); else await page.locator(selector).click(); await settled(); };
@@ -64,7 +63,6 @@ export async function checkHistoryCleanup(page, { tap, back = () => page.keyboar
   await back(); await closed();
   assert.deepEqual(await all(), original); assert.deepEqual(await history(card), prior);
 
-  // The real core rejects a stale scope without clearing any version.
   await openCard(); await edit("После просмотра", "Не очищать по прежнему составу");
   const late = await history(card), lateCards = await all();
   await click(".history-confirmation input"); await click(submit);
@@ -89,9 +87,7 @@ export async function checkHistoryCleanup(page, { tap, back = () => page.keyboar
   assert.equal(await page.locator("[data-history-entry]").count(), spaceBefore.entries.length);
   assert.deepEqual(await history(null), spaceLate); await abandon();
 
-  // Cleanup does not finish another client's in-progress editing series.
   const session = random();
-  // begin_editing's request id is its session id.
   await command("card.begin_editing", { space, card, expected: (await snapshot(card)).version }, session);
   await command("card.autosave", { space, card, session, expected: (await snapshot(card)).version, title: "Продолжающийся ввод", description: "Будущая версия" });
   const pendingFields = await all();
@@ -108,7 +104,6 @@ export async function checkHistoryCleanup(page, { tap, back = () => page.keyboar
     const pattern = "**/v1/commands/history.inspect";
     await edit("Ещё одна версия", "Сохраняется рядом с конфликтом");
     const preview = await history(null);
-    // A contract-valid retained projection tests presentation, not CRDT sync.
     const retained = structuredClone(preview); retained.entries[0].retained = true;
     retained.removable_bytes -= Buffer.byteLength(retained.entries[0].version.title + retained.entries[0].version.description);
     await page.route(pattern, route => route.fulfill({ json: { status: "ok", result: retained, replayed: false } }));
@@ -128,7 +123,6 @@ export async function checkHistoryCleanup(page, { tap, back = () => page.keyboar
     assert.equal(await page.locator(".history-list").count(), 1, "failed cleanup inspection keeps the card history accessible");
     await page.unroute(pattern); await back(); await closed();
     await click(".view-toolbar .view-actions button:nth-child(2)");
-    // Closing the existing card while inspect is in flight must not reopen it.
     await click(`.card-note[data-card="${card}"] .card-title`); await click("[data-history-open]");
     await page.waitForFunction(() => !!document.querySelector(".history-list") && !document.querySelector('.card-history [role="status"]'));
     let release, admit, finish;

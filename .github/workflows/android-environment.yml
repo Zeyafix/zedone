@@ -20,12 +20,13 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'design/**'
       - 'ui/**'
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-host-secrets-android.mjs'
       - 'scripts/check-pairing-app.mjs'
-      - 'scripts/check-product.mjs'
+      - 'scripts/**'
       - 'scripts/check-channel-pair.mjs'
   pull_request:
     paths:
@@ -45,12 +46,13 @@ on:
       - 'tsconfig.contract.json'
       - 'tests/**'
       - 'client/**'
+      - 'design/**'
       - 'ui/**'
       - 'scripts/build-ui-android.mjs'
       - 'scripts/check-ui-android*.mjs'
       - 'scripts/check-host-secrets-android.mjs'
       - 'scripts/check-pairing-app.mjs'
-      - 'scripts/check-product.mjs'
+      - 'scripts/**'
       - 'scripts/check-channel-pair.mjs'
   workflow_dispatch:
 

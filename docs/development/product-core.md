@@ -1,5 +1,9 @@
 # Разработка продуктового Rust-ядра
 
+Все сборки, включая прямой Cargo, выполняют
+[проверку исходников без комментариев](source-comments.md).
+Сначала нужны корневой `bun install --frozen-lockfile` и PowerShell `pwsh`.
+
 P06.01.2.2: [ADR-0055](../architecture/decisions/0055-protected-device-channel.md),
 [EV-098](../agent/verification/EV-098-protected-device-channel.md).
 `adapters::channel` предоставляет TLS 1.3/ring, фиксированное имя zedone.invalid,

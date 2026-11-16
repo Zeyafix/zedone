@@ -37,3 +37,7 @@ The AndroidX runner option lets it publish the JUnit result before process
 teardown: closing Tauri's final window first otherwise exits the native process.
 The test deliberately leaves its final Activity for that teardown. The runner
 still reports assertion failures and exceptions; the script requires `OK (1 test)`.
+
+`PluginManager.kt` is third-party source and retains its original headers.
+`PluginLifecycle.kt` is ZeDone source; its copyright notice and MIT permission
+are recorded in `LICENSE-MIT` rather than in source comments.

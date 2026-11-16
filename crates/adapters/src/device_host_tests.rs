@@ -111,7 +111,6 @@ async fn manual_offer_survives_reopen_and_never_revives_a_cancelled_invitation()
     assert!(
         matches!(reopened.dispatch("offer.read",b"{}",&hex(&[5;32])).await,CommandResponse::Error(value) if value.error.code==ErrorCode::AccessDenied)
     );
-    // A corrupt OS record is an error, never a reason to mint a replacement.
     store.remove(Slot::OutgoingInvitation).await.unwrap();
     store
         .create(Slot::OutgoingInvitation, b"corrupt")
@@ -130,8 +129,6 @@ async fn manual_offer_survives_reopen_and_never_revives_a_cancelled_invitation()
             .unwrap(),
         b"corrupt"
     );
-    // Crash after OS persistence, before SQLite publication: read completes
-    // exactly the saved create, without making another code or extending it.
     store.remove(Slot::OutgoingInvitation).await.unwrap();
     let pin = channel::load_identity(&store)
         .await

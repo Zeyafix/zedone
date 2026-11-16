@@ -50,7 +50,6 @@ fn every_independent_card_edit_preserves_data_and_both_group_choices() {
                 }
             }
             assert!(create(&mut a.doc, "new-a", "c0").is_err());
-            // Another column remains usable and does not invalidate this scope.
             change(&mut a.doc, "other", "text", "Независимая колонка");
             set_column(&mut a.doc, "c0", &observed, state).unwrap();
             let selected = column(&a.doc, "c0").unwrap();
@@ -207,7 +206,6 @@ fn equal_different_and_late_choices_do_not_lose_group_members_or_edits() {
         );
         assert_eq!(location(&a.doc, "old", "c0"), "trash");
     }
-    // Independent ordinary deletions have different group IDs but the same outcome.
     let (_dir, store) = prepared(false);
     let mut a = store.read("A").unwrap();
     let mut b = store.read("B").unwrap();
@@ -438,7 +436,6 @@ fn column_choices_preserve_own_name_and_order_conflicts_and_individual_card_dele
             let mut a = store.read("A").unwrap();
             let mut b = store.read("B").unwrap();
             let id = column(&a.doc, "c0").unwrap().id;
-            // Same immutable register writes as the existing container/order probes.
             for (doc, value) in [(&mut a.doc, "A"), (&mut b.doc, "B")] {
                 let mut tx = doc.transaction();
                 put(&mut tx, &id, field, value).unwrap();
@@ -463,7 +460,6 @@ fn column_choices_preserve_own_name_and_order_conflicts_and_individual_card_dele
             assert_eq!(location(&a.doc, "k1", "c0"), "trash");
             assert_eq!(location(&a.doc, "old", "c0"), "trash");
             if state == "active" {
-                // Name/order conflict blocks the column, not its unconflicted cards.
                 change(&mut a.doc, "k0", "text", "Доступно содержимое");
             }
         }
@@ -475,7 +471,6 @@ fn unchanged_active_scope_ignores_earlier_trash_and_invalid_commands_do_not_writ
     let (_dir, store) = prepared(false);
     let mut a = store.read("A").unwrap();
     let observed = column(&a.doc, "c0").unwrap();
-    // Old trash is outside an ordinary column deletion's active scope (ADR-0014).
     let old = card(&a.doc, "old").unwrap();
     let mut tx = a.doc.transaction();
     put(&mut tx, &old.id, "text", "Данные прежней корзины").unwrap();

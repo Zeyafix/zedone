@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Public Service commands on HTTP/IPC, shared desktop/touch/native workflow. */
 export async function checkHistory(page, { tap, fill, back: platformBack = () => page.keyboard.press("Escape"), dismissKeyboard = async () => {} } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const input = fill || ((selector, value) => page.locator(selector).fill(value));
@@ -55,7 +54,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   assert.equal(await page.locator("[data-history-title]").textContent(), pairs[0][0]);
   assert.equal(await page.locator("[data-history-description]").textContent(), pairs[0][1]);
   assert.equal(await page.locator(".history-preview img, .history-preview b, .history-preview a").count(), 0);
-  // Choosing and returning from a preview changes no data/history.
   await click("[data-history-close]");
   assert.equal(await page.evaluate(() => document.activeElement === document.querySelector("[data-history-open]")), true);
   assert.deepEqual(await current(), before); assert.deepEqual((await history()).versions, original);
@@ -66,7 +64,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   await restore(original[2].id);
   versions = (await history()).versions;
   assert.deepEqual(versions.map(v => [v.title, v.description]), [...pairs, pairs[0], pairs[2]]);
-  // An explicit restoration of an identical pair is still one new visible version.
   await restore(original[2].id); assert.equal((await history()).versions.length, 6);
   const after = await current();
   for (const key of ["tags", "completed", "columns", "positions", "placements", "state"]) assert.deepEqual(after[key], before[key], key);
@@ -77,8 +74,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   await back(); await closed(); await open();
   assert.equal(await page.locator("[data-text-version]").count(), 6, "history survives editor remount");
   await click("[data-history-close]"); await click("[data-editor-edit]");
-  // Finish begin_editing and its initial focus before starting the autosave case.
-  // The history action still runs before the admitted autosave reply is released.
   await page.waitForFunction(() => document.querySelector('.card-editor > [role="status"]')?.textContent === "Сохранено");
   const host = !await page.evaluate(() => !!window.__TAURI_INTERNALS__);
   let admittedAutosave, releaseAutosave, autosaveDelivery, autosaveRoute, admissionTimeout;
@@ -111,8 +106,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
       assert.equal(await page.locator("[data-editor-retry], [data-editor-forget]").count(), 0,
         "An in-flight autosave must not expose unresolved-result actions or move the touch target");
     }
-    // Bounded, read-only evidence for native taps during editor blur.
-    // No input values, text, credentials or stored intentions are recorded.
     await page.evaluate(() => {
       const entries = [];
       const record = event => {
@@ -150,8 +143,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   } finally {
     releaseAutosave?.();
     if (host) {
-      // Let the held handler finish before removing it; unroute would otherwise
-      // continue the same request while its delayed fulfillment is still pending.
       const deliveryError = await autosaveDelivery;
       await page.unroute("**/v1/commands/card.autosave", autosaveRoute);
       if (deliveryError) throw deliveryError;
@@ -162,7 +153,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   assert.deepEqual([versions.at(-1).title, versions.at(-1).description], ["Непрерывный ввод", "Последняя сохранённая пара"]);
   assert.equal(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith("zedone.draft.")).length), 0);
 
-  // Strict stale is the real Service rejecting a now-stale UI intention.
   await choose(original[0].id);
   await edit("Поздняя правка", "Сохранить поздний текст");
   const late = await current(), lateHistory = (await history()).versions;
@@ -174,7 +164,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
   assert.equal((await current()).titles[0], original[0].title);
   await back(); await closed();
 
-  // Pagination is read from one history generation, never silently appended across a change.
   for (let i = 0; i < 22; i++) await edit(`Продолжение ${i}`, `Текст ${i}`);
   await open(); assert.equal(await page.locator("[data-text-version]").count(), 25);
   await click("[data-history-more]"); await loaded();
@@ -194,7 +183,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
 
   if (!await page.evaluate(() => !!window.__TAURI_INTERNALS__)) {
     await choose(original[0].id);
-    // No persistence means no delivery, including a history restoration.
     let sent = 0;
     await page.route("**/v1/commands/card.restore_text", route => { sent++; return route.continue(); });
     await page.evaluate(() => {
@@ -207,14 +195,12 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
     assert.equal(sent, 0); assert.deepEqual(await current(), preserved);
     await page.evaluate(() => { Storage.prototype.setItem = window.historySavedSetItem; delete window.historySavedSetItem; });
     await page.unroute("**/v1/commands/card.restore_text"); await click("[data-history-refresh]"); await loaded(); await choose(original[0].id);
-    // Explicit access denial is not automatically retried, and retains the pair.
     sent = 0;
     await page.route("**/v1/commands/card.restore_text", route => { sent++; return route.fulfill({ json: { status: "error", error: { code: "access_denied" } } }); });
     await click("[data-history-restore]");
     await page.waitForFunction(() => document.querySelector('.card-editor > [role="alert"]')?.textContent.includes("Нет доступа"));
     assert.equal(sent, 1); assert.deepEqual(await current(), preserved); assert.deepEqual((await history()).versions, preservedHistory);
     await page.unroute("**/v1/commands/card.restore_text"); await abandon();
-    // Lost responses: exact persisted bytes, three attempts, restart and replay.
     const bodies = [];
     await page.route("**/v1/commands/card.restore_text", async route => {
       bodies.push(route.request().postData()); assert.equal((await (await route.fetch()).json()).status, "ok"); await route.abort();
@@ -235,7 +221,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
     assert.equal(replay, bodies[0]); assert.deepEqual(await current(), latest); assert.deepEqual((await history()).versions, latestHistory);
     await page.unroute("**/v1/commands/card.restore_text"); await open(); await click("[data-history-more]"); await loaded();
     assert.equal(await page.locator("[data-text-version]").count(), latestHistory.length);
-    // Failed reads show an error, not an empty history or a false preview.
     await page.route("**/v1/commands/card.history", route => route.fulfill({ json: { status: "error", error: { code: "unavailable" } } }));
     await click("[data-history-refresh]");
     await page.waitForFunction(() => !!document.querySelector('.card-history [role="alert"]'));
@@ -243,7 +228,6 @@ export async function checkHistory(page, { tap, fill, back: platformBack = () =>
     await page.unroute("**/v1/commands/card.history"); await click("[data-history-refresh]"); await loaded();
   }
   await back(); await closed();
-  // Empty history is legal. New changes continue the core's causal sequence.
   const preview = await command("history.inspect", { space, card });
   await command("history.clear", { space, card, expected: preview.version });
   const emptyState = await current(); await open();

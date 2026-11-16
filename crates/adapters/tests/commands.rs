@@ -240,7 +240,6 @@ async fn http_ipc_and_cli_share_replay_after_regrant_and_restart_without_repeati
     storage.shutdown().await.unwrap();
     let storage = Storage::open(dir.path().join("device.db")).await.unwrap();
     let service = Service::new(storage.clone());
-    // Invoke the actual CLI child; the original request is preserved on stdin.
     let key_path = dir.path().join("admin.key");
     std::fs::write(&key_path, key(&admin)).unwrap();
     let mut child = Command::new(
@@ -347,7 +346,6 @@ async fn every_delivery_requires_current_administration_before_receipt_or_target
         false,
         "another subject has its own receipts"
     );
-    // Expired administration is also checked against real host time.
     let expiring = Arc::new(PendingAccess::generate().unwrap());
     let (s, e) = (second.clone(), expiring.clone());
     storage
@@ -371,8 +369,6 @@ async fn every_delivery_requires_current_administration_before_receipt_or_target
         })
         .await
         .unwrap();
-    // Explicit early revocation also applies to limited administration.
-    // No client clock or expired key can grant itself an extension.
     let (s, e) = (second.clone(), expiring.clone());
     storage
         .timed_transact(move |ctx, clock| ctx.revoke_access(&s.credential(), clock, e.subject()))
@@ -536,8 +532,6 @@ async fn concurrent_delivery_and_lost_response_execute_one_effect_and_keep_one_r
     assert_ne!(a["replayed"], b["replayed"]);
     let final_response = post(&service, "access.revoke", &revoke, &key(&admin)).await;
     assert_eq!(final_response["replayed"], true);
-    // Receipt lookup is still denied after administrator revocation (covered
-    // separately); no transport has a direct SQLite or bootstrap entry.
     storage.shutdown().await.unwrap();
 }
 

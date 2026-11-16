@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 
-// Serialized into the existing WebView evaluation. Keep it self-contained and
-// use the same command, polling predicate and layout work in both profiles.
 export async function alignAndroidPixelResult({ kind, selector, order, query, count, diagnostic = false, ipcDiagnostic = false, ipcSendDiagnostic = false }) {
   const phases = diagnostic ? { clock: "WebView performance.now", time_origin_ms: performance.timeOrigin, marks: [], polls: 0, polling_ms: 10 } : undefined;
   const mark = name => { if (phases) phases.marks.push({ name, ms: performance.now() }); };
@@ -72,8 +70,6 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
                 }
               } catch (error) { record.observation_error = String(error); }
               record.forwarded_ms = performance.now();
-              // A normal window.ipc.postMessage call must still receive the
-              // original Java bridge as its receiver, not our temporary Proxy.
               try { return Reflect.apply(original, bridge && this === observed ? bridge : this, args); }
               catch (error) { record.call_error = String(error); throw error; }
               finally { record.returned_ms = performance.now(); }
@@ -87,8 +83,6 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
             if (Object.getOwnPropertyDescriptor(owner, key)?.value !== observed)
               throw new Error(`IPC send hook installation was ignored: ${key}`);
           };
-          // Tauri's internals are non-configurable. Observe the existing native
-          // bridge and channel fetch without replacing IPC or chaining promises.
           install(window, "ipc", "postMessage");
           install(window, "fetch", "fetch");
         }
@@ -98,7 +92,6 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
       try { button.click(); }
       finally { duringClick = false; }
       mark("click_end");
-      // No host round trips between click, saved-result polling and alignment.
       const deadline = performance.now() + 5000;
       while (true) {
         if (phases) phases.polls++;
@@ -165,8 +158,6 @@ export async function alignAndroidPixelResult({ kind, selector, order, query, co
     if (phases?.ipc?.cleanup.installed) {
       const cleanup = phases.ipc.cleanup;
       try {
-        // Restore only our method and outstanding wrappers. A late reply after
-        // timeout must reach the original callback, not retain this observer.
         const owned = callbacks.set === hook;
         if (owned) delete callbacks.set;
         cleanup.pending_wrappers_restored = 0;

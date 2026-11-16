@@ -56,7 +56,6 @@ for (const options of [{ captureError: true }, { saveError: true }]) {
   assert.equal(broken.evidence.warmups[0].capture_request_ms, 12);
   assert.equal(broken.labels.at(-1), undefined);
 }
-// Invalid combinations fail before SDK/device lookup, APK reads or mutation.
 for (const args of [
   ["--pixels", "--release", "--trace-static"],
   ["--pixels", "--trace-static", "--deflate-pixels"],

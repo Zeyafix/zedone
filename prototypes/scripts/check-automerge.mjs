@@ -60,7 +60,6 @@ if (!android) {
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-automerge-"));
   try {
     for (const phase of runPhases) {
-      // Each measured profile owns a clean database, not the previous workload.
       const targetDirectory = measure ? resolve(directory, phase) : directory;
       if (measure) await mkdir(targetDirectory);
       const output = run([resolve(root, `target/${profile}/check-automerge${suffix}`), targetDirectory, phase], measure);
@@ -108,7 +107,6 @@ if (!android) {
     device("push", resolve(root, `target/${target}/${profile}/check-automerge`), `${remote}/probe`);
     if (testBinary) device("push", testBinary, `${remote}/tests`);
     device("shell", "chmod", "700", `${remote}/probe`, ...(testBinary ? [`${remote}/tests`] : []));
-    // Distinct native processes, no shared in-memory document between phases.
     for (const phase of runPhases) {
       const targetDirectory = measure ? `${remote}/${phase}` : remote;
       if (measure) device("shell", "mkdir", targetDirectory);

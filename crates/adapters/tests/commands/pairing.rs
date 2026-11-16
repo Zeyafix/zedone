@@ -26,7 +26,6 @@ async fn administrators_share_pending_inspect_cancel_and_list_across_http_ipc_cl
         "pairing.request",
         json!({"request":sid(2),"invitation":sid(1),"label":"Телефон 空間","access_verifier":vec![2;32]}),
     );
-    // Trusted fixture calls the same core handler used only behind TLS.
     db.timed_transact(move |tx, clock| {
         Ok(pairing::request(
             tx,

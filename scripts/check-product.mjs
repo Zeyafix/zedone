@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, relative, resolve } from "node:path";
 import { checkChannelPair } from "./check-channel-pair.mjs";
+import { withoutComments } from "./source-comments.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
@@ -28,8 +29,6 @@ function run(command, { cwd = root, extraEnv = {}, capture = false, failure = fa
 const cargo = args => ["cargo", `+${versions.rust}`, ...args];
 const locked = ["--locked", "--offline"];
 async function checkWithClients(checkNative, label) {
-  // Delivery tests own neither Cargo output nor an emulator. Await both sides
-  // even on failure, so no child is abandoned and neither error is hidden.
   const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
   console.log(`> ${command.join(" ")}`);
   const clients = Bun.spawn(command, { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
@@ -57,18 +56,29 @@ for (const pkg of packages) {
   }
 }
 
-// Inject only into a disposable copy, independently for every Cargo target.
-// The package-level forbid must also reject a local attempt to allow unsafe.
 async function checkUnsafe(targetArgs = [], extraEnv = {}) {
   const temporary = await mkdtemp(resolve(tmpdir(), "zedone-product-unsafe-"));
   try {
-    for (const name of ["Cargo.toml", "Cargo.lock", "crates"]) await cp(resolve(root, name), resolve(temporary, name), { recursive: true });
+    for (const name of ["Cargo.toml", "Cargo.lock", "crates", "api"]) await cp(resolve(root, name), resolve(temporary, name), { recursive: true });
+    await cp(resolve(root, "scripts"), resolve(temporary, "scripts"), { recursive: true });
+    await symlink(resolve(root, "node_modules"), resolve(temporary, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+    const commentCheck = cargo(["check", "-p", "zedone-core", "--lib", "--all-features", ...targetArgs, ...locked]);
+    run(commentCheck, { cwd: temporary, extraEnv });
+    const probe = resolve(temporary, "crates/core/src/comment-policy-probe.rs");
+    try {
+      await Bun.write(probe, "/// Forbidden source documentation.\n");
+      const rejected = run(commentCheck, { cwd: temporary, extraEnv, failure: true });
+      assert.notEqual(rejected.exitCode, 0, "Cargo accepted a comment in a new source");
+      assert.ok(rejected.stderr.toString().includes("crates/core/src/comment-policy-probe.rs:1: comments are forbidden"), "Expected the source comment policy diagnostic");
+    } finally { await rm(probe, { force: true }); }
+    run(commentCheck, { cwd: temporary, extraEnv });
+    console.log(`New source comment rejected; Cargo recovered after removal ${targetArgs.join(" ")}`);
     for (const pkg of packages) {
       for (const target of pkg.targets) {
         const file = resolve(temporary, relative(root, target.src_path));
         const original = await Bun.file(file).text();
-        assert.ok(target.kind.some(kind => ["lib", "bin", "test"].includes(kind)), `Add unsafe coverage for ${target.kind}`);
-        const selector = target.kind.includes("lib") ? ["--lib"] : [target.kind.includes("bin") ? "--bin" : "--test", target.name];
+        assert.ok(target.kind.some(kind => ["lib", "bin", "test", "custom-build"].includes(kind)), `Add unsafe coverage for ${target.kind}`);
+        const selector = target.kind.some(kind => ["lib", "custom-build"].includes(kind)) ? ["--lib"] : [target.kind.includes("bin") ? "--bin" : "--test", target.name];
         try {
           await Bun.write(file, `${original}\n#[allow(unsafe_code)]\nunsafe fn p03_01_forbidden() {}\n`);
           const result = run(cargo(["check", "-p", pkg.name, ...selector, "--all-features", ...targetArgs, ...locked, "--message-format=json"]), { cwd: temporary, extraEnv, failure: true });
@@ -89,6 +99,7 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
 }
 
 if (!mode) {
+  run([process.execPath, "test", "tests/source-comments.test.mjs"]);
   await checkWithClients(async () => {
     for (const args of [
       ["fmt", "--all", "--", "--check"],
@@ -113,17 +124,13 @@ if (mode === "--write-openapi") {
 
 if (mode !== "--write-openapi") {
   const { default: openapiTS, astToString } = await import("openapi-typescript");
-  const types = astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true }));
+  const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true })), "schema.d.ts");
   const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
-  // Compile the Rust-derived response schema ahead of time: browser/IPC code
-  // needs neither Ajv nor dynamic code evaluation, and has no hand-copied DTO.
   const { default: Ajv } = await import("ajv/dist/2020.js");
   const { default: standalone } = await import("ajv/dist/standalone/index.js");
   const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
     .replaceAll("#/components/schemas/", "#/$defs/"));
   const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
-  // Derive operation-specific validation and client types from concrete Rust
-  // paths. A valid result for another operation cannot confirm an intention.
   const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
     operation: path.slice("/v1/commands/".length),
     request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
@@ -155,6 +162,7 @@ if (mode !== "--write-openapi") {
       "Response validator types are stale; run --write-types");
   }
   run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
+  run([process.execPath, "scripts/check-type-errors.mjs"]);
 }
 
 async function checkAndroid() {
@@ -199,7 +207,6 @@ async function checkAndroid() {
         const executable = `${remote}/test-${index}`;
         device("push", test.executable, executable);
         device("shell", "chmod", "700", executable);
-        // tempfile and crash-child fixtures must stay in our removable sandbox.
         const output = device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, executable);
         console.log(output);
         assert.ok(output.includes("test result: ok."));

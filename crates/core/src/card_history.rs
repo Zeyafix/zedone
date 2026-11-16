@@ -1,4 +1,3 @@
-//! Editing sessions and history boundaries shared by human and agent clients.
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -23,10 +22,11 @@ pub(crate) fn now_ms(clock: &impl Clock) -> CommandResult<i64> {
         })
 }
 
-/// The command ID becomes the session ID. Begin anew after a client restart;
-/// retry an uncertain begin with its original ID before making a new intention.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(
+    description = "The command ID becomes the session ID. Begin anew after a client restart;\nretry an uncertain begin with its original ID before making a new intention."
+)]
 pub struct BeginCardEditing {
     pub space: String,
     pub card: String,

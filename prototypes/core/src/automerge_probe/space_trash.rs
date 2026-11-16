@@ -1,4 +1,3 @@
-//! P02.05: isolated hierarchy, not a product format or permissions API.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, transaction::Transaction};
 use std::collections::BTreeMap;
@@ -139,8 +138,6 @@ fn scope(nodes: &View, key: &str) -> View {
 }
 
 fn deletion_scope(mut observed: View, key: &str) -> View {
-    // Column deletion concerns its active cards; space deletion has the stricter
-    // whole-space scope, including catalog and earlier trash (ADR-0014).
     if observed[key].kind == "column" {
         observed.retain(|k, n| k == key || n.life.iter().any(|v| v.value == "active"));
     }
@@ -164,11 +161,9 @@ fn location(nodes: &View, key: &str) -> &'static str {
     if n.life[0].value == "trash" {
         return "trash";
     }
-    // Earlier independent trash wins over an ancestor's later deletion conflict.
     for parent in n.parents() {
         let state = location(nodes, parent);
         if state == "purged" {
-            // An unseen child is a late creation, never an automatic resurrection.
             return "conflicts";
         }
         if state != "board" {
@@ -261,7 +256,6 @@ fn edit(
         if !conflicting(&current.fields[field]) {
             return Err("No field conflict".into());
         }
-        // Choosing a field never implicitly restores or resolves an ancestor.
         if location(&nodes, key) == "board" {
             active_ancestors(&nodes, key)?
         } else {
@@ -400,7 +394,6 @@ fn set_container(doc: &mut Automerge, key: &str, observed: &View, state: &str) -
             "column_group"
         };
         for (k, n) in observed {
-            // Keep independently deleted columns/cards and all their nested groups intact.
             if k != key && n.kind != "tag" && joins_group(&nodes, k, key) {
                 put(&mut tx, &n.id, field, &group)?;
             }
@@ -509,7 +502,6 @@ fn fixture(include_foreign: bool) -> Result<Replica> {
         add(&mut tx, &root, key, kind, parent, "active")?;
     }
     tx.commit();
-    // Real earlier actions supply a genuine independent nested column group.
     let nodes = view(&a.doc)?;
     set_card(&mut a.doc, "old", &nodes["old"], "trash", "")?;
     let nodes = view(&a.doc)?;

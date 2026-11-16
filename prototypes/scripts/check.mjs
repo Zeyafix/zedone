@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { withoutComments } from "../../scripts/source-comments.mjs";
 
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
@@ -13,7 +14,6 @@ if (Bun.version !== versions.bun) {
   process.exit(1);
 }
 
-// Pin the build output to this workspace even if the caller has a global override.
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const checks = [
   ["fmt", "--all", "--", "--check"],
@@ -47,15 +47,12 @@ const hostUi = mode === "--host-ui";
 if (!mode || hostNative) {
   run([process.execPath, "scripts/check-host-ci-suites.mjs"]);
   run([process.execPath, "scripts/check-android-ci-suites.mjs"]);
-  // The UI slice owns the exact release build from the full sequence. Native
-  // tests and the restart probe use debug artifacts, on a separate runner.
   for (const args of checks) if (!hostNative || args[0] !== "build") cargo(args);
   run([process.execPath, "scripts/check-automerge.mjs"]);
 }
 if (hostUi) cargo(checks.at(-1));
 
 async function checkContracts() {
-  // Capture first: compilation or generation failure must leave the artifact intact.
   const generated = cargo([
     "run", "--quiet", "--locked", "--offline", "--bin", "generate-openapi",
   ], true);
@@ -72,11 +69,10 @@ async function checkContracts() {
   }
 
   if (!mode || hostNative || mode.endsWith("types")) {
-    // Import the generator API in this Bun process: no CLI shebang/Node fallback.
     const { default: openapiTS, astToString } = await import("openapi-typescript");
-    const types = astToString(await openapiTS(JSON.parse(generated.toString())));
+    const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()))), "api.d.ts");
     const command = JSON.parse(generated.toString()).paths["/prototype/echo"].post.operationId;
-    const ipc = `// Generated from Rust/OpenAPI; do not edit.\nexport const echoCommand = ${JSON.stringify(command)} as const;\n`;
+    const ipc = `export const echoCommand = ${JSON.stringify(command)} as const;\n`;
     const storageCommand = JSON.parse(generated.toString()).paths["/prototype/storage"].post.operationId;
     const qrCommand = JSON.parse(generated.toString()).paths["/prototype/qr"].post.operationId;
     const invitationCommand = JSON.parse(generated.toString()).paths["/prototype/invitation"].post.operationId;
@@ -93,19 +89,18 @@ async function checkContracts() {
       console.error("client/api.d.ts or client/ipc-command.ts is missing or stale. Run bun run generate:types and review the diff.");
       process.exit(1);
     }
+    run([process.execPath, "../scripts/check-type-errors.mjs", "--prototype"]);
   }
 }
 if (!hostUi) await checkContracts();
 
 if (!mode || hostUi) {
-  // vue-tsc patches the CommonJS loader through fs.readFileSync; Bun bypasses it.
   const nodeVersion = run(["node", "--version"], true).toString().trim();
   if (nodeVersion !== `v${versions.node}`) {
     console.error(`vue-tsc requires pinned Node ${versions.node}; found ${nodeVersion}.`);
     process.exit(1);
   }
   run(["node", "node_modules/vue-tsc/bin/vue-tsc.js", "--noEmit"]);
-  // Explicit Bun entry point bypasses Vite's Node shebang.
   run([process.execPath, "node_modules/vite/bin/vite.js", "build"]);
   run([process.execPath, "scripts/check-http.mjs"]);
   run([process.execPath, "scripts/check-android-release-protocol.mjs"]);

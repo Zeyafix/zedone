@@ -27,9 +27,6 @@ import java.util.zip.Deflater;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-/** Test-APK-only adapter for the existing JS scenario. Uses only framework/Java
- * APIs: application R8 can remove AndroidX/Kotlin runtime APIs used only by tests.
- * No driver or debugging interface is added to the application itself. */
 public class ReleaseMeasurementInstrumentation extends Instrumentation {
   private Bundle arguments;
   private Activity activity;
@@ -70,8 +67,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
     Capture(JSONObject metadata, byte[] rgba) { this.metadata = metadata; this.rgba = rgba; }
   }
 
-  // Both transports read the same OS display bitmap. No renderer screenshot,
-  // downsampling or tolerance; the host clock includes extraction and transfer.
   private Capture screenshot(JSONObject request, boolean tracing) throws Exception {
     JSONObject region = request.optJSONObject("region");
     String format = request.optString("format", "png");
@@ -103,8 +98,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
         long length = (long) width * height * 4;
         if (length > 64 * 1024 * 1024) throw new IllegalArgumentException("RGBA image too large");
         int[] colors = new int[width * height];
-        // getPixels returns non-premultiplied sRGB ARGB ints, independent of
-        // native bitmap stride/byte order. Send explicit packed RGBA rows.
         screen.getPixels(colors, 0, width, x, y, width, height);
         rgba = new byte[(int) length];
         for (int i = 0, j = 0; i < colors.length; i++) {
@@ -118,7 +111,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
         if (format.equals("rgba8-zlib")) {
           long compressionStart = SystemClock.elapsedRealtimeNanos();
           if (tracing) Trace.beginSection("zedone:deflate-RGBA");
-          // A complete zlib stream per bitmap; no inter-frame dictionary.
           Deflater compressor = new Deflater(Deflater.BEST_SPEED);
           try {
             compressor.setInput(rgba);
@@ -141,8 +133,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
             .put("compression_ms", (SystemClock.elapsedRealtimeNanos() - compressionStart) / 1000000.0);
         }
       }
-      // verify_png is only used outside intervals: compare both encodings of
-      // this exact bitmap as well as independent, stable ADB PNG captures.
       if (!raw || request.optBoolean("verify_png")) {
       cropped = Bitmap.createBitmap(screen, x, y, width, height);
       ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -176,7 +166,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
       throw new IllegalStateException("Release application is debuggable");
     String name = arguments.getString("measurementSocket", "");
     if (!name.matches("zedone-measure-[a-f0-9]{32}")) throw new IllegalArgumentException("Invalid socket name");
-    // The runner owns final teardown of Tauri's last window.
     activity = startActivitySync(new Intent(Intent.ACTION_MAIN)
       .setClassName(getTargetContext().getPackageName(), getTargetContext().getPackageName() + ".MainActivity")
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -186,7 +175,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
       SystemClock.sleep(20);
     }
     try (LocalServerSocket server = new LocalServerSocket(name); LocalSocket socket = server.accept()) {
-      // ADB forwarding is served by adbd: root on AOSP, shell on retail Android.
       int uid = socket.getPeerCredentials().getUid();
       if (uid != 0 && uid != 2000) throw new SecurityException("Only an ADB driver may connect");
       BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
@@ -217,7 +205,6 @@ public class ReleaseMeasurementInstrumentation extends Instrumentation {
         long deadline = SystemClock.elapsedRealtime() + 12000;
         String response;
         do {
-          // evaluateJavascript returns a JSON-encoded string.
           response = new JSONTokener(evaluate("JSON.stringify(window.__releaseMeasurementResult)")).nextValue().toString();
           if (!response.equals("null")) break;
           if (SystemClock.elapsedRealtime() >= deadline) throw new IllegalStateException("Measurement command timed out");

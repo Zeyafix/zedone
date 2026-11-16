@@ -45,16 +45,11 @@ try {
   const originalSession = await readFile(sessionPath);
   const paths = process.env.UI_BROWSER_PATHS ? JSON.parse(process.env.UI_BROWSER_PATHS) : [undefined];
   for (const executablePath of paths) {
-    // Opera's headless compositor can throttle undrawn frames to 1 Hz. Keep
-    // real animation frames running for the 24-frame native-touch regression;
-    // its geometry/hit-target assertions and 10s deadline stay unchanged.
     const launchOptions = { executablePath, headless: true, args: ["--disable-frame-rate-limit"] };
     browser = await chromium.launch(launchOptions);
     console.log(`UI browser: ${browser.version()}`);
     await checkNativeControls(browser);
     await checkShellFailureDiagnostics(browser, url, JSON.parse(originalSession.toString()).key);
-    // This synthetic CDP fixture leaves Opera suppressing later link popups,
-    // even in fresh contexts. Isolate its browser-wide input state from the UI.
     await browser.close();
     browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "light" });
@@ -111,7 +106,6 @@ try {
         ]) { touchDetails.stage = stage; await check(movesTouchPage, controls); }
       }).catch(error => { failureReported = true; throw error; });
     } finally { await movesTouchContext.close(); }
-    // This dedicated context observes the deliberate external image/link requests.
     assert.deepEqual(external, []);
     const markdownContext = await browser.newContext({ viewport: { width: 360, height: 760 }, colorScheme: "dark" });
     try {
@@ -174,8 +168,6 @@ try {
     await page.getByRole("button", { name: "Проверить снова", exact: true }).click();
     await page.getByRole("heading", { name: "Доступ подтверждён", exact: true }).waitFor();
 
-    // Malformed envelopes cannot mark the core ready. This is a delivery fault,
-    // unlike the successful/denied cases above which use the real Rust Service.
     await page.route("**/v1/commands/space.list", route => route.fulfill({ json: { status: "ok", result: {} } }));
     await page.getByRole("button", { name: "Проверить снова", exact: true }).click();
     await page.getByRole("heading", { name: "Не удалось связаться с ядром", exact: true }).waitFor();
@@ -200,8 +192,6 @@ try {
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");
   }
 } catch (error) {
-  // This driver owns a synthetic installation. Record rendered state and API
-  // error codes, never credentials, headers or persisted intention bodies.
   if (!failureReported) await withShellFailureDiagnostics(diagnosticPage,
     { label: "host main", stage: "main scenario", reads: diagnosticReads }, async () => { throw error; });
   throw error;

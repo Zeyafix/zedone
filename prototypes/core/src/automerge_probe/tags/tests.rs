@@ -145,7 +145,6 @@ fn removal_versus_reassignment_blocks_only_affected_card_and_allows_both_choices
         assert_eq!(before, a.fingerprint().unwrap());
         edit(&mut a.doc, "k1", Field::Text, "Доступно").unwrap();
         assign(&mut a.doc, "k1", &tag, true, None).unwrap();
-        // An edit to another card does not invalidate this read.
         assign(&mut a.doc, "k0", &tag, choice, Some(&card)).unwrap();
         assert_eq!(membership(&a.doc, "k0", "t0").present(), choice);
         assert!(!view(&a.doc, "k0").unwrap().blocked());
@@ -200,7 +199,6 @@ fn invalid_and_stale_choices_leave_every_assignment_unchanged() {
     assert!(assign(&mut a.doc, "k1", &tag, true, Some(&old)).is_err());
     assert_eq!(a.fingerprint().unwrap(), before);
     assign(&mut a.doc, "k0", &tag, true, Some(&old)).unwrap();
-    // Return to a conflict with the same values but new assignment IDs.
     store.write("A", &a).unwrap();
     let mut b = store.read("B").unwrap();
     let observed = view(&b.doc, "k0").unwrap();
@@ -211,7 +209,6 @@ fn invalid_and_stale_choices_leave_every_assignment_unchanged() {
     let before = a.fingerprint().unwrap();
     assert!(assign(&mut a.doc, "k0", &tag, true, Some(&old)).is_err());
     assert_eq!(a.fingerprint().unwrap(), before);
-    // Same-named tag in another space is independent.
     assign(&mut a.doc, "k2", &foreign, true, None).unwrap();
     assert!(membership(&a.doc, "k2", "t2").present());
 }
@@ -224,7 +221,6 @@ fn resolving_a_link_does_not_unlock_a_card_with_a_text_conflict() {
         edit(&mut replica.doc, "k0", Field::Text, value).unwrap();
         store.write(id, &replica).unwrap();
     }
-    // Changes are still local: ordinary tag actions can accompany the edits.
     conflict(&mut store);
     let mut a = store.read("A").unwrap();
     let observed = view(&a.doc, "k0").unwrap();
@@ -273,14 +269,12 @@ fn sqlite_failure_preserves_both_replicas_including_the_unresolved_choice() {
 fn duplicated_reordered_changes_keep_choices_heads_and_ids_after_sqlite_reload() {
     let (_directory, mut store) = prepared();
     conflict(&mut store);
-    // Keep a late decision on a branch while A resolves the known conflict.
     let mut late = store.read("B").unwrap();
     let observed = view(&late.doc, "k0").unwrap();
     let tag = object(&late.doc, "t0").unwrap().to_string();
     assign(&mut late.doc, "k0", &tag, false, Some(&observed)).unwrap();
     let mut a = store.read("A").unwrap();
     assign(&mut a.doc, "k0", &tag, true, Some(&observed)).unwrap();
-    // This unknown decision must survive the later merge.
     a.doc.merge(&mut late.doc).unwrap();
     assert!(view(&a.doc, "k0").unwrap().blocked());
     let expected = snapshot(&a.doc).unwrap();

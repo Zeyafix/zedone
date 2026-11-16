@@ -43,7 +43,6 @@ pub(in super::super) fn run(directory: &Path, phase: &str) -> Result<()> {
                 rename(&mut a.doc, &group.ids[1], "ЛИЧНОЕ")?;
                 assign(&mut a.doc, "k0", &group.ids[0], false)?;
                 store.write("A", &a)?;
-                // The peer remains at the merged, original spelling until restart.
             }
             "identity-resume" => {
                 let old = store.read("B")?.doc.get_changes(&[]);

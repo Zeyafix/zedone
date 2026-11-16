@@ -98,7 +98,6 @@ fn clearing_preserves_each_unresolved_text_pair_and_current_variants() {
     let bytes = a.doc.save();
     assert!(clear(&mut a.doc, &plan).is_err());
     assert_eq!(a.doc.save(), bytes);
-    // Resolving the conflict makes those versions removable by a new explicit command.
     for (field, value) in [("title", "A"), ("text", "Текст A")] {
         let current = view(&a.doc).unwrap()["k0"].clone();
         edit(&mut a.doc, "k0", &current, field, value, true).unwrap();

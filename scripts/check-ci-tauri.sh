@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Exercise the installer without downloading or compiling tools.
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 mkdir -p "$root/temp"

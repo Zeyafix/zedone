@@ -1,7 +1,6 @@
-//! Synthetic, transport-independent contract for the P01 prototypes.
-
 #![forbid(unsafe_code)]
 
+use schema_descriptions::SchemaDescriptions;
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 
@@ -10,6 +9,7 @@ pub mod http;
 pub mod http_session;
 pub mod invitation;
 pub mod qr;
+mod schema_descriptions;
 pub mod storage;
 
 #[derive(Deserialize, Serialize, ToSchema)]
@@ -22,13 +22,13 @@ pub struct EchoResponse {
     pub text: String,
 }
 
-/// Return synthetic text unchanged, without storing it.
 #[utoipa::path(
     post,
     path = "/prototype/echo",
     operation_id = "echo",
     request_body = EchoRequest,
-    responses((status = 200, description = "Text returned unchanged", body = EchoResponse))
+    responses((status = 200, description = "Text returned unchanged", body = EchoResponse)),
+    summary = "Return synthetic text unchanged, without storing it."
 )]
 pub fn echo(request: EchoRequest) -> EchoResponse {
     EchoResponse { text: request.text }
@@ -36,6 +36,7 @@ pub fn echo(request: EchoRequest) -> EchoResponse {
 
 #[derive(OpenApi)]
 #[openapi(
+    modifiers(&SchemaDescriptions),
     info(title = "ZeDone synthetic prototype", version = "0.0.0"),
     paths(echo, storage::storage, qr::qr, invitation::invitation),
     components(schemas(http_session::HttpSessionRequest, http_session::HttpSessionStatus))

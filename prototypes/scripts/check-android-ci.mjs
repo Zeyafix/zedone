@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 
-// Each CI suite owns an emulator through check-android-environment.sh. The
-// default retains the complete sequential command for standalone use.
 const checks = [
   ["product-native", ["../../scripts/check-product.mjs", "--android"]],
   ["prototype-ui", ["check-android-webview-target.mjs"]],
@@ -11,8 +9,6 @@ const checks = [
   ["shell", ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"]],
   ["shell", ["../../scripts/check-pairing-app.mjs"]],
 ];
-// Explicit CI slices have separate hosts: compilation must not compete with
-// the emulator's timing guards. Standalone/default/native keep the full run.
 const productSlices = new Map([
   ["product-native", ["../../scripts/check-product.mjs", "--android-native"]],
   ["product-arm64", ["../../scripts/check-product.mjs", "--android-arm64"]],

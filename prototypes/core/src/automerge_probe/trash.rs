@@ -1,4 +1,3 @@
-//! P02.05.1: fixed cards, active containers, one tag; no purge or product API.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, Value as AmValue, transaction::Transaction};
 use std::collections::BTreeMap;
@@ -85,8 +84,6 @@ fn edit(
     }
     let mut tx = doc.transaction();
     put(&mut tx, &current.id, field, value)?;
-    // Resolving text while lifecycle is disputed/trashed never restores implicitly.
-    // An ordinary edit (or active field resolution) is evidence against unseen trash.
     if !conflicting(&current.life) && current.life[0].value == "active" {
         put(&mut tx, &current.id, "life", "active")?;
     }
@@ -102,7 +99,6 @@ fn set_life(doc: &mut Automerge, key: &str, observed: &Card, state: &str) -> Res
     if !conflicting(&current.life) && (current.blocked() || current.life[0].value == state) {
         return Err("Ordinary trash/restore requires a resolved card and a different state".into());
     }
-    // A lifecycle choice does not resolve conflicting text/position/membership.
     write_assignment(doc, &current.id, "life", state)
 }
 

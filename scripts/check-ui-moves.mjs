@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** The same real Service/API on host and native WebView. No Vue state is changed by tests. */
 export async function checkBoardMoves(page, { tap, back = () => page.keyboard.press("Escape") } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const command = (operation, parameters) => page.evaluate(async ({ operation, parameters }) => {
@@ -67,7 +66,6 @@ export async function checkBoardMoves(page, { tap, back = () => page.keyboard.pr
   assert.deepEqual(await history(), versions, "move writes no text-history versions");
 
   if (!tap) {
-    // Keyboard path and cancellation preserve focus, version and order.
     await page.locator(`${card(first)} .move-card`).focus(); await page.keyboard.press("Enter");
     await page.locator(".move-dialog").waitFor(); await page.keyboard.press("Escape");
     assert.equal(await page.locator(`${card(first)} .move-card`).evaluate(el => el === document.activeElement), true);
@@ -133,7 +131,6 @@ export async function checkBoardMoves(page, { tap, back = () => page.keyboard.pr
     await page.reload(); await waitCards(a, [second, first]);
     assert.deepEqual(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => key.startsWith("zedone.pending.")))), saved);
     state = await current(first);
-    // A later reverse move by the agent must survive replay of the earlier receipt.
     await command("card.move", { space, card: first, column: a, before: second, expected: state.version });
     let replay;
     await page.route("**/v1/commands/card.move", async route => { replay = route.request().postData(); await route.continue(); });

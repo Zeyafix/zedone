@@ -1,5 +1,3 @@
-//! Android transport only; models and the operation belong to the shared core.
-
 #![deny(unsafe_code)]
 
 #[cfg(target_os = "android")]
@@ -52,9 +50,6 @@ async fn http_session(
 #[cfg(target_os = "android")]
 #[allow(unsafe_code)]
 mod entry_point {
-    // SAFETY: only Tauri's generated JNI/bootstrap uses this exception (ADR-0024).
-    // Package/library names are fixed by the checked Android project; no raw
-    // pointers or business operations are implemented in this module.
     #[tauri::mobile_entry_point]
     pub fn run() {
         use tauri::Manager;
@@ -76,8 +71,6 @@ mod entry_point {
                 let session = window.state::<zedone_prototype_core::http_session::HttpSession>();
                 match event {
                     WindowEvent::Suspended | WindowEvent::Destroyed => session.suspend(true),
-                    // Tao ignores the first onResume of a recreated Activity.
-                    // Native focus also enables explicit starts for that new owner.
                     WindowEvent::Resumed | WindowEvent::Focused(true) => session.suspend(false),
                     _ => {}
                 }
@@ -90,7 +83,6 @@ mod entry_point {
                 super::http_session
             ])
             .run(tauri::generate_context!())
-            // Startup cannot continue without its platform event loop/WebView.
             .expect("Android prototype failed to start");
     }
 }

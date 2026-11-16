@@ -120,7 +120,6 @@ fn column_position_conflict_keeps_children_available_and_other_conflicts_block()
     assert!(edit(&mut a.doc, "c0", "name", "Blocked", None).is_err());
     edit(&mut a.doc, "k0", "text", "Доступно", None).unwrap();
     relocate(&mut a.doc, "k3", "c1", None, None, None).unwrap();
-    // Child changes do not invalidate an unchanged column choice.
     relocate(&mut a.doc, "c0", "s", None, Some("c1"), Some(&column)).unwrap();
     edit(&mut a.doc, "c0", "name", "Доступно", None).unwrap();
     assert_eq!(ordered(&a.doc, "s").unwrap(), ["c0", "c1", "c2", "c3"]);
@@ -210,7 +209,6 @@ fn same_gap_objects_converge_for_cards_and_columns_and_equal_moves_are_not_confl
             snapshot(&a.doc).unwrap(),
             snapshot(&store.read("B").unwrap().doc).unwrap()
         );
-        // A subsequent insertion between the formerly concurrent objects works too.
         let mut a = store.read("A").unwrap();
         relocate(
             &mut a.doc,
@@ -257,7 +255,6 @@ fn invalid_destinations_gaps_and_stale_choices_never_mutate_document() {
         assert_eq!(before, a.fingerprint().unwrap());
     }
     drop(store);
-    // Prepare the conflict using the real restart scenario in a fresh directory.
     let other = tempfile::tempdir().unwrap();
     run(other.path(), "order-prepare").unwrap();
     store = Store::open(&other.path().join("automerge-order.sqlite3")).unwrap();
@@ -302,7 +299,6 @@ fn process_phases_and_duplicate_reordered_changes_preserve_order_and_all_variant
             assert_eq!(snapshot(&store.read("A").unwrap().doc).unwrap(), expected);
         }
     }
-    // A separate run tests the exact restart checkpoints without test mutation.
     let directory = tempfile::tempdir().unwrap();
     for phase in ["order-prepare", "order-resolve", "order-resume"] {
         run(directory.path(), phase).unwrap();
@@ -343,7 +339,6 @@ fn name_conflict_space_group_is_unique_stable_and_returns_to_automatic_order() {
     assert_eq!(spaces.as_array().unwrap().len(), 4);
     assert_eq!(spaces[0], json!([false, "", selected.id]));
     assert!(edit(&mut a.doc, "s", "name", "Blocked", None).is_err());
-    // Parent name conflict does not prevent moves or child edits.
     relocate(&mut a.doc, "k0", "c1", None, None, None).unwrap();
     edit(&mut a.doc, "s", "name", "М", Some(&selected)).unwrap();
     let spaces = snapshot(&a.doc).unwrap()["spaces"].clone();

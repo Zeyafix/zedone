@@ -1,6 +1,3 @@
-//! Trusted infrastructure for space archives, not an import/restore command.
-//! Decoding never writes a file or database and grants no authority.
-
 use automerge::{Automerge, Change};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -13,7 +10,6 @@ const VERSION: u32 = 1;
 const HEADER: usize = 28;
 const DIGEST: usize = 32;
 
-/// Caller-selected admission budgets, not product limits or a heap bound.
 #[derive(Debug, Clone, Copy)]
 pub struct SnapshotLimits {
     pub max_bytes: usize,
@@ -23,9 +19,7 @@ pub struct SnapshotLimits {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SnapshotMetadata {
-    /// Opaque source identity; importing independently must allocate new IDs.
     pub space: String,
-    /// Supplied by the trusted caller, never used to issue rights or expire data.
     pub created_at_unix_ms: u64,
 }
 
@@ -43,8 +37,6 @@ impl std::fmt::Display for SnapshotError {
 }
 impl std::error::Error for SnapshotError {}
 
-/// Complete accepted change log, including changes awaiting dependencies.
-/// Private fields prevent callers from emitting an unchecked archive.
 #[derive(Debug)]
 pub struct SpaceSnapshot {
     metadata: SnapshotMetadata,
@@ -82,7 +74,6 @@ impl SpaceSnapshot {
         Ok(bytes)
     }
 
-    /// The caller must also bound file/network reads before supplying the slice.
     pub fn decode(bytes: &[u8], limits: SnapshotLimits) -> Result<Self, SnapshotError> {
         check_limits(bytes.len(), 0, limits)?;
         if bytes.len() < HEADER + DIGEST || &bytes[..8] != MAGIC {
@@ -102,8 +93,6 @@ impl SpaceSnapshot {
         let metadata: SnapshotMetadata = serde_json::from_slice(take(&mut input, metadata_len)?)
             .map_err(|_| SnapshotError::Invalid)?;
         metadata_bytes(&metadata)?;
-        // Every record requires a length and at least one byte. Never reserve
-        // memory from an unverified count or length declared in the archive.
         if count > input.len() / 9 {
             return Err(SnapshotError::Invalid);
         }
@@ -164,14 +153,10 @@ fn length(input: &mut &[u8]) -> Result<usize, SnapshotError> {
 }
 
 fn parse_change(bytes: &[u8]) -> Result<Change, SnapshotError> {
-    // V1 only admits uncompressed Automerge change chunks, as emitted by
-    // Change::raw_bytes. Reject compressed chunks BEFORE the library inflates.
     if bytes.get(8) != Some(&1) {
         return Err(SnapshotError::Invalid);
     }
     let change = Change::try_from(bytes).map_err(|_| SnapshotError::Invalid)?;
-    // Change::try_from verifies operations, but does not reject a mismatched
-    // chunk checksum. The first four hash bytes are the Automerge checksum.
     if change.raw_bytes() != bytes || bytes[4..8] != change.hash().as_ref()[..4] {
         return Err(SnapshotError::Invalid);
     }
@@ -185,9 +170,6 @@ fn validate_graph(changes: &[Change]) -> Result<(), SnapshotError> {
 }
 
 impl Storage {
-    /// Consistent committed snapshot on the worker. Unauthenticated trusted
-    /// infrastructure, like `read`; must not be exposed as a public command.
-    /// Future authorization and capture must share the same transaction.
     pub async fn snapshot(
         &self,
         space: String,

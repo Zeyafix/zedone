@@ -1,4 +1,3 @@
-//! Development host. Windows lifecycle/tray/packaging belongs to P08.
 #![forbid(unsafe_code)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() {

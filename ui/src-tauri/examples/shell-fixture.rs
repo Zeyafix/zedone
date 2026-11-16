@@ -1,4 +1,3 @@
-//! Test-only synthetic installation. Never linked into the application.
 #![forbid(unsafe_code)]
 use std::sync::Arc;
 
@@ -73,7 +72,6 @@ async fn main() {
         Some(zedone_adapters::Service::new(storage)),
         directory.join("local-session.json"),
     );
-    // Explicit Linux CI fixture; production shells never fall back to memory.
     #[cfg(not(windows))]
     {
         shell.devices = Some(Arc::new(zedone_adapters::device_control::Controller::new(

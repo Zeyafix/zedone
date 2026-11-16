@@ -5,7 +5,6 @@ export type HostStatus = { listening: boolean; address?: string; pin?: number[] 
 export type SessionStatus = { status: "unconfigured" | "pending" | "connected"; request?: string; address?: string };
 export type HostOperation = "host.start" | "host.stop" | "host.status" | "offer.create" | "offer.read" | "session.prepare" | "session.status" | "session.submit" | "session.refresh" | "session.cancel" | "session.unlink";
 
-/** Only high-level host operations. No OS slot or raw device key is exposed. */
 export async function deviceCall<T>(operation: HostOperation, parameters: object = {}): Promise<T> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;

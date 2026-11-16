@@ -1,4 +1,3 @@
-//! Loopback synthetic adapter. Limited sessions are controlled only through local stdin.
 #![forbid(unsafe_code)]
 
 use zedone_prototype_core::{

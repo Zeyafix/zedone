@@ -60,7 +60,6 @@ fn every_independent_edit_preserves_both_choices_ids_and_prior_nested_trash() {
                 "conflicts",
             );
             let observed = scope(&view(&a.doc).unwrap(), "s0");
-            // An unrelated space stays usable without invalidating this choice.
             change(&mut a.doc, "foreign", "text", "Другое пространство").unwrap();
             set_container(&mut a.doc, "s0", &observed, state).unwrap();
             let selected = view(&a.doc).unwrap();
@@ -615,7 +614,6 @@ fn own_card_life_and_multiple_field_conflicts_are_not_chosen_by_space_resolution
     assert!(edit(&mut a.doc, "k0", &n["k0"], "completed", "true", false).is_err());
     assert!(choose(&mut a.doc, "s0", "trash").is_err());
     assert_eq!(a.fingerprint().unwrap(), before);
-    // A sibling's usable card remains available while k0 is conflicted.
     change(&mut a.doc, "k1", "text", "Allowed").unwrap();
 }
 

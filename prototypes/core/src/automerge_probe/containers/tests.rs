@@ -136,7 +136,6 @@ fn child_edit_preserves_choice_but_new_parent_assignment_invalidates_it() {
     let current = a.fingerprint().unwrap();
     assert!(change(&mut a.doc, Node::Left, "name", "Stale", Some(&observed)).is_err());
     assert_eq!(a.fingerprint().unwrap(), current);
-    // A decision not received at the time of choosing must remain a variant.
     let mut b = store.read("B").unwrap();
     let observed = view(&b.doc, Node::Left).unwrap();
     change(

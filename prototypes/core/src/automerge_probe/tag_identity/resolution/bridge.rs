@@ -1,4 +1,3 @@
-//! The late creation connects two causally distinct tags; all three stay separate.
 use super::*;
 
 fn ids(doc: &Automerge) -> Result<Vec<ObjId>> {
@@ -21,7 +20,6 @@ fn prepare(store: &mut Store) -> Result<()> {
     edit(&mut a.doc, "k0", "completed", "true")?;
     store.write("A", &a)?;
     scenario::add(store, "A", "Работа")?;
-    // B has seen neither A creation. Its birth cannot alias both distinct tags.
     scenario::add(store, "B", " работа ")?;
     let mut b = store.read("B")?;
     edit(&mut b.doc, "k0", "text", "Правка описания")?;

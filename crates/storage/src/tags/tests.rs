@@ -240,7 +240,6 @@ async fn assignments_rename_undo_noop_aba_history_and_restart() {
         set(2, 3, 5, true, before.version, renamed.version)
     )
     .err();
-    // A changed original precondition is a different request, never a new add.
     assert_eq!(
         replay,
         Some(StorageError::Rejected(CommandError {

@@ -1,11 +1,6 @@
-//! Crash-safe host composition of the two protected slots. Neither a local slot
-//! nor a historical confirmation receipt grants access to the ordinary Service.
 use super::*;
 use zedone_core::pairing::PairingStatus;
 
-/// One instance per host namespace; the host must not run another lifecycle
-/// owner concurrently. The mutex serializes the complete read/network/write
-/// operation, rather than just individual OS-store calls.
 pub struct SessionLifecycle<S> {
     store: S,
     operations: tokio::sync::Mutex<()>,
@@ -26,8 +21,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
         }
     }
 
-    /// Never replace either a pending or connected session, including an
-    /// unreadable record or a partially completed promotion.
     pub async fn create(&self, offer: Offer, label: String) -> Result<(), ErrorCode> {
         self.create_at(offer, label, None).await
     }
@@ -74,16 +67,12 @@ impl<S: SecretStore> SessionLifecycle<S> {
             return Err(ErrorCode::InvalidRequest);
         }
         let response = saved.session.submit(stream).await?;
-        // Authenticated application rejection is durably terminal for this
-        // exact attempt. Transport failure is the outer Err and preserves it.
         if matches!(&response,CommandResponse::Error(e) if e.error.code==ErrorCode::AccessDenied) {
             self.remove(Slot::PendingPairing, &saved.bytes).await?;
         }
         Ok(response)
     }
 
-    /// A local readiness hint, never an authorization decision. Every ordinary
-    /// command must still authenticate this credential against current access_*.
     pub async fn connected(&self) -> Result<Option<PendingSession>, ErrorCode> {
         let _guard = self.operations.lock().await;
         Ok(self
@@ -93,8 +82,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
             .map(|saved| saved.session))
     }
 
-    /// The host retains id/expected as the original intention for retries.
-    /// Cleanup is a separate fresh refresh, never based on a replayed receipt.
     pub async fn cancel<T: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,
         stream: T,
@@ -117,9 +104,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
         saved.session.unlink(stream, id, expected).await
     }
 
-    /// Inspect with a fresh internal ID: accepting a caller-supplied or replayed
-    /// observation could promote a historical confirmation after its revocation.
-    /// A failure leaves every surviving record intact for the next refresh.
     pub async fn refresh<T: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,
         stream: T,
@@ -153,8 +137,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
                             .await
                             .map_err(|_| ErrorCode::Unavailable)?;
                     }
-                    // Copy, acknowledge exact protected bytes, then remove the
-                    // temporary copy. Any interrupted boundary is recoverable.
                     self.require(Slot::ConnectedPairing, &saved.bytes).await?;
                     if saved.pending {
                         self.remove(Slot::PendingPairing, &saved.bytes).await?;
@@ -164,8 +146,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
                     return Err(ErrorCode::OutcomeUnknown);
                 }
                 PairingStatus::Cancelled | PairingStatus::Rejected | PairingStatus::Unlinked => {
-                    // Remove the temporary copy first. If interrupted, the
-                    // connected copy still permits a fresh terminal inspection.
                     if saved.pending {
                         self.remove(Slot::PendingPairing, &saved.bytes).await?;
                     }
@@ -207,8 +187,6 @@ impl<S: SecretStore> SessionLifecycle<S> {
         if let (Some(a), Some(b)) = (&pending, &connected)
             && a.as_slice() != b.as_slice()
         {
-            // Two different requests are not an interrupted copy. Never choose
-            // one, overwrite it or erase either automatically.
             return Err(ErrorCode::Unavailable);
         }
         let Some(bytes) = connected.as_ref().or(pending.as_ref()) else {

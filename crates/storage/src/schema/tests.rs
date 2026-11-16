@@ -66,7 +66,6 @@ async fn previous_development_schemas_are_rejected_without_migration_or_reset() 
             .pragma_update(None, "user_version", version)
             .unwrap();
         if version == 1 {
-            // The original development v1 had no installation clock or access.
             connection
                 .execute_batch(
                     "DROP TABLE access_clock; DROP TABLE access_bootstrap;
@@ -154,7 +153,6 @@ async fn layout_before_pending_requests_is_rejected_without_writes() {
     assert_eq!(durable_files(&path), before);
 }
 
-// SHM contains SQLite's transient reader locks, not authoritative DB/WAL data.
 fn durable_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
     ["", "-wal", "-journal"]
         .into_iter()
@@ -362,7 +360,6 @@ fn hot_journal_child() {
         return;
     };
     let connection = Connection::open(PathBuf::from(path)).unwrap();
-    // Force dirty pages to disk so a real hot journal is needed on reopen.
     connection
         .execute_batch(
             "PRAGMA cache_size = 1; PRAGMA synchronous = FULL; BEGIN IMMEDIATE;

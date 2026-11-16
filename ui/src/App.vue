@@ -62,7 +62,6 @@ async function probe() {
   if (timeout) clearTimeout(timeout);
   controller = new AbortController();
   connection.value = "checking";
-  // IPC cannot always be cancelled; generation also rejects late results.
   const expired = new Promise<Connection>(resolve => {
     timeout = setTimeout(() => { controller?.abort(); resolve("unavailable"); }, 10_000);
   });

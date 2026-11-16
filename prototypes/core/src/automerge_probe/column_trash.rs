@@ -1,4 +1,3 @@
-//! P02.05.2.1: one active space, column deletion groups; no product API or purge.
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, Value as AmValue, transaction::Transaction};
 use std::collections::BTreeMap;
@@ -165,7 +164,6 @@ fn edit(
         }
         Some(active_parent(doc, &current)?)
     };
-    // This slice checks order within the parent. Cross-column movement is EV-029.
     if field == "place"
         && !current.fields["place"]
             .iter()
@@ -251,14 +249,12 @@ fn set_column(doc: &mut Automerge, key: &str, observed: &Column, state: &str) ->
             return Err("Deletion requires an existing group".into());
         }
         for card in current.cards.values() {
-            // An independent earlier/own deletion is not converted into this group.
             if card.life.iter().any(|v| v.value == "active") {
                 put(&mut tx, &card.id, "group", &group)?;
             }
         }
     }
     put(&mut tx, &current.id, "life", state)?;
-    // Restoration changes the parent, not independent card lifecycle registers.
     tx.commit();
     Ok(())
 }

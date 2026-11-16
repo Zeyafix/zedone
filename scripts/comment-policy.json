@@ -1,0 +1,29 @@
+{
+  "paths": [
+    "api", "client", "crates", "design", "scripts", "tests",
+    "ui/src", "ui/index.html", "ui/vite.config.mjs", "ui/src-tauri/build.rs",
+    "ui/src-tauri/src", "ui/src-tauri/tests", "ui/src-tauri/examples",
+    "ui/src-tauri/gen/android/app/src", "ui/src-tauri/gen/android/app/build.gradle.kts",
+    "ui/src-tauri/gen/android/app/proguard-rules.pro", "ui/src-tauri/gen/android/build.gradle.kts",
+    "ui/src-tauri/gen/android/settings.gradle", "ui/src-tauri/gen/android/buildSrc/build.gradle.kts", "ui/src-tauri/gen/android/buildSrc/src",
+    "prototypes/client", "prototypes/core", "prototypes/scripts", "prototypes/type-errors", "prototypes/index.html",
+    "prototypes/vite.config.mjs", "prototypes/src-tauri/build.rs", "prototypes/src-tauri/src",
+    "prototypes/src-tauri/android-patches/PluginLifecycle.kt",
+    "prototypes/src-tauri/gen/android/app/src", "prototypes/src-tauri/gen/android/app/build.gradle.kts",
+    "prototypes/src-tauri/gen/android/app/proguard-rules.pro", "prototypes/src-tauri/gen/android/build.gradle.kts",
+    "prototypes/src-tauri/gen/android/settings.gradle", "prototypes/src-tauri/gen/android/buildSrc/build.gradle.kts", "prototypes/src-tauri/gen/android/buildSrc/src",
+    "prototypes/src-tauri/gen/android/tauri-lifecycle.gradle.kts"
+  ],
+  "extensions": [".rs", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".vue", ".css", ".kt", ".kts", ".java", ".sql", ".html", ".xml", ".ps1", ".sh", ".gradle", ".pro"],
+  "ignoredDirectories": ["node_modules", "target", "dist", "build", ".gradle", ".kotlin", ".git"],
+  "thirdPartyDirectories": [
+    "ui/src-tauri/gen/android/app/src/main/java/app/zedone/local/generated",
+    "prototypes/src-tauri/gen/android/app/src/main/java/app/zedone/prototype/generated"
+  ],
+  "thirdPartyFiles": [
+    "ui/src-tauri/gen/android/buildSrc/src/main/java/app/zedone/local/kotlin/BuildTask.kt",
+    "ui/src-tauri/gen/android/buildSrc/src/main/java/app/zedone/local/kotlin/RustPlugin.kt",
+    "prototypes/src-tauri/gen/android/buildSrc/src/main/java/app/zedone/prototype/kotlin/BuildTask.kt",
+    "prototypes/src-tauri/gen/android/buildSrc/src/main/java/app/zedone/prototype/kotlin/RustPlugin.kt"
+  ]
+}

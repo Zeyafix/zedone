@@ -715,7 +715,6 @@ async fn sql_failures_and_every_commit_boundary_preserve_atomic_creation_and_unk
             .await
             .unwrap();
     }
-    // A real SQL abort after document/grant creation but before saving receipt.
     storage.transact(|ctx| {ctx.connection().execute_batch("CREATE TEMP TRIGGER fail_result BEFORE INSERT ON command_results BEGIN SELECT RAISE(ABORT,'test receipt write failure'); END;")?; Ok(())}).await.unwrap();
     assert!(run!(&storage, admin, create, creation(4, 4, "SQL failure")).is_err());
     storage

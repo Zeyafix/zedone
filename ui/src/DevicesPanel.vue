@@ -49,8 +49,6 @@ async function refresh() {
 }
 async function listener(operation:"host.start"|"host.stop") {
   await run(async()=>{
-    // Status is authoritative after a missing reply; start at the same exact
-    // address is idempotent, stop never clears identity or session secrets.
     const result=await deviceCall<HostStatus>(operation,operation==="host.start"?{address:address.value.trim()}:{});
     if(alive)host.value=result;
   });
@@ -59,8 +57,6 @@ async function invite() { await run(async()=>{const value=await deviceCall<Outgo
 async function submit() {
   if(change.value || storageFailed.value)return;
   await run(async()=>{
-    // If prepare's reply was lost, continue the saved request. Never replace
-    // its offer, label, pin or key from the currently visible input fields.
     await status();
     if(session.value?.status==="unconfigured") {
       await deviceCall("session.prepare",{address:peerAddress.value.trim(),offer:code.value.trim(),label:label.value.trim()});

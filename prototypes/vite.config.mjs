@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { checkSources } from "../scripts/source-comments.mjs";
+
+checkSources();
 
 const proxy = { "/prototype": "http://127.0.0.1:4317" };
 export default defineConfig({

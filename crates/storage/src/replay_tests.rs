@@ -1,5 +1,3 @@
-//! A bounded synthetic handler only. No product command or test access backend
-//! is compiled into the library, adapters or contract.
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
@@ -246,8 +244,6 @@ async fn effects(storage: &Storage) -> u64 {
         .unwrap()
 }
 
-// Exercise the wire boundary around the same test-only core/storage handler.
-// This is not an HTTP/CLI/IPC adapter or a product authentication backend.
 async fn deliver(storage: &Storage, bytes: &[u8]) -> serde_json::Value {
     let completed = match decode_request::<SetCompleted>(bytes) {
         Ok(request) => call(storage, request.parameters, request.id)
@@ -769,7 +765,6 @@ async fn caught_receipt_error_still_prevents_partial_commit() {
     let result = storage
         .transact(move |ctx| {
             run_command(ctx, &command, [1; 16], &access())?;
-            // Invalid empty storage key fails after the successful synthetic edit.
             let rejected = ctx.record(
                 &[],
                 &RecordedCommand {
@@ -811,7 +806,6 @@ async fn panic_after_handler_is_unknown_and_original_retry_executes_only_once() 
 
 #[test]
 fn container_projection_detects_data_membership_and_causal_changes() {
-    // This tests the shared token primitive, not P04 deletion projections.
     let original = serde_json::json!({
         "name": "column", "position": 0, "membership_causes": ["add-1"],
         "cards": [{"id": "card", "title": "title", "cause": "edit-1"}]

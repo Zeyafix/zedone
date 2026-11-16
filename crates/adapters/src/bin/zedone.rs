@@ -1,5 +1,3 @@
-//! Local CLI uses the same command service. Secrets are read from a local key
-//! file, never a command-line argument; the exact request arrives on stdin.
 use std::{
     io::{Read, Write},
     path::Path,
@@ -27,7 +25,6 @@ async fn main() {
     let response = run()
         .await
         .unwrap_or_else(|code| Err(CommandError { code }).into());
-    // No diagnostics include input, credentials, SQL or host paths.
     if serde_json::to_writer(std::io::stdout(), &response).is_err()
         || std::io::stdout().write_all(b"\n").is_err()
     {
@@ -70,8 +67,6 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     let response = Service::new(storage.clone())
         .dispatch(&args[5], &body, key.trim_end_matches(['\r', '\n']))
         .await;
-    // A later shutdown failure cannot turn a confirmed commit into the
-    // "known not committed" unavailable error.
     let _ = storage.shutdown().await;
     Ok(response)
 }

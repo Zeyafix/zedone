@@ -6,8 +6,6 @@ import { chromium } from "playwright";
 const app = "app.zedone.prototype";
 const hashFile = async path => createHash("sha256").update(Buffer.from(await Bun.file(path).arrayBuffer())).digest("hex");
 
-// Existing debug prototype only: back up through its public IPC before replacing
-// the APK. Never uninstall an incompatible application or read/write its SQLite.
 export async function backupPhysical({ root, apk, device, reportDirectory, report }) {
   const metadata = device("shell", "dumpsys", "package", app);
   assert.match(metadata, /pkgFlags=\[[^\]]*DEBUGGABLE/, "Physical measurement requires the existing debug prototype for reversible IPC backup");
@@ -55,18 +53,14 @@ export async function originalPhysicalSnapshots({ root, device }) {
         const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1000) });
         if (response.ok) {
           const target = (await response.json()).find(target => target.type === "page" && /^https?:\/\/tauri\.localhost\//.test(target.url));
-          // Wait for the packaged document, not an initial empty page target.
-          // Two stable discoveries avoid attaching while WebView replaces it.
           if (target && target.id === previousTarget) break;
           previousTarget = target?.id;
         }
-      } catch { /* Android may still be starting WebView. */ }
+      } catch {                                              }
       assert.ok(performance.now() < deadline, "Original debug WebView not available; no APK replacement allowed");
       await new Promise(resolve => setTimeout(resolve, 100));
     } while (true);
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true, timeout: 10000 });
-    // CDP target discovery can precede Playwright's page event, especially just
-    // after reinstall/restart. A ready /json/list alone does not supply a Page.
     let page;
     const pageDeadline = performance.now() + 10000;
     while (!(page = browser.contexts().flatMap(context => context.pages())[0])) {

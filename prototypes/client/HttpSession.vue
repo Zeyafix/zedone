@@ -24,7 +24,7 @@ async function refreshStatus() {
     const result = await invoke<Status>("http_session", { request: { action: "status" } });
     if (current === version) status.value = result;
   }
-  catch { /* Explicit controls report IPC failures; polling must not hide their errors. */ }
+  catch {                                                                                  }
   finally { refreshing = false; }
 }
 

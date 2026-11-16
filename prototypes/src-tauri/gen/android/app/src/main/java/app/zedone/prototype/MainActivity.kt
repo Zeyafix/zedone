@@ -11,7 +11,6 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     prototypeWebView = webView
-    // Consume Back only while the scan UI is active; keep Wry's navigation otherwise.
     onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
         webView.evaluateJavascript("(() => { const button = document.querySelector('#scan-cancel'); if (!button) return false; button.click(); return true; })()") { consumed ->

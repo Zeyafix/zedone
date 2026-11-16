@@ -148,7 +148,6 @@ fn stale_and_competing_deletion_choices_preserve_variants_under_reordered_delive
         let mut late = store.read("B").unwrap();
         let observed = observe(&a.doc, &id).unwrap();
         choose(&mut a.doc, &id, true);
-        // A resolved and continued editing before the other decision arrives.
         resolution::edit(&mut a.doc, "k0", "title", "Поздняя правка").unwrap();
         choose(&mut late.doc, &id, same);
         a.doc.merge(&mut late.doc).unwrap();

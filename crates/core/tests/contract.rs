@@ -135,7 +135,6 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     assert_eq!(codes, expected);
 }
 
-// Test-only command: no synthetic operation is added to the product API.
 #[derive(Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct ReadFixture {

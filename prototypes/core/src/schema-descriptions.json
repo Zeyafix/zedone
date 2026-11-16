@@ -1,0 +1,8 @@
+[
+  {
+    "description": "The existing session is waiting to rebind its original endpoint.",
+    "paths": [
+      "/components/schemas/HttpSessionStatus/properties/recovering"
+    ]
+  }
+]

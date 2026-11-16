@@ -415,7 +415,7 @@ async fn purge_column_includes_earlier_trash_but_preserves_restored_card_and_tec
             .await
             .unwrap()
     );
-    rejected(run!(s, a, create, creation(11, 9)), ErrorCode::NotFound); // original column is gone
+    rejected(run!(s, a, create, creation(11, 9)), ErrorCode::NotFound);
     let mut reused = creation(12, 9);
     reused.parameters.column = sid(3);
     rejected(run!(s, a, create, reused), ErrorCode::StaleState);
@@ -984,7 +984,6 @@ async fn space_group_sql_failure_rolls_back_every_member_and_pending_history() {
     .unwrap();
     let before = space(&s).await;
     let old = versions(&s, 9).await;
-    // card 8 is processed before card 9; fail after one member already changed.
     s.transact(|ctx| {ctx.connection().execute_batch("CREATE TRIGGER fail_space BEFORE DELETE ON card_editing BEGIN SELECT RAISE(ABORT, 'injected'); END;")?;Ok(())}).await.unwrap();
     rejected(
         space_run!(s, a, trash, remove_space(5, before.version)),
@@ -1010,8 +1009,6 @@ async fn purge_all_of_trashed_space_never_hides_a_new_active_descendant() {
     let (_dir, s, a) = setup().await;
     let before = space(&s).await;
     space_run!(s, a, trash, remove_space(1, before.version)).unwrap();
-    // Synthetic concurrent/new descendant: ordinary commands cannot create it
-    // below a trashed parent. Cleanup must still fail closed on this graph.
     s.transact(|ctx| {
         ctx.create_column(&sid(1), &sid(4), "independent")?;
         Ok(())

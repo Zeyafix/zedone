@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 
-// Real HTTP/Service lifecycle plus injected delivery faults. No mocked domain
-// data and no direct SQLite writes. Each invocation uses distinct fixture names.
 export async function checkWorkspace(page, url, session) {
   page.setDefaultTimeout(10000);
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -71,7 +69,6 @@ export async function checkWorkspace(page, url, session) {
   await page.waitForFunction(() => !document.querySelector('.board-heading') && document.querySelector('.spaces-view')?.getAttribute('aria-busy') === 'false');
   assert.equal(await row(boardName).getByRole("button", { name: "В корзину", exact: true }).isDisabled(), false, "nonempty space offers a complete group preview");
 
-  // A saved version must not be replaced by a concurrent author's version.
   console.log("Workspace concurrent rename");
   await row(spaceName).getByRole("button", { name: "Переименовать", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Название" }).fill("Мой несохранённый ввод");
@@ -86,8 +83,6 @@ export async function checkWorkspace(page, url, session) {
   await button("Обновить список").click();
   await row(`${spaceName} другое устройство`).waitFor();
 
-  // Commit succeeds, every reply is lost, then the page restarts. Retry must
-  // replay exactly the same bytes and must leave only one created space.
   const lostName = `Потерянный ответ ${suffix}`;
   const bodies = [];
   await page.route("**/v1/commands/space.create", async route => {
@@ -115,8 +110,6 @@ export async function checkWorkspace(page, url, session) {
   assert.equal(await row(lostName).count(), 1);
   assert.equal(await page.evaluate(() => localStorage.length), 0);
 
-  // A real core denial after the form has opened preserves the draft and the
-  // original request. Once access works, explicit retry uses that same request.
   const deniedName = `Доступ ${suffix}`;
   const deniedBodies = [];
   await button("Создать пространство").click();
@@ -135,7 +128,6 @@ export async function checkWorkspace(page, url, session) {
   await row(deniedName).waitFor();
   assert.equal(await page.evaluate(() => localStorage.length), 0);
 
-  // Storage failure must prevent a mutation from reaching the API.
   let deliveries = 0;
   await page.route("**/v1/commands/space.create", route => { deliveries++; return route.continue(); });
   await page.evaluate(() => {

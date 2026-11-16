@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { withoutComments } from "../../scripts/source-comments.mjs";
 
-// Exercise the real driver, replacing only process/import/write boundaries.
-// Never launch Cargo, a browser, another guard or an artifact rewrite here.
 const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "../scripts/environment-versions.json")).json();
 const openapi = Buffer.from(await Bun.file(resolve(root, "openapi.json")).arrayBuffer());
 const types = await Bun.file(resolve(root, "client/api.d.ts")).text();
 const source = (await Bun.file(resolve(import.meta.dir, "check.mjs")).text())
   .replace('import { resolve } from "node:path";', "")
+  .replace('import { withoutComments } from "../../scripts/source-comments.mjs";', "")
   .replaceAll("import.meta.dir", JSON.stringify(import.meta.dir))
   .replace('await import("openapi-typescript")', "await importTypes()");
-const execute = new (Object.getPrototypeOf(async function () {}).constructor)("Bun", "process", "resolve", "importTypes", "console", source);
+const execute = new (Object.getPrototypeOf(async function () {}).constructor)("Bun", "process", "resolve", "importTypes", "withoutComments", "console", source);
 async function dispatch(args, failure = {}) {
   const calls = [], writes = [];
   let exit;
@@ -32,7 +32,7 @@ async function dispatch(args, failure = {}) {
     }, {
       execPath: "fixture-bun", env: { CARGO_TARGET_DIR: "/foreign-output" },
       exit(code) { exit = code; throw stopped; },
-    }, resolve, async () => ({ default() {}, astToString: () => types }), { log() {}, error() {} });
+    }, resolve, async () => ({ default() {}, astToString: () => types }), withoutComments, { log() {}, error() {} });
   } catch (error) { if (error !== stopped) throw error; }
   return { calls, writes, exit };
 }
@@ -68,12 +68,10 @@ for (const args of [["unknown"], ["--host-ui", "extra"], ["--host-native", "extr
 for (const [mode, count] of [["--write-openapi", 1], ["--check-openapi", 0], ["--write-types", 2], ["--check-types", 0]]) {
   const result = await dispatch([mode]);
   assert.equal(result.exit, undefined);
-  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls.length, mode.endsWith("types") ? 2 : 1);
   assert.ok(result.calls[0].includes("generate-openapi"));
   assert.equal(result.writes.length, count);
 }
-// The product driver shares this pairing boundary between host and Android.
-// A rejected side must never let the driver abandon the other running side.
 const productRoot = resolve(root, "..");
 const product = await Bun.file(resolve(productRoot, "scripts/check-product.mjs")).text();
 const pairing = product.slice(product.indexOf("async function checkWithClients("), product.indexOf("\nconst metadata"));
@@ -99,7 +97,6 @@ for (const first of ["client", "native"]) {
     const finishClient = () => client.resolve(fail ? 23 : 0);
     const finishNative = () => fail ? native.reject(nativeError) : native.resolve();
     if (first === "client") finishClient(); else finishNative();
-    // Drain settlements without time-based sleeps or a detached rejection.
     for (let turn = 0; turn < 5; turn++) await Promise.resolve();
     assert.equal(settled, false, "a finished or failed side must still await its peer");
     if (first === "client") finishNative(); else finishClient();
@@ -118,7 +115,6 @@ const interrupted = makePair({ spawn() { return { exited: Promise.resolve(0), si
 await assert.rejects(interrupted(async () => {}, "signal control"), error =>
   error instanceof AggregateError && /Client tests interrupted/.test(error.errors[0].message));
 
-// The workflow must actually select every slice and reject incomplete matrices.
 const workflow = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/workflows/prototype-foundation.yml")).text());
 const suites = ["product", "prototype-native", "prototype-ui", "shell"];
 const expectedSteps = [

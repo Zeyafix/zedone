@@ -24,8 +24,6 @@ function fixture(options = {}) {
         dispatched = true;
         try {
           if (options.internalReply) {
-            // Tauri can fetch a large cached response through its own invoke,
-            // then forward that same payload to the original command callback.
             callbacks.set(9, response => delivery.call(receiver, response, 99));
             callbacks.set(10, () => {});
             returned = callbacks.get(9)(payload);

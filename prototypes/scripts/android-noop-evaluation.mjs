@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 
-// A constant reply measures the existing instrumentation/WebView round trip,
-// never completion of an application command or presentation of a frame.
 export async function measureNoopEvaluation({ evaluate, setTraceLabel, evidence, now = () => performance.now(), wait = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   const script = () => null;
   Object.assign(evidence, { status: "running", script: script.toString(), expected_result: null, inter_request_pause_ms: 50, warmups: [], samples: [] });

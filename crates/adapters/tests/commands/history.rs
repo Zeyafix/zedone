@@ -47,7 +47,6 @@ async fn editing_sessions_and_restore_share_original_receipts_on_http_ipc_cli_an
         json!({"space":sid(1),"card":sid(3),"after":null,"limit":100,"expected":null}),
     );
     let pending = all_entries(&service, &dir, &secret, "card.history", &history).await;
-    // One-shot CLI opens never close a live host's editing session.
     assert_eq!(pending["result"]["versions"].as_array().unwrap().len(), 1);
     let close = request(
         5,

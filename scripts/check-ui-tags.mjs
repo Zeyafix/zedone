@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Same public commands and UI on host and native WebView; no direct storage writes. */
 export async function checkTags(page, { tap, fill, back: platformBack = () => page.keyboard.press("Escape"), dismissKeyboard = async () => {} } = {}) {
   const back = async () => { await dismissKeyboard(); await platformBack(); };
   const click = tap || (selector => page.locator(selector).click());
@@ -28,8 +27,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
   const refresh = async () => {
     await click(".view-toolbar button:nth-of-type(2)");
     await page.waitForFunction(() => document.querySelector(".spaces-view")?.getAttribute("aria-busy") === "false");
-    // Locator.evaluate asks Playwright to inspect visibility in its isolated realm;
-    // AOSP WebView has no checkVisibility(). This is only a read of native details state.
     if (!await page.evaluate(() => document.querySelector(".space-tags")?.open)) await click(".space-tags summary");
   };
   async function forget() {
@@ -66,7 +63,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
   await rename(first, "Всё");
   assert.deepEqual(new Set((await current(card)).tags), new Set([first, other]), "rename preserves IDs and assignments");
   await rename(first, "Все"); await rename(first, "Всё");
-  // One comparator in Rust decides occupied names, including Unicode case folding.
   for (const value of ["  РАБОТА 😀  ", "\u2003ВСЁ\u00a0", "   "]) {
     const target = value.includes("РАБОТА") ? first : other;
     const tagBefore = await tagRead(target);
@@ -80,7 +76,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
   await click(".create-tag"); await input(`${dialog} input[name=name]`, " STRASSE "); await submit();
   await page.waitForFunction(() => document.querySelector(".action-dialog [role=alert]")?.textContent.includes("Имя занято"));
   await back(); await closed(); await forget();
-  // Cancellation does not delete; Back closes the form before leaving the board.
   const boardUrl = page.url();
   await click(`${row(first)} .delete-tag`);
   assert.match(await page.locator(`${dialog} > p`).textContent(), /без корзины.*восстановления/);
@@ -107,7 +102,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
   await toggle(replacement, true); await toggle(replacement, false); await back(); await closed();
 
   if (!tap) {
-    // Frozen versions: concurrent agent rename cannot be overwritten by the dialog.
     await click(`${row(other)} .rename-tag`); await input(`${dialog} input[name=name]`, "Мой ввод");
     tag = await tagRead(other);
     await command("tag.rename", { space, tag: other, name: "Правка агента", expected: tag.version });
@@ -115,7 +109,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
     assert.equal(await page.locator(`${dialog} input`).inputValue(), "Мой ввод");
     assert.deepEqual((await tagRead(other)).names, ["Правка агента"]);
     await back(); await closed(); await forget();
-    // Storage failure must prevent sending any request.
     await click(`${row(other)} .rename-tag`);
     await page.evaluate(() => { window.__tagSet = Storage.prototype.setItem; Storage.prototype.setItem = function(key, value) { if (key.startsWith("zedone.pending.")) throw new DOMException("quota", "QuotaExceededError"); return window.__tagSet.call(this, key, value); }; });
     await input(`${dialog} input[name=name]`, "Не отправлять"); await submit();
@@ -127,7 +120,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
     await page.locator(`${dialog} [role=alert]`).filter({ hasText: "Нет доступа" }).waitFor();
     assert.deepEqual((await tagRead(other)).names, ["Правка агента"]);
     await page.unroute("**/v1/commands/tag.rename"); await back(); await closed(); await forget();
-    // Card/tag versions displayed at opening must also refuse a concurrent change.
     await openCard();
     tag = await tagRead(other);
     await command("tag.rename", { space, tag: other, name: "Агент обновил тег", expected: tag.version });
@@ -135,7 +127,6 @@ export async function checkTags(page, { tap, fill, back: platformBack = () => pa
     await page.locator(".card-editor [role=alert]").filter({ hasText: "Данные изменились" }).waitFor();
     assert.deepEqual((await current(card)).tags, [other]);
     await back(); await closed(); await forget();
-    // Lost assignment reply, then an agent reversal: replay may not install the old receipt.
     const bodies = [];
     await page.route("**/v1/commands/card.set_tag", async route => { bodies.push(route.request().postData()); await route.fetch(); await route.abort("connectionfailed"); });
     await openCard(); await click(assigned(unicode));

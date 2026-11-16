@@ -3,12 +3,11 @@ import DOMPurify from "dompurify";
 
 export interface RemoteImage { url?: string; alt: string; title?: string }
 
-// No base URL: only absolute HTTP/HTTPS addresses are activated by the viewer.
 export function httpUrl(value: string): string | undefined {
   try {
     const url = new URL(value);
     if (url.protocol === "http:" || url.protocol === "https:") return url.href;
-  } catch { /* Display unsupported addresses as text. */ }
+  } catch {                                              }
 }
 
 const parser = new MarkdownIt("commonmark", { html: false });
@@ -21,7 +20,6 @@ parser.renderer.rules.image = (tokens, index, options, env, renderer) => {
     title: token.attrGet("title") === null ? undefined : String(token.attrGet("title")),
   };
   images.push(image);
-  // Never put src/srcset or an image element into HTML passed to DOMPurify.
   return `<span data-md-image="${images.length - 1}">${parser.utils.escapeHtml(image.alt)}</span>`;
 };
 

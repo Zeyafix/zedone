@@ -1,13 +1,8 @@
-//! A SQLite commit witness is authoritative; the file index is repairable.
-//! Trusted startup infrastructure only; no authenticated restore command.
-
 use rusqlite::{OptionalExtension, Transaction};
 use tempfile::NamedTempFile;
 
 use super::*;
 
-// Longer than a wire CommandId; never a user command receipt. Kept in the
-// existing atomic result store, not in a space graph or a second live database.
 const KEY: &[u8] = b"\0zedone/internal/migration-backup/v1";
 const REQUEST: &[u8] = b"migration-backup-commit-v1";
 const INDEX: &str = "migration-current.json";
@@ -28,7 +23,6 @@ struct CommitRecord {
     previous: Option<BackupRef>,
 }
 
-/// Confirmed commit and publication. Cleanup failure does not undo the commit.
 #[derive(Debug)]
 pub struct PublishedBackup {
     pub path: PathBuf,
@@ -36,11 +30,6 @@ pub struct PublishedBackup {
 }
 
 impl Storage {
-    /// Capture and run one trusted transaction under an uninterrupted writer
-    /// lock. `apply` must not manage transactions or publish external effects.
-    /// `validate` checks the target result both before and after commit.
-    /// An error after a commit attempt is OutcomeUnknown: recover, never rerun
-    /// the operation on that basis. This does not implement a migration chain.
     pub async fn with_migration_backup(
         &self,
         folder: impl Into<PathBuf>,
@@ -58,9 +47,6 @@ impl Storage {
         .await
     }
 
-    /// Reconcile a committed attempt without executing its mutation again.
-    /// A missing/corrupt candidate or failed target validation stops recovery;
-    /// neither an old backup nor an orphan is promoted as a fallback.
     pub async fn recover_migration_backup(
         &self,
         folder: impl Into<PathBuf>,
@@ -78,8 +64,6 @@ impl Storage {
         .await
     }
 
-    /// Explicitly delete an abandoned candidate, never a committed current or
-    /// previous reference. Caller supplies the basename from a private folder.
     pub async fn discard_migration_candidate(
         &self,
         folder: impl Into<PathBuf>,
@@ -126,9 +110,6 @@ struct FolderLock(File);
 
 impl Drop for FolderLock {
     fn drop(&mut self) {
-        // Closing alone retains the lock while a duplicate/inherited descriptor
-        // survives, e.g. during a concurrent fork before exec. End ownership
-        // explicitly; closing the file remains the fallback if unlock fails.
         let _ = self.0.unlock();
     }
 }
@@ -145,10 +126,6 @@ fn lock(folder: &Path) -> StorageResult<FolderLock> {
     Ok(FolderLock(file))
 }
 
-// Unix can fsync directory entries. std/tempfile do not provide a Windows
-// directory durability barrier: Windows coverage is process termination, not
-// power loss. All file contents are synced on both platforms. Never silently
-// fall back to another folder or treat a missing committed candidate as success.
 fn sync_directory(path: &Path) -> StorageResult<()> {
     #[cfg(unix)]
     io(io(File::open(path))?.sync_all())?;
@@ -279,9 +256,6 @@ fn reconcile(
     )
 }
 
-/// Startup reconciles or migrates while retaining the folder lock. It rechecks
-/// the version under the writer lock, so competing starts cannot rotate a backup
-/// by executing an already completed migration a second time.
 pub(crate) fn migrate_startup(
     connection: &mut Connection,
     options: &crate::startup::MigrationOptions,
@@ -390,7 +364,6 @@ pub(crate) fn execute_with(
     {
         return Err(StorageError::OutcomeUnknown);
     }
-    // An unfinished publication must be reconciled before any new attempt.
     let prior = reconcile_with(
         &tx,
         folder,
@@ -446,11 +419,9 @@ pub(crate) fn execute_with(
     verify_reference(folder, &record.current, limits, registry)?;
     checkpoint(Point::BeforeCommit)?;
     tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
-    // From here a failure must not be presented as a rollback of the operation.
     (|| {
         checkpoint(Point::AfterCommit)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        // Another process must not supersede the witness during publication.
         if committed(&tx)?.as_ref().map(|r| &r.current) != Some(&record.current) {
             return Err(StorageError::InvalidDatabase);
         }

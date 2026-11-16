@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Actual HTTP/core; only the delivery faults and local persistence are injected. */
 export async function checkCards(page, url, session) {
   const space = crypto.randomUUID().replaceAll("-", ""), column = crypto.randomUUID().replaceAll("-", "");
   const command = (operation, parameters) => page.evaluate(async ({ operation, parameters, key }) => {
@@ -60,7 +59,6 @@ export async function checkCards(page, url, session) {
   assert.deepEqual(await page.locator(".card-title").allTextContents(), ["Первая мысль", "Вторая мысль"]);
   assert.equal(await page.locator(".column-actions button:last-child").isDisabled(), false, "nonempty column offers a complete group preview");
 
-  // Rust rejects Unicode whitespace too; preserve both fields and the request.
   await create("   ", "Не потерять описание");
   await dialog.getByRole("alert").filter({ hasText: "Заголовок карточки не может быть пустым" }).waitFor();
   assert.equal(await field("Заголовок").inputValue(), "   ");
@@ -68,7 +66,6 @@ export async function checkCards(page, url, session) {
   assert.equal((await list()).length, 2);
   await abandon();
 
-  // Opening a destructive action fixes its version. A later agent edit wins.
   await page.locator(".card-note").first().getByRole("button", { name: "В корзину", exact: true }).click();
   await dialog.waitFor();
   const before = (await list())[0];
@@ -78,8 +75,6 @@ export async function checkCards(page, url, session) {
   assert.equal((await list())[0].state, "active");
   await abandon(); await button("Поздняя правка").waitFor();
 
-  // Every lost reply had already committed. Restart and exact replay must not
-  // duplicate the card or substitute the receipt for a later agent edit.
   const bodies = [];
   await page.route("**/v1/commands/card.create", async route => {
     bodies.push(route.request().postData());
@@ -106,7 +101,6 @@ export async function checkCards(page, url, session) {
   assert.equal((await list()).length, 3); assert.equal(await page.evaluate(() => localStorage.length), 0);
   assert.equal(await button("Неизвестный результат").count(), 0);
 
-  // A replayed old trash receipt must leave a subsequent restoration active.
   await page.route("**/v1/commands/card.trash", async route => {
     const response = await (await route.fetch()).json();
     assert.equal(response.status, "ok", `lost trash core error: ${response.error?.code}`); await route.abort();
@@ -123,7 +117,6 @@ export async function checkCards(page, url, session) {
   await button("Новее ответа").waitFor();
   assert.equal((await list()).find(card => card.card === saved.card).state, "active");
 
-  // Denied delivery retains the original form/request; access recovery retries it.
   await page.route("**/v1/commands/card.create", route => route.continue({ headers: { ...route.request().headers(), authorization: `Bearer ${"0".repeat(64)}` } }));
   await create("Доступ восстановлен", "Мой ввод");
   await dialog.getByRole("alert").filter({ hasText: "Нет доступа к этому действию" }).waitFor();
@@ -160,7 +153,6 @@ export async function checkCards(page, url, session) {
   await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
   await page.emulateMedia({ colorScheme: "light" });
   await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
-  // A late card read must not open a dialog on a different board/route.
   let release;
   const held = new Promise(resolve => { release = resolve; });
   let started;

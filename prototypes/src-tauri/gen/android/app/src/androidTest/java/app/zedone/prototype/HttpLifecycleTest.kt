@@ -66,7 +66,6 @@ class HttpLifecycleTest {
   }
 
   @Test fun recreationRevokesHttpAndAllowsOnlyAnExplicitNewSession() {
-    // The instrumentation runner owns teardown; closing Tauri's last window exits.
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     control(scenario, "{\"action\":\"stop\"}")
     val first = control(scenario, "{\"action\":\"start\",\"address\":\"127.0.0.1\",\"port\":0}")

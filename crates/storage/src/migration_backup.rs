@@ -1,5 +1,3 @@
-//! Trusted backup infrastructure; never an authenticated migration/restore API.
-
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
@@ -21,7 +19,6 @@ use crate::{
     snapshot::{SnapshotLimits, SnapshotMetadata, SpaceSnapshot},
 };
 
-/// Admission budgets selected by trusted infrastructure, not product limits.
 #[derive(Clone, Copy, Debug)]
 pub struct BackupLimits {
     pub max_database_bytes: u64,
@@ -30,8 +27,6 @@ pub struct BackupLimits {
     pub snapshot: SnapshotLimits,
 }
 
-/// An isolated, verified candidate. Retained on drop, including lost responses.
-/// Its files contain installation secrets and must stay in a private directory.
 #[derive(Debug)]
 pub struct PreparedBackup {
     directory: TempDir,
@@ -42,12 +37,10 @@ impl PreparedBackup {
         self.directory.path()
     }
 
-    /// Re-read all files; the earlier successful preparation is not a lease.
     pub fn verify(&self, limits: BackupLimits) -> StorageResult<()> {
         verify(self.path(), limits)
     }
 
-    /// Delete only this candidate, never a previous successful backup.
     pub fn discard(self) -> StorageResult<()> {
         io(self.directory.close())
     }
@@ -66,14 +59,10 @@ struct Manifest {
     version: u32,
     created_at_unix_ms: u64,
     database: FileDigest,
-    // Names are derived from indices, never from space IDs or file input.
     spaces: Vec<FileDigest>,
 }
 
 impl Storage {
-    /// Capture a consistent full database and all space archives on the worker.
-    /// `folder` must already exist: no fallback or automatic directory choice.
-    /// Future migration must capture under its own uninterrupted writer lock.
     pub async fn prepare_migration_backup(
         &self,
         folder: impl Into<PathBuf>,
@@ -207,7 +196,6 @@ fn archive(
 }
 
 fn manifest_limit(limits: BackupLimits) -> u64 {
-    // Fixed JSON fields and at most 32 three-digit digest bytes per entry.
     (limits.max_spaces as u64)
         .saturating_add(1)
         .saturating_mul(256)
@@ -231,8 +219,6 @@ pub(crate) fn verify_with(
     if manifest.version != 1 || manifest.spaces.len() > limits.max_spaces {
         return Err(StorageError::InvalidDatabase);
     }
-    // A stray WAL/journal must not contribute un-hashed database state.
-    // Only the expected regular files belong to a self-contained candidate.
     let mut count = 0usize;
     for entry in io(fs::read_dir(folder))? {
         let entry = io(entry)?;
@@ -291,8 +277,6 @@ fn prepare(
     limits: BackupLimits,
     checkpoint: impl Fn(Checkpoint) -> StorageResult<()>,
 ) -> StorageResult<PreparedBackup> {
-    // A second read-only connection is necessary: Backup::step on a source
-    // connection with an active write transaction returns SQLITE_LOCKED.
     let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     schema::check_layout(&tx)?;
     let candidate = capture(&tx, folder, date, limits, checkpoint)?;
@@ -300,7 +284,6 @@ fn prepare(
     Ok(candidate)
 }
 
-// Caller owns the uninterrupted writer transaction, including eventual commit.
 fn capture(
     locked: &rusqlite::Transaction<'_>,
     folder: &Path,
@@ -345,7 +328,6 @@ fn capture_with(
             return Err(StorageError::Unavailable);
         }
     }
-    // Make the candidate self-contained before close/re-open verification.
     destination.pragma_update(None, "journal_mode", "DELETE")?;
     destination.close().map_err(|_| StorageError::Unavailable)?;
     io(io(OpenOptions::new().read(true).write(true).open(&database))?.sync_all())?;
@@ -383,8 +365,6 @@ fn capture_with(
     checkpoint(Checkpoint::BeforeVerify)?;
     verify_with(directory.path(), limits, registry)?;
     checkpoint(Checkpoint::AfterVerify)?;
-    // Successful candidates survive dropped futures/handles. Only explicit
-    // discard deletes one. Crash remnants are never promoted by this module.
     directory.disable_cleanup(true);
     Ok(PreparedBackup { directory })
 }

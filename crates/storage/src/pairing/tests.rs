@@ -452,7 +452,6 @@ async fn confirmation_is_atomic_replayable_and_unlink_preserves_documents_after_
     assert_eq!(unlinked.result.status, PairingStatus::Unlinked);
     db.transact(|tx| {
         assert!(tx.access_snapshot(&sid(3))?.unwrap().revoked);
-        // The pending bearer is never an ordinary access credential.
         assert!(
             tx.resolve_access(&zedone_core::access::Credential(&[3; 32]))?
                 .is_none()
@@ -687,7 +686,6 @@ async fn invalid_scopes_expiries_and_colliding_subjects_never_partially_confirm(
             &AccessScope::administration(),
             None,
         )?;
-        // A principal collision cannot replace or revive the existing subject.
         Ok(())
     })
     .await
@@ -825,7 +823,6 @@ async fn confirmation_uses_ordinary_key_expiry_and_does_not_grant_space_access_t
     })
     .await
     .unwrap();
-    // Expiration is not an implicit unlink or permission extension.
     assert_eq!(current(&db, 3, 11).await.status, PairingStatus::Confirmed);
     db.shutdown().await.unwrap();
 }

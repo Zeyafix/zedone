@@ -1,4 +1,3 @@
-//! Explicitly opted-in debug test fixture. Never linked into a production APK.
 #[cfg(not(debug_assertions))]
 compile_error!("pairing-acceptance must not be enabled in release builds");
 use std::sync::Arc;
@@ -126,8 +125,6 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
                 .await
                 .map_err(|_| ())?
                 .ok_or(())?;
-            // Debug fixture only: exercise the trusted native client method.
-            // This proxy is deliberately absent from production host APIs.
             let routes = host.router().merge(
                 axum::Router::new()
                     .route(

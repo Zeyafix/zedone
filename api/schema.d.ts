@@ -836,26 +836,18 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AccessList: {
-            /** @description At most 50 entries, including revoked/expired grants. No secret/verifier. */
             entries: components["schemas"]["AccessSnapshot"][];
             next?: string | null;
         };
-        /** @enum {string} */
         AccessMode: "read" | "read_write";
         AccessScope: components["schemas"]["AdministrationScope"] | components["schemas"]["AdministrationAndSpacesScope"] | components["schemas"]["SpacesScope"];
-        /**
-         * @description No keys or verifiers leave storage. Version includes retired/current key
-         *     identities internally so a regrant cannot revive a stale revocation request.
-         */
         AccessSnapshot: {
-            /** Format: int64 */
             expires_at_unix_ms?: number | null;
             revoked: boolean;
             scope: components["schemas"]["AccessScope"];
             subject: string;
             version: components["schemas"]["StateVersion"];
         };
-        /** @enum {string} */
         AdministrationAndSpacesKind: "administration_and_spaces";
         AdministrationAndSpacesScope: {
             kind: components["schemas"]["AdministrationAndSpacesKind"];
@@ -863,7 +855,6 @@ export interface components {
                 [key: string]: components["schemas"]["AccessMode"];
             };
         };
-        /** @enum {string} */
         AdministrationKind: "administration";
         AdministrationScope: {
             kind: components["schemas"]["AdministrationKind"];
@@ -876,10 +867,6 @@ export interface components {
             space: string;
             title: string;
         };
-        /**
-         * @description The command ID becomes the session ID. Begin anew after a client restart;
-         *     retry an uncertain begin with its original ID before making a new intention.
-         */
         BeginCardEditing: {
             card: string;
             expected: components["schemas"]["StateVersion"];
@@ -903,7 +890,6 @@ export interface components {
         CardList: {
             cards: components["schemas"]["CardSnapshot"][];
         };
-        /** @description A whole register: concurrent moves cannot mix a column with another rank. */
         CardPlacement: {
             column: string;
             rank: components["schemas"]["Rank"];
@@ -914,7 +900,6 @@ export interface components {
             completed: boolean[];
             deletion_groups: string[];
             descriptions: string[];
-            /** @description Whole variants after a move; legacy documents and receipts omit these. */
             placements?: components["schemas"]["CardPlacement"][];
             positions: components["schemas"]["Rank"][];
             space: string;
@@ -926,10 +911,6 @@ export interface components {
         CardTextVersion: {
             description: string;
             id: string;
-            /**
-             * Format: int64
-             * @description Local causal sequence; independent branches may share a sequence.
-             */
             sequence: number;
             subject: string;
             title: string;
@@ -944,16 +925,10 @@ export interface components {
         };
         ColumnSnapshot: {
             column: string;
-            /**
-             * @description Current members, including earlier trash and conflicts, for scope preview.
-             *     None means unsupported contents; legacy receipts also omit this field.
-             */
             contents?: components["schemas"]["CardSnapshot"][] | null;
             deletion_groups: string[];
-            /** @description True only when there are no cards or unknown contents. */
             empty: boolean;
             names: string[];
-            /** @description All distinct position registers; conflicting values are never overwritten. */
             positions: components["schemas"]["Rank"][];
             space: string;
             state: components["schemas"]["SpaceState"];
@@ -966,13 +941,6 @@ export interface components {
             error: components["schemas"]["CommandError"];
             status: components["schemas"]["ErrorStatus"];
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_AutosaveCard: {
             id: [
                 number,
@@ -1002,13 +970,6 @@ export interface components {
                 title: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_BeginCardEditing: {
             id: [
                 number,
@@ -1029,23 +990,12 @@ export interface components {
                 number
             ];
             operation: string;
-            /**
-             * @description The command ID becomes the session ID. Begin anew after a client restart;
-             *     retry an uncertain begin with its original ID before making a new intention.
-             */
             parameters: {
                 card: string;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CancelInvitation: {
             id: [
                 number,
@@ -1071,13 +1021,6 @@ export interface components {
                 invitation: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CancelPairing: {
             id: [
                 number,
@@ -1103,13 +1046,6 @@ export interface components {
                 request: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ClearHistory: {
             id: [
                 number,
@@ -1136,13 +1072,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ConfirmPairing: {
             id: [
                 number,
@@ -1165,20 +1094,11 @@ export interface components {
             operation: string;
             parameters: {
                 expected: components["schemas"]["StateVersion"];
-                /** Format: int64 */
                 expires_at_unix_ms?: number | null;
                 request: string;
-                /** @description Explicit scopes only; administration never implies space access. */
                 scope: components["schemas"]["AccessScope"];
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CreateCard: {
             id: [
                 number,
@@ -1207,13 +1127,6 @@ export interface components {
                 title: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CreateColumn: {
             id: [
                 number,
@@ -1240,13 +1153,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CreateInvitation: {
             id: [
                 number,
@@ -1272,13 +1178,6 @@ export interface components {
                 verifier: components["schemas"]["InvitationVerifier"];
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CreateSpace: {
             id: [
                 number,
@@ -1304,13 +1203,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_CreateTag: {
             id: [
                 number,
@@ -1337,13 +1229,6 @@ export interface components {
                 tag: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_DeleteTag: {
             id: [
                 number,
@@ -1370,13 +1255,6 @@ export interface components {
                 tag: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_EditCard: {
             id: [
                 number,
@@ -1405,13 +1283,6 @@ export interface components {
                 title: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_FinishCardEditing: {
             id: [
                 number,
@@ -1439,13 +1310,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_InspectAccess: {
             id: [
                 number,
@@ -1470,13 +1334,6 @@ export interface components {
                 subject: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_InspectHistory: {
             id: [
                 number,
@@ -1502,13 +1359,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_InspectInvitation: {
             id: [
                 number,
@@ -1533,13 +1383,6 @@ export interface components {
                 invitation: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_InspectPairing: {
             id: [
                 number,
@@ -1564,13 +1407,6 @@ export interface components {
                 request: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_InspectTrash: {
             id: [
                 number,
@@ -1596,13 +1432,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_IssueAccess: {
             id: [
                 number,
@@ -1624,20 +1453,12 @@ export interface components {
             ];
             operation: string;
             parameters: {
-                /** Format: int64 */
                 expires_at_unix_ms?: number | null;
                 scope: components["schemas"]["AccessScope"];
                 subject: string;
                 verifier: components["schemas"]["KeyVerifier"];
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListAccess: {
             id: [
                 number,
@@ -1659,17 +1480,9 @@ export interface components {
             ];
             operation: string;
             parameters: {
-                /** @description Exclusive subject cursor. New reads need new command IDs. */
                 after?: string | null;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListCards: {
             id: [
                 number,
@@ -1695,13 +1508,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListColumns: {
             id: [
                 number,
@@ -1727,13 +1533,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListInvitations: {
             id: [
                 number,
@@ -1758,13 +1557,6 @@ export interface components {
                 after?: string | null;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListPairings: {
             id: [
                 number,
@@ -1789,13 +1581,6 @@ export interface components {
                 after?: string | null;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListSpaces: {
             id: [
                 number,
@@ -1820,13 +1605,6 @@ export interface components {
                 include_trashed: boolean;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ListTags: {
             id: [
                 number,
@@ -1852,13 +1630,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_MoveCard: {
             id: [
                 number,
@@ -1880,7 +1651,6 @@ export interface components {
             ];
             operation: string;
             parameters: {
-                /** @description Insert before this active card in the destination; null appends. */
                 before?: string | null;
                 card: string;
                 column: string;
@@ -1888,13 +1658,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_MoveColumn: {
             id: [
                 number,
@@ -1916,20 +1679,12 @@ export interface components {
             ];
             operation: string;
             parameters: {
-                /** @description Insert before this active column; null appends. */
                 before?: string | null;
                 column: string;
                 expected: components["schemas"]["StateVersion"];
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_PurgeTrash: {
             id: [
                 number,
@@ -1956,13 +1711,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReadCard: {
             id: [
                 number,
@@ -1988,13 +1736,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReadCardHistory: {
             id: [
                 number,
@@ -2019,18 +1760,10 @@ export interface components {
                 after?: string | null;
                 card: string;
                 expected?: components["schemas"]["StateVersion"] | null;
-                /** Format: int32 */
                 limit: number;
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReadColumn: {
             id: [
                 number,
@@ -2056,13 +1789,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReadSpace: {
             id: [
                 number,
@@ -2087,13 +1813,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReadTag: {
             id: [
                 number,
@@ -2119,13 +1838,6 @@ export interface components {
                 tag: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RejectPairing: {
             id: [
                 number,
@@ -2151,13 +1863,6 @@ export interface components {
                 request: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RenameColumn: {
             id: [
                 number,
@@ -2185,13 +1890,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RenameSpace: {
             id: [
                 number,
@@ -2218,13 +1916,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RenameTag: {
             id: [
                 number,
@@ -2252,13 +1943,6 @@ export interface components {
                 tag: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_ReplaceAccess: {
             id: [
                 number,
@@ -2279,26 +1963,14 @@ export interface components {
                 number
             ];
             operation: string;
-            /**
-             * @description Permission changes and re-issuance always rotate the key. A stale preview
-             *     cannot replace newer permissions or revive an already revoked credential.
-             */
             parameters: {
                 expected: components["schemas"]["StateVersion"];
-                /** Format: int64 */
                 expires_at_unix_ms?: number | null;
                 scope: components["schemas"]["AccessScope"];
                 subject: string;
                 verifier: components["schemas"]["KeyVerifier"];
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RequestPairing: {
             id: [
                 number,
@@ -2322,18 +1994,10 @@ export interface components {
             parameters: {
                 access_verifier: components["schemas"]["KeyVerifier"];
                 invitation: string;
-                /** @description Claimed display name, never an authenticated device identity. */
                 label: string;
                 request: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RestoreCard: {
             id: [
                 number,
@@ -2356,20 +2020,12 @@ export interface components {
             operation: string;
             parameters: {
                 card: string;
-                /** @description Omit to restore to the original active column. */
                 column?: string | null;
                 expected: components["schemas"]["StateVersion"];
                 expected_column?: components["schemas"]["StateVersion"] | null;
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RestoreCardText: {
             id: [
                 number,
@@ -2397,13 +2053,6 @@ export interface components {
                 text_version: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RestoreColumn: {
             id: [
                 number,
@@ -2430,13 +2079,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RestoreSpace: {
             id: [
                 number,
@@ -2462,13 +2104,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_RevokeAccess: {
             id: [
                 number,
@@ -2494,13 +2129,6 @@ export interface components {
                 subject: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_SearchCards: {
             id: [
                 number,
@@ -2523,17 +2151,9 @@ export interface components {
             operation: string;
             parameters: {
                 query: string;
-                /** @description Hosts map the active space to Space; clearing query never changes scope. */
                 scope: components["schemas"]["SearchScope"];
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_SetCardCompleted: {
             id: [
                 number,
@@ -2561,13 +2181,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_SetCardTag: {
             id: [
                 number,
@@ -2597,13 +2210,6 @@ export interface components {
                 tag: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_TrashCard: {
             id: [
                 number,
@@ -2630,13 +2236,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_TrashColumn: {
             id: [
                 number,
@@ -2663,13 +2262,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_TrashSpace: {
             id: [
                 number,
@@ -2695,13 +2287,6 @@ export interface components {
                 space: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_UnlinkPairing: {
             id: [
                 number,
@@ -2727,13 +2312,6 @@ export interface components {
                 request: string;
             };
         };
-        /**
-         * @description Preserve this entire request, including the ID, for every delivery of an
-         *     intention. New intentions require new client-generated cryptographic IDs.
-         *     Concrete command types define all targets, parameters and original versions.
-         *     The Value specialization in OpenAPI describes only this envelope, not an
-         *     implemented operation or a substitute for concrete command validation.
-         */
         CommandRequest_Value: {
             id: [
                 number,
@@ -2756,143 +2334,28 @@ export interface components {
             operation: string;
             parameters: unknown;
         };
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_AccessList: components["schemas"]["CommandSuccess_AccessList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_AccessSnapshot: components["schemas"]["CommandSuccess_AccessSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_CardHistory: components["schemas"]["CommandSuccess_CardHistory"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_CardList: components["schemas"]["CommandSuccess_CardList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_CardSnapshot: components["schemas"]["CommandSuccess_CardSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_HistoryPreview: components["schemas"]["CommandSuccess_HistoryPreview"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_InvitationSnapshot: components["schemas"]["CommandSuccess_InvitationSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_PairingList: components["schemas"]["CommandSuccess_PairingList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_PairingSnapshot: components["schemas"]["CommandSuccess_PairingSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_SpaceSnapshot: components["schemas"]["CommandSuccess_SpaceSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_TagList: components["schemas"]["CommandSuccess_TagList"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_TagSnapshot: components["schemas"]["CommandSuccess_TagSnapshot"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_TrashPreview: components["schemas"]["CommandSuccess_TrashPreview"] | components["schemas"]["CommandFailure"];
-        /**
-         * @description Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-         *     A success confirms the original completion, not the current object state.
-         *     Construct success only AFTER the storage transaction commits. Cancellation,
-         *     a lost response or uncertain commit must never be converted to success.
-         */
         CommandResponse_Value: components["schemas"]["CommandSuccess_Value"] | components["schemas"]["CommandFailure"];
         CommandSuccess_AccessList: {
             replayed: boolean;
             result: {
-                /** @description At most 50 entries, including revoked/expired grants. No secret/verifier. */
                 entries: components["schemas"]["AccessSnapshot"][];
                 next?: string | null;
             };
@@ -2900,12 +2363,7 @@ export interface components {
         };
         CommandSuccess_AccessSnapshot: {
             replayed: boolean;
-            /**
-             * @description No keys or verifiers leave storage. Version includes retired/current key
-             *     identities internally so a regrant cannot revive a stale revocation request.
-             */
             result: {
-                /** Format: int64 */
                 expires_at_unix_ms?: number | null;
                 revoked: boolean;
                 scope: components["schemas"]["AccessScope"];
@@ -2940,7 +2398,6 @@ export interface components {
                 completed: boolean[];
                 deletion_groups: string[];
                 descriptions: string[];
-                /** @description Whole variants after a move; legacy documents and receipts omit these. */
                 placements?: components["schemas"]["CardPlacement"][];
                 positions: components["schemas"]["Rank"][];
                 space: string;
@@ -2962,16 +2419,10 @@ export interface components {
             replayed: boolean;
             result: {
                 column: string;
-                /**
-                 * @description Current members, including earlier trash and conflicts, for scope preview.
-                 *     None means unsupported contents; legacy receipts also omit this field.
-                 */
                 contents?: components["schemas"]["CardSnapshot"][] | null;
                 deletion_groups: string[];
-                /** @description True only when there are no cards or unknown contents. */
                 empty: boolean;
                 names: string[];
-                /** @description All distinct position registers; conflicting values are never overwritten. */
                 positions: components["schemas"]["Rank"][];
                 space: string;
                 state: components["schemas"]["SpaceState"];
@@ -2982,16 +2433,10 @@ export interface components {
         CommandSuccess_HistoryPreview: {
             replayed: boolean;
             result: {
-                /** @description None means every card in this space, including trash. */
                 card?: string | null;
                 entries: components["schemas"]["HistoryEntry"][];
-                /** Format: int64 */
                 removable_bytes: number;
                 space: string;
-                /**
-                 * Format: int64
-                 * @description Logical UTF-8 title/description bytes, not allocated database space.
-                 */
                 text_bytes: number;
                 version: components["schemas"]["StateVersion"];
             };
@@ -3008,9 +2453,7 @@ export interface components {
         CommandSuccess_InvitationSnapshot: {
             replayed: boolean;
             result: {
-                /** Format: int64 */
                 created_at_unix_ms: number;
-                /** Format: int64 */
                 expires_at_unix_ms: number;
                 invitation: string;
                 status: components["schemas"]["InvitationStatus"];
@@ -3029,13 +2472,11 @@ export interface components {
         CommandSuccess_PairingSnapshot: {
             replayed: boolean;
             result: {
-                /** Format: int64 */
                 created_at_unix_ms: number;
                 invitation: string;
                 label: string;
                 request: string;
                 status: components["schemas"]["PairingStatus"];
-                /** @description Ordinary access subject for a decided connection, never a secret. */
                 subject?: string | null;
                 version: components["schemas"]["StateVersion"];
             };
@@ -3044,7 +2485,6 @@ export interface components {
         CommandSuccess_SearchResults: {
             replayed: boolean;
             result: {
-                /** @description Only spaces containing matches, in the same order as space.list. */
                 spaces: components["schemas"]["SearchSpace"][];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -3062,7 +2502,6 @@ export interface components {
                 contents?: components["schemas"]["SpaceContents"] | null;
                 deletion_groups: string[];
                 empty: boolean;
-                /** @description All distinct current names; multiple names require conflict resolution. */
                 names: string[];
                 space: string;
                 state: components["schemas"]["SpaceState"];
@@ -3084,7 +2523,6 @@ export interface components {
                 space: string;
                 state: components["schemas"]["TagState"];
                 tag: string;
-                /** @description Includes causal assignment history, so deletion cannot expand silently. */
                 version: components["schemas"]["StateVersion"];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -3094,7 +2532,6 @@ export interface components {
             result: {
                 cards: components["schemas"]["CardSnapshot"][];
                 columns: components["schemas"]["ColumnSnapshot"][];
-                /** @description Stable object identities to resolve before preparing a new action. */
                 conflicts: string[];
                 includes_space: boolean;
                 selection: components["schemas"]["TrashSelection"];
@@ -3110,10 +2547,8 @@ export interface components {
         };
         ConfirmPairing: {
             expected: components["schemas"]["StateVersion"];
-            /** Format: int64 */
             expires_at_unix_ms?: number | null;
             request: string;
-            /** @description Explicit scopes only; administration never implies space access. */
             scope: components["schemas"]["AccessScope"];
         };
         CreateCard: {
@@ -3153,16 +2588,7 @@ export interface components {
             space: string;
             title: string;
         };
-        /**
-         * @description Shared machine-readable errors, without credentials, SQL or platform details.
-         *
-         *     Codes describe semantics, not HTTP statuses or retry policy. A stale request
-         *     requires a fresh read and a new explicit action. An unknown outcome requires
-         *     checking/replaying the original command, never inventing a new command ID.
-         * @enum {string}
-         */
         ErrorCode: "invalid_request" | "access_denied" | "not_found" | "stale_state" | "conflict" | "command_mismatch" | "unavailable" | "outcome_unknown";
-        /** @enum {string} */
         ErrorStatus: "error";
         FinishCardEditing: {
             card: string;
@@ -3172,21 +2598,14 @@ export interface components {
         };
         HistoryEntry: {
             card: string;
-            /** @description Conservatively retain history of every card with unresolved conflicts. */
             retained: boolean;
             version: components["schemas"]["CardTextVersion"];
         };
         HistoryPreview: {
-            /** @description None means every card in this space, including trash. */
             card?: string | null;
             entries: components["schemas"]["HistoryEntry"][];
-            /** Format: int64 */
             removable_bytes: number;
             space: string;
-            /**
-             * Format: int64
-             * @description Logical UTF-8 title/description bytes, not allocated database space.
-             */
             text_bytes: number;
             version: components["schemas"]["StateVersion"];
         };
@@ -3212,28 +2631,19 @@ export interface components {
             next?: string | null;
         };
         InvitationSnapshot: {
-            /** Format: int64 */
             created_at_unix_ms: number;
-            /** Format: int64 */
             expires_at_unix_ms: number;
             invitation: string;
             status: components["schemas"]["InvitationStatus"];
             version: components["schemas"]["StateVersion"];
         };
-        /** @enum {string} */
         InvitationStatus: "open" | "expired" | "cancelled" | "used" | "locked";
         InvitationVerifier: number[];
-        /**
-         * @description Tauri framing preserves the original JSON string, including duplicate
-         *     fields for the concrete decoder to reject. Credentials are a separate IPC
-         *     argument, never part of the command or a saved client intention.
-         */
         IpcInvocation: {
             operation: string;
             request: string;
         };
         IssueAccess: {
-            /** Format: int64 */
             expires_at_unix_ms?: number | null;
             scope: components["schemas"]["AccessScope"];
             subject: string;
@@ -3241,7 +2651,6 @@ export interface components {
         };
         KeyVerifier: number[];
         ListAccess: {
-            /** @description Exclusive subject cursor. New reads need new command IDs. */
             after?: string | null;
         };
         ListCards: {
@@ -3266,7 +2675,6 @@ export interface components {
             space: string;
         };
         MoveCard: {
-            /** @description Insert before this active card in the destination; null appends. */
             before?: string | null;
             card: string;
             column: string;
@@ -3274,7 +2682,6 @@ export interface components {
             space: string;
         };
         MoveColumn: {
-            /** @description Insert before this active column; null appends. */
             before?: string | null;
             column: string;
             expected: components["schemas"]["StateVersion"];
@@ -3285,27 +2692,22 @@ export interface components {
             next?: string | null;
         };
         PairingSnapshot: {
-            /** Format: int64 */
             created_at_unix_ms: number;
             invitation: string;
             label: string;
             request: string;
             status: components["schemas"]["PairingStatus"];
-            /** @description Ordinary access subject for a decided connection, never a secret. */
             subject?: string | null;
             version: components["schemas"]["StateVersion"];
         };
-        /** @enum {string} */
         PairingStatus: "pending" | "cancelled" | "rejected" | "confirmed" | "unlinked";
         PurgeTrash: {
             expected: components["schemas"]["StateVersion"];
             selection: components["schemas"]["TrashSelection"];
             space: string;
         };
-        /** @description Legacy integer positions remain valid in historical documents and receipts. */
         Rank: number | components["schemas"]["RankPart"][];
         RankPart: {
-            /** Format: int32 */
             digit: number;
             id: string;
         };
@@ -3317,7 +2719,6 @@ export interface components {
             after?: string | null;
             card: string;
             expected?: components["schemas"]["StateVersion"] | null;
-            /** Format: int32 */
             limit: number;
             space: string;
         };
@@ -3353,13 +2754,8 @@ export interface components {
             space: string;
             tag: string;
         };
-        /**
-         * @description Permission changes and re-issuance always rotate the key. A stale preview
-         *     cannot replace newer permissions or revive an already revoked credential.
-         */
         ReplaceAccess: {
             expected: components["schemas"]["StateVersion"];
-            /** Format: int64 */
             expires_at_unix_ms?: number | null;
             scope: components["schemas"]["AccessScope"];
             subject: string;
@@ -3368,13 +2764,11 @@ export interface components {
         RequestPairing: {
             access_verifier: components["schemas"]["KeyVerifier"];
             invitation: string;
-            /** @description Claimed display name, never an authenticated device identity. */
             label: string;
             request: string;
         };
         RestoreCard: {
             card: string;
-            /** @description Omit to restore to the original active column. */
             column?: string | null;
             expected: components["schemas"]["StateVersion"];
             expected_column?: components["schemas"]["StateVersion"] | null;
@@ -3399,32 +2793,26 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             subject: string;
         };
-        /** @enum {string} */
         SearchAllKind: "all";
         SearchAllScope: {
             kind: components["schemas"]["SearchAllKind"];
         };
         SearchCards: {
             query: string;
-            /** @description Hosts map the active space to Space; clearing query never changes scope. */
             scope: components["schemas"]["SearchScope"];
         };
         SearchHit: {
             card: components["schemas"]["CardSnapshot"];
-            /** @description These hits precede ordinary board positions inside their space. */
             placement_conflict: boolean;
         };
         SearchResults: {
-            /** @description Only spaces containing matches, in the same order as space.list. */
             spaces: components["schemas"]["SearchSpace"][];
         };
         SearchScope: components["schemas"]["SearchSpaceScope"] | components["schemas"]["SearchAllScope"];
         SearchSpace: {
             hits: components["schemas"]["SearchHit"][];
-            /** @description All current names; len > 1 identifies the leading name-conflict group. */
             space: components["schemas"]["SpaceSnapshot"];
         };
-        /** @enum {string} */
         SearchSpaceKind: "space";
         SearchSpaceScope: {
             kind: components["schemas"]["SearchSpaceKind"];
@@ -3456,15 +2844,12 @@ export interface components {
             contents?: components["schemas"]["SpaceContents"] | null;
             deletion_groups: string[];
             empty: boolean;
-            /** @description All distinct current names; multiple names require conflict resolution. */
             names: string[];
             space: string;
             state: components["schemas"]["SpaceState"];
             version: components["schemas"]["StateVersion"];
         };
-        /** @enum {string} */
         SpaceState: "active" | "trashed" | "conflicted";
-        /** @enum {string} */
         SpacesKind: "spaces";
         SpacesScope: {
             kind: components["schemas"]["SpacesKind"];
@@ -3473,7 +2858,6 @@ export interface components {
             };
         };
         StateVersion: number[];
-        /** @enum {string} */
         SuccessStatus: "ok";
         TagList: {
             tags: components["schemas"]["TagSnapshot"][];
@@ -3483,10 +2867,8 @@ export interface components {
             space: string;
             state: components["schemas"]["TagState"];
             tag: string;
-            /** @description Includes causal assignment history, so deletion cannot expand silently. */
             version: components["schemas"]["StateVersion"];
         };
-        /** @enum {string} */
         TagState: "active" | "deleted" | "conflicted";
         TrashCard: {
             card: string;
@@ -3501,7 +2883,6 @@ export interface components {
         TrashPreview: {
             cards: components["schemas"]["CardSnapshot"][];
             columns: components["schemas"]["ColumnSnapshot"][];
-            /** @description Stable object identities to resolve before preparing a new action. */
             conflicts: string[];
             includes_space: boolean;
             selection: components["schemas"]["TrashSelection"];
@@ -3509,15 +2890,12 @@ export interface components {
             version: components["schemas"]["StateVersion"];
         };
         TrashSelection: {
-            /** @enum {string} */
             kind: "all";
         } | {
-            /** @enum {string} */
             kind: "space";
         } | {
             cards: string[];
             columns: string[];
-            /** @enum {string} */
             kind: "objects";
         };
         TrashSpace: {

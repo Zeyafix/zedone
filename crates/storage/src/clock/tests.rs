@@ -83,7 +83,6 @@ async fn expiry_before_commit_rolls_back_data_and_receipt_but_keeps_clock() {
                 &[RequiredAccess::ManageAccess],
                 clock,
                 |ctx, _| {
-                    // Register a shorter deadline as a nested authorized operation would.
                     clock.check_expiry(Some(UNIX_EPOCH + Duration::from_millis(1_500_000)))?;
                     ctx.edit("a", |tx| {
                         tx.put(ROOT, "title", "must roll back")?;
@@ -580,7 +579,6 @@ async fn monotonic_expiry_on_frozen_calendar_survives_restart() {
     assert_eq!(
         storage
             .timed_with_source(fixed_source(1_000_000), move |ctx, clock| {
-                // Equal calendar time is valid, but does not revive the key.
                 Ok(with_authorized(
                     ctx,
                     &Credential(&key),

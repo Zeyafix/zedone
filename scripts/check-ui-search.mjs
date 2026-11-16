@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Real Service data; shared desktop, host touch and Android CI scenario. */
 export async function checkSearch(page, { tap, fill, back: platformBack = () => page.keyboard.press("Escape"), dismissKeyboard = async () => {} } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const input = fill || ((selector, value) => page.locator(selector).fill(value));
@@ -65,7 +64,6 @@ export async function checkSearch(page, { tap, fill, back: platformBack = () => 
   assert.deepEqual(await command("card.list", { space: a, include_trashed: true }), preserved);
   assert.deepEqual(await command("card.history", { space: a, card: one, after: null, limit: 100, expected: null }), history);
 
-  // A result is a snapshot. Opening it reads the current card and its own tag catalogue.
   await click('input[name="search-scope"][value="all"]'); await search(marker);
   await command("card.set_completed", { space: b, card: elsewhere, expected: (await current(b, elsewhere)).version, completed: true });
   await click(`.search-hits li[data-card="${elsewhere}"] .card-title`);
@@ -76,7 +74,6 @@ export async function checkSearch(page, { tap, fill, back: platformBack = () => 
   await dismissKeyboard(); await platformBack(); await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
   await click(".search-submit"); await ready();
   assert.ok((await page.locator(`.search-hits li[data-card="${elsewhere}"]`).textContent()).includes("Выполнено"));
-  // Existing editor mutations refresh these results, including another space.
   for (const completed of [false, true]) {
     await click(`.search-hits li[data-card="${elsewhere}"] .card-title`);
     await page.waitForFunction(() => document.querySelector(".card-editor > .view-actions > button[aria-pressed]"));
@@ -103,8 +100,6 @@ export async function checkSearch(page, { tap, fill, back: platformBack = () => 
       assert.equal(await page.locator(".pending-panel").count(), 0, "failed reads never enter the mutation queue");
       await page.unroute(pattern); await click(".search-submit"); await ready();
     }
-    // A late response from an older query must never become visible.
-    // Other browser passes share this fixture; scope generic words to this board.
     await click('input[name="search-scope"][value="space"]');
     let release, captured, delivered;
     const intercepted = new Promise(resolve => { captured = resolve; });
@@ -121,7 +116,6 @@ export async function checkSearch(page, { tap, fill, back: platformBack = () => 
     await search("Всё"); assert.deepEqual(await ids(), [two]);
     release(); await finished; await page.unroute(pattern);
     assert.deepEqual(await ids(), [two]);
-    // Presentation of future conflict snapshots, without pretending sync is implemented.
     const snapshot = await command("card.search", { query: marker, scope: { kind: "all" } });
     snapshot.spaces[0].space.names = ["Альфа", "Бета"];
     snapshot.spaces[0].hits[0].placement_conflict = true;

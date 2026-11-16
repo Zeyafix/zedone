@@ -13,7 +13,6 @@ use zedone_core::{
 
 use crate::{MAX_REQUEST_BYTES, Service};
 
-/// Listener/lifetime belongs to the host. No CORS or unauthenticated bootstrap.
 pub fn router(service: Service) -> Router {
     router_with_origin(service, None)
 }
@@ -24,8 +23,6 @@ struct HttpState {
     browser_origin: Option<String>,
 }
 
-/// The host can explicitly allow its own UI origin. Neither Host nor Origin
-/// from a request supplies this setting, and an allowed page still needs a key.
 pub fn router_with_origin(service: Service, browser_origin: Option<String>) -> Router {
     Router::new()
         .route("/v1/commands/{operation}", post(dispatch))
@@ -56,7 +53,6 @@ async fn command(
     body: Result<Bytes, axum::extract::rejection::BytesRejection>,
     operation: &str,
 ) -> Response {
-    // Cross-origin pages and duplicated/ambiguous authentication are rejected.
     let origins = headers.get_all("origin").iter().collect::<Vec<_>>();
     if (!origins.is_empty()
         && (origins.len() != 1 || origins[0].to_str().ok() != state.browser_origin.as_deref()))
@@ -91,8 +87,6 @@ fn failure(code: ErrorCode) -> Response {
     respond(Err(CommandError { code }).into())
 }
 fn respond(response: CommandResponse<serde_json::Value>) -> Response {
-    // Command outcomes share the strict envelope on every transport. HTTP 200
-    // means an envelope was delivered, not that the command succeeded.
     (
         StatusCode::OK,
         [

@@ -6,7 +6,6 @@ import { inverse, type Move, type Snapshot, type Target } from "./board";
 import MoveDialog from "./MoveDialog.vue";
 
 const snapshot = ref<Snapshot>();
-// Disposable presentation for Sortable; only a committed Rust response is authoritative.
 const columns = ref<{ id: number; title: string; cards: Snapshot["cards"] }[]>([]);
 const busy = ref(false);
 const dragging = ref(false);
@@ -57,7 +56,6 @@ async function move(request: Move) {
       present((await storage({ action: "snapshot", space: "A" })).snapshot);
       message.value = `Перемещение не подтверждено. ${reason} Показаны данные из хранилища; выберите действие заново.`;
     } catch {
-      // Hide the tentative order when even reconciliation is unavailable.
       columns.value = [];
       message.value = "Результат сохранения пока неизвестен. Перечитайте доску перед новым действием.";
     }

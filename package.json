@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check:comments": "bun scripts/source-comments.mjs",
+    "test:comments": "bun test tests/source-comments.test.mjs",
     "ui:build": "bun --bun vite build --config ui/vite.config.mjs",
     "ui:check": "bun scripts/check-ui.mjs"
   },
@@ -17,6 +19,10 @@
     "openapi-fetch": "0.17.0"
   },
   "devDependencies": {
+    "@babel/parser": "7.29.11",
+    "@vue/compiler-dom": "3.5.44",
+    "@vue/compiler-sfc": "3.5.44",
+    "postcss": "8.5.32",
     "@types/sortablejs": "1.15.9",
     "@types/web-bluetooth": "0.0.22",
     "@vitejs/plugin-vue": "6.0.10",

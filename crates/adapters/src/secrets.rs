@@ -1,4 +1,3 @@
-//! Host-only storage boundary. Never dispatch these operations from renderer JSON.
 use std::future::Future;
 use zeroize::Zeroizing;
 
@@ -30,8 +29,6 @@ impl Slot {
     }
 }
 
-/// Hosts serialize lifecycle changes. A missing value is distinct from any
-/// read/decryption failure. create never replaces an existing value.
 pub trait SecretStore: Send + Sync {
     fn load(&self, slot: Slot) -> impl Future<Output = Result<Option<Secret>, SecretError>> + Send;
     fn create(

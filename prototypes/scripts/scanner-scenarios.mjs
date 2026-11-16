@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-// Real Android permission/camera lifecycle; no simulated recognition result.
 export async function checkScanner(page, { device, tap, until, app }) {
   const airplane = device("shell", "settings", "get", "global", "airplane_mode_on");
   const wifi = device("shell", "settings", "get", "global", "wifi_on");
@@ -12,12 +11,10 @@ export async function checkScanner(page, { device, tap, until, app }) {
     const active = () => page.waitForFunction(() => document.body.classList.contains("qr-scanning"));
     const cameraClients = () => device("shell", "dumpsys", "media.camera").split("== Camera service events log")[0];
     const released = () => until(() => !cameraClients().includes(`Client Package Name: ${app}`), "camera client released");
-    // ACL exposes just scan/cancel/permission checks, not unrelated scanner actions.
     for (const command of ["vibrate", "open_app_settings"]) await assert.rejects(page.evaluate(command =>
       window.__TAURI_INTERNALS__.invoke(`plugin:barcode-scanner|${command}`), command));
     await tap("#scan-start");
     await until(() => device("shell", "dumpsys", "window").includes("GrantPermissionsActivity"), "real permission prompt");
-    // OS dialog automation uses the actual node's bounds, not fixed screen coordinates.
     function permissionButton(id) {
       device("shell", "uiautomator", "dump", "/data/local/tmp/zedone-permission.xml");
       const xml = device("shell", "cat", "/data/local/tmp/zedone-permission.xml");
@@ -32,7 +29,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     assert.match(await status(), /Нет разрешения/);
     await released();
 
-    // Grant through the real OS dialog; scan runs on AOSP without GMS/model.
     await tap("#scan-start");
     await until(() => device("shell", "dumpsys", "window").includes("GrantPermissionsActivity"), "second permission prompt");
     permissionButton("permission_allow_foreground_only_button");
@@ -42,7 +38,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     await idle();
     await released();
     assert.match(await status(), /отменено/);
-    // Cancellation during asynchronous CameraX setup must not open a late camera.
     await tap("#scan-start");
     await active();
     await tap("#scan-cancel");
@@ -66,7 +61,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     await idle();
     await released();
 
-    // No result from ML Kit cannot leave the form blocked forever or say bad invitation.
     await tap("#scan-start");
     await active();
     await page.waitForFunction(() => document.querySelector("#scan-start"), null, { timeout: 30000 });
@@ -75,7 +69,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     assert.equal(await page.locator("#invitation-error").count(), 0);
     assert.equal(await page.locator("#invitation-result").count(), 0);
     assert.equal(await page.locator("#invitation-submit").isDisabled(), false);
-    // Camera permission can exist while camera access is blocked by the OS.
     const cameraMode = device("shell", "cmd", "appops", "get", "--uid", app, "CAMERA").match(/Uid mode: CAMERA: ([a-z_]+)/)?.[1] || "default";
     device("shell", "cmd", "appops", "set", "--uid", app, "CAMERA", "ignore");
     try {
@@ -87,8 +80,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
       assert.equal(await page.locator("#invitation-result").count(), 0);
       assert.equal(await page.locator("#invitation-submit").isDisabled(), false);
     } finally { device("shell", "cmd", "appops", "set", "--uid", app, "CAMERA", cameraMode); }
-    // Inject a decoded reply at the transport boundary to test the UI's success
-    // and late-reply paths. This does NOT establish optical decoding by ML Kit.
     const data = { address: "http://192.0.2.1:4317/ёж", code: 'Ёж café 😀 <b>literal</b>' };
     async function fakeScan(text, late = false, failInspection = false) {
       await page.evaluate(({ text, late, failInspection }) => {
@@ -130,7 +121,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     assert.equal(await page.locator("#invitation-result").count(), 0);
     assert.equal(await page.locator("#invitation-scanned").textContent(), "not JSON", "Late reply must not replace the previous raw input");
     await tap("#invitation-clear");
-    // An unconfirmed cancel must prevent another scan but permit manual inspection.
     await fakeScan(JSON.stringify(data), true);
     await active();
     await page.evaluate(() => {
@@ -148,7 +138,6 @@ export async function checkScanner(page, { device, tap, until, app }) {
     assert.equal(await page.locator("#invitation-result").count(), 0);
     await tap("#invitation-clear");
     assert.match(await status(), /Не удалось подтвердить остановку/);
-    // Revocation kills the process on Android; the runner restores it after disconnect.
     console.log("Real Android scanner: permission denial/grant, camera cancel/reopen, Back/Home cleanup, blocked camera and missing GMS/model timeout passed. Optical decoding NOT tested.");
     console.log("Injected scanner replies: exact Unicode, raw input retained after IPC failure/retry, malformed data and ignored late reply passed; NOT a camera decoding test.");
   } finally {

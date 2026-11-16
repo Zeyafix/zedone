@@ -1,4 +1,3 @@
-//! Same process-restart probe on Windows, Linux and Android; no network listener.
 #![forbid(unsafe_code)]
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

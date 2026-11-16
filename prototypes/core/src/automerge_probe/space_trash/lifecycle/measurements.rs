@@ -1,4 +1,3 @@
-//! Release workload measurements. No application memory/latency acceptance claim.
 use super::*;
 use std::time::Instant;
 
@@ -154,7 +153,6 @@ fn hierarchy(directory: &Path, cards: usize, edits: usize, lines: usize) -> Resu
     let clear_ms = timed(|| history::clear(&mut a.doc, &plan))?.1;
     let after_clear_bytes = a.doc.save().len();
     assert!(history::versions(&a.doc)?.is_empty());
-    // Old history remains addressable in the causal graph after logical cleanup.
     a.doc.fork_at(&checkpoint)?;
     store.write("A", &a)?;
     let restore_ms = timed(|| restore(&mut store, "workload", &a.fingerprint()?))?.1;

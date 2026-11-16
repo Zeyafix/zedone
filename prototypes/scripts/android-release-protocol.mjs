@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { inflateSync } from "node:zlib";
 
-// JSON line followed, only for RGBA screenshots, by an explicitly sized body.
-// TCP/ADB may split either part anywhere, including inside a UTF-8 character.
 export function responseDecoder(receive) {
   let buffered = Buffer.alloc(0), header;
   return chunk => {

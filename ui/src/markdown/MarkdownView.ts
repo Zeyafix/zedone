@@ -17,7 +17,6 @@ export default defineComponent({
       const marker = value.getAttribute("data-md-image");
       if (marker !== null) {
         const image = document.value.images[Number(marker)];
-        // A changed source must never inherit an earlier image's consent.
         return image ? h(RemoteImage, { image, key: `${generation.value}:${marker}`, "data-md-control": marker }) : null;
       }
       const children = Array.from(value.childNodes, node);
@@ -36,7 +35,6 @@ export default defineComponent({
             catch { error.value = "Не удалось открыть внешний браузер. Ссылка сохранена — повторите нажатие."; }
           },
         }, value.querySelector("[data-md-image]") ? "Открыть ссылку" : children);
-        // Image controls must not be nested inside a link.
         return value.querySelector("[data-md-image]") ? h("span", [link, ...children]) : link;
       }
       const attrs: Record<string, string> = {};

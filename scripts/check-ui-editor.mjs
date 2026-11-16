@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Real Service/storage/history. Faults replace delivery or persistence only. */
 export async function checkEditor(page, url, credential) {
   const random = () => crypto.randomUUID().replaceAll("-", "");
   const space = random(), column = random(), card = random();
@@ -184,7 +183,7 @@ export async function checkEditor(page, url, credential) {
   let credentialMutations = 0;
   await page.route("**/host/session", async route => {
     const response = await route.fetch(); await credentialHeld;
-    try { await route.fulfill({ response }); } catch { /* The deadline aborts this deliberately held request. */ }
+    try { await route.fulfill({ response }); } catch {                                                           }
   });
   await page.route("**/v1/commands/card.autosave", route => { credentialMutations++; return route.continue(); });
   await fill("Ожидание доступа", "Не отправлять до проверки доступа");

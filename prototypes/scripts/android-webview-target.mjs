@@ -1,4 +1,3 @@
-// A WebView debugging socket can exist before its page target is published.
 export async function waitForWebViewTarget(endpoint, until, request = fetch) {
   return until(async () => {
     try {

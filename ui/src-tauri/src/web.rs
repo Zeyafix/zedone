@@ -1,4 +1,3 @@
-//! Embedded same-origin UI. No directory traversal, CORS, or implicit access.
 use crate::Shell;
 use axum::{
     Router,

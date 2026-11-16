@@ -1,5 +1,3 @@
-//! Explicit, memory-only access to synthetic A. Local control is never routed remotely.
-
 use crate::storage::{Space, Storage, StorageRequest};
 use axum::http::{HeaderValue, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -41,7 +39,6 @@ pub struct HttpSessionStatus {
     pub endpoint: Option<String>,
     pub token: Option<String>,
     pub access: Option<TestAccess>,
-    /// The existing session is waiting to rebind its original endpoint.
     pub recovering: bool,
 }
 
@@ -206,7 +203,6 @@ impl HttpSession {
         Ok(HttpSessionStatus::default())
     }
 
-    /// Called synchronously by the native window lifecycle, without relying on JS.
     pub fn suspend(&self, suspended: bool) {
         let mut state = self
             .0
@@ -222,8 +218,6 @@ impl HttpSession {
         if let Some(running) = state.running.take() {
             running.grant.active.store(false, Ordering::SeqCst);
             let _ = running.stop.send(());
-            // Graceful shutdown drains already admitted operations. A lost reply
-            // or suspension does not roll back an admitted SQLite write.
             return Some(running.task);
         }
         None

@@ -40,7 +40,6 @@ fn expiry_during_handler_is_rejected_before_its_result_can_escape() {
     assert_eq!(result, Err(denied()));
 }
 
-// Only a fixture: no in-memory authority or test credential enters the product.
 struct Session {
     access: Option<ResolvedAccess>,
     unavailable: bool,
@@ -238,7 +237,6 @@ fn exact_spaces_and_all_targets_are_checked_before_any_effect() {
     }
     expect_denied(session.execute(&[], &clock));
     assert_eq!(session.operations, 0);
-    // A literal asterisk is never a wildcard. Spaces may have different modes.
     session.grant().scope = GrantScope::Spaces(BTreeMap::from([
         ("A".into(), SpacePermission::ReadWrite),
         ("B".into(), SpacePermission::Read),
@@ -310,14 +308,12 @@ fn expiry_is_exclusive_and_checked_after_waiting() {
     let mut session = Session::spaces(SpacePermission::ReadWrite);
     session.grant().expires_at = Some(UNIX_EPOCH + Duration::from_secs(10));
     session.execute(&[WRITE], &clock).unwrap();
-    // A caller may wait in a queue before entering this transaction.
     clock.0.set(10);
     expect_denied(session.execute(&[READ], &clock));
     clock.0.set(11);
     expect_denied(session.execute(&[WRITE], &clock));
     assert_eq!(session.operations, 1);
     assert_eq!(session.resolutions, 3);
-    // Continuing requires an explicit new grant, never a refresh of the request.
     session.access = Session::spaces(SpacePermission::Read).access;
     session.execute(&[READ], &clock).unwrap();
     expect_denied(session.execute(&[WRITE], &clock));

@@ -1,5 +1,3 @@
-// Real APK/Keystore/Rust/TLS/CLI acceptance. Local UI lifecycle uses only the
-// Device-owned agent-device command; CI keeps its existing emulator ownership.
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -227,7 +225,6 @@ try {
     assert.equal(timedState.status, 'confirmed', 'Expiry silently unlinked the device');
     ok(call(android, 'session.unlink', { id: [...randomBytes(16)], expected: timedState.version }));
     assert.equal(ok(call(android, 'session.refresh', {})).status, 'unlinked');
-    // Each rejected immutable intention counts once, not again on lost-response retry.
     const bad = await invitation();
     for (let i = 0; i < 5; i++) {
         const fields = bad.offer.split(':');
@@ -257,7 +254,6 @@ finally {
             close();
             const namespace = read(`${fixture}/host-namespace-v1`);
             if (namespace.exitCode === 0) {
-                // Retain the public namespace for repair even if native cleanup fails.
                 await Bun.write(resolve(report, 'android-namespace.bin'), namespace.stdout);
                 write('pairing-acceptance-cleanup', run);
                 launch();
@@ -267,7 +263,6 @@ finally {
         catch (error) {
             cleanupError = error;
         }
-        // A failed fixture must not prevent restoration of the developer's APK/data.
         close();
         device('install', '-r', resolve(report, 'original.apk'));
         const after = hashes();

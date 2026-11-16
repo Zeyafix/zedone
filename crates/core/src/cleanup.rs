@@ -1,5 +1,3 @@
-//! Explicit preview/confirm operations. Every scope is rebuilt inside the writer
-//! transaction; the client cannot supply a deletion list or refreshed condition.
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission},
     cards::{CardSnapshot, CardStore, CardTextVersion},
@@ -31,7 +29,6 @@ pub struct TrashPreview {
     pub includes_space: bool,
     pub columns: Vec<ColumnSnapshot>,
     pub cards: Vec<CardSnapshot>,
-    /// Stable object identities to resolve before preparing a new action.
     pub conflicts: Vec<String>,
     pub version: StateVersion,
 }
@@ -62,17 +59,14 @@ impl Command for PurgeTrash {
 pub struct HistoryEntry {
     pub card: String,
     pub version: CardTextVersion,
-    /// Conservatively retain history of every card with unresolved conflicts.
     pub retained: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HistoryPreview {
     pub space: String,
-    /// None means every card in this space, including trash.
     pub card: Option<String>,
     pub entries: Vec<HistoryEntry>,
-    /// Logical UTF-8 title/description bytes, not allocated database space.
     pub text_bytes: u64,
     pub removable_bytes: u64,
     pub version: StateVersion,
@@ -100,7 +94,6 @@ impl Command for ClearHistory {
 }
 
 pub trait CleanupStore: CardStore {
-    /// Trusted deterministic digest, using the existing storage token format.
     fn cleanup_version(&self, scope: &str, state: &impl Serialize) -> CommandResult<StateVersion>;
     fn purge_objects(&mut self, preview: &TrashPreview) -> CommandResult<()>;
     fn clear_versions(&mut self, space: &str, entries: &[HistoryEntry]) -> CommandResult<()>;
@@ -198,8 +191,6 @@ fn trash_preview(
             }
         }
     }
-    // Include earlier trash and conflicts below selected containers. Never use
-    // historical memberships to pull a restored/moved card into this scope.
     for card in &contents.cards {
         if card
             .columns
@@ -244,8 +235,6 @@ fn trash_preview(
             conflicts.push(format!("card:{}", c.card));
         }
     }
-    // Whole-space tokens include every tag and causal root; selected scopes use
-    // only their actual objects plus enclosing lifecycle, without CRDT heads.
     let ids = cards.iter().map(|c| c.card.clone()).collect::<Vec<_>>();
     let histories = tx
         .card_histories(space, &ids)?
@@ -319,7 +308,6 @@ pub fn purge_trash(
                 return Err(error(ErrorCode::Conflict));
             }
             tx.purge_objects(&preview)?;
-            // This is the confirmed removed scope, not a post-purge current view.
             Ok(preview)
         },
     )

@@ -1,5 +1,3 @@
-//! Bounded host-only pairing transport. It cannot serve the normal command API.
-//! Hosts supply sockets; no external listener or renderer operation is enabled.
 use crate::{
     channel::{self, Fingerprint, Identity},
     secrets::{Secret, SecretStore, Slot},
@@ -75,8 +73,6 @@ impl PairingHost {
             .layer(DefaultBodyLimit::max(MAX_PAIRING_BYTES))
             .with_state(self.clone())
     }
-    /// One bounded HTTP/1 connection after TLS verification. The private router
-    /// cannot accidentally be mounted on the existing plaintext host listener.
     pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         &self,
         identity: &Identity,
@@ -152,8 +148,6 @@ impl PairingHost {
                         b"zedone/invitation-code/v1\0",
                         &unhex(&input.code).map_err(|code| CommandError { code })?,
                     ));
-                    // An authentication rejection is a successful transaction:
-                    // its failed-attempt counter must not be rolled back.
                     self.storage
                         .timed_transact(move |tx, clock| {
                             Ok(pairing::request(tx, clock, &input.command, code, pending)?)
@@ -228,7 +222,6 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     key: &[u8],
     bytes: Secret,
 ) -> Result<CommandResponse<PairingSnapshot>, ErrorCode> {
-    // No code or key is sent until the independently supplied pin is verified.
     let tls = channel::connect(stream, pin)
         .await
         .map_err(|_| ErrorCode::AccessDenied)?;

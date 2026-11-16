@@ -33,7 +33,7 @@ async function inspect(request: Parameters<typeof invitation>[0]) {
 }
 
 async function stop(message = "Сканирование отменено. Можно ввести данные вручную.") {
-  ++generation; // Late permission/scan replies cannot submit data after cancellation.
+  ++generation;
   clearTimeout(timer);
   scannerMessage.value = message;
   document.body.classList.remove("qr-scanning");
@@ -77,7 +77,6 @@ async function start() {
     scannerMessage.value = "Наведите камеру на QR. Если распознавание не готово (модель/GMS), отмените и введите данные вручную.";
     document.body.classList.add("qr-scanning");
     scanStarted = true;
-    // The plugin only logs ML Kit failures; silence does not mean invalid data.
     timer = setTimeout(() => void stop("QR не прочитан за 20 секунд. Камера или распознавание могут быть недоступны. Введите данные вручную или повторите после готовности модели/GMS."), 20000);
     const scanned = await scan({ formats: [Format.QRCode], windowed: true, cameraDirection: "back" });
     if (current !== generation) return;
@@ -89,7 +88,6 @@ async function start() {
   }
 }
 
-// Android's permission dialog also hides the WebView; it is not a scan cancellation.
 function hidden() { if (document.hidden && phase.value === "scanning") void stop(); }
 function leaving() { if (phase.value !== "idle") void stop(); }
 onMounted(() => {

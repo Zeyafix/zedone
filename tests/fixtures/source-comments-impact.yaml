@@ -1,0 +1,106 @@
+schema_version: 1
+change: prevent-project-comments-from-compiling
+audience: developers-and-agents-building-ZeDone
+
+impact:
+  before:
+    base_commit: 210a0f5885faa6f7a494950b8aaf097425469153
+    project_source_comments: 1562
+    supported_builds: accept source comments
+    type_generation: can reintroduce documentation comments
+  after:
+    project_source_comments: 0
+    project_source_files_checked: 338
+    supported_builds: reject a comment in project sources before compilation
+    diagnostics: report the source path and line
+    recovery: removing the comment restores the build
+    type_generation: emits comment-free TypeScript
+    rationale_location: docs
+    cargo_prerequisites_added:
+      - Bun
+      - root JavaScript development dependencies
+      - PowerShell pwsh
+  preserved:
+    published_OpenAPI: byte-identical
+    application_commands_and_data: unchanged
+    human_and_agent_API: shared
+    third_party_sources_and_licenses: retained
+    tracked_third_party_comments: 350
+  scope:
+    policy: scripts/comment-policy.json
+    build_entry_points:
+      - product and prototype Cargo builds
+      - product and prototype Vite configs
+      - product and prototype Android Gradle settings
+    cache_checks:
+      - Cargo target cache shared with a copied checkout
+      - Gradle configuration cache
+    exclusions:
+      - documentation
+      - JSON YAML TOML and properties configuration
+      - dependency lockfiles
+      - dependencies and build outputs
+      - explicitly identified third-party sources
+  evidence: docs/agent/verification/EV-105-source-comment-policy.md
+  measurement_note: Counts describe this PR against the named base; tests verify the cases below.
+
+cases:
+  - id: comment-free-source
+    file: client/impact.ts
+    source: |
+      export const endpoint = "https://example.invalid/#data";
+    before: accepted
+    after: accepted
+
+  - id: project-line-comment
+    file: client/impact.ts
+    source: |
+      // Explain this intention in docs instead.
+      export const value = 1;
+    before: accepted
+    after: rejected
+    diagnostic: "client/impact.ts:1: comments are forbidden"
+    recovery_source: |
+      export const value = 1;
+
+  - id: rust-documentation-comment
+    file: crates/core/src/impact.rs
+    source: |
+      /// Published API descriptions use explicit metadata.
+      pub struct Impact;
+    before: accepted
+    after: rejected
+    diagnostic: "crates/core/src/impact.rs:1: comments are forbidden"
+    recovery_source: |
+      pub struct Impact;
+
+  - id: vue-template-comment
+    file: ui/src/Impact.vue
+    source: |
+      <template><!-- source comment --><p>ZeDone</p></template>
+    before: accepted
+    after: rejected
+    diagnostic: "ui/src/Impact.vue:1: comments are forbidden"
+
+  - id: android-kotlin-comment
+    file: ui/src-tauri/gen/android/app/src/main/java/app/zedone/local/Impact.kt
+    source: |
+      /* Project source comment. */
+      package app.zedone.local
+    before: accepted
+    after: rejected
+    diagnostic: "ui/src-tauri/gen/android/app/src/main/java/app/zedone/local/Impact.kt:1: comments are forbidden"
+
+  - id: third-party-license
+    file: ui/src-tauri/gen/android/app/src/main/java/app/zedone/local/generated/Impact.kt
+    source: |
+      // Upstream copyright and license notice.
+    before: accepted
+    after: accepted
+
+  - id: documentation-example
+    file: docs/impact.ts
+    source: |
+      // Documentation examples remain outside compiled project sources.
+    before: accepted
+    after: accepted

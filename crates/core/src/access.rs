@@ -1,9 +1,3 @@
-//! Authorization of already authenticated, currently granted access.
-//!
-//! This is not credential issuance, a permission cache or a public API. The
-//! trusted transaction resolves credentials anew and serializes authorization
-//! with the operation and grant updates. Never implement it in a transport.
-
 use std::{collections::BTreeMap, time::SystemTime};
 
 use crate::{
@@ -14,7 +8,6 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
-/// Opaque authentication material. No Debug/Serialize implementation by design.
 pub struct Credential<'a>(pub &'a [u8]);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +16,6 @@ pub enum SpacePermission {
     ReadWrite,
 }
 
-/// Administration and exact data rights are independent, even when combined.
 #[derive(Clone)]
 pub enum GrantScope {
     Spaces(BTreeMap<String, SpacePermission>),
@@ -52,7 +44,6 @@ impl GrantScope {
     }
 }
 
-/// Trusted current state, never accepted from a request or restored space copy.
 #[derive(Clone)]
 pub struct Grant {
     pub subject: String,
@@ -61,19 +52,14 @@ pub struct Grant {
     pub revoked: bool,
 }
 
-/// Identity authenticated by the resolver, independently of the grant's subject.
 #[derive(Clone)]
 pub struct ResolvedAccess {
     pub subject: String,
     pub grant: Grant,
 }
 
-/// Determined by the core handler from the actual operation and target spaces.
-/// Clients cannot supply a weaker requirement in place of the handler's policy.
 #[derive(Clone, Copy)]
 pub enum RequiredAccess<'a> {
-    /// Any current, nonempty grant; used for creation, not an issued capability.
-    /// Does not authorize reading or changing an existing space.
     ActiveGrant,
     Space {
         id: &'a str,
@@ -83,13 +69,6 @@ pub enum RequiredAccess<'a> {
     ManageAccess,
 }
 
-/// A trusted transaction/session, not a standalone credential lookup.
-///
-/// Implementations must authenticate the credential (including its own validity),
-/// load authoritative grants, and exclude concurrent grant changes until the
-/// synchronous operation finishes. Missing/invalid credentials return None;
-/// unavailable state returns an error, never a fallback local/admin identity.
-/// The persistence implementation and credential protocol are not yet exposed.
 pub trait AccessTransaction {
     fn resolve_access(
         &mut self,
@@ -97,14 +76,9 @@ pub trait AccessTransaction {
     ) -> CommandResult<Option<ResolvedAccess>>;
 }
 
-/// Trusted time source; timestamps from a request are not an authorization clock.
-/// Clock validity and handling of rollback/restart belong to the infrastructure;
-/// if time cannot be established, return an error instead of granting access.
 pub trait Clock {
     fn now(&self) -> CommandResult<SystemTime>;
 
-    /// Infrastructure also retains the earliest deadline for the final commit
-    /// check. A custom clock is trusted infrastructure, never client input.
     fn check_expiry(&self, end: Option<SystemTime>) -> CommandResult<()> {
         let now = self.now()?;
         if end.is_some_and(|end| now >= end) {
@@ -120,13 +94,6 @@ fn denied() -> CommandError {
     }
 }
 
-/// Re-resolve and check *all* required rights before reading a target, looking
-/// up a saved command result or running a mutation. No reusable permit escapes.
-///
-/// Call inside the working transaction, after any queue wait. Grant expiry is
-/// checked before and after the callback. Infrastructure checks registered
-/// deadlines after flush immediately before commit (ADR-0038). The callback
-/// must not publish effects before commit; adapters cannot supply it.
 pub fn with_authorized<T: AccessTransaction, R>(
     transaction: &mut T,
     credential: &Credential<'_>,

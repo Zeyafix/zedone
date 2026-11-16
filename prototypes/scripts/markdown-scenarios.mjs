@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-// One scenario runs against the production bundle and the installed Android WebView.
 export async function checkMarkdown(page, { tap, external } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const fill = async source => {
@@ -76,7 +75,6 @@ export async function checkMarkdown(page, { tap, external } = {}) {
     await page.waitForFunction(() => document.querySelector("#markdown-content").textContent.includes("Не удалось загрузить изображение"));
     assert.equal(await page.locator("#text").inputValue(), source);
     assert.equal(await page.locator('[role="status"]').textContent(), source);
-    // Editing remains available during a remote image failure; it does not alter the rendered response.
     await page.evaluate(() => {
       const input = document.querySelector("#text");
       input.value += " правка";

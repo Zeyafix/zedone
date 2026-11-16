@@ -1,5 +1,3 @@
-//! Disposable P01.05 data only. This is not the product schema or backup format.
-
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -92,7 +90,6 @@ impl From<rusqlite::Error> for StorageError {
     }
 }
 
-/// Cloneable handle; each operation owns its connection on a blocking worker.
 #[derive(Clone)]
 pub struct Storage {
     directory: PathBuf,
@@ -108,7 +105,6 @@ impl Storage {
     }
 
     pub async fn execute(&self, request: StorageRequest) -> Result<StorageResponse, StorageError> {
-        // Bound active workers; waiting for a slot never blocks the async runtime.
         let permit = self
             .slots
             .clone()
@@ -221,8 +217,6 @@ fn save(db: &Connection, snapshot: &Snapshot) -> rusqlite::Result<()> {
 }
 
 fn run(db: &mut Connection, request: StorageRequest) -> rusqlite::Result<StorageResponse> {
-    // A single read transaction spans every table in a logical snapshot.
-    // A write response is read in its own transaction before commit, never later.
     let behavior = match &request {
         StorageRequest::Read { .. } | StorageRequest::Snapshot { .. } => {
             TransactionBehavior::Deferred
@@ -285,7 +279,6 @@ fn run(db: &mut Connection, request: StorageRequest) -> rusqlite::Result<Storage
     Ok(StorageResponse { snapshot })
 }
 
-/// Exact initial profile from docs/development/prototypes.md; B is a sentinel.
 pub fn synthetic(space: Space) -> Snapshot {
     let cards = (1..=30)
         .map(|id| {
@@ -312,13 +305,14 @@ pub fn synthetic(space: Space) -> Snapshot {
     }
 }
 
-/// Contract marker: HTTP and Android IPC call Storage::execute asynchronously.
 #[utoipa::path(
-    post, path = "/prototype/storage", operation_id = "storage", request_body = StorageRequest,
-    responses(
-        (status = 200, description = "Committed synthetic result or consistent read", body = StorageResponse),
-        (status = 503, description = "Storage failed; success not confirmed", body = StorageError)
-    )
+    post,
+    path = "/prototype/storage",
+    operation_id = "storage",
+    request_body = StorageRequest,
+    responses((status = 200, description = "Committed synthetic result or consistent read", body = StorageResponse),
+        (status = 503, description = "Storage failed; success not confirmed", body = StorageError)),
+    summary = "Contract marker: HTTP and Android IPC call Storage::execute asynchronously."
 )]
 pub fn storage() {}
 

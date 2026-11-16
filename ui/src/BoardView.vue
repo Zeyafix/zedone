@@ -47,7 +47,6 @@ async function open(next: MoveTarget, event: Event) {
   if (!enabled.value || locked.value) return;
   working.value = true; failure.value = ""; message.value = ""; opener = event.currentTarget as HTMLElement;
   try {
-    // Freeze the identity and fresh version once. Neither refresh nor submit rebases it.
     const credential = await mutationCredential();
     const target: MoveTarget = next.kind === "card.move"
       ? { kind: next.kind, target: await read("card.read", { space: props.space.space, card: next.target.card }) }
@@ -77,7 +76,6 @@ async function move(target: MoveTarget, placement: Placement, identity?: string)
   } catch (cause) {
     failure.value = cause instanceof DOMException ? "Не удалось сохранить действие на устройстве. Запрос не отправлен." : errorMessage(cause);
   } finally {
-    // Always reconcile current state; an old receipt is never installed as the board.
     if (alive) await props.refresh();
     working.value = false;
     await nextTick();
@@ -90,13 +88,11 @@ function start(event: DraggableEvent, kind: MoveTarget["kind"]) {
   if (!target) return;
   dragged = kind === "card.move" ? { kind, target: target as Card } : { kind, target: target as Column };
   dragIdentity = mutationCredential().then(value => value.subject, () => undefined);
-  // Keep status geometry unchanged while the pointer is held.
   dragging.value = true;
 }
 async function end(event: DraggableEvent) {
   const target = dragged; dragged = undefined;
   const identity = dragIdentity; dragIdentity = undefined;
-  // VueDraggable restores DOM then schedules its model update. Rebuild only after that update.
   await nextTick();
   presented.value = [...props.columns]; reset.value++;
   dragging.value = false;

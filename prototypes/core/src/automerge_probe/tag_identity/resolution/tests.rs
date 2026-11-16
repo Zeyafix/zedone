@@ -50,7 +50,6 @@ fn both_collisions_preserve_all_links_and_allow_four_card_edits_and_reverses() {
         }
         assign(&mut a.doc, "k0", &other, false).unwrap();
         assign(&mut a.doc, "k0", &other, true).unwrap();
-        // Card edits/links are not part of the observed name catalog.
         resolve(
             &mut a.doc,
             &left,
@@ -110,7 +109,6 @@ fn incomplete_duplicate_foreign_empty_and_occupied_names_never_write() {
         .is_err()
     );
     assert_eq!(a.fingerprint().unwrap(), before);
-    // Names in another space do not occupy the local catalog or stale its view.
     resolve(
         &mut a.doc,
         &left,
@@ -134,7 +132,6 @@ fn changed_operation_ids_or_a_new_name_in_the_same_space_make_a_choice_stale() {
             let home = object(&a.doc, "s0").unwrap().to_string();
             create(&mut a.doc, &home, "Новое").unwrap();
         } else {
-            // Same displayed value, new operation: a value-only check is unsafe.
             rename(&mut a.doc, &other, "Другой").unwrap();
         }
         let before = a.fingerprint().unwrap();
@@ -171,7 +168,6 @@ fn own_card_conflicts_survive_name_resolution_and_block_all_ordinary_edits() {
                         .to_string(),
                     _ => value.to_owned(),
                 };
-                // Direct fixture setup isolates each own-field conflict.
                 write_assignment(&mut replica.doc, &card, field, &value).unwrap();
             }
             store.write(peer, &replica).unwrap();
@@ -283,7 +279,6 @@ fn one_choice_covers_every_tag_in_the_name_collision() {
     let (_directory, mut store, left, right, third) = prepared(false);
     let mut late = store.read("B").unwrap();
     let initial = store.read("A").unwrap();
-    // Fork the common state known immediately before the first offline rename.
     let context = tag(&initial.doc, &left).unwrap().names[0].context.clone();
     let mut third_doc = initial.doc.fork_at(&context).unwrap();
     third_doc.set_actor(automerge::ActorId::random());

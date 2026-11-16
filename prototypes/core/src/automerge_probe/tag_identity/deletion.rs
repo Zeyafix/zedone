@@ -1,4 +1,3 @@
-//! Logical deletion retains the causal evidence; it is never a tag trash/restore API.
 use super::*;
 
 pub(super) fn lifecycle(doc: &Automerge, tag: &Tag) -> Result<Vec<Candidate>> {
@@ -15,8 +14,6 @@ pub(super) fn lifecycle(doc: &Automerge, tag: &Tag) -> Result<Vec<Candidate>> {
         }
     }
     let values = frontier(doc, values)?;
-    // Ordinary memberships must not invalidate an observation of unrelated names.
-    // Keep the causal registers in the document; expose evidence only for deletion.
     Ok(if values.iter().any(|v| v.value == "deleted") {
         values
     } else {
@@ -70,7 +67,6 @@ fn decide(doc: &mut Automerge, id: &ObjId, observed: &Observed, keep: bool) -> R
         if keep { "alive" } else { "deleted" },
         &context,
     )?;
-    // One causal decision covers all aliases and assignments, without erasing evidence.
     tx.commit();
     Ok(())
 }

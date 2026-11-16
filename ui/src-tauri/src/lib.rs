@@ -1,4 +1,3 @@
-//! The platform composition root. No bootstrap or authority derived from UI.
 #![deny(unsafe_code)]
 
 #[cfg(all(target_os = "android", not(feature = "android-shell")))]
@@ -16,8 +15,6 @@ mod pairing_acceptance;
 pub mod secrets;
 pub mod web;
 
-// Only a pre-provisioned local credential is read. Issuance, OS credential
-// facilities, and initial confirmation remain P06, never a shell command.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalCredential {
@@ -154,8 +151,6 @@ async fn zedone_command(
 #[cfg(target_os = "android")]
 #[allow(unsafe_code)]
 mod entry_point {
-    // SAFETY: the only exception is generated JNI/bootstrap (ADR-0024/0042).
-    // Platform event loop only; domain/storage/adapters retain forbid(unsafe_code).
     #[tauri::mobile_entry_point]
     pub fn run() {
         use tauri::Manager;

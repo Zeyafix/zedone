@@ -1,4 +1,3 @@
-//! Relative placement shared by every transport. Clients send identities, never ranks.
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -13,9 +12,11 @@ use crate::{
     wire::{CommandRequest, CommandResponse},
 };
 
-/// Legacy integer positions remain valid in historical documents and receipts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
+#[schema(
+    description = "Legacy integer positions remain valid in historical documents and receipts."
+)]
 pub enum Rank {
     Legacy(u64),
     Path(Vec<RankPart>),
@@ -26,8 +27,6 @@ pub struct RankPart {
     pub digit: u32,
     pub id: String,
 }
-// Once the upper bound has diverged, use spare digits before extending a path.
-// Repeated appends must not add one component per object.
 fn after(left: &[RankPart], id: &str) -> Vec<RankPart> {
     let mut path = Vec::new();
     for part in left {
@@ -72,7 +71,6 @@ impl Rank {
             }
         }
     }
-    /// Dense lexicographic path; insertion never rewrites another object.
     pub fn between(
         left: Option<&[RankPart]>,
         right: Option<&[RankPart]>,
@@ -112,8 +110,6 @@ impl Rank {
                     if r.get(i).is_some()
                         && let Some(part) = l.get(i)
                     {
-                        // Preserve the lower divergent component to stay below
-                        // the upper bound, then allocate in its free suffix.
                         path.push(part.clone());
                         path.extend(after(&l[i + 1..], id));
                     } else {
@@ -131,9 +127,9 @@ impl Rank {
         Ok(Self::Path(path))
     }
 }
-/// A whole register: concurrent moves cannot mix a column with another rank.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(description = "A whole register: concurrent moves cannot mix a column with another rank.")]
 pub struct CardPlacement {
     pub column: String,
     pub rank: Rank,
@@ -145,7 +141,6 @@ pub struct MoveCard {
     pub space: String,
     pub card: String,
     pub column: String,
-    /// Insert before this active card in the destination; null appends.
     pub before: Option<String>,
     pub expected: StateVersion,
 }
@@ -158,7 +153,6 @@ impl Command for MoveCard {
 pub struct MoveColumn {
     pub space: String,
     pub column: String,
-    /// Insert before this active column; null appends.
     pub before: Option<String>,
     pub expected: StateVersion,
 }
@@ -188,8 +182,6 @@ fn validate(space: &str, target: &str, before: Option<&str>) -> CommandResult<()
     }
     Ok(())
 }
-/// Resolve the relative intention in the current serialized transaction. Other
-/// cards may change without invalidating the target's own causal version.
 fn rank(
     items: Vec<(String, Rank)>,
     target: &str,

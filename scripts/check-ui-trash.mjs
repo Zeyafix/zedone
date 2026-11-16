@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** Shared real Service/HTTP/IPC matrix; touch uses the native controls driver. */
 export async function checkTrash(page, { tap, back = () => page.keyboard.press("Escape") } = {}) {
   const click = async selector => {
     if (tap) await tap(selector); else await page.locator(selector).click();
@@ -59,7 +58,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   const original = await allCards(), priorHistory = await history(one);
   await go(space);
 
-  // A complete scope is shown before the group action; cancel writes nothing.
   await click(columnButton(first));
   assert.equal(await count(".trash-scope [data-scope-card]"), 3);
   assert.ok((await text(`[data-scope-card="${early}"]`)).includes("Останется в прежней корзине"));
@@ -68,7 +66,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   assert.equal(await page.evaluate(s => document.querySelector(s) === document.activeElement, columnButton(first)), true);
   assert.deepEqual(await allCards(), original);
 
-  // A later edit changes the group token: no card or column is partly removed.
   await click(columnButton(first));
   await command("card.edit", { space, card: one, expected: (await snapshot("card", one)).version, title: "Мысль один", description: "Поздняя правка агента" });
   await click(submit); await stale();
@@ -80,7 +77,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   const earlyGroup = (await snapshot("card", early)).deletion_groups;
   await click('.view-toolbar button[aria-pressed="false"]');
 
-  // Restore only one card to another column while the original remains trashed.
   await click(`${trashCard(one)} .view-actions button:last-child`);
   assert.equal(await count(`${dialog} input[name="restore-column"]:checked`), 0);
   await click(`${dialog} input[name="restore-column"][value="${second}"]`);
@@ -116,7 +112,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
     await click('.view-toolbar button[aria-pressed="false"]');
   }
 
-  // The space scope preserves both prior trash groups, tags and all card data.
   await go();
   await click(`${rootRow} .view-actions button:last-child`);
   assert.equal(await count(".trash-scope [data-scope-column]"), 3);
@@ -135,7 +130,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   assert.deepEqual(await history(one), lateHistory);
   assert.ok(lateHistory.versions.length >= priorHistory.versions.length);
 
-  // Selected column purge includes its older trash, but excludes the moved card.
   await life("column", first, "trash");
   await click(".view-toolbar .view-actions button:nth-child(2)"); await settled();
   await click(`.trash-column[data-column="${first}"] input`);
@@ -146,7 +140,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   await back(); await closed();
   assert.equal((await snapshot("column", first)).state, "trashed");
   await click(".purge-selected");
-  // Restoring an included member invalidates the frozen purge scope.
   await command("card.restore", { space, card: early, expected: (await snapshot("card", early)).version, column: second, expected_column: (await snapshot("column", second)).version });
   await click(".purge-confirmation input"); await click(submit);
   await stale();
@@ -163,7 +156,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
   assert.equal((await snapshot("card", early)).state, "active");
 
   if (!tap) {
-    // Unknown container contents must never be mistaken for an empty scope.
     await click('.view-toolbar button[aria-pressed="true"]');
     const unknownColumn = await snapshot("column", second);
     unknownColumn.contents = null;
@@ -173,7 +165,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
     assert.ok((await text(`${dialog} [role="alert"]`)).includes("Не удалось определить весь состав"));
     await back(); await closed(); await page.unroute("**/v1/commands/column.read");
     await click('.view-toolbar button[aria-pressed="false"]');
-    // Valid contract conflict snapshots exercise the UI lock, not product sync.
     const preview = await command("trash.inspect", { space, selection: { kind: "all" } });
     const pattern = "**/v1/commands/trash.inspect";
     preview.conflicts = [old];
@@ -189,7 +180,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
       assert.equal(await page.locator(dialog).count(), 0); assert.equal(await page.locator(".pending-list li").count(), 0);
       await page.unroute(pattern); await click(".view-toolbar .view-actions button:nth-child(2)"); await settled();
     }
-    // Quota failure must happen before any destructive request is sent.
     let deliveries = 0;
     await page.route("**/v1/commands/trash.purge", route => { deliveries++; return route.continue(); });
     await click(".purge-all"); await click(".purge-confirmation input");
@@ -209,8 +199,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
     assert.equal(denied.length, 1, "an explicit access denial is never retried automatically");
     assert.deepEqual(await snapshot("column", oldColumn), beforeDenial);
     await page.unroute("**/v1/commands/trash.purge"); await abandon();
-    // Unknown result persists the exact purge request through reload. A newly
-    // trashed card after that commit must survive the old receipt's replay.
     const bodies = [];
     await page.route("**/v1/commands/trash.purge", async route => {
       bodies.push(route.request().postData()); assert.equal((await (await route.fetch()).json()).status, "ok"); await route.abort();
@@ -228,7 +216,6 @@ export async function checkTrash(page, { tap, back = () => page.keyboard.press("
     assert.equal(await page.locator(".pending-list li").count(), 0);
   }
 
-  // Whole-space cleanup has its own scope and returns to the current list.
   await go(); await confirm(`${rootRow} .view-actions button:last-child`);
   await click('.view-toolbar button[aria-pressed="false"]'); await click(`${rootRow} a`); await settled();
   await click('.view-toolbar button[aria-pressed="false"]');

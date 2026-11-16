@@ -1,4 +1,3 @@
-//! Fixed tags: one whole-value register per (card Object ID, tag Object ID).
 use super::{conflicts::*, *};
 use automerge::{ObjId, ObjType, Value as AmValue};
 
@@ -83,7 +82,7 @@ fn view(doc: &Automerge, card: &str) -> Result<Card> {
     for tag in tags(doc)?.into_iter().filter(|v| v.home == home) {
         let key = format!("tag:{}", tag.id);
         let variants = if doc.get_all(&id, &key)?.is_empty() {
-            Vec::new() // No assignment yet; not a synthetic 'absent' operation.
+            Vec::new()
         } else {
             read_assignments(doc, &id, &key)?
         };
@@ -181,7 +180,6 @@ fn seed(store: &mut Store) -> Result<()> {
         }
     }
     tx.commit();
-    // Construct only a fixed fixture, not a product creation operation.
     let tag = object(&a.doc, "t0")?.to_string();
     assign(&mut a.doc, "k0", &tag, true, None)?;
     let tag = object(&a.doc, "t3")?.to_string();

@@ -11,7 +11,6 @@ struct Document {
     pending: Vec<Change>,
 }
 
-/// Stored evidence, not authorization and not the current object state.
 pub type RecordedResult = RecordedCommand;
 
 pub struct ReadContext<'a> {
@@ -27,7 +26,6 @@ impl<'a> ReadContext<'a> {
         }
     }
 
-    /// Only this space is loaded. No full save/view or all-space document cache.
     pub fn document(&mut self, space: &str) -> StorageResult<&Automerge> {
         if !self.documents.contains_key(space) {
             let actor: Vec<u8> = self
@@ -88,8 +86,6 @@ impl<'a> ReadContext<'a> {
             .optional()?)
     }
 
-    /// A list visits one document at a time. Never drop unflushed changes when
-    /// trusted infrastructure composes several operations in a transaction.
     pub(crate) fn release_document(&mut self, space: &str) {
         if self
             .documents
@@ -100,7 +96,6 @@ impl<'a> ReadContext<'a> {
         }
     }
 
-    /// Automerge persists shared progress, not in-flight transport state.
     pub fn peer_state(&self, space: &str, peer: &[u8]) -> StorageResult<State> {
         let bytes: Option<Vec<u8>> = self
             .connection
@@ -137,7 +132,6 @@ impl<'a> WriteContext<'a> {
         &mut self.read
     }
 
-    /// Trusted infrastructure only. Never replace a receipt or prune it by age.
     pub fn record(&mut self, key: &[u8], command: &RecordedCommand) -> StorageResult<()> {
         let result = self
             .read
@@ -150,7 +144,6 @@ impl<'a> WriteContext<'a> {
         self.checked(result.map_err(StorageError::from))
     }
 
-    // Even if a callback catches a mutator's error, partial work cannot commit.
     pub(crate) fn checked<T>(&mut self, result: StorageResult<T>) -> StorageResult<T> {
         self.failed |= result.is_err();
         result
@@ -175,8 +168,6 @@ impl<'a> WriteContext<'a> {
         self.checked(result)
     }
 
-    /// Only the transaction is mutable: callers cannot replace the graph/actor.
-    /// Domain data and its history must be edited together inside this callback.
     pub fn edit<R>(
         &mut self,
         space: &str,
@@ -201,8 +192,6 @@ impl<'a> WriteContext<'a> {
         self.checked(result)
     }
 
-    /// Keep every accepted change, including those waiting for dependencies.
-    /// This avoids relying on get_changes/save_after, which omit orphans.
     pub fn apply_changes(&mut self, space: &str, changes: Vec<Change>) -> StorageResult<()> {
         let result = (|| {
             self.read.document(space)?;
@@ -234,8 +223,6 @@ impl<'a> WriteContext<'a> {
         self.checked(result)
     }
 
-    /// Flush one space inside the existing SQLite transaction, then release its
-    /// graph. This does not commit; an outer failure still rolls back all spaces.
     pub(crate) fn flush_document(&mut self, space: &str) -> StorageResult<()> {
         let result = (|| {
             if self.failed {

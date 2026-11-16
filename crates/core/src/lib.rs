@@ -1,6 +1,3 @@
-//! Transport-independent product contract and authorization policy.
-//! Storage implements persistence separately; adapters share the concrete core handlers.
-
 pub mod access;
 pub mod access_commands;
 pub mod card_history;
@@ -13,15 +10,16 @@ pub mod invitations;
 pub mod ordering;
 pub mod pairing;
 pub mod replay;
+mod schema_descriptions;
 pub mod search;
 pub mod spaces;
 pub mod tags;
 mod text;
 pub mod wire;
 
+use schema_descriptions::SchemaDescriptions;
 use utoipa::OpenApi;
 
-/// Rust is the authoritative contract for the bounded access commands.
 #[derive(OpenApi)]
 #[openapi(
     info(title = "ZeDone API"),
@@ -38,7 +36,7 @@ use utoipa::OpenApi;
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,
         tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,
         search::search, cleanup::inspect_trash, cleanup::purge_trash, cleanup::inspect_history, cleanup::clear_history),
-    modifiers(&Security),
+    modifiers(&Security, &SchemaDescriptions),
     components(schemas(
         error::CommandError,
         replay::StateVersion,

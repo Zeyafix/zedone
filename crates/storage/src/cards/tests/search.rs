@@ -52,7 +52,7 @@ async fn search_literal_unicode_fragments_keep_fields_variants_and_whitespace_se
         ("σσσ", true),
         ("ἃι", true),
         ("и\u{306}", true),
-        ("A", true), // Latin a occurs in Café.
+        ("A", true),
         ("\u{a0}купить молоко\u{2003}", true),
         ("молоко купить", false),
         ("купить сегодня молоко", false),
@@ -98,7 +98,6 @@ async fn search_literal_unicode_fragments_keep_fields_variants_and_whitespace_se
         }
     }
     assert_eq!(fresh(&s, &a, 80, 9).await, original);
-    // A history version is not a current conflicting text variant.
     run!(s, a, edit, edit_req(81, 9, "New", "body", original.version)).unwrap();
     assert!(ids(&find(&s, &a, 82, "план", one()).await.unwrap().result).is_empty());
     assert!(ids(&find(&s, &a, 83, "New body", one()).await.unwrap().result).is_empty());
@@ -221,8 +220,6 @@ async fn search_follows_moves_completion_trash_restore_and_frozen_receipts_after
     rejected(find(&s, &a, 3, "", one()).await, ErrorCode::CommandMismatch);
 }
 
-// Conflict fixtures represent independently committed changes; the product
-// sync/resolution commands are deliberately outside this API slice.
 async fn conflict(s: &Storage, target: u8, field: &'static str, values: Vec<String>) {
     s.transact(move |ctx| {
         let graph = ctx.read().document(&sid(1))?;
@@ -289,7 +286,6 @@ async fn search_keeps_text_conflicts_on_board_and_groups_disputed_places_without
     let result = find(&s, &a, 5, "", one()).await.unwrap().result;
     assert_eq!(ids(&result), [sid(9), sid(8)]);
     assert!(result.spaces[0].hits[0].placement_conflict);
-    // Resolve card's place only; text conflict remains on its unambiguous board place.
     s.transact(|ctx| {
         let obj = object(ctx.read().document(&sid(1))?, &sid(9))?;
         ctx.edit(&sid(1), |tx| {
@@ -311,7 +307,6 @@ async fn search_keeps_text_conflicts_on_board_and_groups_disputed_places_without
     let result = find(&s, &a, 6, "", one()).await.unwrap().result;
     assert_eq!(ids(&result), [sid(8), sid(9)]);
     assert!(result.spaces[0].hits.iter().all(|h| !h.placement_conflict));
-    // Conflicted column position, even with one effective card column.
     s.transact(|ctx| {
         let graph = ctx.read().document(&sid(1))?;
         let obj = column_object(graph, &sid(3))?;
@@ -478,7 +473,6 @@ async fn search_orders_name_conflicts_and_equal_names_and_rechecks_narrowed_gran
         })
         .await;
     rejected(error, ErrorCode::AccessDenied);
-    // The old credential is invalid even for a recorded read.
     rejected(
         find(&s, &member, 6, "", SearchScope::all()).await,
         ErrorCode::AccessDenied,
@@ -526,8 +520,6 @@ async fn search_receipt_failure_does_not_change_domain_data_and_can_be_retried()
 #[tokio::test]
 async fn search_thousand_card_probe_uses_authoritative_graph_without_an_index() {
     let (_dir, s, a) = setup().await;
-    // Trusted fixture builds a valid large graph in one commit; creation and
-    // editing correctness are independently covered through real commands.
     s.transact(|ctx| {
         ctx.edit(&sid(1), |tx| {
             for i in 1000..2000_u64 {
@@ -568,6 +560,5 @@ async fn search_thousand_card_probe_uses_authoritative_graph_without_an_index() 
         "search_probe cards=1000 matching=1000 elapsed_ms={}",
         elapsed.as_millis()
     );
-    // A generous deadlock/runaway guard, not an accepted user latency budget.
     assert!(elapsed < Duration::from_secs(30));
 }

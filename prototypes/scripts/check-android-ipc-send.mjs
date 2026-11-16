@@ -23,12 +23,9 @@ function fixture(options = {}) {
     time += 2;
     if (options.fetchThrows) throw fetchError;
     deliveryAt = time + 30;
-    // The wrapper must return the exact promise without observing or chaining it.
     return returnValue;
   }, __TAURI_INTERNALS__: { callbacks, convertFileSrc: () => url } };
   const originalPost = Object.getOwnPropertyDescriptor(fakeWindow, "ipc"), originalFetch = Object.getOwnPropertyDescriptor(fakeWindow, "fetch");
-  // Never try to mutate the Java object's synthetic method, even if its
-  // descriptor claims to be writable. Only the window.ipc reference is owned.
   const nativeBridge = new Proxy(bridge, { defineProperty() { throw new Error("Do not mutate native bridge"); }, set() { throw new Error("Do not mutate native bridge"); } });
   fakeWindow.ipc = nativeBridge; originalPost.value = nativeBridge;
   if (options.unavailable) Object.defineProperty(fakeWindow, "fetch", { configurable: false });

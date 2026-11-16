@@ -1,6 +1,5 @@
 use super::*;
 
-/// Trusted out-of-band invitation, never Debug or part of a command receipt.
 pub struct Offer {
     pub invitation: String,
     pub fingerprint: Fingerprint,
@@ -21,7 +20,6 @@ impl Offer {
             code: Secret::new(code.to_vec()),
         })
     }
-    /// Same payload for manual entry and future QR rendering; address is separate.
     pub fn encode(&self) -> Secret {
         Secret::new(
             format!(
@@ -53,8 +51,6 @@ impl Offer {
     }
 }
 
-/// One host namespace holds one pending connection, explicitly removed only
-/// after acknowledged cancellation or later completion. No replacement on error.
 pub struct PendingSession {
     pub request: CommandRequest<RequestPairing>,
     offer: Offer,
@@ -110,7 +106,6 @@ impl PendingSession {
             .await
             .map_err(|_| ErrorCode::Unavailable)?;
         let saved = Self::load(store).await?.ok_or(ErrorCode::Unavailable)?;
-        // Do not publish until protected persistence has acknowledged exact bytes.
         if *saved.encode()? != *encoded {
             return Err(ErrorCode::Unavailable);
         }
@@ -191,7 +186,6 @@ impl PendingSession {
             command: &self.request,
             code: hex(&self.offer.code),
         };
-        // The temporary JSON containing the invitation code never enters receipts.
         let body =
             Secret::new(serde_json::to_vec(&payload).map_err(|_| ErrorCode::InvalidRequest)?);
         self.call(stream, "request", body).await
@@ -257,8 +251,6 @@ impl PendingSession {
         )
         .await
     }
-    /// Host-only credential borrowed from the protected session. The server's
-    /// ordinary authorization still decides every operation; a receipt is no permit.
     pub fn credential(&self) -> zedone_core::access::Credential<'_> {
         zedone_core::access::Credential(&self.access_key)
     }

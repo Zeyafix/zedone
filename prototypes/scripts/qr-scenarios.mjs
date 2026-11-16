@@ -10,7 +10,6 @@ function decode(image, text) {
   assert.equal(code.chunks[0].assignmentNumber, 26, "Explicit UTF-8 ECI");
 }
 
-// Shared by desktop and the real APK. jsQR is a test oracle, not the camera scanner.
 export async function checkQr(page, { baseUrl, tap } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const http = async body => {
@@ -54,7 +53,6 @@ export async function checkQr(page, { baseUrl, tap } = {}) {
     await page.waitForFunction(() => document.querySelector("#qr-viewport svg"));
     assert.equal(await page.locator("#qr-text").inputValue(), text);
     assert.equal(await page.locator("#qr-viewport svg").getAttribute("viewBox"), `0 0 ${side} ${side}`);
-    // Small fixtures fit the real WebView: decode its rendered pixels at each scale.
     for (const value of text === "" ? [2, 4, 8] : [2]) {
       await scale(value);
       assert.equal(await page.locator("#qr-viewport svg").getAttribute("width"), String(side * value));
@@ -66,7 +64,6 @@ export async function checkQr(page, { baseUrl, tap } = {}) {
         });
         const image = PNG.sync.read(await page.screenshot({ clip: box }));
         decode(image, text);
-        // All four quiet zones must remain opaque white in the rendered SVG.
         const border = Math.floor(image.width / side * 4);
         for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
           if (x >= border && y >= border && x < image.width - border && y < image.height - border) continue;

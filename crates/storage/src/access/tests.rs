@@ -462,7 +462,6 @@ async fn persisted_auth_precedes_receipts_and_regrant_replays_same_subject_witho
         .await
         .unwrap();
     storage.shutdown().await.unwrap();
-    // Raw credential bytes never appear in SQLite, graph, WAL or receipts.
     for entry in fs::read_dir(dir.path()).unwrap() {
         let path = entry.unwrap().path();
         if path.is_file() {

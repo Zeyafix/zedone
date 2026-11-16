@@ -7,8 +7,6 @@ use super::{
 async fn invitations_share_http_ipc_cli_replay_without_admitting_a_device_or_leaking_its_code() {
     let (dir, storage, service, admin, member) = setup().await;
     let secret = key(&admin);
-    // Synthetic code uses the independently specified, domain-separated format.
-    // The precomputed vector is also checked by the shared client test.
     let code = "11".repeat(32);
     let verifier: Vec<u8> = vec![
         160, 43, 110, 0, 83, 115, 85, 137, 83, 155, 78, 186, 49, 97, 211, 197, 156, 4, 80, 67, 192,

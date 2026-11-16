@@ -120,7 +120,6 @@ async fn the_whole_lifecycle_uses_one_committed_result_across_http_ipc_and_real_
     let replay = cli(&dir, &secret, "space.read", &reading);
     assert_eq!(replay["replayed"], true);
     assert_eq!(replay["result"], original["result"]);
-    // The CLI can reopen the same installation after the host worker closes.
     storage.shutdown().await.unwrap();
     assert_eq!(
         cli(&dir, &secret, "space.create", &creation)["result"],

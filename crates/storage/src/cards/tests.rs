@@ -463,8 +463,6 @@ async fn card_data_and_removed_membership_change_only_relevant_column_and_card_t
             .await,
         ErrorCode::StaleState,
     );
-    // Known members are now previewed for the group lifecycle; stale tokens
-    // still fail before any member changes. Full group tests live separately.
     assert_eq!(occupied.contents, Some(vec![first.clone()]));
     run!(storage, admin, create, creation(4, 8)).unwrap();
     assert_eq!(fresh(&storage, &admin, 5, 9).await, first);
@@ -800,8 +798,6 @@ async fn conflicts_preserve_variants_and_block_every_ordinary_mutation() {
                 let mut a = graph.fork().with_actor(ActorId::from(vec![21]));
                 let mut b = graph.fork().with_actor(ActorId::from(vec![22]));
                 for (graph, n) in [(&mut a, 2_u64), (&mut b, 3_u64)] {
-                    // Automerge elides assigning the unchanged base value. Make
-                    // that branch a real independent change with a causal return.
                     if (field == "completed" && n == 3) || (field == "column" && n == 2) {
                         let mut tx = graph.transaction();
                         if field == "completed" {

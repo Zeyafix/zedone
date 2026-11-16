@@ -1,4 +1,3 @@
-// Native instrumentation only. Local emulator lifecycle/UI belongs to Device.
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 

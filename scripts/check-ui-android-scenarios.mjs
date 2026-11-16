@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
 
-// Playwright's current role/actionability engine requires checkVisibility(),
-// absent in AOSP WebView 101. Inspect the unchanged DOM and send native touch
-// input instead, as the prototype Android suite does. Never force DOM clicks.
 export async function nativeControls(page) {
   page.setDefaultTimeout(10000);
   const cdp = await page.context().newCDPSession(page);
@@ -33,8 +30,6 @@ export async function nativeControls(page) {
       const geometry = [box.x, box.y, box.width, box.height, innerWidth, innerHeight, scrollX, scrollY,
         visualViewport?.width, visualViewport?.height, visualViewport?.offsetLeft, visualViewport?.offsetTop];
       const previous = stableTarget.previous;
-      // Playwright polls on animation frames. Keep state on this private
-      // predicate function, without modifying the application's DOM or globals.
       stableTarget.previous = { element, geometry };
       if (previous?.element !== element || !geometry.every((value, index) => value === previous.geometry[index])) return false;
       if (box.width <= 0 || box.height <= 0) return false;
@@ -97,7 +92,6 @@ export async function checkShell(page, back) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 }
 
-/** CI only: same built UI and real IPC/Service, touch instead of DOM clicks. */
 export async function checkWorkspaceTouch(page, back, dismissKeyboard = async () => {}) {
   const { visible, tap, fill } = await nativeControls(page);
   const dialog = '[role="dialog"]';
@@ -142,8 +136,6 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   await checkCardsTouch(page, dismissKeyboard);
   await tap(".board-heading .primary-button", "Создать колонку");
   await visible(dialog);
-  // Android gives the IME the first Back. Verify form/board navigation only
-  // after the native keyboard is hidden; dismissal must leave this form open.
   await dismissKeyboard();
   await visible(dialog);
   await back();
@@ -155,7 +147,6 @@ export async function checkWorkspaceTouch(page, back, dismissKeyboard = async ()
   console.log("Android domain IPC: space/column create/rename/reverse/trash/restore, reload, focus/Back and nonempty space preview available passed.");
 }
 
-/** Same IPC/Service, including the card's reverse action, on the CI AVD. */
 async function checkCardsTouch(page, dismissKeyboard) {
   const { visible, tap, fill } = await nativeControls(page);
   const dialog = '[role="dialog"]';
@@ -197,7 +188,6 @@ async function checkCardsTouch(page, dismissKeyboard) {
   await checkEditorTouch(page, dismissKeyboard);
 }
 
-/** Real host commands inspect the UI's effects, without reaching into Vue state. */
 async function checkEditorTouch(page, dismissKeyboard) {
   const { visible, tap, fill } = await nativeControls(page);
   const api = (operation, parameters) => page.evaluate(async ({ operation, parameters }) => {

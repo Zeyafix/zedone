@@ -1,4 +1,3 @@
-//! Outgoing manual code: persisted before publication, never in a receipt.
 use super::*;
 use crate::secrets::Slot;
 use zedone_core::invitations::{InvitationSnapshot, InvitationStatus};
@@ -17,8 +16,6 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
                 let previous = Offer::decode(&bytes)?;
                 let identity = channel::load_identity(&self.store).await.map_err(|_| ErrorCode::Unavailable)?.ok_or(ErrorCode::Unavailable)?;
                 if identity.fingerprint() != previous.fingerprint { return Err(ErrorCode::Unavailable); }
-                // Re-publish the exact original create. A crash before its commit
-                // must not turn an unpublished code into an abandoned OS record.
                 self.publish_offer(&previous, key).await?;
                 let snapshot = self.invitation_snapshot(&previous.invitation, key).await?;
                 if snapshot.status == InvitationStatus::Open || !create {

@@ -1,4 +1,3 @@
-//! P02.06.1: one-space snapshots and causal restoration, never graph rollback.
 use super::*;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -18,15 +17,10 @@ fn identity(doc: &Automerge) -> Result<String> {
     {
         return Err("Snapshot requires exactly one complete synthetic space".into());
     }
-    // Eligibility is established at fixture creation, never by deleting another
-    // space from a shared graph. Probe commands never physically remove nodes.
     Ok(nodes["s0"].id.to_string())
 }
 
 impl Snapshot {
-    // Internal probe envelope: small metadata followed by the binary document.
-    // Do not serialize byte arrays as JSON integers; that would dominate storage
-    // and peak memory instead of measuring the Automerge model.
     fn encode(&self) -> Result<Vec<u8>> {
         let metadata =
             serde_json::to_vec(&(self.format, &self.space, &self.heads, self.document.len()))?;
@@ -76,7 +70,6 @@ impl Snapshot {
         if self.format != 1 {
             return Err("Unsupported internal probe snapshot format".into());
         }
-        // Strict load checks chunk checksums and rejects partial/corrupt data.
         let doc = Automerge::load(&self.document)?;
         let heads: Vec<_> = doc.get_heads().iter().map(ToString::to_string).collect();
         if heads != self.heads || identity(&doc)? != self.space {
@@ -147,8 +140,6 @@ fn restored(current: &Automerge, snapshot: &Snapshot) -> Result<Automerge> {
         return Err("Snapshot belongs to another space".into());
     }
     current.fork_at(&source.get_heads())?;
-    // A stale graph must not replace new changes. The original objects still exist
-    // because logical purge does not physically discard causal ancestry.
     let old = view(&source)?;
     let known = view(current)?;
     for (key, n) in &old {
@@ -171,8 +162,6 @@ fn restored(current: &Automerge, snapshot: &Snapshot) -> Result<Automerge> {
                 .map(|v| &v.value)
                 .eq(existing.iter().map(|v| &v.value))
             {
-                // An unchanged field is not a restoration write. Reassigning it
-                // would turn a compatible unseen edit into a false conflict.
                 for (source, current) in desired.iter().zip(&existing) {
                     remap.insert(source.operation.clone(), current.operation.clone());
                 }
@@ -181,9 +170,6 @@ fn restored(current: &Automerge, snapshot: &Snapshot) -> Result<Automerge> {
             }
         }
     }
-    // Recreate competing assignments from a common current base, not in sequence:
-    // sequential puts would silently resolve snapshot conflicts. All branches and
-    // the main change are persisted as ONE SQLite action, or none are published.
     for (id, field, variants) in &changed {
         for variant in variants.iter().skip(1) {
             let mut branch = current.fork();
@@ -216,15 +202,10 @@ fn restored(current: &Automerge, snapshot: &Snapshot) -> Result<Automerge> {
         remap.insert(v.operation.clone(), assignment.to_string());
     }
     for n in old.values() {
-        // Retain monotonic deletion boundaries for old offline replicas; endorse
-        // restored members against every known boundary instead of erasing it.
         let ack = tx
             .get(&n.id, "acknowledged")?
             .ok_or("Missing acknowledgments")?
             .1;
-        // Reopen unresolved late-creation conflicts present IN the snapshot, even
-        // if they were explicitly resolved after it. New known barriers remain
-        // monotonic and are endorsed by this restoration.
         for event in &source_events {
             if !n.acknowledged.contains(event) {
                 tx.delete(&ack, event.as_str())?;
@@ -261,18 +242,11 @@ fn restored(current: &Automerge, snapshot: &Snapshot) -> Result<Automerge> {
     for mut branch in branches {
         candidate.merge(&mut branch)?;
     }
-    // A full snapshot can contain a received change whose dependencies have not
-    // arrived yet. Preserve it AFTER forming the restoration: if dependencies
-    // exist here, it must arrive as an unseen concurrent edit, not be overwritten.
-    // The snapshot was strictly validated above; load_incremental also retains
-    // queued changes that are not returned by get_changes().
     candidate.load_incremental(&snapshot.document)?;
     Ok(candidate)
 }
 
 fn restore(store: &mut Store, name: &str, observed: &Value) -> Result<()> {
-    // Immediate transaction covers freshness, safety copy, restored graph and
-    // durable pause. Source snapshot and local actor/peer are never rolled back.
     let tx = store
         .0
         .transaction_with_behavior(TransactionBehavior::Immediate)?;

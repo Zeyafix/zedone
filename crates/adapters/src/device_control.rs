@@ -1,4 +1,3 @@
-//! Shared shell control. Credentials and policy remain in DeviceHost/Service.
 use crate::{device_host::DeviceHost, network::SecureListener, secrets::SecretStore};
 use std::{future::Future, pin::Pin, sync::Arc};
 use zedone_core::{

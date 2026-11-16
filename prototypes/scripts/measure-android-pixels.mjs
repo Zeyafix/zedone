@@ -1,5 +1,3 @@
-// OS screenshots observe Android's composed image, independently of WebView/CDP.
-// Driver-clock upper bounds include USB, PNG decoding, commands and alignment.
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -10,7 +8,6 @@ import { evaluatePixelAlignment } from "./android-webview-phases.mjs";
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Preparation only: stable stale pixels must never become a new baseline.
 export async function waitForAndroidPixelBaseline({ capture, expected, evidence, name = "search-all", timeout = 10000, now = () => performance.now(), wait = pause }) {
   const start = now();
   evidence.status = "waiting";
@@ -21,8 +18,6 @@ export async function waitForAndroidPixelBaseline({ capture, expected, evidence,
     while (now() - start < timeout) {
       const attempt = { captures: [] };
       evidence.attempts.push(attempt);
-      // Same independent sources as template preparation, but every capture
-      // must match the existing search-all template, not merely each other.
       for (const viaAdb of [true, true, false]) {
         const image = await capture(viaAdb);
         attempt.captures.push({ source: viaAdb ? "ADB" : "observer", sha256: hash(image.data), matches: image.data.equals(expected), elapsed_ms: now() - start });
@@ -140,7 +135,6 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     const css = await page().evaluate(() => {
       const marker = document.createElement("div");
       marker.id = "pixel-calibration-marker";
-      // Edge-to-edge WebView can extend behind Android's status bar.
       marker.style = "position:fixed;left:24px;top:120px;width:80px;height:24px;background:rgb(17,91,203);z-index:2147483647";
       document.body.append(marker);
       return { scale: devicePixelRatio, width: innerWidth, height: innerHeight };
@@ -210,9 +204,6 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     const attempts = [];
     const deadline = performance.now() + 10000;
     do {
-      // Templates are outside measured intervals. DOM readiness does not prove
-      // that the pending scroll/paint reached the OS. Require two independent
-      // ADB captures to agree, then cross-check the faster native observer.
       const first = await capture(region, true);
       image = await capture(region, true);
       const native = release ? await capture(region) : image;
@@ -239,16 +230,10 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     const stages = traceLabel || (rawPixels && report.active_attempt) ? { ...(traceLabel ? { trace_label: traceLabel } : {}), captures: [] } : undefined;
     const diagnosticImages = [];
     let commandError, captures = 0, matched, result;
-    // Start the clock before dispatch, then capture after DOM preparation. Avoid
-    // spending a full PNG transfer on the known old frame. DOM readiness cannot
-    // finish the interval: independently captured OS pixels must still match.
     const execution = Promise.resolve().then(command).catch(error => { commandError = String(error.stack || error); });
     await execution;
     if (stages) stages.command_end_ms = performance.now() - start;
     try {
-      // A screenshot taken before the pending paint can spend a full readback
-      // encoding the known old frame. Pace the first capture, inside the clock;
-      // this never forces a renderer frame or substitutes for matching pixels.
       if (report.first_capture_delay_ms) await pause(report.first_capture_delay_ms);
       if (stages) stages.first_capture_start_ms = performance.now() - start;
       while (!commandError && performance.now() - start < timeout) {
@@ -306,8 +291,6 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
   assert.match(report.controls.already_visible.error, /already visible/);
   assert.equal(staleCommandRan, false);
   await page().evaluate(() => {
-    // invoke is immutable. Delay only the callback carrying the saved move,
-    // and verify the hook ran; silent assignment failures must never pass a control.
     const callbacks = window.__TAURI_INTERNALS__.callbacks;
     if (Object.prototype.hasOwnProperty.call(callbacks, "set")) throw new Error("Callback map already instrumented");
     window.__pixelDelayedResponses = [];
@@ -371,8 +354,6 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
       if (noopEvaluation) {
         const { measureNoopEvaluation } = await import("./android-noop-evaluation.mjs");
         await measureNoopEvaluation({ evaluate: fn => page().evaluate(fn), setTraceLabel: label => page().setTraceLabel(label), evidence });
-        // Replies precede the driver's WebView cleanup. An unlabelled request
-        // drains the last labelled section before stopping/flushing Perfetto.
         assert.equal(await page().evaluate(() => null), null);
         evidence.driver_drained = true;
         evidence.captures_in_series = report.capture_diagnostics.length - evidence.capture_diagnostics_start_index;
@@ -470,8 +451,6 @@ export async function measureAndroidPixels({ getPage, call, device, adb, serial,
     report.active_attempt = { series: kind, repeat: i };
     if (kind === "stopped_processes") { await disconnect(); device("shell", "am", "force-stop", "app.zedone.prototype"); }
     else device("shell", "input", "keyevent", "KEYCODE_HOME");
-    // Home/force-stop returns before the compositor finishes its transition.
-    // Confirm the old board disappeared before arming, outside the startup interval.
     const hiddenDeadline = performance.now() + 5000;
     let absent = 0;
     while (performance.now() < hiddenDeadline && absent < 2) {

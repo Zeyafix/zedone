@@ -60,7 +60,6 @@ async function begin(next: Action) {
   if (!props.ready || busy.value || blocked.value && next.kind !== "forget") return;
   busy.value=true; error.value="";
   try {
-    // Freeze a fresh version at opening; later reads never rebase the action.
     const subjectAtOpening = (await mutationCredential()).subject;
     if (next.kind === "access.replace" || next.kind === "access.revoke") next={...next,target:await read("access.inspect",{subject:next.target.subject})};
     else if (next.kind === "invitation.cancel") next={...next,target:await read("invitation.inspect",{invitation:next.target.invitation})};

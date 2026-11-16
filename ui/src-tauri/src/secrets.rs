@@ -1,4 +1,3 @@
-//! Android host access only. No renderer dispatcher, plaintext store or logs.
 use serde::Deserialize;
 use tauri::{
     Manager, Runtime,
@@ -81,7 +80,6 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             app.manage(api.register_android_plugin("app.zedone.local", "SecretsPlugin")?);
             Ok(())
         })
-        // Even a compromised page cannot read, erase or replace host secrets.
         .invoke_handler(|invoke| {
             invoke.resolver.reject("host operation unavailable");
             true

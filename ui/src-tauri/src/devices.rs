@@ -1,4 +1,3 @@
-//! Native composition; high-level operations, never a secret-store dispatcher.
 use std::sync::Arc;
 use tauri::{Runtime, State};
 use zedone_adapters::{

@@ -22,7 +22,6 @@ while IFS=@ read -r package revision; do
     properties="$android_home/$package/source.properties"
     [[ -f $properties ]] || fail "Missing SDK package: $package"
     actual=$(sed -n 's/^Pkg.Revision *= *//p' "$properties" | tr -d '\r')
-    # SDK properties may spell revision 2.0.0 as 2.
     actual=${actual%.0}; actual=${actual%.0}
     revision=${revision%.0}; revision=${revision%.0}
     [[ $actual == "$revision" ]] || fail "Unexpected $package revision: $actual"
@@ -38,7 +37,6 @@ rustc "+$rust" -vV
 rustup target list --toolchain "$rust" --installed
 bun -e 'console.log("Bun runtime OK")'
 
-# Own all generated data; never reuse or remove a developer's AVD.
 mkdir -p "$root/temp"
 probe=$(mktemp -d "$root/temp/android-environment.XXXXXXXX")
 avd_name=$(basename -- "$probe")
@@ -50,7 +48,6 @@ cleanup() {
         if [[ $status != 0 ]]; then
             tail -n 80 "$probe/emulator.log" >&2 || true
         fi
-        # Own a separate process group. QEMU can ignore TERM even after a successful boot.
         kill -TERM -- "-$emulator_pid" 2>/dev/null || true
         timeout 10 tail --pid="$emulator_pid" -f /dev/null >/dev/null 2>&1 || true
         kill -KILL -- "-$emulator_pid" 2>/dev/null || true
@@ -75,7 +72,6 @@ for target in aarch64-linux-android armv7-linux-androideabi i686-linux-android x
         -C "link-arg=--target=${clang_target}33" "$probe/main.rs" -o "$probe/$target"
 done
 printf 'no\n' | avdmanager create avd --name "$avd_name" --package "${image//\//;}" --device pixel_5
-# Require a free port instead of touching an existing emulator.
 ports=$(ss -H -ltn)
 echo "$ports" | awk '{print $4}' | grep -Eq ':(5554|5555)$' && fail 'Emulator ports 5554/5555 are occupied.'
 setsid emulator -avd "$avd_name" -port 5554 -no-window -no-audio -no-boot-anim \
@@ -110,8 +106,6 @@ device_adb shell rm -f "$remote_probe"
 echo 'Android 13 / API 33 / x86_64 / GMS absent; ZEDONE_ANDROID_TOOLCHAIN_OK'
 echo 'Android environment check passed.'
 
-# Optional application check uses this owned AVD before the existing cleanup trap.
-# Arguments are an executable and its argv, never an evaluated shell string.
 if (( $# )); then
     ANDROID_SERIAL=emulator-5554 "$@"
 fi

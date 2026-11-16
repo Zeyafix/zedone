@@ -101,7 +101,6 @@ async fn issuance_rotation_revocation_and_regrant_replay_on_http_ipc_cli_and_res
     let revoked = post(&service, "access.revoke", &revoke, &secret).await;
     assert_eq!(revoked["result"]["revoked"], true);
     assert_error(&read(&service, &key(&rotated)).await, "access_denied");
-    // Lost replies return the ORIGINAL issuance/rotation, without reviving keys.
     assert_eq!(
         post(&service, "access.issue", &body, &secret).await["result"],
         issued["result"]
@@ -130,7 +129,6 @@ async fn issuance_rotation_revocation_and_regrant_replay_on_http_ipc_cli_and_res
         json!(["Denied"])
     );
 
-    // Receipts and authoritative SQL contain no recipient bearer secret.
     for access in [&member, &rotated, &fresh] {
         assert!(!body.contains(&key(access)));
         assert!(!replace.contains(&key(access)));
@@ -215,7 +213,6 @@ async fn stale_collisions_retired_keys_and_mismatches_cannot_overwrite_access() 
         .await,
         "invalid_request",
     );
-    // No partial un-revoke, key activation or failed-command receipt.
     assert_error(&read(&service, &key(&member)).await, "access_denied");
     params["verifier"] = json!(replacement.registration_verifier());
     let changed = post(

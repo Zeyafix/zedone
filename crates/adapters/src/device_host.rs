@@ -1,5 +1,3 @@
-//! High-level host operations shared by native IPC and authenticated TLS/CLI.
-//! No operation exposes an OS slot, key, database callback or bootstrap.
 mod offers;
 #[cfg(test)]
 #[path = "device_host_tests.rs"]
@@ -92,9 +90,6 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
             )
     }
 
-    /// Trusted native composition only. Administrative control of a local host
-    /// must not become an API proxy for another principal's remote data rights.
-    /// The remote Service rechecks the saved device grant on every command.
     pub async fn peer_command(
         &self,
         operation: &str,
@@ -266,8 +261,6 @@ async fn dispatch<S: SecretStore + 'static>(
     )
 }
 
-/// Public installation identifier, never derived from a request or a credential.
-/// A damaged record fails closed; create_new prevents implicit replacement.
 pub fn namespace(directory: &FilePath) -> Result<[u8; 32], ErrorCode> {
     use std::io::{Read, Write};
     let path = directory.join("host-namespace-v1");

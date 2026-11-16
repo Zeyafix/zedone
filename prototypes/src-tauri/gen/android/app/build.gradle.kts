@@ -14,8 +14,6 @@ val tauriProperties = Properties().apply {
     }
 }
 
-// Local P01 measurement only. The application remains non-debuggable; all driver
-// code lives in androidTest and is absent from the measured application APK.
 val releaseMeasurement = providers.gradleProperty("prototypeReleaseMeasurement").orNull == "true"
 
 android {
@@ -85,7 +83,6 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.4")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
-    // Match the mapper in the pinned Tauri Android module; test scope only.
     androidTestImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
 }
 

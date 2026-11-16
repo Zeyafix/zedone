@@ -1,4 +1,3 @@
-//! Authenticated encryption only. TLS grants neither device nor data access.
 use crate::secrets::{MAX_SECRET_BYTES, Secret, SecretError, SecretStore, Slot};
 use rustls::{
     ClientConfig, DigitallySignedStruct, RootCertStore, ServerConfig, SignatureScheme,
@@ -30,7 +29,6 @@ impl From<SecretError> for ChannelError {
     }
 }
 
-/// Public, out-of-band trust anchor. Never learn this from an untrusted socket.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Fingerprint(pub [u8; 32]);
 impl Fingerprint {
@@ -39,8 +37,6 @@ impl Fingerprint {
     }
 }
 
-// Deliberately neither Debug, Serialize nor Clone. The key only enters the
-// OS store or TLS configuration, never a normal command result or receipt.
 pub struct Identity {
     certificate: Vec<u8>,
     key: Secret,
@@ -81,7 +77,6 @@ impl Identity {
             certificate: bytes[7..7 + length].to_vec(),
             key: Secret::new(bytes[7 + length..].to_vec()),
         };
-        // Includes parsing and certificate/private-key consistency checking.
         identity.acceptor()?;
         Ok(identity)
     }
@@ -103,8 +98,6 @@ impl Identity {
     }
 }
 
-/// Explicit provisioning. A persisted but unreadable record is left intact.
-/// If acknowledgement is lost, load before considering a new provisioning.
 pub async fn create_identity(store: &impl SecretStore) -> Result<Identity, ChannelError> {
     let identity = Identity::generate()?;
     store
@@ -142,8 +135,6 @@ impl ServerCertVerifier for PinnedServer {
                 rustls::CertificateError::UnknownIssuer,
             ));
         }
-        // Only the exact out-of-band pinned certificate can become an anchor.
-        // webpki still checks validity, name and usage; rustls checks proof of key.
         let mut roots = RootCertStore::empty();
         roots.add(certificate.clone().into_owned())?;
         WebPkiServerVerifier::builder_with_provider(

@@ -25,7 +25,6 @@ function invalidate() {
   generation++; loading.value = false; results.value = undefined; error.value = "";
 }
 watch([query, scope, () => props.space], invalidate, { flush: "sync" });
-// Changes made in the existing editor are read afresh, never patched into a receipt.
 watch(() => props.revision, () => { void search(); });
 async function search() {
   const current = ++generation;

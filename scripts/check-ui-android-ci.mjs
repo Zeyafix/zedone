@@ -1,5 +1,3 @@
-// CI owns its emulator lifecycle. Local UI verification must use T3 Device;
-// this driver deliberately refuses to run outside CI.
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -34,8 +32,6 @@ const fixtureDirectory = await mkdtemp(resolve(tmpdir(), "zedone-shell-android-"
 const remote = "/data/local/tmp/zedone-shell-ui-fixture";
 async function openWebView() {
   device("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.DEFAULT", "-c", "android.intent.category.LAUNCHER", "-n", `${app}/.MainActivity`);
-  // Socket, discoverable target and Playwright page are separate milestones.
-  // Share the previous 60 x 250 ms readiness budget across all three.
   const deadline = Date.now() + 15000;
   async function until(read, description) {
     while (Date.now() < deadline) {
@@ -54,7 +50,6 @@ async function openWebView() {
   const endpoint = `http://127.0.0.1:${port}`;
   try {
     await waitForWebViewTarget(endpoint, until);
-    // Preserve WebView settings; desktop context/download overrides do not apply.
     browser = await chromium.connectOverCDP(endpoint, { timeout: Math.max(1, deadline - Date.now()), noDefaults: true });
     return await until(() => browser.contexts().flatMap(context => context.pages()).find(page => !page.isClosed()), "ZeDone WebView page");
   } catch (error) {
@@ -79,8 +74,6 @@ async function dismissKeyboard() {
     const input = /\bmInputShown=(true|false)\b/.exec(state);
     const view = /\bmIsInputViewShown=(true|false)\b/.exec(state);
     assert.ok(input && view, "Android 13 must report native IME and input-view state");
-    // An active IME may have no input view (e.g. a hardware/test keyboard).
-    // Conversely, the service may retain its view after its window is hidden.
     return input[1] === "true" && view[1] === "true";
   };
   if (!shown()) return;
@@ -110,7 +103,6 @@ try {
   device("shell", "am", "force-stop", app);
   const fixture = Bun.spawnSync([resolve(root, "target/debug/examples/shell-fixture"), "--prepare", fixtureDirectory], { stdout: "pipe", stderr: "pipe" });
   assert.equal(fixture.exitCode, 0, "Synthetic fixture preparation must succeed");
-  // This driver runs only on CI's newly owned AVD. Never run on local data.
   device("shell", "run-as", app, "rm", "-rf", "product");
   device("push", `${fixtureDirectory}/.`, remote);
   device("shell", "run-as", app, "cp", "-r", remote, "product");
@@ -161,7 +153,6 @@ try {
   } });
   assert.deepEqual(errors, [], "Domain UI must not raise page errors");
 } catch (error) {
-  // Capture before disconnect/cleanup destroys the native failure state.
   console.error("Android shell failure state:", JSON.stringify({ stage, ...await shellDiagnosticState(page), pageErrors: errors.slice(-5) }));
   try { console.error("Android shell error log:", device("logcat", "-d", "-t", "80", "-v", "brief", "chromium:E", "AndroidRuntime:E", "*:S").slice(0, 8000)); }
   catch { console.error("Android shell error log: unavailable"); }

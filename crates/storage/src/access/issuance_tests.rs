@@ -37,7 +37,6 @@ async fn expiry_is_exclusive_replay_does_not_extend_it_and_regrant_requires_new_
     let (a, r) = (admin.clone(), recipient.clone());
     let replayed = storage
         .transact(move |ctx| {
-            // Recipient expiry does not revoke the issuer's right to its receipt.
             let replayed = access_commands::issue(
                 ctx,
                 &a.credential(),

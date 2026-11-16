@@ -1,5 +1,4 @@
 #!/bin/sh
-# Git supplies one ref update per line on stdin. Publish branches and tags only.
 set -eu
 
 while read -r local_ref local_oid remote_ref remote_oid; do

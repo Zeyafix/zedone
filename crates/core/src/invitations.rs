@@ -1,5 +1,3 @@
-//! Administrative preparation only. An invitation grants no access and is not
-//! an unauthenticated pairing endpoint. Secrets never enter command receipts.
 use std::time::UNIX_EPOCH;
 
 use serde::{Deserialize, Serialize};
@@ -16,8 +14,6 @@ use crate::{
 
 pub const INVITATION_LIFETIME_MS: i64 = 600_000;
 
-/// SHA-256("zedone/invitation-code/v1\0" || 32 random bytes).
-/// Neither an access key nor the original invitation code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InvitationVerifier(pub [u8; 32]);
@@ -100,7 +96,6 @@ pub struct InvitationList {
     pub next: Option<String>,
 }
 
-/// Trusted persistence projection, never decoded from client JSON.
 pub struct InvitationRecord {
     pub invitation: String,
     pub created_ms: i64,
@@ -143,7 +138,6 @@ pub trait InvitationStore: ReplayTransaction {
         expires_ms: i64,
     ) -> CommandResult<()>;
     fn cancel_invitation(&mut self, id: &str) -> CommandResult<()>;
-    /// Ascending IDs, exclusive cursor, at most 51 for one-page lookahead.
     fn invitations(&mut self, after: Option<&str>) -> CommandResult<Vec<InvitationRecord>>;
 }
 

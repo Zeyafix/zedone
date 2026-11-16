@@ -43,7 +43,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
   await activate("#card-move-1");
   await page.waitForFunction(() => document.querySelector('[role="dialog"]'));
   assert.equal(await page.evaluate(() => document.activeElement.id), "move-column");
-  // Reka traps focus; these key presses are real browser input, also in WebView.
   for (let i = 0; i < 6; i++) {
     await page.keyboard.press("Tab");
     assert.equal(await page.evaluate(() => !!document.activeElement.closest('[role="dialog"]')), true);
@@ -78,7 +77,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
   assert.deepEqual(await current(), initial);
   console.log("Board UI: explicit column move and inverse passed.");
 
-  // Bring the board to the viewport, keeping two columns at least partly visible.
   await page.evaluate(() => {
     const board = document.querySelector(".board");
     board.scrollIntoView({ block: "center" });
@@ -86,7 +84,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
     document.querySelectorAll(".card-list").forEach(list => { list.scrollTop = 0; });
   });
   const point = async selector => {
-    // Sortable animates for 150 ms after a drop; measure only the settled handle.
     await page.waitForTimeout(180);
     return page.evaluate(selector => {
       const box = document.querySelector(selector).getBoundingClientRect();
@@ -119,7 +116,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
         await mouse("mouseMoved", { x: from.x + (to.x - from.x) * i / 8, y: from.y + (to.y - from.y) * i / 8 }, 1);
         await new Promise(resolve => setTimeout(resolve, 25));
       }
-      // Sortable throttles scroll detection; include the final settled pointer position.
       await new Promise(resolve => setTimeout(resolve, 60));
       await mouse("mouseMoved", { x: to.x + 1, y: to.y }, 1);
       await new Promise(resolve => setTimeout(resolve, linger));
@@ -143,7 +139,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
   await activate("#board-undo"); await saved();
   assert.deepEqual(await current(), initial);
   console.log("Board UI: card reorder gesture and inverse passed.");
-  // Cross-column gesture and explicit command must produce the same saved snapshot.
   await page.evaluate(() => {
     document.querySelector(".board").scrollIntoView({ block: "center" });
     document.querySelector(".board").scrollLeft = 0;
@@ -175,7 +170,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
     document.querySelector(".board").scrollIntoView({ block: "center" });
     document.querySelector(".board").scrollLeft = 0;
   });
-  // Scrolling away from a handle never sends a move.
   const beforeScroll = await current();
   const start = await point('[data-card="2"] p');
   if (touch) await gesture(start, { x: start.x, y: start.y - 100 }, 0);
@@ -183,7 +177,6 @@ export async function checkBoardUI(page, call, activate = selector => page.locat
   await page.waitForFunction(() => document.querySelector(".card-list").scrollTop > 0);
   assert.deepEqual(await current(), beforeScroll);
   assert.equal(await page.evaluate(() => document.querySelector(".card-list").scrollTop > 0), true);
-  // Let the browser finish the wheel's animated scroll before positioning a new drag.
   if (!touch) await page.waitForTimeout(250);
   await page.evaluate(() => { document.querySelectorAll(".card-list").forEach(list => { list.scrollTop = 0; }); });
   const edge = await page.evaluate(() => {

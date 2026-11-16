@@ -4,7 +4,7 @@ export function readTheme(): Theme {
   try {
     const value = localStorage.getItem(themeKey);
     if (value === "light" || value === "dark") return value;
-  } catch { /* Preferences must not prevent startup. */ }
+  } catch {                                             }
   return "system";
 }
 export function saveTheme(theme: Theme): boolean {

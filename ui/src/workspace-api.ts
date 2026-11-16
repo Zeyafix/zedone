@@ -42,7 +42,6 @@ type Reads = {
 export type Pending = { id: string; intention: Intention };
 const store = () => webIntentionStore(localStorage, "shell");
 
-/** Reads are disposable. Only original mutation delivery state is persisted. */
 export async function read<O extends keyof Reads>(operation: O, parameters: Parameters[O]): Promise<Reads[O]> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -56,7 +55,6 @@ export async function read<O extends keyof Reads>(operation: O, parameters: Para
       const response = await localTransport()(intention, controller.signal);
       if (!validateResponse(response, operation)) throw new Error("unavailable");
       if (response.status !== "ok") throw new Error(response.error.code);
-      // The operation-specific runtime validator above establishes this mapping.
       return response.result as Reads[O];
     })();
     return await Promise.race([request, new Promise<never>((_, reject) => {

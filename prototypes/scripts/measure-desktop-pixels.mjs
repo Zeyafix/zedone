@@ -1,5 +1,3 @@
-// Independent Windows desktop-pixel upper bounds for the synthetic prototype.
-// No physical-panel or input-device latency claim; failed observations are retained.
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
@@ -173,8 +171,6 @@ async function measure() {
     window = await rpc({ action: 'expose', prefix: windowTitle });
     assert.ok(window.hwnd, window.error);
     report.window = window;
-    // Browser chrome differs between Opera and Chrome. Search inside our test
-    // window instead of assuming a toolbar/sidebar offset. Rounded borders are excluded.
     assert.equal(await page.evaluate(() => devicePixelRatio), 1, 'Pixel profile requires one OS pixel per CSS pixel');
     const nr = { x: window.x + 32, y: window.y + 32, width: window.width - 64, height: Math.min(window.height - 64, 750) };
     const calibration = await capture(nr), bytes = Buffer.from(calibration.pixels, 'base64');

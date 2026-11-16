@@ -112,7 +112,6 @@ pub(in super::super) fn run(directory: &Path, phase: &str) -> Result<()> {
                         if state == "active" { "board" } else { "trash" },
                     )?;
                 }
-                // No partial space restoration: restore the space, then earlier trash.
                 let mut a = store.read("A")?;
                 if state == "trash" {
                     let old = view(&a.doc)?["old"].clone();

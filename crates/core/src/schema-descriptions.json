@@ -1,0 +1,166 @@
+[
+  {
+    "description": "Whole variants after a move; legacy documents and receipts omit these.",
+    "paths": [
+      "/components/schemas/CardSnapshot/properties/placements",
+      "/components/schemas/CommandSuccess_CardSnapshot/properties/result/properties/placements"
+    ]
+  },
+  {
+    "description": "Local causal sequence; independent branches may share a sequence.",
+    "paths": [
+      "/components/schemas/CardTextVersion/properties/sequence"
+    ]
+  },
+  {
+    "description": "Current members, including earlier trash and conflicts, for scope preview.\nNone means unsupported contents; legacy receipts also omit this field.",
+    "paths": [
+      "/components/schemas/ColumnSnapshot/properties/contents",
+      "/components/schemas/CommandSuccess_ColumnSnapshot/properties/result/properties/contents"
+    ]
+  },
+  {
+    "description": "True only when there are no cards or unknown contents.",
+    "paths": [
+      "/components/schemas/ColumnSnapshot/properties/empty",
+      "/components/schemas/CommandSuccess_ColumnSnapshot/properties/result/properties/empty"
+    ]
+  },
+  {
+    "description": "All distinct position registers; conflicting values are never overwritten.",
+    "paths": [
+      "/components/schemas/ColumnSnapshot/properties/positions",
+      "/components/schemas/CommandSuccess_ColumnSnapshot/properties/result/properties/positions"
+    ]
+  },
+  {
+    "description": "Explicit scopes only; administration never implies space access.",
+    "paths": [
+      "/components/schemas/CommandRequest_ConfirmPairing/properties/parameters/properties/scope",
+      "/components/schemas/ConfirmPairing/properties/scope"
+    ]
+  },
+  {
+    "description": "Exclusive subject cursor. New reads need new command IDs.",
+    "paths": [
+      "/components/schemas/CommandRequest_ListAccess/properties/parameters/properties/after",
+      "/components/schemas/ListAccess/properties/after"
+    ]
+  },
+  {
+    "description": "Insert before this active card in the destination; null appends.",
+    "paths": [
+      "/components/schemas/CommandRequest_MoveCard/properties/parameters/properties/before",
+      "/components/schemas/MoveCard/properties/before"
+    ]
+  },
+  {
+    "description": "Insert before this active column; null appends.",
+    "paths": [
+      "/components/schemas/CommandRequest_MoveColumn/properties/parameters/properties/before",
+      "/components/schemas/MoveColumn/properties/before"
+    ]
+  },
+  {
+    "description": "Claimed display name, never an authenticated device identity.",
+    "paths": [
+      "/components/schemas/CommandRequest_RequestPairing/properties/parameters/properties/label",
+      "/components/schemas/RequestPairing/properties/label"
+    ]
+  },
+  {
+    "description": "Omit to restore to the original active column.",
+    "paths": [
+      "/components/schemas/CommandRequest_RestoreCard/properties/parameters/properties/column",
+      "/components/schemas/RestoreCard/properties/column"
+    ]
+  },
+  {
+    "description": "Hosts map the active space to Space; clearing query never changes scope.",
+    "paths": [
+      "/components/schemas/CommandRequest_SearchCards/properties/parameters/properties/scope",
+      "/components/schemas/SearchCards/properties/scope"
+    ]
+  },
+  {
+    "description": "None means every card in this space, including trash.",
+    "paths": [
+      "/components/schemas/CommandSuccess_HistoryPreview/properties/result/properties/card",
+      "/components/schemas/HistoryPreview/properties/card"
+    ]
+  },
+  {
+    "description": "Logical UTF-8 title/description bytes, not allocated database space.",
+    "paths": [
+      "/components/schemas/CommandSuccess_HistoryPreview/properties/result/properties/text_bytes",
+      "/components/schemas/HistoryPreview/properties/text_bytes"
+    ]
+  },
+  {
+    "description": "Ordinary access subject for a decided connection, never a secret.",
+    "paths": [
+      "/components/schemas/CommandSuccess_PairingSnapshot/properties/result/properties/subject",
+      "/components/schemas/PairingSnapshot/properties/subject"
+    ]
+  },
+  {
+    "description": "Only spaces containing matches, in the same order as space.list.",
+    "paths": [
+      "/components/schemas/CommandSuccess_SearchResults/properties/result/properties/spaces",
+      "/components/schemas/SearchResults/properties/spaces"
+    ]
+  },
+  {
+    "description": "Authoritative scope preview. None blocks lifecycle changes.",
+    "paths": [
+      "/components/schemas/CommandSuccess_SpaceSnapshot/properties/result/properties/contents/oneOf/0",
+      "/components/schemas/SpaceSnapshot/properties/contents/oneOf/0"
+    ]
+  },
+  {
+    "description": "All distinct current names; multiple names require conflict resolution.",
+    "paths": [
+      "/components/schemas/CommandSuccess_SpaceSnapshot/properties/result/properties/names",
+      "/components/schemas/SpaceSnapshot/properties/names"
+    ]
+  },
+  {
+    "description": "Includes causal assignment history, so deletion cannot expand silently.",
+    "paths": [
+      "/components/schemas/CommandSuccess_TagSnapshot/properties/result/properties/version",
+      "/components/schemas/TagSnapshot/properties/version"
+    ]
+  },
+  {
+    "description": "Stable object identities to resolve before preparing a new action.",
+    "paths": [
+      "/components/schemas/CommandSuccess_TrashPreview/properties/result/properties/conflicts",
+      "/components/schemas/TrashPreview/properties/conflicts"
+    ]
+  },
+  {
+    "description": "Conservatively retain history of every card with unresolved conflicts.",
+    "paths": [
+      "/components/schemas/HistoryEntry/properties/retained"
+    ]
+  },
+  {
+    "description": "These hits precede ordinary board positions inside their space.",
+    "paths": [
+      "/components/schemas/SearchHit/properties/placement_conflict"
+    ]
+  },
+  {
+    "description": "All current names; len > 1 identifies the leading name-conflict group.",
+    "paths": [
+      "/components/schemas/SearchSpace/properties/space"
+    ]
+  },
+  {
+    "description": "At most 50 entries, including revoked/expired grants. No secret/verifier.",
+    "paths": [
+      "/components/schemas/AccessList/properties/entries",
+      "/components/schemas/CommandSuccess_AccessList/properties/result/properties/entries"
+    ]
+  }
+]

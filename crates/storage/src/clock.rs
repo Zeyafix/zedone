@@ -1,5 +1,3 @@
-//! The clock and command share a writer lock. Failed work rolls back to a
-//! savepoint while its calendar and effective time survive in the transaction.
 use std::{
     cell::Cell,
     panic::AssertUnwindSafe,
@@ -57,7 +55,6 @@ fn validate_clock(connection: &Connection) -> StorageResult<()> {
     Ok(())
 }
 
-/// Created under the lock from persisted time, never supplied by an adapter.
 pub struct TransactionClock<'a> {
     source: &'a dyn Fn() -> CommandResult<SystemTime>,
     timeline: &'a std::sync::Mutex<Option<(Instant, i64)>>,
@@ -69,16 +66,12 @@ pub struct TransactionClock<'a> {
 impl Clock for TransactionClock<'_> {
     fn now(&self) -> CommandResult<SystemTime> {
         let wall = millis((self.source)()?)?;
-        // Detect actual calendar rollback, not drift below a monotonic projection.
-        // The independent effective floor still limits access on a frozen wall.
         if wall < self.calendar.get() {
             #[cfg(debug_assertions)]
             if std::env::var_os("ZEDONE_CLOCK_DIAGNOSTICS").as_deref()
                 == Some(std::ffi::OsStr::new("1"))
             {
                 use std::io::Write;
-                // Explicit debug diagnostics only; never change the clock or
-                // turn a failed stderr write into a different command result.
                 let _ = writeln!(
                     std::io::stderr().lock(),
                     "Trusted clock rejected calendar: wall_ms={wall} calendar_ms={} effective_ms={}",
@@ -105,8 +98,6 @@ impl Clock for TransactionClock<'_> {
         };
         let now = wall.max(projected).max(self.effective.get());
         if timeline.is_none() || now > projected {
-            // Also rebase a persisted floor advanced by another worker. Starting
-            // below that floor could freeze effective time until it caught up.
             *timeline = Some((instant, now));
         }
         self.calendar.set(wall);
@@ -132,8 +123,6 @@ impl Clock for TransactionClock<'_> {
 }
 
 impl Storage {
-    /// The application command entry. No caller-selected clock or callback
-    /// from JSON/IPC is accepted. Infrastructure composition supplies the work.
     pub async fn timed_transact<R: Send + 'static>(
         &self,
         work: impl FnOnce(&mut WriteContext<'_>, &TransactionClock<'_>) -> StorageResult<R>
@@ -167,8 +156,6 @@ impl Storage {
                 effective: Cell::new(effective),
                 deadline: Cell::new(None),
             };
-            // Take an initial reading even for denied or failed work. Malformed
-            // framing is rejected by the service before worker admission.
             clock.now()?;
             tx.execute_batch("SAVEPOINT command_work")?;
             let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {

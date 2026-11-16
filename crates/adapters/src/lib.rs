@@ -1,5 +1,3 @@
-//! Transport framing only. All commands use the same Rust decoder, fixed core
-//! handlers and timed storage transaction. No callback or authority from JSON.
 pub mod channel;
 pub mod device_control;
 pub mod device_host;
@@ -45,8 +43,6 @@ pub struct Service {
 }
 
 impl Service {
-    /// Trusted host supplies an already admitted Storage; no request can open
-    /// another database, migrate it, bootstrap or grant itself rights.
     pub fn new(storage: Storage) -> Self {
         Self { storage }
     }
@@ -65,8 +61,6 @@ impl Service {
             if body.len() > MAX_REQUEST_BYTES {
                 return Err(invalid());
             }
-            // Every arm fixes both the concrete decoder and the core handler.
-            // Neither the request nor a transport supplies policy or a callback.
             macro_rules! run {
                 ($command:ty, $handler:path) => {{
                     let request = decode_request::<$command>(body)?;
@@ -82,8 +76,6 @@ impl Service {
                                 == Some(std::ffi::OsStr::new("1"))
                             {
                                 use std::io::Write;
-                                // StorageError contains only local categories,
-                                // never SQL, paths, credentials or request data.
                                 let _ = writeln!(
                                     std::io::stderr().lock(),
                                     "Storage command failed: operation={operation} category={error:?}"
@@ -165,8 +157,6 @@ fn value<T: serde::Serialize>(execution: Execution<T>) -> Result<Execution<Value
     })
 }
 
-/// Wire keys are exact lowercase hex. Never Debug/Serialize/log the decoded
-/// secret; authentication hashes it inside the authoritative transaction.
 fn decode_key(key: &str) -> Result<[u8; 32], CommandError> {
     let denied = || CommandError {
         code: ErrorCode::AccessDenied,

@@ -6,8 +6,6 @@ use crate::{StorageError, StorageResult};
 
 const APPLICATION_ID: i64 = 0x5a45444e;
 
-// Until the full development plan is complete, evolve the single initial
-// schema in place. Historical transitions exist only in synthetic tests.
 pub(crate) struct Schema {
     pub version: i64,
     pub sql: &'static str,
@@ -82,7 +80,6 @@ impl Registry {
         for schema in self.0.iter().filter(|s| s.version > source) {
             (schema.upgrade.ok_or(StorageError::UnsupportedSchema)?)(tx)?;
             tx.pragma_update(None, "user_version", schema.version)?;
-            // Check each complete transition as well as the final result.
             check_schema_layout(tx, schema)?;
             check_integrity(tx)?;
         }
@@ -110,8 +107,6 @@ pub(crate) fn empty(connection: &Connection) -> StorageResult<bool> {
     Ok(count == 0)
 }
 
-/// No write connection, recovery writes or persistent PRAGMAs before admission.
-/// This is a preflight, not a lease: initialize rechecks under its writer lock.
 #[cfg(test)]
 pub(crate) fn preflight(path: &Path) -> StorageResult<()> {
     preflight_with(path, REGISTRY)
@@ -152,7 +147,6 @@ pub(crate) fn create(tx: &Transaction<'_>, registry: Registry) -> StorageResult<
 }
 
 pub(crate) fn configure(connection: &Connection) -> StorageResult<()> {
-    // No persistent PRAGMA changes until identity/version/layout/integrity pass.
     let mode: String = connection.query_row("PRAGMA journal_mode = WAL", [], |r| r.get(0))?;
     if mode != "wal" {
         return Err(StorageError::Unavailable);
@@ -187,8 +181,6 @@ pub(crate) fn check_layout(connection: &Connection) -> StorageResult<()> {
     check_known_layout(connection)
 }
 
-// Archive readers can validate a historical layout without accepting it for
-// normal product commands. Each version selects its own archive adapter.
 pub(crate) fn check_known_layout(connection: &Connection) -> StorageResult<()> {
     check_schema_layout(connection, REGISTRY.known(connection)?)
 }

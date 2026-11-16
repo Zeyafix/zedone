@@ -1,6 +1,3 @@
-//! Shared JSON contract for HTTP, CLI and IPC adapters.
-//! Credentials travel separately; decoding never authenticates or runs a command.
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -10,23 +7,21 @@ use crate::{
     replay::{CommandId, Execution},
 };
 
-/// Tauri framing preserves the original JSON string, including duplicate
-/// fields for the concrete decoder to reject. Credentials are a separate IPC
-/// argument, never part of the command or a saved client intention.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(
+    description = "Tauri framing preserves the original JSON string, including duplicate\nfields for the concrete decoder to reject. Credentials are a separate IPC\nargument, never part of the command or a saved client intention."
+)]
 pub struct IpcInvocation {
     pub operation: String,
     pub request: String,
 }
 
-/// Preserve this entire request, including the ID, for every delivery of an
-/// intention. New intentions require new client-generated cryptographic IDs.
-/// Concrete command types define all targets, parameters and original versions.
-/// The Value specialization in OpenAPI describes only this envelope, not an
-/// implemented operation or a substitute for concrete command validation.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(
+    description = "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation."
+)]
 pub struct CommandRequest<C> {
     #[schema(schema_with = crate::replay::byte_array_schema::<16>)]
     pub id: CommandId,
@@ -34,9 +29,6 @@ pub struct CommandRequest<C> {
     pub parameters: C,
 }
 
-/// All adapters must decode into the operation's concrete Rust command type.
-/// The operation name is checked against that type, never used as an unchecked
-/// permission, handler or authenticated identity supplied by the caller.
 pub fn decode_request<C: Command>(bytes: &[u8]) -> CommandResult<CommandRequest<C>> {
     let invalid = || CommandError {
         code: ErrorCode::InvalidRequest,
@@ -48,12 +40,11 @@ pub fn decode_request<C: Command>(bytes: &[u8]) -> CommandResult<CommandRequest<
     Ok(request)
 }
 
-/// Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.
-/// A success confirms the original completion, not the current object state.
-/// Construct success only AFTER the storage transaction commits. Cancellation,
-/// a lost response or uncertain commit must never be converted to success.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
+#[schema(
+    description = "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+)]
 pub enum CommandResponse<T> {
     Ok(CommandSuccess<T>),
     Error(CommandFailure),

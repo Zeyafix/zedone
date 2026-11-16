@@ -1,9 +1,3 @@
-//! Trusted storage infrastructure, not an authenticated command API.
-//!
-//! Callbacks run on the SQLite worker. They must not perform network I/O, wait
-//! for this worker, or publish side effects. Only the durable result of `write`
-//! may be sent to a client. Domain history belongs in the same document as data.
-
 pub mod access;
 mod card_history;
 mod cards;
@@ -39,16 +33,13 @@ pub use version::state_version;
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
-/// Local categories without SQL, file paths, secrets or exception strings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorageError {
     Unavailable,
     OutcomeUnknown,
     UnsupportedSchema,
     InvalidDatabase,
-    /// This run already consumed its automatic attempt; an explicit retry is required.
     RetryRequired,
-    /// Persistence collision only; replay and access policy belong to core.
     AlreadyRecorded,
     Rejected(CommandError),
 }
@@ -94,8 +85,6 @@ enum Message {
     Stop(oneshot::Sender<()>),
 }
 
-/// One connection on a dedicated thread, with bounded asynchronous admission.
-/// Dropping the last handle drains already admitted work and closes SQLite.
 #[derive(Clone)]
 pub struct Storage {
     sender: mpsc::Sender<Message>,
@@ -144,8 +133,6 @@ impl Storage {
                     match message {
                         Message::Run(job) => job(&mut connection),
                         Message::Stop(reply) => {
-                            // Stop admission immediately, then drain every job
-                            // already accepted before confirming termination.
                             receiver.close();
                             stopped.push(reply);
                         }
@@ -176,7 +163,6 @@ impl Storage {
             })))
             .await
             .map_err(|_| StorageError::Unavailable)?;
-        // After admission a lost response never proves that the write failed.
         response.await.map_err(|_| StorageError::OutcomeUnknown)?
     }
 
@@ -195,9 +181,6 @@ impl Storage {
         .await
     }
 
-    /// Atomically store changes, peer progress and the serialized callback result.
-    /// Key/request are opaque internal bytes; this is NOT a retry executor.
-    /// A duplicate key never calls `work`, even when the request is identical.
     pub async fn write<R: Serialize + Send + 'static>(
         &self,
         key: Vec<u8>,
@@ -236,8 +219,6 @@ impl Storage {
             )?;
             checkpoint(Stage::AfterResult)?;
             checkpoint(Stage::BeforeCommit)?;
-            // SQLite failure at this boundary is conservatively unknown. The
-            // transaction guard rolls back if possible; never report success.
             tx.commit().map_err(|_| StorageError::OutcomeUnknown)?;
             checkpoint(Stage::AfterCommit).map_err(|_| StorageError::OutcomeUnknown)?;
             Ok(result)
@@ -245,10 +226,6 @@ impl Storage {
         .await
     }
 
-    /// Compose a core command with trusted access/domain ports on this worker.
-    /// The callback is infrastructure, never a user-supplied operation. It must
-    /// use core's replay policy and atomically record every successful command.
-    /// A response may leave this boundary only after the future returns success.
     pub async fn transact<R: Send + 'static>(
         &self,
         work: impl FnOnce(&mut WriteContext<'_>) -> StorageResult<R> + Send + 'static,
@@ -279,7 +256,6 @@ impl Storage {
         .await
     }
 
-    /// Terminal for all clones. Already admitted jobs are processed first.
     pub async fn shutdown(self) -> StorageResult<()> {
         let (reply, response) = oneshot::channel();
         self.sender
@@ -290,7 +266,6 @@ impl Storage {
     }
 }
 
-// Private fault seam: production always uses a no-op, callers cannot inject it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Stage {
     AfterWork,

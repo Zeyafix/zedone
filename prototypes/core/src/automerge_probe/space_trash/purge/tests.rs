@@ -354,7 +354,6 @@ fn a_late_creation_stays_in_conflicts_even_after_its_ancestors_were_restored() {
     a.doc.merge(&mut b.doc).unwrap();
     let plan = late_preview(&a.doc, "s0").unwrap();
     resolve(&mut a.doc, &plan, true).unwrap();
-    // The old replica has never seen the purge, unlike a legitimate new creation.
     create(&mut old, "new-b", "c0").unwrap();
     a.doc.merge(&mut old).unwrap();
     assert_eq!(state(&a.doc, "s0"), "board");

@@ -78,7 +78,6 @@ async fn moves_preserve_identity_data_neighbors_history_and_replay_after_undo_an
         move_card!(s, a, movement(10, 9, 2, None, first.version)),
         ErrorCode::StaleState,
     );
-    // Old numeric receipt remains decodable, and replay cannot undo a later move.
     let original = run!(s, a, create, creation(1, 9)).unwrap();
     assert!(original.replayed);
     assert_eq!(original.result, first);
@@ -121,7 +120,6 @@ async fn moves_reject_stale_text_self_missing_foreign_and_trashed_targets_withou
             code,
         );
     }
-    // A real column in another document is not an admissible destination.
     let b = a.clone();
     s.transact(move |ctx| {
         spaces::create(
@@ -797,5 +795,5 @@ async fn moved_card_lifecycle_and_edit_keep_the_whole_placement_and_historical_m
         .await
         .unwrap();
     assert!(again.empty);
-    assert_ne!(before.version, again.version); // Removed placement remains causal evidence.
+    assert_ne!(before.version, again.version);
 }

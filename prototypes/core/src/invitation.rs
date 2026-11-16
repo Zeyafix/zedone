@@ -1,5 +1,3 @@
-//! Synthetic input inspection only: no connection, address lookup or credentials.
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -23,15 +21,14 @@ pub enum InvitationError {
     InvalidData,
 }
 
-/// The same inspection for camera content, manual input and direct agent calls.
-/// These fields deliberately do not specify the future pairing protocol.
 #[utoipa::path(
-    post, path = "/prototype/invitation", operation_id = "invitation",
+    post,
+    path = "/prototype/invitation",
+    operation_id = "invitation",
     request_body = InvitationRequest,
-    responses(
-        (status = 200, description = "Synthetic fields, unchanged; no connection", body = Invitation),
-        (status = 422, description = "Expected nonempty synthetic address/code", body = InvitationError)
-    )
+    responses((status = 200, description = "Synthetic fields, unchanged; no connection", body = Invitation),
+        (status = 422, description = "Expected nonempty synthetic address/code", body = InvitationError)),
+    summary = "The same inspection for camera content, manual input and direct agent calls.\nThese fields deliberately do not specify the future pairing protocol."
 )]
 pub fn invitation(request: InvitationRequest) -> Result<Invitation, InvitationError> {
     let data = match request {

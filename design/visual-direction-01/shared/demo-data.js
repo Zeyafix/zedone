@@ -1,4 +1,3 @@
-/* Design-only fixture. Each document clones it; no product storage is used. */
 window.ZeDoneDemoData = {
   space: 'Моя неделя',
   spaces: ['Моя неделя', 'Дом', 'Идеи для поездок'],

@@ -34,8 +34,6 @@ export function fixtureInfo(snapshot) {
     history_trash_conflicts: "not implemented in P01" };
 }
 
-// Same DOM command and completion predicate in desktop browsers and real WebView.
-// Both timestamps live in the page; CDP round trips are outside the interval.
 export async function uiTime(page, selector, kind) {
   let guard;
   const observedStart = performance.now();
@@ -57,8 +55,6 @@ export async function uiTime(page, selector, kind) {
         !document.querySelector("#storage-error") && document.querySelector("#storage-result");
       return !document.querySelector("#board-busy") && document.querySelectorAll(".board-card").length === 30;
     };
-    // Observe the Vue update, then include a render opportunity. This is a frame
-    // boundary proxy, not a claim to observe physical screen presentation.
     return new Promise(resolve => {
       let observer, timer, finished = false;
       const finish = async () => {
@@ -103,8 +99,6 @@ export async function measureInteractions(page, call, report) {
   await workingScreen(page);
   for (let i = -5; i < 30; i++) {
     report.active_attempt = { series: "ui_move", repeat: i, warmup: i < 0 };
-    // DOM commands also work in WebView 101, where modern Playwright locator
-    // visibility helpers require Element.checkVisibility from newer Chromium.
     await page.evaluate(() => document.querySelector("#card-move-1").click());
     await page.waitForFunction(() => document.querySelector("#move-column"));
     await page.evaluate(() => {

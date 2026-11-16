@@ -3,7 +3,6 @@ import { deflateSync } from "node:zlib";
 import { randomBytes } from "node:crypto";
 import { responseDecoder } from "./android-release-protocol.mjs";
 
-// ADB/TCP chunks have no relationship to JSON lines, UTF-8 or pixel boundaries.
 const rgba = Buffer.from([0, 10, 255, 255, 13, 123, 128, 0]);
 const frame = Buffer.concat([Buffer.from(JSON.stringify({ ok: true, value: {
   format: "rgba8", width: 2, height: 1, byte_length: 8,
@@ -17,7 +16,6 @@ for (let split = 0; split <= frame.length; split++) {
   }
   assert.equal(responses.length, 1);
   assert.deepEqual(responses[0].value.rgba, rgba);
-  // The next response follows the binary body without a separator.
   const next = Buffer.from(JSON.stringify({ ok: true, value: "Карточка 🦊" }) + "\n");
   for (const byte of next) decode(Buffer.from([byte]));
   assert.equal(responses[1].value, "Карточка 🦊");
@@ -54,7 +52,6 @@ for (let split = 0; split <= zipped.length; split++) {
   consume(frame);
   assert.deepEqual(replies[1].value.rgba, rgba);
 }
-// Incompressible data can grow; compressed length need not be <= RGBA length.
 for (const data of [randomBytes(65536), Buffer.alloc(65536)]) {
   const reply = [];
   const bytes = compressedFrame(deflateSync(data, { level: 1 }), { width: 128, height: 128, byte_length: data.length });

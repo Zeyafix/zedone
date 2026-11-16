@@ -479,7 +479,6 @@ async fn lost_response_retains_completed_candidate_without_unlocking_early() {
     task.abort();
     assert!(task.await.unwrap_err().is_cancelled());
     release.send(()).unwrap();
-    // An ordered worker barrier waits until preparation and response disposal.
     storage.read(|_| Ok(())).await.unwrap();
     let candidates: Vec<_> = fs::read_dir(&folder)
         .unwrap()

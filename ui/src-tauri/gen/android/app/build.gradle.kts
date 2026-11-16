@@ -18,8 +18,6 @@ android {
     compileSdk = 37
     namespace = "app.zedone.local"
     defaultConfig {
-        // HTTP images are an explicit, per-image user action (ADR-0006).
-        // The WebView CSP still limits connections to the local IPC bridge.
         manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "app.zedone.local"
         testInstrumentationRunner = "app.zedone.local.SecretStoreInstrumentation"

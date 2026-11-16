@@ -32,7 +32,6 @@ abstract class PrepareTauriLifecycle : DefaultTask() {
 }
 
 project(":tauri-android") {
-    // Keep this project's patched binaries out of Cargo's shared registry tree.
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("zedone-tauri-android-build"))
     plugins.withId("com.android.library") {
         val patched = tasks.register<PrepareTauriLifecycle>("prepareZeDonePluginLifecycle") {

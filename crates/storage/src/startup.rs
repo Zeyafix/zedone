@@ -1,6 +1,3 @@
-//! Trusted installation startup. No Storage handle exists before admission,
-//! migration and commit-witness reconciliation have all succeeded.
-
 use std::{path::PathBuf, time::Duration};
 
 use rusqlite::{Connection, TransactionBehavior};
@@ -11,8 +8,6 @@ use crate::{
     schema::{self, Registry},
 };
 
-/// Supplied from trusted installation settings on every new attempt. No fallback
-/// directory, clock, permissions or public command policy is invented here.
 #[derive(Clone, Debug)]
 pub struct MigrationOptions {
     pub folder: PathBuf,
@@ -28,8 +23,6 @@ pub enum StartupState {
     Ready,
 }
 
-/// Keep one controller for the installation's entire application run. A new
-/// application run constructs a new controller and gets one automatic attempt.
 pub struct Startup {
     path: PathBuf,
     state: StartupState,
@@ -59,9 +52,6 @@ impl Startup {
         self.finish().await
     }
 
-    /// After failure, re-open and recheck everything, using fresh settings and
-    /// a new capture if migration remains necessary. If the previous caller was
-    /// cancelled while running, await that same attempt; never start a duplicate.
     pub async fn retry(&mut self, options: Option<MigrationOptions>) -> StorageResult<Storage> {
         if self.state == StartupState::Ready {
             return Err(StorageError::RetryRequired);
@@ -120,14 +110,12 @@ pub(crate) fn initialize(
             schema::create(&tx, registry)?;
         }
         registry.validate(&tx)?;
-        // Admission is repeated under a writer lock; preflight is never a lease.
         tx.commit()?;
     }
     let needs_migration = registry.known(connection)?.version != registry.current().version;
     let has_witness = publication::has_commit_witness(connection)?;
     if needs_migration || has_witness {
         let options = options.ok_or(StorageError::Unavailable)?;
-        // Recheck source and reconcile the previous commit under both locks.
         publication::migrate_startup(connection, options, registry, checkpoint)?;
     }
     registry.target(connection)?;

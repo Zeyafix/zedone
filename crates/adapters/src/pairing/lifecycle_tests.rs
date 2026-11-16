@@ -76,7 +76,6 @@ async fn refresh(
 ) -> Result<CommandResponse<PairingSnapshot>, ErrorCode> {
     let (client, server) = sockets().await;
     let (response, served) = tokio::join!(lifecycle.refresh(client), host.serve(identity, server));
-    // A corrupt/mismatched local record can reject before opening TLS.
     if response.is_ok() {
         served.unwrap();
     }
@@ -120,7 +119,6 @@ async fn confirm(db: &Storage, admin: &PendingAccess, snapshot: &PairingSnapshot
 async fn pending_confirmation_reopen_unlink_cleanup_and_new_creation() {
     let (_dir, db, admin, identity) = setup().await;
     let store = FaultStore::default();
-    // The lifecycle never changes the identity slot.
     store
         .create(Slot::ChannelIdentity, &[91; 32])
         .await
@@ -159,7 +157,6 @@ async fn pending_confirmation_reopen_unlink_cleanup_and_new_creation() {
             .await
             .is_err()
     );
-    // Lost unlink response: repeat the exact intention before cleanup.
     for replayed in [false, true] {
         let (client, server) = sockets().await;
         let (response, served) = tokio::join!(
@@ -215,7 +212,6 @@ async fn every_promotion_boundary_recovers_without_replacing_a_key() {
             refresh(&lifecycle, &host, &identity).await.unwrap_err(),
             ErrorCode::Unavailable
         );
-        // At least one exact protected copy survives, even on lost acknowledgments.
         let remaining = store
             .bytes(Slot::PendingPairing)
             .await
@@ -339,7 +335,6 @@ async fn conflicting_or_corrupt_slots_are_preserved_without_selection_or_replace
             .id,
         original.request.id
     );
-    // A corrupt lone record also stays intact; no implicit recovery/create.
     store.remove(Slot::PendingPairing).await.unwrap();
     store
         .create(Slot::ConnectedPairing, &[1, 2, 3])
@@ -444,7 +439,6 @@ async fn revocation_after_interrupted_promotion_cleans_both_slots_without_revivi
     )
     .await;
     assert_eq!(revoked["status"], "ok", "{revoked}");
-    // A historical success (including the same command's replay) grants nothing.
     assert!(
         matches!(service.dispatch("access.list", &body, &credential).await,
         CommandResponse::Error(e) if e.error.code == ErrorCode::AccessDenied)

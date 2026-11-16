@@ -1,5 +1,3 @@
-//! Causal removals only. Never remove Automerge changes, peer progress, receipts,
-//! backup files or grant rows as a side effect of user-visible cleanup.
 use crate::{StorageError, WriteContext};
 use automerge::{ROOT, transaction::Transactable};
 use serde::Serialize;
@@ -15,8 +13,6 @@ impl CleanupStore for WriteContext<'_> {
     }
     fn purge_objects(&mut self, preview: &TrashPreview) -> CommandResult<()> {
         let result = (|| {
-            // The root deletions below are CRDT tombstones. Technical causal
-            // operations stay available for a future late-edit conflict.
             for card in &preview.cards {
                 self.connection().execute(
                     "DELETE FROM card_editing WHERE space = ?1 AND card = ?2",
@@ -53,8 +49,6 @@ impl CleanupStore for WriteContext<'_> {
                 })
                 .collect::<Result<Vec<_>, StorageError>>()?;
             self.edit(space, |doc| {
-                // Address only observed immutable keys: independent inserts
-                // and a pending editing series are never included implicitly.
                 for (history, version) in targets {
                     doc.delete(history, version)?;
                 }

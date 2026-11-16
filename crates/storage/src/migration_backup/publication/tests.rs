@@ -65,7 +65,6 @@ async fn initial(storage: &Storage, folder: &Path) -> PublishedBackup {
 fn folder_lock_is_released_even_while_a_duplicate_descriptor_survives() {
     let folder = TempDir::new().unwrap();
     let held = lock(folder.path()).unwrap();
-    // A concurrent fork can inherit this same open file description until exec.
     let duplicate = held.0.try_clone().unwrap();
     assert!(lock(folder.path()).is_err());
     drop(held);
@@ -214,7 +213,6 @@ async fn apply_validation_and_real_commit_failure_roll_back_without_replacing() 
                 _ => { tx.execute("DELETE FROM changes", [])?; Ok(()) },
             }
         }, move |c| {
-            // The deferred-FK case must reach SQLite COMMIT itself.
             if failure == 1 || failure == 3 { Err(StorageError::InvalidDatabase) } else if failure == 2 { Ok(()) } else { target(c) }
         }).await;
         assert!(result.is_err());
@@ -460,7 +458,6 @@ async fn dropped_response_keeps_committed_witness_for_reconciliation() {
             )
             .await
     });
-    // A current-thread runtime must yield until admission, not block its sender.
     waiting.await.unwrap();
     task.abort();
     assert!(task.await.unwrap_err().is_cancelled());

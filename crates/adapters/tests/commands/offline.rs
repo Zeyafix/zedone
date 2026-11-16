@@ -2,7 +2,6 @@ use super::cards::{creation, setup_cards};
 use super::spaces::{cli, sid};
 use super::*;
 
-// Rotate the FIRST execution too: CLI/IPC must not only replay HTTP receipts.
 struct Board {
     dir: TempDir,
     storage: Storage,
@@ -125,7 +124,6 @@ async fn new_description_invalidates_every_old_card_intention_and_both_container
     let before_column = b.read("column").await;
     let before_space = b.read("space").await;
     let before_history = b.history().await;
-    // All payloads are valid. Only the shared original card version is stale.
     for (op, extra) in [
         ("card.edit", json!({"title":"Old","description":"Old"})),
         ("card.set_completed", json!({"completed":true})),
@@ -167,7 +165,6 @@ async fn new_description_invalidates_every_old_card_intention_and_both_container
     assert_eq!(b.read("column").await, before_column);
     assert_eq!(b.read("space").await, before_space);
     assert_eq!(b.history().await, before_history);
-    // Returning to identical text cannot revive an unexecuted old intention.
     let returned = b
         .change(
             "card.edit",
@@ -184,7 +181,6 @@ async fn new_description_invalidates_every_old_card_intention_and_both_container
     )
     .await;
     assert_eq!(b.read("card").await, returned);
-    // Read-only history and receipts do not invalidate current intentions.
     let history = b.history().await;
     let done = b
         .change("card.set_completed", &returned, json!({"completed":true}))
@@ -196,8 +192,6 @@ async fn new_description_invalidates_every_old_card_intention_and_both_container
 
 #[tokio::test]
 async fn mixed_offline_lifecycle_restarts_and_replays_without_undoing_later_actions() {
-    // Each adapter starts the same scenario; new commands and retries both run
-    // through all entries, with no listener, remote peer or external service.
     for first in 0..3 {
         let mut b = Board::new(first).await;
         b.call(
@@ -227,7 +221,6 @@ async fn mixed_offline_lifecycle_restarts_and_replays_without_undoing_later_acti
             card = b.change(op, &card, extra).await;
         }
         let column = b.read("column").await;
-        // The empty source column can be trashed/restored independently.
         let removed = b
             .call(
                 "column.trash",
@@ -310,7 +303,6 @@ async fn unavailable_host_preserves_original_request_for_cli_reopen_and_concurre
             json!({"status":"error","error":{"code":"unavailable"}})
         );
     }
-    // CLI opens its own admitted worker using exactly the undelivered request.
     let original = b.deliver(2, "card.edit", &body).await;
     assert_eq!(original["status"], "ok");
     assert_eq!(original["replayed"], false);

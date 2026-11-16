@@ -24,7 +24,6 @@ async fn completion_is_reversible_in_each_column_and_preserves_every_other_field
     let history = versions(&storage, 9).await;
     for (index, column) in [2, 3].into_iter().enumerate() {
         if column == 3 {
-            // Moving is P04.05. Trusted fixture verifies independence now.
             storage
                 .transact(|ctx| {
                     let obj = object(ctx.read().document(&sid(1))?, &sid(9))?;
@@ -81,7 +80,7 @@ async fn completion_is_reversible_in_each_column_and_preserves_every_other_field
         expected.completed = vec![false];
         expected.version = undone.version;
         assert_eq!(undone, expected);
-        assert_ne!(undone.version, before.version); // ABA never revives old commands.
+        assert_ne!(undone.version, before.version);
         rejected(
             run!(
                 storage,
@@ -181,7 +180,6 @@ async fn new_description_rejects_old_completion_but_read_history_and_other_card_
     assert_eq!(done.descriptions, ["New unfinished steps"]);
     assert_eq!(done.completed, [true]);
     assert_eq!(versions(&storage, 9).await, history);
-    // The same command ID cannot be reused for a different value.
     rejected(
         run!(
             storage,

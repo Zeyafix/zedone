@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-// Shared UI/API contract; the camera itself is exercised only by Android tests.
 export async function checkInvitation(page, { baseUrl, tap } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const http = async body => {
@@ -43,7 +42,6 @@ export async function checkInvitation(page, { baseUrl, tap } = {}) {
   await page.waitForFunction(() => document.querySelector("#invitation-error"));
   assert.equal(await page.locator("#invitation-address").inputValue(), data.address);
   await fill(data);
-  // Simulate lost/failed transport, never scanner success.
   if (android) await page.evaluate(() => {
     const original = window.ipc;
     window.ipc = { postMessage(message) {

@@ -96,7 +96,6 @@ pub(in super::super) fn run(directory: &Path, phase: &str) -> Result<()> {
                 for id in ["A", "B"] {
                     expect(&store.read(id)?.doc, location)?;
                 }
-                // Restore an earlier deletion alone into the other active column.
                 let mut a = store.read("A")?;
                 let old = card(&a.doc, "old")?;
                 let source_life = column(&a.doc, "c0")?.life;

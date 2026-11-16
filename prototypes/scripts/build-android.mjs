@@ -25,7 +25,6 @@ const env = {
   RUSTUP_TOOLCHAIN: versions.rust,
   CARGO_TARGET_DIR: resolve(root, "target"),
   CARGO_NET_OFFLINE: "true",
-  // Opt-in local test signing; never a distribution signing configuration.
   ORG_GRADLE_PROJECT_prototypeReleaseMeasurement: release ? "true" : "false",
 };
 const cli = Bun.spawnSync(["cargo", `+${versions.rust}`, "tauri", "--version"], { cwd: root, env });
@@ -33,12 +32,10 @@ assert.equal(cli.exitCode, 0, "Tauri CLI is required");
 assert.equal(cli.stdout.toString().trim(), `tauri-cli ${versions.android.tauri_cli}`);
 const metadata = Bun.spawnSync(["cargo", `+${versions.rust}`, "metadata", "--locked", "--offline", "--format-version", "1"], { cwd: root, env });
 assert.equal(metadata.exitCode, 0, metadata.stderr.toString());
-// CLI's Gradle subprocesses inherit the pinned toolchain and workspace output.
 const result = Bun.spawnSync([
   "cargo", `+${versions.rust}`, "tauri", "android", "build", ...(release ? [] : ["--debug"]), "--target", target, "--split-per-abi", "--apk", "--ci",
 ], { cwd: root, env, stdin: "ignore", stdout: "inherit", stderr: "inherit" });
 if (result.exitCode || result.signalCode) process.exit(result.exitCode || 1);
-// Compile the real Activity recreation regression against this ABI's built JNI.
 const arch = target === "aarch64" ? "Arm64" : "X86_64";
 const build = release ? "Release" : "Debug";
 const gradle = resolve(root, "src-tauri/gen/android", process.platform === "win32" ? "gradlew.bat" : "gradlew");

@@ -1,4 +1,3 @@
-//! P02.04.2: isolated creation identities, aliases and explicit name decisions.
 use super::{conflicts::*, *};
 use automerge::{ChangeHash, ObjId, ObjType, Value as AmValue, transaction::Transaction};
 
@@ -16,7 +15,6 @@ fn scalar(doc: &Automerge, id: &ObjId, key: &str) -> Result<String> {
     }
 }
 
-// A bounded probe policy, not the final product Unicode contract.
 fn name_key(name: &str) -> String {
     name.trim().to_lowercase()
 }
@@ -57,8 +55,6 @@ fn put(
     Ok(())
 }
 
-// Registers belonging to different creation IDs still share causal precedence.
-// Never pick a winner by arrival order or treat 'absent' as deleting a register.
 fn frontier(doc: &Automerge, values: Vec<Candidate>) -> Result<Vec<Candidate>> {
     let mut result = Vec::new();
     for value in &values {
@@ -121,7 +117,6 @@ impl Tag {
     }
 
     fn name(&self) -> &str {
-        // Sorted by assignment ID: one original spelling, never forced lowercase.
         &self.names[0].value
     }
 }
@@ -155,9 +150,6 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             }
         }
     }
-    // A late creation must not bridge two tags that were already known distinct.
-    // Preserve raw identities permanently. Explicit name choices must observe
-    // every creation in the cohort before its temporary block can be lifted.
     let mut ambiguous = vec![false; creations.len()];
     for (i, left) in creations.iter().enumerate() {
         for (j, right) in creations.iter().enumerate().skip(i + 1) {
@@ -219,7 +211,6 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
         .flat_map(|v| v.ids.iter().cloned())
         .collect();
     for cohort in &mut creation_conflicts {
-        // A tombstone keeps its identity but must never require a name choice.
         cohort.retain(|id| !deleted.contains(id));
         let mut pending = false;
         if cohort.len() > 1 {
@@ -243,7 +234,6 @@ fn tags(doc: &Automerge) -> Result<Vec<Tag>> {
             .unwrap_or_default();
         tag.blocked = !tag.creation_conflict.is_empty();
     }
-    // A collision marks every affected tag, including all its original aliases.
     for i in 0..result.len() {
         for j in i + 1..result.len() {
             if !result[i].deleted()
@@ -434,7 +424,6 @@ pub(super) fn measure(directory: &Path) -> Result<Value> {
     let home = object(&a.doc, "s0")?.to_string();
     let mut stages = vec![];
     for size in [8, 16, 32] {
-        // All creations start at the same base and know none of the others.
         let base = a.doc.fork();
         for _ in 0..size {
             let mut branch = base.fork();

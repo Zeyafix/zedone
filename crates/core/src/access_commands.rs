@@ -1,5 +1,3 @@
-//! Bounded access administration commands. Adapter code cannot select a policy
-//! or callback; every operation requires separate access administration.
 use std::{
     collections::BTreeMap,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -16,8 +14,6 @@ use crate::{
     wire::{CommandRequest, CommandResponse},
 };
 
-/// Last millisecond of year 9999 UTC. A common, exactly representable wire
-/// range avoids differing SystemTime limits on Windows/Android and JS rounding.
 pub const MAX_EXPIRY_UNIX_MS: i64 = 253_402_300_799_999;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -48,8 +44,6 @@ pub enum AdministrationAndSpacesKind {
     AdministrationAndSpaces,
 }
 
-// Separate strict structs keep Serde and utoipa's variant schemas identical,
-// including additionalProperties:false (as for wire::CommandResponse).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AdministrationScope {
@@ -95,10 +89,11 @@ impl AccessScope {
     }
 }
 
-/// No keys or verifiers leave storage. Version includes retired/current key
-/// identities internally so a regrant cannot revive a stale revocation request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(
+    description = "No keys or verifiers leave storage. Version includes retired/current key\nidentities internally so a regrant cannot revive a stale revocation request."
+)]
 pub struct AccessSnapshot {
     pub subject: String,
     pub scope: AccessScope,
@@ -128,8 +123,6 @@ impl Command for RevokeAccess {
     type Output = AccessSnapshot;
 }
 
-/// Domain-separated SHA-256 of a recipient-generated 256-bit access key.
-/// This is registration material, never accepted as a bearer credential.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct KeyVerifier(pub [u8; 32]);
@@ -154,10 +147,11 @@ impl Command for IssueAccess {
     type Output = AccessSnapshot;
 }
 
-/// Permission changes and re-issuance always rotate the key. A stale preview
-/// cannot replace newer permissions or revive an already revoked credential.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+#[schema(
+    description = "Permission changes and re-issuance always rotate the key. A stale preview\ncannot replace newer permissions or revive an already revoked credential."
+)]
 pub struct ReplaceAccess {
     pub subject: String,
     pub verifier: KeyVerifier,
@@ -174,7 +168,6 @@ impl Command for ReplaceAccess {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListAccess {
-    /// Exclusive subject cursor. New reads need new command IDs.
     pub after: Option<String>,
 }
 impl Command for ListAccess {
@@ -185,7 +178,6 @@ impl Command for ListAccess {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AccessList {
-    /// At most 50 entries, including revoked/expired grants. No secret/verifier.
     #[schema(max_items = 50)]
     pub entries: Vec<AccessSnapshot>,
     pub next: Option<String>,

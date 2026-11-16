@@ -1,4 +1,3 @@
-//! Read-only domain search. Receipts and authority use the ordinary command path.
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -24,7 +23,6 @@ pub enum SearchScope {
     All(SearchAllScope),
 }
 
-// Strict structs keep Serde and generated variant schemas identical.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchSpaceScope {
@@ -64,7 +62,6 @@ impl SearchScope {
 #[serde(deny_unknown_fields)]
 pub struct SearchCards {
     pub query: String,
-    /// Hosts map the active space to Space; clearing query never changes scope.
     pub scope: SearchScope,
 }
 impl Command for SearchCards {
@@ -76,14 +73,12 @@ impl Command for SearchCards {
 #[serde(deny_unknown_fields)]
 pub struct SearchHit {
     pub card: CardSnapshot,
-    /// These hits precede ordinary board positions inside their space.
     pub placement_conflict: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchSpace {
-    /// All current names; len > 1 identifies the leading name-conflict group.
     pub space: SpaceSnapshot,
     pub hits: Vec<SearchHit>,
 }
@@ -91,7 +86,6 @@ pub struct SearchSpace {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchResults {
-    /// Only spaces containing matches, in the same order as space.list.
     pub spaces: Vec<SearchSpace>,
 }
 
@@ -139,7 +133,6 @@ fn board_key(
             .iter()
             .any(|c| c.positions.len() != 1 || !c.deletion_groups.is_empty());
     if conflicted {
-        // Stable ID order; never choose a disputed column or rank.
         Ok(Some((0, vec![], String::new(), vec![], card.card.clone())))
     } else {
         let column = parents[0];
@@ -221,8 +214,6 @@ pub fn search(
             Ok(SearchResults { spaces: results })
         },
     )?;
-    // A receipt contains names and card texts. Recheck every recorded space if
-    // a grant was narrowed since the original all-space search.
     if execution.replayed {
         let required: Vec<_> = execution
             .result

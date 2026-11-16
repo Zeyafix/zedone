@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-/** The actual card API and production viewer; image servers alone are fixtures. */
 export async function checkCardMarkdown(page, { tap, fill, visible, external, dismissKeyboard = async () => {} } = {}) {
   const click = tap || (selector => page.locator(selector).click());
   const input = fill || ((selector, value) => page.locator(selector).fill(value));
@@ -87,7 +86,6 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     await click('[data-md-control="1"] button:first-of-type');
     await page.waitForFunction(() => document.querySelector(".markdown-content img")?.naturalWidth > 0);
     assert.deepEqual(requests, [`${origin}/one.png`, `${origin}/two.png`, `${origin}/two.png`]);
-    // Completion is independent of textual checkbox markers, with no new fetches.
     await click('.card-editor button[aria-pressed="false"]');
     await page.waitForFunction(() => document.querySelector('.card-editor button[aria-pressed="true"]'));
     assert.deepEqual((await current()).descriptions, [source]);
@@ -95,7 +93,6 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     await page.waitForFunction(() => document.querySelector('.card-editor button[aria-pressed="false"]'));
     assert.deepEqual((await current()).completed, [false]);
     assert.equal(requests.length, 3);
-    // A reopened card resets consent, including browser reload.
     await close(); await page.reload(); await click(".card-title"); await waitVisible(".markdown-content");
     assert.equal(await content.locator("img").count(), 0); assert.equal(requests.length, 3);
     await click("[data-editor-edit]");
@@ -108,7 +105,6 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     await page.waitForFunction(() => document.querySelector(".markdown-content strong")?.textContent === "После ошибки");
     assert.deepEqual((await current()).descriptions, [edited]);
     assert.equal(await content.locator("img").count(), 0); assert.equal(requests.length, 3);
-    // Reverse the ordinary edit through the same API used by agents.
     await close(); const latest = await current();
     await command("card.edit", { space, card, expected: latest.version, title: latest.titles[0], description: source });
     await page.reload(); await click(".card-title"); await waitVisible(".markdown-content");
@@ -122,8 +118,6 @@ export async function checkCardMarkdown(page, { tap, fill, visible, external, di
     await close();
     console.log("Card Markdown: CommonMark/HTML/XSS, exact API source, external link, opt-in image/hide/failure/retry, completion/reverse, reload, UI edit and agent reverse passed.");
   } catch (error) {
-    // Inspect the failed scenario before its owner disconnects and cleans data.
-    // Never retry an action or replace the original assertion with diagnostics.
     try {
       const view = await page.evaluate(() => ({
         hash: location.hash, visibility: document.visibilityState,

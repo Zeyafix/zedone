@@ -12,7 +12,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.SecretKeyFactory
 
-// Native test runner: no Activity, UI, production namespace or input/output keys.
 class SecretStoreInstrumentation : Instrumentation() {
   override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); start() }
   override fun onStart() {
@@ -63,7 +62,6 @@ class SecretStoreInstrumentation : Instrumentation() {
       fails { connected.create(byteArrayOf(2)) }
       val connectedFile = File(directory, "${ProtectedSecrets.CONNECTED_SLOT}.bin")
       val connectedBytes = connectedFile.readBytes()
-      // Same plaintext, different slot/AAD: ciphertext substitution must fail.
       connectedFile.writeBytes(pendingBytes)
       fails { connected.load() }; fails { connected.create(pendingSecret) }
       connectedFile.writeBytes(connectedBytes)
@@ -89,7 +87,6 @@ class SecretStoreInstrumentation : Instrumentation() {
         .getKeySpec(key, KeyInfo::class.java) as KeyInfo
       check(info.keySize == 256)
       check(info.blockModes.contentEquals(arrayOf("GCM")))
-      // Authenticated ciphertext, header/length, and missing key all fail closed.
       stage = "corruption"
       encoded[encoded.lastIndex] = (encoded.last().toInt() xor 1).toByte()
       baseFile.writeBytes(encoded)
@@ -97,7 +94,6 @@ class SecretStoreInstrumentation : Instrumentation() {
       check(baseFile.readBytes().contentEquals(encoded))
       store.remove()
       check(store.load() == null && !keyStore.containsAlias(alias))
-      // Concurrent provisioning has one winner and no implicit replacement.
       val ready = CountDownLatch(1)
       val count = AtomicInteger(0)
       val unexpected = AtomicInteger(0)
@@ -111,7 +107,6 @@ class SecretStoreInstrumentation : Instrumentation() {
       check(count.get() == 1 && unexpected.get() == 0)
       val first = store.load()!!
       check(first.size == 1 && first[0].toInt() in 1..4)
-      // AtomicFile restart recovery of the last completed value.
       stage = "atomic-recovery"
       baseFile.copyTo(File(baseFile.path + ".bak"))
       baseFile.writeBytes(byteArrayOf(0))
@@ -127,7 +122,6 @@ class SecretStoreInstrumentation : Instrumentation() {
       succeeded = true
       result.putString("zedone_secrets", "passed")
     } catch (_: Throwable) {
-      // Never stringify exceptions, test values or native error details.
       result.putString("zedone_secrets", "failed")
       result.putString("stage", stage)
     } finally {

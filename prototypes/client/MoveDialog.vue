@@ -18,7 +18,6 @@ watch(open, async value => {
   if (value) {
     column.value = props.target.kind === "card" ? props.snapshot.cards.find(card => card.id === props.target.id)!.column : 0;
     position.value = 0;
-    // WebView's system Back navigates this entry before leaving the activity.
     history.pushState(null, "");
     historyEntry = true;
     await nextTick();

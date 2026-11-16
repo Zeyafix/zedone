@@ -1,4 +1,3 @@
-//! Card policy shared by every transport, inside the authorized transaction.
 use crate::card_history::{
     self, AutosaveCard, BeginCardEditing, FinishCardEditing, RestoreCardText,
 };
@@ -19,7 +18,6 @@ use utoipa::ToSchema;
 pub struct CardTextVersion {
     pub id: String,
     pub subject: String,
-    /// Local causal sequence; independent branches may share a sequence.
     pub sequence: u64,
     pub title: String,
     pub description: String,
@@ -34,7 +32,6 @@ pub struct CardSnapshot {
     pub descriptions: Vec<String>,
     pub columns: Vec<String>,
     pub positions: Vec<crate::ordering::Rank>,
-    /// Whole variants after a move; legacy documents and receipts omit these.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub placements: Vec<crate::ordering::CardPlacement>,
     pub completed: Vec<bool>,
@@ -149,7 +146,6 @@ pub struct RestoreCard {
     pub space: String,
     pub card: String,
     pub expected: StateVersion,
-    /// Omit to restore to the original active column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub column: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -200,7 +196,6 @@ pub trait CardStore: ColumnStore {
     fn card_snapshot(&mut self, space: &str, card: &str) -> CommandResult<CardSnapshot>;
     fn cards(&mut self, space: &str) -> CommandResult<Vec<CardSnapshot>>;
     fn card_history(&mut self, space: &str, card: &str) -> CommandResult<CardHistory>;
-    /// Batch history reads share one graph projection for whole-space cleanup.
     fn card_histories(&mut self, space: &str, cards: &[String]) -> CommandResult<Vec<CardHistory>>;
     fn edit_card(
         &mut self,

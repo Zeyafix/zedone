@@ -7,7 +7,6 @@ import android.webkit.WebView
 class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
-    // Close a shared dialog first, then leave the board/Settings, then Android.
     onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
         webView.evaluateJavascript("""

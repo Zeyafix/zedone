@@ -1,4 +1,3 @@
-//! P01.06 only: compare the complete synthetic snapshot inside the write transaction.
 use super::{Snapshot, load};
 use rusqlite::{Connection, Error, Result};
 
@@ -36,7 +35,6 @@ pub(super) fn move_card(
     }
     let mut card = snapshot.cards.remove(source);
     card.column = column;
-    // Insert relative to the destination AFTER removing the source, including empty lists.
     let index = snapshot
         .cards
         .iter()

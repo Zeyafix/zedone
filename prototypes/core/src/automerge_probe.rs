@@ -1,5 +1,3 @@
-//! Isolated P02 probes, not a product API or storage format.
-
 use std::{error::Error, path::Path, time::Duration};
 
 use automerge::{
@@ -99,7 +97,6 @@ impl Store {
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )?;
         let mut doc = Automerge::load(&document)?;
-        // load() chooses a new actor; preserve this local sequential writer explicitly.
         doc.set_actor(actor.into());
         Ok(Replica {
             doc,
@@ -140,11 +137,10 @@ impl Store {
 fn exchange(store: &mut Store) -> Result<()> {
     let mut a = store.read("A")?;
     let mut b = store.read("B")?;
-    // One connection session, reliable ordered delivery. Restart resets transient state.
     for _ in 0..16 {
         let mut sent = false;
         if let Some(message) = a.doc.generate_sync_message(&mut a.peer) {
-            store.write("A", &a)?; // Never deliver before the sender's commit.
+            store.write("A", &a)?;
             b.doc.receive_sync_message(&mut b.peer, message)?;
             store.write("B", &b)?;
             sent = true;
@@ -168,8 +164,6 @@ fn exchange(store: &mut Store) -> Result<()> {
     Err("Synthetic sync did not settle within 16 rounds".into())
 }
 
-/// Both humans and agents run this same probe; no direct SQLite editing is required.
-/// The caller owns an otherwise empty disposable directory. No product data is used.
 pub fn run(directory: &Path, phase: &str) -> Result<()> {
     if phase.starts_with("lifecycle-") {
         return space_trash::lifecycle::run(directory, phase);
@@ -230,7 +224,6 @@ pub fn run(directory: &Path, phase: &str) -> Result<()> {
             exchange(&mut store)?;
             let mut a = store.read("A")?;
             a.set_title(EDITED)?;
-            // Lose a message after commit. The next process must start a new session.
             assert!(a.doc.generate_sync_message(&mut a.peer).is_some());
             store.write("A", &a)?;
             std::fs::write(

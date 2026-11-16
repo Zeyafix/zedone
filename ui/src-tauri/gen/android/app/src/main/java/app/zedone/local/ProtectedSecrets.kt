@@ -12,7 +12,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-// Host-only primitive: no Activity, exported component, plaintext fallback or logging.
 class SecretFailure(val code: String) : Exception(code)
 
 class ProtectedSecrets(context: Context, private val namespace: String, private val slot: String = SLOT) {
@@ -45,8 +44,6 @@ class ProtectedSecrets(context: Context, private val namespace: String, private 
   }
 
   private fun read(): ByteArray? {
-    // AtomicFile also recovers an interrupted write. Do not conflate corruption
-    // or a lost Keystore key with a missing record.
     val input = try { file.openRead() } catch (error: java.io.FileNotFoundException) {
       if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) throw error
       return null
@@ -69,7 +66,6 @@ class ProtectedSecrets(context: Context, private val namespace: String, private 
 
   fun create(secret: ByteArray) = locked {
     if (secret.isEmpty() || secret.size > LIMIT) throw SecretFailure("invalid_secret")
-    // Check even an unreadable existing record: never replace it implicitly.
     val previous = read()
     if (previous != null) {
       previous.fill(0)
@@ -102,8 +98,6 @@ class ProtectedSecrets(context: Context, private val namespace: String, private 
   fun remove() = locked {
     file.delete()
     check(!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists())
-    // Delete ciphertext before the key: a failed file deletion must not silently
-    // turn a readable record into an unrecoverable one.
     keyStore().deleteEntry(alias)
   }
 

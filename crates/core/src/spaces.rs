@@ -1,4 +1,3 @@
-//! Product space operations. Fixed core policy, shared by every adapter.
 use crate::{
     access::{Clock, Credential, RequiredAccess, SpacePermission, with_authorized},
     command::{Command, CommandResult},
@@ -21,12 +20,10 @@ pub enum SpaceState {
 #[serde(deny_unknown_fields)]
 pub struct SpaceSnapshot {
     pub space: String,
-    /// All distinct current names; multiple names require conflict resolution.
     pub names: Vec<String>,
     pub state: SpaceState,
     pub deletion_groups: Vec<String>,
     pub empty: bool,
-    /// Authoritative scope preview. None blocks lifecycle changes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contents: Option<SpaceContents>,
     pub version: StateVersion,
@@ -111,7 +108,6 @@ impl Command for RestoreSpace {
     type Output = SpaceSnapshot;
 }
 
-/// Trusted storage port; authorization and replay always belong to core.
 pub trait SpaceStore: ReplayTransaction {
     fn create_space(
         &mut self,
@@ -125,7 +121,6 @@ pub trait SpaceStore: ReplayTransaction {
     fn set_space_lifecycle(&mut self, space: &str, lifecycle: &str) -> CommandResult<()>;
 }
 
-/// One ordering for the space list and search; never pick a conflicted name.
 pub(crate) fn sort_spaces(spaces: &mut [SpaceSnapshot]) {
     spaces.sort_by_cached_key(|space| {
         if space.names.len() > 1 {
@@ -219,8 +214,6 @@ pub fn list(
             Ok(SpaceList { spaces })
         },
     )?;
-    // A saved list may contain spaces removed from this subject's grant since
-    // the original read. Validate every returned target before exposing it.
     if execution.replayed {
         let required: Vec<_> = execution
             .result

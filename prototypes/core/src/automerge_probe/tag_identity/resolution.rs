@@ -1,4 +1,3 @@
-//! Explicit names for a connected collision; existing identities never merge here.
 use super::*;
 
 pub(super) const CARD_FIELDS: [&str; 4] = ["title", "text", "completed", "column"];
@@ -44,7 +43,6 @@ pub(super) fn edit(doc: &mut Automerge, card: &str, field: &str, value: &str) ->
             return Err("Unknown column or a different space".into());
         }
     }
-    // A tag's name conflict alone never blocks independent card fields.
     write_assignment(doc, &card, field, value)
 }
 
@@ -125,7 +123,6 @@ pub(super) fn resolve(
     for (id, name) in choices {
         put(&mut tx, id, "name", name, &context)?;
     }
-    // All names form one Automerge change; SQLite persists the complete document.
     tx.commit();
     Ok(())
 }

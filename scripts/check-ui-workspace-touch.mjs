@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { checkWorkspaceTouch } from "./check-ui-android-scenarios.mjs";
 
-/** Exercise the shared Android selectors with host touch and an empty Service.
- * Native IME/Back remains a separate Android check, not simulated by this proof. */
 export async function checkWorkspaceTouchHost(browser, executable) {
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-workspace-touch-"));
   const fixture = Bun.spawn([executable, "--serve", directory], { stdout: "pipe", stderr: "inherit" });

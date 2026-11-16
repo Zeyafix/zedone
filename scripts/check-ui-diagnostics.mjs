@@ -1,6 +1,5 @@
 import validateResponse from "../api/validate-response.js";
 
-/** Read-only failure evidence. Never return credentials, input values or stored intentions. */
 export async function shellDiagnosticState(page) {
   if (!page || page.isClosed()) return { unavailable: "no live page" };
   let timer;
@@ -39,8 +38,6 @@ export async function shellDiagnosticState(page) {
   finally { clearTimeout(timer); }
 }
 
-/** Observe only bounded response metadata from this exact page. Reading a
- * response does not inspect request bodies, headers, keys or saved intentions. */
 export function observeShellReads(page) {
   const reads = [];
   page.on("response", async response => {
@@ -55,8 +52,6 @@ export function observeShellReads(page) {
   return reads;
 }
 
-/** Bounded transport progress, including requests that never produce a JSON
- * response. Never inspect request bytes/headers or the host session body. */
 export function observeShellReadLifecycle(page) {
   const entries = [], requests = new WeakMap();
   let sequence = 0;
@@ -94,15 +89,13 @@ export function observeShellReadLifecycle(page) {
   return () => entries.map(({ start, ...entry }) => ({ ...entry, elapsedMs: entry.elapsedMs ?? Math.round(performance.now() - start) }));
 }
 
-/** Capture the failing page before its context is disposed. Diagnostics must
- * never replace the scenario's original error or retry the failed action. */
 export async function withShellFailureDiagnostics(page, details, work) {
   try { return await work(); }
   catch (error) {
     try {
       const state = await shellDiagnosticState(page);
       console.error("UI failure state:", JSON.stringify({ label: details.label, stage: details.stage, ...state, reads: details.reads, readLifecycle: details.readLifecycle?.() }));
-    } catch { /* Preserve the original error even if diagnostic output fails. */ }
+    } catch {                                                                    }
     throw error;
   }
 }

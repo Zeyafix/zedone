@@ -34,6 +34,7 @@ use zedone_storage::Storage;
 mod offer;
 pub use offer::{Offer, PendingSession};
 mod lifecycle;
+pub mod qr;
 pub use lifecycle::SessionLifecycle;
 
 const MAX_PAIRING_BYTES: usize = 4096;

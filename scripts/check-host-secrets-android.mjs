@@ -20,8 +20,10 @@ try {
   device("install", apk);
   const output = device("shell", "am", "instrument", "-w", `${app}/app.zedone.local.SecretStoreInstrumentation`);
   assert.match(output, /^INSTRUMENTATION_RESULT: zedone_secrets=passed$/m, "Native secrets assertions or cleanup failed");
+  assert.match(output, /^INSTRUMENTATION_RESULT: zedone_lifecycle=passed$/m, "Native plugins retained an old Activity/WebView");
   assert.match(output, /^INSTRUMENTATION_CODE: -1$/m, "Instrumentation did not complete");
   console.log("Android Keystore: persistence, authenticated encryption, non-exportable key, no overwrite, concurrency, corruption/key loss, atomic recovery, deletion and cleanup passed.");
+  console.log("Native app/path/opener/scanner/secrets plugins use the recreated Activity/WebView; lifecycle regression passed.");
 } finally {
   device("uninstall", app);
 }

@@ -130,12 +130,18 @@ async function invitation() {
     const created = ok(call(host, 'offer.create', {}));
     assert.equal(created.invitation.status, 'open');
     assert.ok(ok(call(host, 'offer.read', {})).offer === created.offer, 'Saved invitation code changed');
-    return { invitation: created.invitation.invitation, offer: created.offer };
+    const before = ok(call(android, 'session.status', {}));
+    const qr = ok(call(host, 'offer.qr', { address: host.address }));
+    const decoded = ok(call(android, 'session.decode_qr', { text: qr.text }));
+    assert.deepEqual(decoded, { address: host.address, offer: created.offer }, 'QR changed manual input');
+    assert.deepEqual(ok(call(android, 'session.status', {})), before, 'QR decoding prepared a session');
+    assert.equal(ok(command(host, 'invitation.inspect', { invitation: created.invitation.invitation })).status, 'open', 'QR consumed the invitation');
+    return { invitation: created.invitation.invitation, ...decoded };
 }
 function deliver(operation, parameters, intention = request(operation, parameters)) {
     return call(android, 'fixture.peer_command', { operation, request: JSON.stringify(intention) });
 }
-async function prepare(label) { const offered = await invitation(); lastOffer = offered.offer; ok(call(android, 'session.prepare', { address: host.address, offer: offered.offer, label })); return ok(call(android, 'session.submit', {})); }
+async function prepare(label) { const offered = await invitation(); lastOffer = offered.offer; ok(call(android, 'session.prepare', { address: offered.address, offer: offered.offer, label })); return ok(call(android, 'session.submit', {})); }
 try {
     const metadata = await until(async () => {
         if (server.exitCode !== null)
@@ -235,7 +241,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    passedChecks = ['request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
+    passedChecks = ['QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
     console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
 }
 catch (error) {

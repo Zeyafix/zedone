@@ -119,6 +119,9 @@ class SecretStoreInstrumentation : Instrumentation() {
       store.create(secret)
       check(!baseFile.readBytes().contentEquals(encoded))
       store.remove()
+      stage = "plugin-lifecycle"
+      verifyPluginLifecycle(this)
+      result.putString("zedone_lifecycle", "passed")
       succeeded = true
       result.putString("zedone_secrets", "passed")
     } catch (_: Throwable) {

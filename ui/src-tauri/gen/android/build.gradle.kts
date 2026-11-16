@@ -16,6 +16,8 @@ allprojects {
     }
 }
 
+apply(from = file("../../../../prototypes/src-tauri/gen/android/tauri-lifecycle.gradle.kts"))
+
 
 
 tasks.register("clean").configure {

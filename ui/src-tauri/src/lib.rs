@@ -155,6 +155,7 @@ mod entry_point {
     pub fn run() {
         use tauri::Manager;
         tauri::Builder::default()
+            .plugin(tauri_plugin_barcode_scanner::init())
             .plugin(super::secrets::plugin())
             .plugin(
                 tauri_plugin_opener::Builder::new()

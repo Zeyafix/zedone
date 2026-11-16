@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { newAccessCredential } from "../client/commands.ts";
+import jsQR from "jsqr";
+import { PNG } from "pngjs";
+import { checkQrInput } from "./check-ui-qr-input.mjs";
 
 const root=resolve(import.meta.dir,"..");
 const binary=resolve(root,`target/debug/examples/shell-fixture${process.platform==="win32"?".exe":""}`);
@@ -21,6 +24,29 @@ async function installation() {
 async function api(installation,operation,parameters,credential=installation.credential) {
   const response=await fetch(`${installation.url}/v1/commands/${operation}`,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${credential.key}`},body:JSON.stringify({id:Array.from(crypto.getRandomValues(new Uint8Array(16))),operation,parameters})});
   return response.json();
+}
+async function hostApi(installation, operation, parameters) {
+  const response = await fetch(`${installation.url}/host/devices/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${installation.credential.key}` },
+    body: JSON.stringify(parameters),
+  });
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const value = await response.json();
+  assert.equal(value.status, "ok");
+  return value.result;
+}
+function readQr(modules, scale) {
+  const size = (modules.length + 8) * scale;
+  const pixels = new Uint8ClampedArray(size * size * 4).fill(255);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    if (!modules[Math.floor(y / scale) - 4]?.[Math.floor(x / scale) - 4]) continue;
+    const offset = (y * size + x) * 4;
+    pixels[offset] = pixels[offset + 1] = pixels[offset + 2] = 0;
+  }
+  const decoded = jsQR(pixels, size, size, { inversionAttempts: "dontInvert" });
+  assert.ok(decoded, "Independent QR decoder could not read the product matrix");
+  assert.deepEqual(decoded.binaryData, [...new TextEncoder().encode(decoded.data)]);
+  return decoded.data;
 }
 const click=(page,name)=>page.getByRole("button",{name,exact:true}).click();
 const done=page=>page.locator('[role="dialog"]').waitFor({state:"detached"});
@@ -45,12 +71,40 @@ try {
   await first.locator("#listen-address").fill("127.0.0.1:0");await click(first,"Начать приём подключений");
   await first.locator("[data-listener-state]").filter({hasText:"Приём включён:"}).waitFor();
   const host=await first.locator("[data-listener-state]").innerText();const address=host.replace("Приём включён: ","");
+  let qrInputChecked=false;
   async function request() {
     const [response]=await Promise.all([first.waitForResponse(response=>response.url().endsWith('/host/devices/offer.create')),click(first,"Создать или показать приглашение")]);
     const created=await response.json();assert.equal(created.status,'ok');
     await first.waitForFunction(value=>document.querySelector('#outgoing-code')?.value===value,created.result.offer);
     await first.locator("#outgoing-code").waitFor();const offer=await first.locator("#outgoing-code").inputValue();
-    await second.locator("#peer-address").fill(address);await second.locator("#peer-code").fill(offer);await second.locator("#peer-label").fill("Телефон");
+    assert.equal(await first.getByText("Приглашение больше не открыто. Для нового подключения создайте новое приглашение.",{exact:true}).count(),0);
+    await click(first,"Показать QR");
+    const svg=first.getByRole("img",{name:"QR для подключения устройства",exact:true});
+    await svg.waitFor();
+    const shown=await hostApi(a,"offer.qr",{address});
+    for(const scale of [2,4,8]) {
+      await first.locator("#qr-scale").selectOption(String(scale));
+      const png=PNG.sync.read(await svg.screenshot());
+      const decoded=jsQR(new Uint8ClampedArray(png.data),png.width,png.height,{inversionAttempts:"dontInvert"});
+      assert.ok(decoded,"Rendered SVG could not be read independently");
+      assert.equal(decoded.data,shown.text);
+      const quietPixel=(scale*png.width+scale)*4;
+      assert.deepEqual([...png.data.subarray(quietPixel,quietPixel+4)],[255,255,255,255]);
+    }
+    await click(first,"Скрыть QR");await svg.waitFor({state:"detached"});
+    if(!qrInputChecked) { await checkQrInput(browser,b.url,shown.text,address,offer); qrInputChecked=true; }
+    let scanned;
+    for (const destination of [address, "100.127.255.254:65535", "[2001:db8::1]:45821"]) {
+      const qr = await hostApi(a, "offer.qr", { address: destination });
+      assert.deepEqual(qr.invitation, created.result.invitation);
+      for (const scale of [2, 4, 8]) assert.equal(readQr(qr.modules, scale), qr.text);
+      const input = await hostApi(b, "session.decode_qr", { text: readQr(qr.modules, 4) });
+      assert.deepEqual(input, { address: destination, offer });
+      if (destination === address) scanned = input;
+    }
+    assert.equal((await hostApi(b, "session.status", {})).status, "unconfigured");
+    assert.equal((await api(a, "invitation.inspect", { invitation: created.result.invitation.invitation })).result.status, "open");
+    await second.locator("#peer-address").fill(scanned.address);await second.locator("#peer-code").fill(scanned.offer);await second.locator("#peer-label").fill("Телефон");
     await click(second,"Запросить подключение");await second.locator("[data-remote-state]").filter({hasText:"Ожидаем подтверждения"}).waitFor();
     const rows=await api(a,"pairing.list",{after:null});const pending=rows.result.entries.find(entry=>entry.status==="pending");assert.ok(pending);
     assert.equal((await api(a,"access.inspect",{subject:pending.request})).error.code,"not_found");

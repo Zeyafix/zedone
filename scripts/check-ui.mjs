@@ -15,6 +15,7 @@ const node = Bun.spawnSync([nodePath, "--version"]);
 const nodeVersion = process.env.UI_NODE_VERSION || versions.node;
 assert.equal(node.stdout.toString().trim(), `v${nodeVersion}`, "vue-tsc Node runtime mismatch");
 console.log(`vue-tsc runtime Node ${nodeVersion}; repository baseline ${versions.node}`);
+run([process.execPath, "test", "tests/qr-scanner.test.ts"]);
 run([nodePath, "node_modules/vue-tsc/bin/vue-tsc.js", "-p", "ui/tsconfig.json"]);
 run([process.execPath, "run", "ui:build"]);
 for (const args of [

@@ -36,7 +36,7 @@ project(":tauri-android") {
     plugins.withId("com.android.library") {
         val patched = tasks.register<PrepareTauriLifecycle>("prepareZeDonePluginLifecycle") {
             upstream.set(layout.projectDirectory.dir("src/main/java"))
-            replacement.set(rootProject.layout.projectDirectory.dir("../../android-patches"))
+            replacement.set(rootProject.layout.projectDirectory.dir("../../../../prototypes/src-tauri/android-patches"))
             generated.set(rootProject.layout.buildDirectory.dir("zedone-tauri-lifecycle"))
             buildRoot.set(rootProject.layout.buildDirectory)
         }

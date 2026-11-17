@@ -57,7 +57,7 @@ async function until(readiness, label, budget = 25000) {
 const hashes = () => {
     const text = device('exec-out', 'run-as', app, 'sh', '-c', 'find . -type f -exec sha256sum {} \\;').toString();
     const result = new Map();
-    for (const line of text.trim().split(/\r?\n/)) {
+    for (const line of text.trim() ? text.trim().split(/\r?\n/) : []) {
         const match = /^([a-f0-9]{64})  (\.\/.*)$/.exec(line);
         assert.ok(match, 'Invalid application file manifest');
         result.set(match[2], match[1]);

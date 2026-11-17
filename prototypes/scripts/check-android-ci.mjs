@@ -6,8 +6,9 @@ const checks = [
   ["prototype-native", ["check-automerge.mjs", "--android"]],
   ["prototype-ui", ["check-android.mjs"]],
   ["shell", ["../../scripts/check-ui-android-ci.mjs"]],
-  ["shell", ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"]],
-  ["shell", ["../../scripts/check-pairing-app.mjs"]],
+  ["pairing", ["../../scripts/prepare-pairing-app-ci.mjs"]],
+  ["pairing", ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"]],
+  ["pairing", ["../../scripts/check-pairing-app.mjs"]],
 ];
 const productSlices = new Map([
   ["product-native", ["../../scripts/check-product.mjs", "--android-native"]],

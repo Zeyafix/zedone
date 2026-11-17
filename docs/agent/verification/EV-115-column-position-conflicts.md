@@ -134,3 +134,81 @@ Tailscale, целевой телефон и измерения отдельно.
 и проверены визуально; финальные host binaries восстановлены по SHA-256, медиа
 и body вне Git. Новый CI ещё не запускался, до merge нужны все expected SUCCESS
 и свежая readiness точных head/base. Состояния критериев и GAP/DEC прежние.
+
+
+## Публикация — LOG-621
+
+[PR #107](https://github.com/Zeyafix/zedone/pull/107), head
+4e8a03aa0313178b7dfed31b38e4841572371951, base main/806d8e6. 37 файлов,
+обычные commit/push/pre-push passed, noreply и состав проверены. Title/body/credit
+прочитаны обратно; два hosted PNG 1280×2300 совпали с реальными Before/After
+по SHA-256, медиа/body вне Git. Все 24 source fingerprints прежние.
+
+Новый CI выполняется: 14 suites running, три aggregate ещё ожидаются. Initial
+readiness OPEN/non-draft/MERGEABLE/UNSTABLE, feedback отсутствует. Это не
+финальный успех; до порученных merge/delete нужны все 17 expected SUCCESS
+и свежая readiness exact head/base. Все определения/состояния и GAP/DEC прежние.
+Checkpoint локальный без дополнительного commit/push. Совместный P06.06/T09
+и GAP-028/031 отдельно.
+
+
+## Первый CI отказ — LOG-622 / GAP-032
+
+Android shell run 44153619224/job 134288323820/head 4e8a03a attempt 1 failed:
+старый checkWorkspaceTouch после column trash/restore/reload получил
+localStorage.length=1 вместо 0. До этого Keystore, recreated Activity/WebView
+и unconfigured shell passed. Page ready/bridge/connection/busy=false, без
+pageErrors; тип записи в лог не попал. Причина не доказана и не смешивается
+с GAP-028 либо новой продуктовой логикой. Локальная матрица выше сохраняет
+свой scope; CI не пройден.
+
+Один bounded rerun точного head выбран без изменения guards/бюджетов.
+GitHub пока не принял его: workflow ещё выполняется, HTTP 403 «The workflow
+run containing this job is already running». Повтор ещё не запущен. После
+завершения workflow выполнить один штатный повтор, при воспроизведении —
+безопасно установить категорию записи и исправить доказанную причину.
+Source, локальная приёмка и все 98 определения/состояния прежние;
+до всех 17 SUCCESS и свежей readiness merge/delete не выполняются.
+
+
+## Принятый повтор — LOG-623
+
+После завершения Android workflow 44153619224 failure/attempt 1 GitHub принял
+один штатный rerun отказавшего shell job на том же head 4e8a03a. API сразу
+вернул queued (счётчик attempt ещё не обновился); успешный результат не заявляется.
+Source/assertions/бюджеты прежние, все 24 fingerprints совпали, новых commit/push
+нет. GAP-032 и исходный отказ сохраняются. При повторном отказе — безопасная
+диагностика категории записи; merge/delete только после всех 17 SUCCESS/fresh
+readiness. Уже включённый watch продолжается.
+
+
+## Отложенный aggregate wake — LOG-624
+
+Android aggregate/job 134295483540 корректно передал failure первой попытки:
+RESULT=failure в 19:10:09 UTC. Текущий attempt 2 уже выполняет shell/job
+134296548843 (старт 19:11:45 UTC) на том же head; другие пять Android suites
+унаследованы SUCCESS. Это не новый отказ shell, код/guards не меняются,
+нового rerun нет. До завершения всех 17 expected SUCCESS и свежей readiness
+интеграция не выполняется; GAP-032 и исходный отказ сохраняются.
+
+
+## Подтверждённый CI timeout и CI.11 — LOG-625/626
+
+Единственный повтор attempt 2/job 134296548843/head 4e8a03a CANCELLED:
+annotation подтверждает 15m0s. Исходный workspace/localStorage guard прошёл,
+затем обычный UI, весь paired APK/column-position сценарий и restoration/OS
+cleanup прошли; job отменён на завершении до полного negative preflight.
+Aggregate/job 134306285986 корректно failed. Частичный лог не считается CI.
+GAP-032 не воспроизведён, причина неизвестна; guard не ослабляется.
+
+CI.11/EV-116 выделяет shell UI и pairing APK в два обязательных jobs с теми же
+15m, полными scripts/assertions/negative cleanup и strict aggregate. Fresh
+pairing runner получает production APK перед acceptance build; пустой исходный
+manifest теперь допустим с прежним точным SHA-256 восстановлением, malformed
+manifest запрещён. Это единственный тестовый source delta из 24 fingerprints;
+продуктовые API/runtime/UI и остальные 23 fingerprints прежние. Routing,
+bootstrap/manifest/failure/signal/host guards/comment policy/actionlint passed
+локально, полный новый CI из 18 expected checks ожидается. Полная локальная
+приёмка продукта выше сохраняет свой scope, медиа остаются актуальны.
+Все 98 определения/состояния сохранены; merge/delete только после полного
+нового CI и fresh readiness, GAP-033 до этого in_progress.

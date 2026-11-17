@@ -76,13 +76,16 @@ Device. Готовность CI определять по финальному h
 запуски и замена увеличения timeout оптимизацией описаны в EV-064.
 Команды и ограничения — [ui-shell.md](ui-shell.md), EV-064.
 
-Android выполняет пять независимых наборов параллельно на стандартных runners:
+Android выполняет семь независимых наборов параллельно на стандартных runners:
 `product-native` (x86_64 release/guards и все native tests),
 `product-arm64` (arm64 release/guards), `prototype-native` (host/Android Automerge),
 `prototype-ui` (обе APK и
 instrumentation прототипа, host HTTP endpoint и весь UI/lifecycle-набор),
-`shell` (обе APK оболочки и её UI-набор). Каждый job владеет отдельным SDK/AVD,
-проходит прежние environment/negative-cleanup проверки и имеет лимит 10 минут.
+`shell` (production x86_64 APK оболочки и её UI-набор),
+`pairing` (production и acceptance x86_64 APK, полный парный TLS/API/CLI-набор),
+`shell-arm64` (production arm64 APK без положительного emulator callback).
+Каждый job владеет отдельным SDK; runtime suites также владеют отдельным AVD.
+Все сохраняют прежний negative-cleanup preflight и лимит 15 минут.
 `fail-fast: false` сохраняет диагностику остальных наборов при одном отказе.
 Итоговый стабильный check `android` с `if: always()` требует успеха всей матрицы:
 failure/cancelled/skipped не принимаются как успех. Прежний аргумент `native`
@@ -420,10 +423,10 @@ Signed-By, подписи Release и хеши пакетов сохраняют�
 
 ### Текущий лимит Android jobs
 
-По прямому поручению разработчика от 2026-11-10 каждый из шести Android
+По прямому поручению разработчика от 2026-11-10 каждый Android
 matrix jobs имеет timeout-minutes: 15. Strict aggregate остаётся с лимитом
 1 минута. Это переопределяет прежние упоминания 10m для Android matrix;
-host бюджеты, сценарные таймауты, матрица, runtime/negative cleanup и правила
+host бюджеты, сценарные таймауты, runtime/negative cleanup и правила
 принятия SUCCESS не меняются. Routing guard проверяет точное значение 15.
 Основание и фактическая новая приёмка — [EV-083](../agent/verification/EV-083-tags-ui.md).
 
@@ -446,3 +449,31 @@ PR #83/head d1c1c44 интегрирован в 695d0b8 после всех 17 S
 Финальные Android runtime/negative cleanup завершились при разрешённых 15m,
 strict aggregate passed; прежний набор и все проверки сохранены. Это текущий
 проверенный запуск, не гарантия cold/future времени; EV-083/LOG-464.
+
+
+### Независимая парная приёмка APK — CI.11
+
+PR #107/head 4e8a03a attempt 2 подтвердил нехватку общего бюджета shell:
+annotation job 134296548843 сообщает превышение 15m0s. Обычный UI и полный
+парный набор успели пройти, но job не завершил общий preflight/cleanup.
+Частичные результаты не считаются успехом CI; [EV-116](../agent/verification/EV-116-android-ci-budget.md).
+
+`shell` и `pairing` теперь независимы, каждый с прежними 15m. `pairing`
+собирает обычный x86_64 APK и host fixture, запускает общий environment
+callback, устанавливает production APK через CI-only `prepare-pairing-app-ci.mjs`,
+затем собирает acceptance APK и выполняет прежний `check-pairing-app.mjs`.
+Свежая установка может иметь пустой список файлов: runner сохраняет пустой
+manifest и проверяет его точное восстановление; неверные строки по-прежнему
+отвергаются. Bootstrap запрещён вне CI/эмулятора; отказ/сигнал установки
+завершает suite ошибкой. Обе suites сохраняют общий compiler/version/cleanup
+negative control. Все прежние команды default dispatcher и их порядок
+сохранены с добавлением production install перед acceptance build.
+
+Матрица содержит семь suites, общий `android` требует успеха каждой;
+ожидаемый PR-набор — 18 checks вместе с прежними host suites/aggregates.
+Rust cache сохраняет единственного main writer. Дополнительный runner
+повторяет SDK/build setup; фактическое время требует нового CI, не предполагается.
+Routing guard проверяет полноту, бюджет 15m, exact ABI owners, default/native,
+bootstrap, пустой/валидный/неверный manifest, отказы/сигналы и строгий aggregate.
+Исходный localStorage residue attempt 1 остаётся GAP-032 с неизвестной причиной;
+его строгая проверка не ослабляется и прошла в attempt 2.

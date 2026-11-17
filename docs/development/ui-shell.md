@@ -209,6 +209,15 @@ jobs, включая arm64; negative compiler/version/cleanup guards остаю�
 настраивает доступ к KVM: скрипт проверяет их до намеренного отказа rustc.
 Сам эмулятор и положительный environment/UI-сценарий этот job не запускает.
 Матрица/владение ABI/граница runtime проверяются штатным routing guard.
+CI.11 добавляет отдельный обязательный `pairing` job для полного APK/Keystore
+TLS/API/CLI-набора; `shell` сохраняет прежний обычный UI. Каждый использует
+свой SDK/AVD и прежний текущий лимит 15m; общий Android aggregate теперь требует
+успеха всех семи suites. Это переопределяет исторические шесть jobs/10m выше.
+Fresh pairing runner устанавливает production APK перед acceptance build,
+сохраняет и восстанавливает также пустой исходный manifest. Полные preflight,
+negative cleanup, scripts/assertions и единственный cache writer сохранены;
+[EV-116](../agent/verification/EV-116-android-ci-budget.md),
+[CI.11](ci-checks.md#независимая-парная-приёмка-apk--ci11).
 Один дополнительный runner повторяет подготовку окружения; суммарная стоимость
 не измерена, новое время подтверждается только новым CI. Локальный
 desktop proof native touch не является Android-приёмкой. Перед проверкой Back

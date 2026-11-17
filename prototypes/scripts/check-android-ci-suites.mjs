@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
@@ -32,6 +33,7 @@ const full = [
   ["check-automerge.mjs", "--android"],
   ["check-android.mjs"],
   ["../../scripts/check-ui-android-ci.mjs"],
+  ["../../scripts/prepare-pairing-app-ci.mjs"],
   ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"],
   ["../../scripts/check-pairing-app.mjs"],
 ];
@@ -42,27 +44,28 @@ for (const [args, expected] of [
   [["product-arm64"], [[product, "--android-arm64"]]],
   [["prototype-native"], [full[2]]],
   [["prototype-ui"], [full[1], full[3]]],
-  [["shell"], full.slice(4)],
+  [["shell"], [full[4]]],
+  [["pairing"], full.slice(5)],
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
-for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", "extra"], ["shell", "extra"]]) {
+for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", "extra"], ["shell", "extra"], ["pairing", "extra"]]) {
   assert.throws(() => dispatch(args), /Unknown Android suite/);
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "shell-arm64"];
+const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "pairing", "shell-arm64"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
 const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite } });
-for (const [target, owner] of [["x86_64", "shell"], ["aarch64", "shell-arm64"]]) {
+for (const [target, owners] of [["x86_64", ["shell", "pairing"]], ["aarch64", ["shell-arm64"]]]) {
   const builds = jobs.steps.filter(step => step.run?.includes(`bun scripts/build-ui-android.mjs ${target}`));
   assert.equal(builds.length, 1, `${target} must be built exactly once`);
-  assert.deepEqual(suites.filter(suite => enabled(builds[0], suite)), [owner]);
+  assert.deepEqual(suites.filter(suite => enabled(builds[0], suite)), owners);
 }
 const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
-assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell"]);
+assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", "pairing"]);
 const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
 assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), suites,
   "Every compiler-failure preflight needs emulator libraries and KVM access");
@@ -75,7 +78,9 @@ const environment = jobs.steps.find(step => step.name === "Check Android environ
 assert.deepEqual(suites.filter(suite => enabled(environment, suite)), suites.filter(suite => suite !== "shell-arm64"));
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");
 assert.ok(enabled(dependencies, "shell-arm64"));
+assert.ok(enabled(dependencies, "pairing"));
 assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == shell-arm64"));
+assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == pairing"));
 assert.ok(dependencies.run.includes("--manifest-path ui/src-tauri/Cargo.toml"));
 const negative = jobs.steps.find(step => step.name === "Check rejection and cleanup on compiler failure");
 assert.ok(suites.every(suite => enabled(negative, suite)));
@@ -87,12 +92,67 @@ assert.deepEqual(dispatch([], { exitCode: 23 }), { calls: [full[0]], exit: 23 })
 assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
-for (let index = 0; index < full.slice(4).length; index++) {
-  assert.deepEqual(dispatch(["shell"], { exitCode: 23 }, index), {
-    calls: full.slice(4, 5 + index), exit: 23,
-  }, "A failing legacy UI, acceptance build or APK check must stop the shell sequence");
-  assert.deepEqual(dispatch(["shell"], { signalCode: "SIGTERM" }, index), {
-    calls: full.slice(4, 5 + index), exit: 1,
-  });
+for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)]]) {
+  for (let index = 0; index < commands.length; index++) {
+    assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
+      calls: commands.slice(0, index + 1), exit: 23,
+    }, "A failing UI, bootstrap, acceptance build or APK check must stop its suite");
+    assert.deepEqual(dispatch([suite], { signalCode: "SIGTERM" }, index), {
+      calls: commands.slice(0, index + 1), exit: 1,
+    });
+  }
 }
-console.log("Android CI routing: full/default/native compatibility, exact ABI job ownership, paired APK acceptance after legacy shell checks, all runtime/negative checks, strict aggregate, invalid input, child failures and signals passed.");
+const bootstrap = (await Bun.file(`${import.meta.dir}/../../scripts/prepare-pairing-app-ci.mjs`).text())
+  .replace('import assert from "node:assert/strict";', "")
+  .replace('import { resolve } from "node:path";', "")
+  .replaceAll("import.meta.dir", '"/fixture/scripts"');
+const environmentFixture = { CI: "true", ANDROID_SERIAL: "emulator-5554", ANDROID_HOME: "/sdk" };
+function prepare(overrides = {}, result = { exitCode: 0 }) {
+  const calls = [];
+  const env = { ...environmentFixture, ...overrides };
+  let error;
+  try {
+    runInNewContext(bootstrap, {
+      assert, resolve, process: { env },
+      Bun: { spawnSync(command, options) { calls.push({ command: Array.from(command), options }); return result; } },
+    });
+  } catch (caught) { error = caught; }
+  return { calls, error, env };
+}
+const prepared = prepare();
+assert.equal(prepared.error, undefined);
+assert.equal(prepared.calls.length, 1);
+assert.deepEqual(prepared.calls[0].command, [
+  resolve("/sdk", "platform-tools/adb"), "-s", "emulator-5554", "install", "-r",
+  resolve("/fixture/scripts", "../ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk"),
+]);
+const options = prepared.calls[0].options;
+assert.equal(options.env, prepared.env);
+assert.equal(options.timeout, 90000);
+for (const [key, value] of [["stdin", "ignore"], ["stdout", "inherit"], ["stderr", "inherit"]]) assert.equal(options[key], value);
+for (const overrides of [{ CI: undefined }, { CI: "false" }, { ANDROID_SERIAL: "physical-device" }, { ANDROID_SERIAL: undefined }, { ANDROID_HOME: undefined }]) {
+  const rejected = prepare(overrides);
+  assert.ok(rejected.error, "Invalid CI/emulator inputs must be rejected before installing");
+  assert.equal(rejected.calls.length, 0);
+}
+for (const result of [{ exitCode: 23 }, { exitCode: 0, signalCode: "SIGTERM" }, { exitCode: null, signalCode: "SIGKILL" }]) {
+  const rejected = prepare({}, result);
+  assert.ok(rejected.error, "Install failure or timeout must fail pairing preparation");
+  assert.equal(rejected.calls.length, 1);
+}
+const pairingSource = await Bun.file(`${import.meta.dir}/../../scripts/check-pairing-app.mjs`).text();
+const hashesSource = pairingSource.slice(pairingSource.indexOf("const hashes = () => {"), pairingSource.indexOf("const normalized ="));
+assert.ok(hashesSource.startsWith("const hashes = () => {"));
+function manifest(text) {
+  return Array.from(runInNewContext(`${hashesSource}\nhashes()`, {
+    assert, app: "app.zedone.local", device: () => Buffer.from(text),
+  }), entry => Array.from(entry));
+}
+assert.deepEqual(manifest(""), [], "A fresh installed APK can have no application files");
+assert.deepEqual(manifest(`${"a".repeat(64)}  ./files/data.sqlite\n${"b".repeat(64)}  ./files/state\n`), [
+  ["./files/data.sqlite", "a".repeat(64)], ["./files/state", "b".repeat(64)],
+]);
+for (const text of ["not a checksum", `${"a".repeat(63)}  ./files/data.sqlite`, `${"a".repeat(64)}  /absolute/path`]) {
+  assert.throws(() => manifest(text), /Invalid application file manifest/);
+}
+console.log("Android CI routing: full/default/native compatibility, independent UI/paired APK suites, exact ABI job ownership, CI-only production APK bootstrap, empty/valid/invalid file manifests, all runtime/negative checks, 15m budgets, strict aggregate, invalid input, child failures and signals passed.");

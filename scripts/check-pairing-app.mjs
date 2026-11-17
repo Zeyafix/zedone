@@ -1,6 +1,7 @@
 import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import { checkFieldConflictsExchange } from "./check-field-conflicts-exchange.mjs";
 import { checkPlacementExchange } from "./check-placement-exchange.mjs";
+import { checkColumnPositionExchange } from "./check-column-position-exchange.mjs";
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -224,6 +225,7 @@ try {
     checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
     checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
     checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    checkColumnPositionExchange({host,android,space,pairing:second.request,call,command,ok,error});
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
         ['sync.push', { protocol:999, space, base:[], changes:[] }],
@@ -301,9 +303,9 @@ try {
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
         let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
         let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
-        if (process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1') {
+        if (process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
             const namesDirectory = resolve(report, 'name-conflicts-seed');
-            const mode = process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
+            const mode = process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
             invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), mode, namesDirectory]);
             const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
             subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
@@ -326,7 +328,7 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = ['card placement conflicts/same neighbors/independent decisions/preservation/reverse', 'combined field conflicts/three resolution orders/independent decisions/content/history/reverse', 'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
+    passedChecks = ['column position conflicts/same neighbors/independent different and identical decisions/child availability/preservation/reverse', 'card placement conflicts/same neighbors/independent decisions/preservation/reverse', 'combined field conflicts/three resolution orders/independent decisions/content/history/reverse', 'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
     console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
 }
 catch (error) {

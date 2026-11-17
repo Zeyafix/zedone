@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { VueDraggable, type DraggableEvent } from "vue-draggable-plus";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
 import CardsList from "./CardsList.vue";
+import ColumnPositionDialog from "./ColumnPositionDialog.vue";
 import { cardTitle, columnConflict, dragOptions, movableCard, objectTitle, placementConflict, type MoveTarget, type Placement } from "./board-order";
 import { createMutation, deliverMutation, errorMessage, mutationCredential, read, type Card, type Column, type Space } from "./workspace-api";
 
@@ -11,7 +12,12 @@ const emit = defineEmits<{
   open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.resolve_name" | "column.trash" | "column.restore"; target: Column }, event: Event];
   lock: [value: boolean];
 }>();
-const presented = ref<Column[]>([]);
+const groups = ref<{ conflicts: boolean; items: Column[] }[]>([]);
+const positionDialog = ref<InstanceType<typeof ColumnPositionDialog>>();
+const positionBusy = ref(false);
+function resetColumns() {
+  groups.value = [true, false].map(conflicts => ({ conflicts, items: props.columns.filter(item => (item.positions.length !== 1) === conflicts) }));
+}
 const reset = ref(0), working = ref(false), dragging = ref(false), dialog = ref(false);
 const message = ref(""), failure = ref("");
 const intent = ref<MoveTarget>(), subject = ref<string>();
@@ -22,16 +28,16 @@ let opener: HTMLElement | undefined;
 let dragged: MoveTarget | undefined;
 let dragIdentity: Promise<string | undefined> | undefined;
 const enabled = computed(() => !props.trash && !props.cardTrash && !props.blocked && props.space.state === "active");
-const writable = (item: Column | Space) => item.state === "active" && (!("positions" in item) || item.positions.length === 1);
-const locked = computed(() => working.value || dragging.value || dialog.value);
+const writable = (item: Column | Space) => item.state === "active";
+const locked = computed(() => working.value || dragging.value || dialog.value || positionBusy.value);
 watch(locked, value => emit("lock", value), { flush: "sync" });
 onBeforeUnmount(() => { alive = false; emit("lock", false); });
-watch(() => props.columns, () => { if (!dragging.value) presented.value = [...props.columns]; }, { immediate: true });
+watch(() => props.columns, () => { if (!dragging.value) resetColumns(); }, { immediate: true });
 const columnCards = (id: string) => props.cards.filter(item => !placementConflict(item) && item.columns[0] === id);
 const neighbours = computed(() => {
   const current = intent.value;
   return current?.kind === "column.move"
-    ? choices.value.filter(item => item.column !== current.target.column).map(item => ({ id: item.column, label: objectTitle(item) }))
+    ? choices.value.filter(item => item.positions.length === 1 && item.column !== current.target.column).map(item => ({ id: item.column, label: objectTitle(item) }))
     : notes.value.filter(item => !placementConflict(item) && item.columns[0] === destination.value && item.card !== current?.target.card)
       .map(item => ({ id: item.card, label: cardTitle(item) }));
 });
@@ -94,7 +100,7 @@ async function end(event: DraggableEvent) {
   const target = dragged; dragged = undefined;
   const identity = dragIdentity; dragIdentity = undefined;
   await nextTick();
-  presented.value = [...props.columns]; reset.value++;
+  resetColumns(); reset.value++;
   dragging.value = false;
   if (!target || !alive || event.newDraggableIndex === undefined || event.from === event.to && event.oldDraggableIndex === event.newDraggableIndex) return;
   const column = target.kind === "card.move" ? event.to.dataset.column : target.target.column;
@@ -103,7 +109,7 @@ async function end(event: DraggableEvent) {
   if (!originalSubject) { failure.value = errorMessage(new Error("credential_unavailable")); return; }
   const candidates = target.kind === "card.move"
     ? columnCards(column).filter(item => item.card !== target.target.card).map(item => item.card)
-    : props.columns.filter(item => item.column !== target.target.column).map(item => item.column);
+    : props.columns.filter(item => item.positions.length === 1 && item.column !== target.target.column).map(item => item.column);
   await move(target, { column, before: candidates[event.newDraggableIndex] ?? null }, originalSubject);
 }
 </script>
@@ -112,20 +118,23 @@ async function end(event: DraggableEvent) {
   <p v-if="enabled" class="object-note board-help">Тяните за ручку ⠿; на телефоне сначала удерживайте её. За текст можно прокручивать. Кнопка «Переместить» позволяет выбрать место без жеста.</p>
   <p v-if="message" role="status">{{ message }}</p>
   <p v-if="failure && !dialog" role="alert" class="action-error">{{ failure }}</p>
-  <VueDraggable v-model="presented" class="column-board" role="region" aria-label="Колонки" tabindex="0" v-bind="dragOptions"
+  <section v-for="group in groups" :key="String(group.conflicts)" :aria-label="group.conflicts ? 'Конфликты' : undefined">
+  <h3 v-if="group.conflicts && group.items.length">Конфликты</h3>
+  <VueDraggable v-model="group.items" class="column-board" role="region" :aria-label="group.conflicts ? 'Спорные колонки' : 'Колонки'" tabindex="0" v-bind="dragOptions"
     direction="horizontal" handle=".column-handle" draggable=".column-panel" filter=".move-locked" :prevent-on-filter="false"
-    :disabled="!enabled || working || dialog" @start="start($event, 'column.move')" @end="end">
-    <section v-for="item in presented" :key="item.column" class="column-panel" :class="{ 'move-locked': columnConflict(item) }" :data-column="item.column" :aria-label="objectTitle(item)">
-      <div class="column-heading"><button v-if="enabled && !columnConflict(item)" class="column-handle drag-handle" :aria-label="`Переместить: ${objectTitle(item)}`" title="Удерживайте для перетаскивания или нажмите, чтобы выбрать место" @click="open({ kind: 'column.move', target: item }, $event)">⠿</button><h3>{{ objectTitle(item) }}</h3></div>
-      <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения самой колонки недоступны до разрешения; при споре только названия работа с карточками продолжается.</p>
+    :disabled="!enabled || working || dialog || positionBusy || group.conflicts" @start="start($event, 'column.move')" @end="end">
+    <section v-for="item in group.items" :key="item.column" class="column-panel" :class="{ 'move-locked': columnConflict(item) }" :data-column="item.column" :aria-label="objectTitle(item)">
+      <div class="column-heading"><button v-if="enabled && !columnConflict(item)" class="column-handle drag-handle" :aria-label="`Переместить: ${objectTitle(item)}`" title="Удерживайте для перетаскивания или нажмите, чтобы выбрать место" @click="open({ kind: 'column.move', target: item }, $event)">⠿</button><h3 tabindex="-1">{{ objectTitle(item) }}</h3></div>
+      <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения самой колонки недоступны до разрешения; при споре названия или позиции работа с карточками продолжается.</p>
       <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
       <template v-if="!trash">
-        <CardsList :cards="columnCards(item.column)" :tags="tags" :blocked="blocked || working || dialog" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
+        <CardsList :cards="columnCards(item.column)" :tags="tags" :blocked="blocked || working || dialog || positionBusy" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
           @open="(action, event) => emit('open', action, event)" @move="(card, event) => open({ kind: 'card.move', target: card }, event)" @start="start($event, 'card.move')" @end="end" />
         <p v-if="cardTrash && !columnCards(item.column).length" class="object-note">В корзине нет карточек этой колонки.</p>
         <button v-if="!cardTrash" class="create-card" :disabled="blocked || locked || !writable(space) || !writable(item)" @click="emit('open', { kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>
       </template>
       <div class="column-actions">
+        <button v-if="item.state === 'active' && item.positions.length > 1 && !cardTrash" class="resolve-column-position" :disabled="blocked || locked || space.state !== 'active'" @click="positionDialog?.open(item, $event)">Разрешить позицию</button>
         <button v-if="item.state === 'active' && item.names.length > 1" class="resolve-column-name" :disabled="blocked || locked || space.state !== 'active'" @click="emit('open', { kind: 'column.resolve_name', target: item }, $event)">Разрешить название</button>
         <button v-if="!trash && !cardTrash" class="move-column" :disabled="!enabled || locked || columnConflict(item)" @click="open({ kind: 'column.move', target: item }, $event)">Переместить колонку</button>
         <button v-if="item.state === 'active'" class="rename-column" :disabled="blocked || locked || !writable(space) || columnConflict(item)" @click="emit('open', { kind: 'column.rename', target: item }, $event)">Переименовать</button>
@@ -133,6 +142,8 @@ async function end(event: DraggableEvent) {
       </div>
     </section>
   </VueDraggable>
+  </section>
+  <ColumnPositionDialog ref="positionDialog" :columns="columns" :blocked="blocked || working || dialog || space.state !== 'active'" :refresh="refresh" @lock="positionBusy = $event" />
   <DialogRoot v-model:open="dialog"><DialogPortal><DialogOverlay class="dialog-overlay" />
     <DialogContent class="action-dialog move-dialog" @close-auto-focus="restoreFocus">
       <div class="dialog-header"><DialogTitle>{{ intent?.kind === 'card.move' ? 'Переместить карточку' : 'Переместить колонку' }}</DialogTitle><DialogClose data-workspace-dialog-close aria-label="Закрыть перемещение">Закрыть</DialogClose></div>

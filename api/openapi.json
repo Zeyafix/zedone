@@ -826,6 +826,40 @@
         ]
       }
     },
+    "/v1/commands/column.inspect_positions": {
+      "post": {
+        "tags": [
+          "column_positions"
+        ],
+        "operationId": "column_inspect_positions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectColumnPositions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ColumnPositions"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/column.list": {
       "post": {
         "tags": [
@@ -973,6 +1007,40 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest_ResolveColumnName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ColumnSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/column.resolve_position": {
+      "post": {
+        "tags": [
+          "column_positions"
+        ],
+        "operationId": "column_resolve_position",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveColumnPosition"
               }
             }
           },
@@ -2597,6 +2665,43 @@
         },
         "additionalProperties": false
       },
+      "ColumnPositionChoice": {
+        "type": "object",
+        "required": [
+          "position"
+        ],
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "$ref": "#/components/schemas/Rank"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ColumnPositions": {
+        "type": "object",
+        "required": [
+          "column",
+          "choices"
+        ],
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnPositionChoice"
+            }
+          },
+          "column": {
+            "$ref": "#/components/schemas/ColumnSnapshot"
+          }
+        },
+        "additionalProperties": false
+      },
       "ColumnSnapshot": {
         "type": "object",
         "required": [
@@ -3441,6 +3546,47 @@
             ],
             "properties": {
               "card": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectColumnPositions": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "column"
+            ],
+            "properties": {
+              "column": {
                 "type": "string"
               },
               "space": {
@@ -4969,6 +5115,55 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ResolveColumnPosition": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "column",
+              "position",
+              "expected"
+            ],
+            "properties": {
+              "column": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "position": {
+                "$ref": "#/components/schemas/Rank"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ResolveSpaceName": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -5724,6 +5919,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_ColumnPositions": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_ColumnPositions"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_ColumnSnapshot": {
         "oneOf": [
           {
@@ -6226,6 +6432,42 @@
                 "items": {
                   "$ref": "#/components/schemas/ColumnSnapshot"
                 }
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_ColumnPositions": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "column",
+              "choices"
+            ],
+            "properties": {
+              "choices": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ColumnPositionChoice"
+                }
+              },
+              "column": {
+                "$ref": "#/components/schemas/ColumnSnapshot"
               }
             },
             "additionalProperties": false
@@ -7344,6 +7586,22 @@
         },
         "additionalProperties": false
       },
+      "InspectColumnPositions": {
+        "type": "object",
+        "required": [
+          "space",
+          "column"
+        ],
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "InspectHistory": {
         "type": "object",
         "required": [
@@ -8258,6 +8516,30 @@
           },
           "name": {
             "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveColumnPosition": {
+        "type": "object",
+        "required": [
+          "space",
+          "column",
+          "position",
+          "expected"
+        ],
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Rank"
           },
           "space": {
             "type": "string"

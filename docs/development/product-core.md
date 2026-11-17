@@ -850,4 +850,29 @@ APK runner и проверяет оба вида конфликтов, неза�
 
 [ADR-0068](../architecture/decisions/0068-card-placement-resolution.md),
 [EV-114](../agent/verification/EV-114-card-placement-conflicts.md). Позиции
-колонок и итоговая совместная приёмка P06.06 остаются отдельными шагами.
+колонок описаны ниже; итоговая совместная приёмка P06.06 остаётся отдельной.
+
+## Конфликт позиции колонки — P06.06.2
+
+`column.inspect_positions`/`column.resolve_position` используют тот же
+Service/ACL/replay, прежний register `position` и Rank/ID-порядок. Ядро
+возвращает подпись позиции соседом, запись принимает сохранённый ранг.
+Delete/put в одной транзакции сохраняют новое причинное решение при выборе
+наблюдаемого победителя. Карточки не перемещаются и не перезаписываются.
+
+`shell-fixture --serve-column-position-conflicts` и
+`--prepare-column-position-conflicts` создают две позиции колонки с карточкой.
+`check-ui-column-positions.mjs` включён в полный desktop/touch browser runner;
+`check-column-position-exchange.mjs` — в штатный paired APK runner.
+Для локального Device-checkpoint: `P06_EXCHANGE_UI=1` и
+`P06_COLUMN_POSITION_UI=1`, lifecycle через выданную Device команду.
+Обычный production APK не включает приёмочный стенд.
+
+[ADR-0069](../architecture/decisions/0069-column-position-resolution.md),
+[EV-115](../agent/verification/EV-115-column-position-conflicts.md).
+
+P06.06.2 также снимает ограничение позиции целевой колонки у `card.restore`
+и в списке UI восстановления: спорное место колонки не меняет место карточки
+внутри неё. Прежние проверки lifecycle, имени, версии, прав и собственного
+состояния карточки сохраняются. Цикл trash/restore проверяется общими
+HTTP/IPC/CLI и настоящим APK; карточка возвращается с прежним ID и историей.

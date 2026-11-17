@@ -3,6 +3,7 @@ pub mod access_commands;
 pub mod card_history;
 pub mod cards;
 pub mod cleanup;
+pub mod column_positions;
 pub mod columns;
 pub mod command;
 pub mod error;
@@ -36,6 +37,7 @@ use utoipa::OpenApi;
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, ordering::move_column, ordering::move_card,
         placements::inspect, placements::resolve,
+        column_positions::inspect, column_positions::resolve,
         cards::create, cards::read, cards::history, cards::list, cards::edit, cards::resolve_text,
         cards::set_completed, cards::trash, cards::restore,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,

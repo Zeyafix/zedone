@@ -465,7 +465,7 @@ fn change<C: Command<Output = CardSnapshot>>(
                     if let Some(expected) = p.expected_column {
                         replay::require_current(expected, target.version)?;
                     }
-                    if target.names.len() != 1 || target.positions.len() != 1 {
+                    if target.names.len() != 1 {
                         return Err(error(ErrorCode::Conflict));
                     }
                     if column != before.columns[0] {

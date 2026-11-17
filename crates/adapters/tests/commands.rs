@@ -584,3 +584,6 @@ async fn cancelled_wait_after_worker_admission_does_not_cancel_the_command() {
     assert_eq!(confirmed["replayed"], true);
     assert_eq!(confirmed["result"]["revoked"], true);
 }
+
+#[path = "commands/column_positions.rs"]
+mod column_positions;

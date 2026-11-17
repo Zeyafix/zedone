@@ -101,6 +101,20 @@ impl OrderStore for WriteContext<'_> {
         Ok(self.edit(space, |doc| put_rank(doc, &object, rank))?)
     }
 }
+impl zedone_core::column_positions::ColumnPositionStore for WriteContext<'_> {
+    fn resolve_column_position(
+        &mut self,
+        space: &str,
+        column: &str,
+        position: &Rank,
+    ) -> CommandResult<()> {
+        let object = crate::columns::object(self.read().document(space)?, column)?;
+        Ok(self.edit(space, |doc| {
+            doc.delete(&object, "position")?;
+            put_rank(doc, &object, position)
+        })?)
+    }
+}
 impl zedone_core::placements::PlacementStore for WriteContext<'_> {
     fn resolve_card_placement(
         &mut self,

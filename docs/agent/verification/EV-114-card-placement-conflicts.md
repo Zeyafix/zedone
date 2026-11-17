@@ -25,13 +25,12 @@
 
 ## Результат
 
-P06.06.1 verified локально на main/904ac99 плюс рассмотренные изменения этой
-ветки. Карточка со спорным местом показывается один раз в «Конфликтах»;
-сохранённая колонка/позиция выбираются явно общим UI/HTTP/IPC/CLI. Другие
-конфликты и обычные блокировки сохраняются. Разные независимые решения вновь
-конфликтуют, одинаковые сходятся. Коммит/PR/новый CI/merge не выполнялись.
-Все 98 определения/состояния и прежние GAP/DEC сохранены; добавлен GAP-031.
-Полный P06.06/T09 этим срезом не закрывается.
+P06.06.1 done: [PR #106](https://github.com/Zeyafix/zedone/pull/106), head 3b2a174,
+merge 806d8e6 после всех 17 SUCCESS в Windows/Linux/Android attempt 1 и свежей
+CLEAN readiness. Merge tree совпал с reviewed head; main обновлена,
+feature-ветка удалена local/remote/tracking. Все 98 определения/состояния
+и прежние GAP/DEC сохранены, GAP-028/031 открыты; полный P06.06/T09 отдельно.
+Нижеследующие локальные результаты и попытки сохраняют свой точный охват.
 
 ## Технические находки и попытки
 
@@ -124,3 +123,45 @@ viewport/theme/framing; PNG/body вне Git, host binaries восстановл�
 Нового CI ещё нет; до merge нужны все expected SUCCESS и новая readiness точных
 head/base без замечаний. P06.06.1 verified, все определения/состояния и GAP/DEC
 сохранены; P06.06.2/полный P06.06/T09 отдельно.
+
+
+## Публикация — LOG-616
+
+[PR #106](https://github.com/Zeyafix/zedone/pull/106), head
+3b2a17455f395d1437295f98d344e253a0e63e40, base main/904ac99. 38 файлов,
+обычные commit/push/pre-push passed, noreply и состав проверены. Title/body/credit
+прочитаны обратно; два hosted PNG 1280×1500 подтверждены по SHA-256, все медиа
+вне Git. Все 28 source fingerprints прежние.
+
+Новый CI выполняется: 14 suites running, три aggregate ещё ожидаются. Начальная
+readiness OPEN/non-draft/MERGEABLE/UNSTABLE, feedback отсутствует. Это не финальный
+успех. До merge/delete по поручению нужны все 17 expected SUCCESS и свежая
+readiness exact head/base без замечаний. Состояния критериев/GAP/DEC прежние,
+checkpoint локальный без дополнительного commit/push. Колонка .2 и полный
+P06.06/T09 отдельно.
+
+
+## Интеграция — LOG-617
+
+На неизменном head 3b2a174 полный exact набор 17 checks COMPLETED/SUCCESS.
+Windows/Linux run 44113062660 и Android run 44113062809 завершены в attempt 1.
+Raw logs подтвердили baseline Node 24.22.1, все четыре новых desktop/touch
+случая на каждом host OS, штатный полный native runner, настоящий APK обмен
+местами/независимые решения/одинаковые соседи/reverse и restoration/cleanup.
+CI memory host не заменяет отдельный локальный Windows Credential Manager и
+Device UI. Первоначальный локальный LNK1104 сохраняется как попытка, не успех.
+
+Testing PR обновлён и прочитан обратно. Свежая readiness exact head/base
+3b2a174/904ac99: OPEN/non-draft/MERGEABLE/CLEAN, все 17 SUCCESS и отсутствие
+reviews/requests/comments/inline threads. Pinned-head merge создал
+806d8e6f7b90a1aeb464bd122205d7757cc316c9, родители равны проверенным base/head,
+merge tree совпадает с reviewed head. Main=origin/main; feature-ветка удалена
+remote с lease и local branch-d, tracking ref отсутствует. Два прежних worktrees
+и отсутствие stash сохранены, dirty checkpoint документы сохранены побайтово.
+
+P06.06.1 done, пять правил подтверждены в scope. Все 98 определения/состояния
+и прежние GAP/DEC сохранены; GAP-028/031 открыты. Итоговые journal/queue/EV/ADR
+записи остаются локально без нового commit/push и нового CI для checkpoint;
+source равен reviewed merge tree. Active_work null; далее P06.06.2 planned,
+готов на интегрированной базе, новая реализация не начата. Полный P06.06/T09,
+прочие ограничения и дополнительные проверки отдельно.

@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 use std::sync::Arc;
+#[path = "fixtures/placements.rs"]
+mod placement_fixture;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -38,6 +40,9 @@ async fn main() {
             || args[0] == "--serve-text-conflicts"
             || args[0] == "--prepare-field-conflicts"
             || args[0] == "--serve-field-conflicts"
+            || args[0] == "--prepare-placement-conflicts"
+            || args[0] == "--serve-placement-conflicts"
+            || args[0] == "--serve-same-column-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -78,10 +83,22 @@ async fn main() {
     if args[0] == "--prepare-field-conflicts" || args[0] == "--serve-field-conflicts" {
         seed_conflicts(&storage, &access, true, true).await;
     }
+    if args[0] == "--prepare-placement-conflicts"
+        || args[0] == "--serve-placement-conflicts"
+        || args[0] == "--serve-same-column-conflicts"
+    {
+        placement_fixture::seed(
+            &storage,
+            &access,
+            args[0] == "--serve-same-column-conflicts",
+        )
+        .await;
+    }
     if args[0] == "--prepare"
         || args[0] == "--prepare-conflicts"
         || args[0] == "--prepare-text-conflicts"
         || args[0] == "--prepare-field-conflicts"
+        || args[0] == "--prepare-placement-conflicts"
     {
         storage.shutdown().await.unwrap();
         return;

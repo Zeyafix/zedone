@@ -9,6 +9,7 @@ pub mod error;
 pub mod invitations;
 pub mod ordering;
 pub mod pairing;
+pub mod placements;
 pub mod qr;
 pub mod replay;
 mod schema_descriptions;
@@ -34,6 +35,7 @@ use utoipa::OpenApi;
         spaces::trash, spaces::restore, spaces::resolve_name,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, ordering::move_column, ordering::move_card,
+        placements::inspect, placements::resolve,
         cards::create, cards::read, cards::history, cards::list, cards::edit, cards::resolve_text,
         cards::set_completed, cards::trash, cards::restore,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,

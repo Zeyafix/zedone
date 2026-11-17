@@ -29,6 +29,7 @@ use zedone_core::{
         self as pending, CancelPairing, ConfirmPairing, InspectPairing, ListPairings,
         RejectPairing, UnlinkPairing,
     },
+    placements::{self, InspectCardPlacements, ResolveCardPlacement},
     replay::Execution,
     search::{self, SearchCards},
     spaces::{
@@ -130,6 +131,8 @@ impl Service {
                 RestoreColumn::NAME => run!(RestoreColumn, columns::restore),
                 MoveCard::NAME => run!(MoveCard, ordering::move_card),
                 MoveColumn::NAME => run!(MoveColumn, ordering::move_column),
+                InspectCardPlacements::NAME => run!(InspectCardPlacements, placements::inspect),
+                ResolveCardPlacement::NAME => run!(ResolveCardPlacement, placements::resolve),
                 CreateCard::NAME => run!(CreateCard, cards::create),
                 ReadCard::NAME => run!(ReadCard, cards::read),
                 ReadCardHistory::NAME => run!(ReadCardHistory, cards::history),

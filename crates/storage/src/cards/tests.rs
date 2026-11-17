@@ -77,6 +77,7 @@ mod cleanup;
 mod completion;
 mod history;
 mod ordering;
+mod placement_conflicts;
 mod search;
 mod text_conflicts;
 mod trash_groups;

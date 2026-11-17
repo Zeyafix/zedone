@@ -101,3 +101,19 @@ impl OrderStore for WriteContext<'_> {
         Ok(self.edit(space, |doc| put_rank(doc, &object, rank))?)
     }
 }
+impl zedone_core::placements::PlacementStore for WriteContext<'_> {
+    fn resolve_card_placement(
+        &mut self,
+        space: &str,
+        card: &str,
+        place: &CardPlacement,
+    ) -> CommandResult<()> {
+        let object = crate::cards::object(self.read().document(space)?, card)?;
+        let encoded = serde_json::to_string(place).map_err(|_| StorageError::InvalidDatabase)?;
+        Ok(self.edit(space, |doc| {
+            doc.delete(&object, "placement")?;
+            doc.put(&object, "placement", encoded)?;
+            Ok(())
+        })?)
+    }
+}

@@ -29,7 +29,9 @@
 
 ## Результат
 
-P06.05 verified локально в `test/p06-05-conflicts-acceptance` от main/4592bb3.
+P06.05 done: [PR #105](https://github.com/Zeyafix/zedone/pull/105), head 48c6f4b,
+merge 904ac99 после всех 17 SUCCESS в Windows/Linux/Android attempt 1 и свежей
+CLEAN readiness; LOG-612. Локальная приёмка — LOG-609, база main/4592bb3.
 Совместная матрица названий пространства/колонки и текста вложенной карточки
 пройдена через UI/HTTP/IPC/CLI на Windows и Android эмуляторе.
 Производственные правила и форматы не изменялись; добавлены постоянные
@@ -86,7 +88,7 @@ P06.05 verified локально в `test/p06-05-conflicts-acceptance` от main
   сохраняют прежние состояния по матрице журнала; scoped приёмка не заменяет
   полный охват составных критериев.
 
-## Пять правил и передача
+## Пять правил и передача до публикации
 
 - Обратимость: отмена без команды, обычные переименования, восстановление
   прежней пары новой версией истории; поздние/независимые решения не исчезают.
@@ -121,3 +123,26 @@ fixtures/проверки/документация и связанные ито�
 состояния совпадают с проверенной базой/матрицей. Пользовательского визуального
 изменения нет, Before/After неприменимы. Новый CI ещё не запущен; для merge
 нужны все 17 expected SUCCESS и свежая readiness точных head/base без замечаний.
+
+
+## Публикация — LOG-611
+
+[PR #105](https://github.com/Zeyafix/zedone/pull/105), head
+48c6f4b363e9d3c668fb0b45457ad0160a60663b, base main/4592bb3, включает 11
+рассмотренных source/docs файлов. Обычный push/pre-push passed, PR linked;
+English title/body/порядок Summary/Changes/Testing/credit прочитаны обратно.
+Визуального продуктового изменения нет, медиа не требуются. Source fingerprints
+прежние. Начальная readiness OPEN/non-draft/MERGEABLE/UNSTABLE, замечаний нет,
+14 suites running/три aggregate ещё ожидаются. До merge нужны все 17 expected
+SUCCESS и свежая readiness точных head/base. Публикация и условные merge/delete
+разрешены LOG-610; текущий journal/EV checkpoint не меняет tested head.
+Все 98 определения/состояния и GAP/DEC прежние, P06.06 не начат; полный T09
+отдельно. Новый CI пока не объявляется passed.
+
+
+## Интеграция — LOG-612
+
+- Все 17 expected checks на head 48c6f4b COMPLETED/SUCCESS: [Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/44086029178) и [Android](https://github.com/Zeyafix/zedone/actions/runs/44086029182), обе attempt 1 без повторов. Raw logs подтвердили Node 24.22.1, новые combined desktop/touch случаи на Windows/Linux, три порядка APK решений, SHA-256 restoration и cleanup. Локальные Credential Manager/Device результаты сохраняют отдельный scope.
+- Testing обновлён и прочитан обратно с нормализацией CRLF/завершающего newline. Свежая readiness exact head/base 48c6f4b/4592bb3 OPEN/non-draft/MERGEABLE/CLEAN, все 17 SUCCESS, reviews/requests/comments/inline threads отсутствуют.
+- Pinned-head merge создал 904ac992861a5d839f3d6e30da93180dabcbd8e2; родители base/head и равенство merge tree reviewed head проверены. Main=origin/main/904ac99, ветка удалена local/remote/tracking. Переключение между одинаковыми деревьями сохранило checkpoint bytes; прежние worktrees/stash сохранены. Source fingerprints не менялись.
+- Пять правил подтверждены в scope P06.05; все 98 определения/состояния и прежние GAP/DEC сохранены. Итоговые journal/queue/EV-113 остаются локально без дополнительного commit/push. Active_work null, P06.06 planned/готов по зависимостям, реализация не начата. Полный T09/прочие конфликты/Tailscale/целевой arm64 runtime/измерения отдельно, GAP-028 открыт. Watch выключен, PR остаётся linked.

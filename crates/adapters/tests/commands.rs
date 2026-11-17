@@ -28,6 +28,8 @@ mod spaces;
 
 #[path = "commands/name_conflicts.rs"]
 mod name_conflicts;
+#[path = "commands/placement_conflicts.rs"]
+mod placement_conflicts;
 #[path = "commands/text_conflicts.rs"]
 mod text_conflicts;
 

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { VueDraggable, type DraggableEvent } from "vue-draggable-plus";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from "reka-ui";
 import CardsList from "./CardsList.vue";
-import { cardTitle, columnConflict, dragOptions, movableCard, objectTitle, type MoveTarget, type Placement } from "./board-order";
+import { cardTitle, columnConflict, dragOptions, movableCard, objectTitle, placementConflict, type MoveTarget, type Placement } from "./board-order";
 import { createMutation, deliverMutation, errorMessage, mutationCredential, read, type Card, type Column, type Space } from "./workspace-api";
 
 const props = defineProps<{ space: Space; columns: Column[]; cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; trash: boolean; cardTrash: boolean; refresh: () => Promise<void> }>();
@@ -27,12 +27,12 @@ const locked = computed(() => working.value || dragging.value || dialog.value);
 watch(locked, value => emit("lock", value), { flush: "sync" });
 onBeforeUnmount(() => { alive = false; emit("lock", false); });
 watch(() => props.columns, () => { if (!dragging.value) presented.value = [...props.columns]; }, { immediate: true });
-const columnCards = (id: string) => props.cards.filter(item => item.columns.length === 1 && item.columns[0] === id);
+const columnCards = (id: string) => props.cards.filter(item => !placementConflict(item) && item.columns[0] === id);
 const neighbours = computed(() => {
   const current = intent.value;
   return current?.kind === "column.move"
     ? choices.value.filter(item => item.column !== current.target.column).map(item => ({ id: item.column, label: objectTitle(item) }))
-    : notes.value.filter(item => item.columns.length === 1 && item.columns[0] === destination.value && item.card !== current?.target.card)
+    : notes.value.filter(item => !placementConflict(item) && item.columns[0] === destination.value && item.card !== current?.target.card)
       .map(item => ({ id: item.card, label: cardTitle(item) }));
 });
 watch(destination, () => { before.value = ""; });

@@ -384,6 +384,40 @@
         ]
       }
     },
+    "/v1/commands/card.inspect_placements": {
+      "post": {
+        "tags": [
+          "placements"
+        ],
+        "operationId": "card_inspect_placements",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectCardPlacements"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardPlacements"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.list": {
       "post": {
         "tags": [
@@ -463,6 +497,40 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest_ReadCard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/card.resolve_placement": {
+      "post": {
+        "tags": [
+          "placements"
+        ],
+        "operationId": "card_resolve_placement",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveCardPlacement"
               }
             }
           },
@@ -2358,6 +2426,25 @@
         },
         "additionalProperties": false
       },
+      "CardPlacements": {
+        "type": "object",
+        "required": [
+          "card",
+          "choices"
+        ],
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSnapshot"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlacementChoice"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "CardSnapshot": {
         "type": "object",
         "required": [
@@ -3316,6 +3403,47 @@
             ],
             "properties": {
               "subject": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectCardPlacements": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "space": {
                 "type": "string"
               }
             },
@@ -4690,6 +4818,55 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ResolveCardPlacement": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card",
+              "placement",
+              "expected"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "placement": {
+                "$ref": "#/components/schemas/CardPlacement"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ResolveCardText": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -5514,6 +5691,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_CardPlacements": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_CardPlacements"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_CardSnapshot": {
         "oneOf": [
           {
@@ -5872,6 +6060,42 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/CardSnapshot"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_CardPlacements": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "card",
+              "choices"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardSnapshot"
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlacementChoice"
                 }
               }
             },
@@ -7104,6 +7328,22 @@
         },
         "additionalProperties": false
       },
+      "InspectCardPlacements": {
+        "type": "object",
+        "required": [
+          "space",
+          "card"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "InspectHistory": {
         "type": "object",
         "required": [
@@ -7563,6 +7803,24 @@
         },
         "additionalProperties": false
       },
+      "PlacementChoice": {
+        "type": "object",
+        "required": [
+          "placement"
+        ],
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placement": {
+            "$ref": "#/components/schemas/CardPlacement"
+          }
+        },
+        "additionalProperties": false
+      },
       "PullSync": {
         "type": "object",
         "required": [
@@ -7926,6 +8184,30 @@
             "description": "Claimed display name, never an authenticated device identity."
           },
           "request": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveCardPlacement": {
+        "type": "object",
+        "required": [
+          "space",
+          "card",
+          "placement",
+          "expected"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/CardPlacement"
+          },
+          "space": {
             "type": "string"
           }
         },

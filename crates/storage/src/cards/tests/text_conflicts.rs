@@ -18,7 +18,11 @@ fn resolution(
         },
     )
 }
-async fn copy(db: &Storage, path: std::path::PathBuf, admin: &Arc<PendingAccess>) -> Storage {
+pub(super) async fn copy(
+    db: &Storage,
+    path: std::path::PathBuf,
+    admin: &Arc<PendingAccess>,
+) -> Storage {
     let page = db
         .transact(|tx| crate::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![]))
         .await
@@ -36,7 +40,7 @@ async fn copy(db: &Storage, path: std::path::PathBuf, admin: &Arc<PendingAccess>
         .unwrap();
     remote
 }
-async fn exchange(a: &Storage, b: &Storage) {
+pub(super) async fn exchange(a: &Storage, b: &Storage) {
     let left = a
         .transact(|tx| crate::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![]))
         .await

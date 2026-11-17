@@ -829,3 +829,25 @@ Automerge, строгий version, общий Service/ACL/replay и атомар
 исходный APK/каждый app file по SHA-256 и очищает собственные OS keys/rules.
 Приёмочный стенд не добавляет переключателей в production APK.
 Охват приёмки — [EV-113](../agent/verification/EV-113-field-conflicts-acceptance.md).
+
+
+## Конфликт места карточки — P06.06.1
+
+`card.inspect_placements` и `card.resolve_placement` проходят через общий
+Service/ACL/replay. Ядро вычисляет подпись сохранённого места ближайшим
+однозначным соседом и принимает только целую сохранённую пару колонки/ранга.
+Старые move и блокировки обычных действий сохраняются. Новых таблиц, схем,
+протокола или клиентского авторитетного порядка нет.
+
+`shell-fixture --serve-placement-conflicts`/`--prepare-placement-conflicts`
+создаёт конфликт между колонками; `--serve-same-column-conflicts` — две
+позиции одной колонки. `check-ui-placement-conflicts.mjs` входит в полный
+browser runner. `check-placement-exchange.mjs` подключён к обычному paired
+APK runner и проверяет оба вида конфликтов, независимые решения, одинаковых
+соседей, сохранность и обратные действия. Для ручного Device-checkpoint
+используются `P06_EXCHANGE_UI=1` и `P06_PLACEMENT_UI=1`; lifecycle выполняется
+через выданный Device командный путь. Production APK не включает стенд.
+
+[ADR-0068](../architecture/decisions/0068-card-placement-resolution.md),
+[EV-114](../agent/verification/EV-114-card-placement-conflicts.md). Позиции
+колонок и итоговая совместная приёмка P06.06 остаются отдельными шагами.

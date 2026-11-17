@@ -1,6 +1,6 @@
 # ADR-0067 — Явное разрешение текста карточки
 
-Статус: P06.05.2 verified локально, без commit/CI/merge; проверка — [EV-112](../../agent/verification/EV-112-card-text-conflicts.md).
+Статус: P06.05.2 done — PR #104/head 8e6bfe7, merge 4592bb3 после всех 17 SUCCESS в attempt 1 и свежей CLEAN readiness; [EV-112](../../agent/verification/EV-112-card-text-conflicts.md)/LOG-607. Итоговый P06.05/полный T09 отдельно.
 
 ## Основание
 

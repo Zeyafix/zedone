@@ -36,6 +36,8 @@ async fn main() {
             || args[0] == "--serve-conflicts"
             || args[0] == "--prepare-text-conflicts"
             || args[0] == "--serve-text-conflicts"
+            || args[0] == "--prepare-field-conflicts"
+            || args[0] == "--serve-field-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -68,14 +70,18 @@ async fn main() {
     )
     .unwrap();
     if args[0] == "--prepare-conflicts" || args[0] == "--serve-conflicts" {
-        seed_conflicts(&storage, &access, false).await;
+        seed_conflicts(&storage, &access, true, false).await;
     }
     if args[0] == "--prepare-text-conflicts" || args[0] == "--serve-text-conflicts" {
-        seed_conflicts(&storage, &access, true).await;
+        seed_conflicts(&storage, &access, false, true).await;
+    }
+    if args[0] == "--prepare-field-conflicts" || args[0] == "--serve-field-conflicts" {
+        seed_conflicts(&storage, &access, true, true).await;
     }
     if args[0] == "--prepare"
         || args[0] == "--prepare-conflicts"
         || args[0] == "--prepare-text-conflicts"
+        || args[0] == "--prepare-field-conflicts"
     {
         storage.shutdown().await.unwrap();
         return;
@@ -108,6 +114,7 @@ async fn main() {
 async fn seed_conflicts(
     storage: &zedone_storage::Storage,
     access: &Arc<zedone_storage::access::PendingAccess>,
+    names: bool,
     text: bool,
 ) {
     use zedone_core::{
@@ -162,7 +169,8 @@ async fn seed_conflicts(
                     owner.subject(),
                     "000000000000000000000000000000ce",
                 )?;
-            } else {
+            }
+            if names {
                 tx.rename_space(SPACE, "Название с телефона")?;
                 tx.rename_column(SPACE, COLUMN, "Колонка с телефона")?;
             }
@@ -192,7 +200,8 @@ async fn seed_conflicts(
                     owner.subject(),
                     "000000000000000000000000000000cf",
                 )?;
-            } else {
+            }
+            if names {
                 tx.rename_space(SPACE, "Название с компьютера")?;
                 tx.rename_column(SPACE, COLUMN, "Колонка с компьютера")?;
             }

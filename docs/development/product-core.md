@@ -810,3 +810,22 @@ Automerge, строгий version, общий Service/ACL/replay и атомар
 `checkTextExchange` — в настоящий Windows/Android APK runner.
 [ADR-0067](../architecture/decisions/0067-card-text-resolution.md),
 [EV-112](../agent/verification/EV-112-card-text-conflicts.md).
+
+## Совместная приёмка конфликтов полей — P06.05
+
+`shell-fixture --serve-field-conflicts` (либо `--prepare-field-conflicts`)
+создаёт на двух репликах одновременно независимые названия пространства,
+колонки и тексты вложенной карточки. `check-ui-field-conflicts.mjs` входит
+в полный browser runner: desktop/light и touch/dark, решение карточки до
+контейнеров и после них, отмена, границы блокировок, история/ID и reload.
+
+`check-field-conflicts-exchange.mjs` входит в настоящий paired APK runner.
+Три порядка разрешения проверяют Windows/Android TLS/CLI, независимые решения
+всех трёх объектов, повторную доставку, работу с исправным содержимым,
+сохранение назначенного тега и обратные переименования/восстановление текста.
+Для ручного APK-checkpoint используются `P06_EXCHANGE_UI=1` и
+`P06_FIELD_CONFLICTS_UI=1`; `ANDROID_SERIAL` и `AGENT_DEVICE_COMMAND` берутся
+из открытого Device. После проверки checkpoint runner восстанавливает
+исходный APK/каждый app file по SHA-256 и очищает собственные OS keys/rules.
+Приёмочный стенд не добавляет переключателей в production APK.
+Охват приёмки — [EV-113](../agent/verification/EV-113-field-conflicts-acceptance.md).

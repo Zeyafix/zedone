@@ -40,6 +40,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
   "trash.purge": "Очистить окончательно",
   "card.restore_text": "Восстановить версию карточки",
+  "card.resolve_text": "Разрешить конфликт текста карточки",
   "history.clear": "Очистить историю",
 };
 const routeSpace = () => /^#\/spaces\/([a-f0-9]{32})$/.exec(location.hash)?.[1];

@@ -18,6 +18,7 @@ import { checkAccessibility } from "./check-ui-accessibility.mjs";
 import { nativeControls } from "./check-ui-android-scenarios.mjs";
 import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 import { checkNameConflicts } from "./check-ui-name-conflicts.mjs";
+import { checkTextConflicts } from "./check-ui-text-conflicts.mjs";
 import { shellDiagnosticState, observeShellReads, observeShellReadLifecycle, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
 
 const root = resolve(import.meta.dir, "..");
@@ -189,6 +190,7 @@ try {
     await blocked.close();
     await checkWorkspaceTouchHost(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await checkNameConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
+    await checkTextConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await browser.close();
     browser = undefined;
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");

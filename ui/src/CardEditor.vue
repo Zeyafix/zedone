@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import MarkdownView from "./markdown/MarkdownView";
 import TagNames from "./TagNames.vue";
 import CardHistory from "./CardHistory.vue";
+import CardTextResolution from "./CardTextResolution.vue";
 import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending, type Tag } from "./workspace-api";
@@ -23,6 +24,8 @@ const error = ref("");
 const pending = ref<Pending>();
 const session = ref("");
 const titleInput = ref<HTMLInputElement>();
+const resolving = ref(false), resolveButton = ref<HTMLButtonElement>();
+const textConflicted = computed(() => snapshot.value.titles.length > 1 || snapshot.value.descriptions.length > 1);
 const stayButton = ref<HTMLButtonElement>();
 const dirty = computed(() => !!draft.value && (draft.value.title !== draft.value.savedTitle || draft.value.description !== draft.value.savedDescription));
 const validTitle = computed(() => !!draft.value && /[^\p{White_Space}]/u.test(draft.value.title));
@@ -111,11 +114,12 @@ async function confirmDelivery(id: string) {
     return false;
   }
   snapshot.value = fresh;
+  if (saved.intention.operation === "card.resolve_text") resolving.value = false;
   if (saved.intention.operation === "card.restore_text") historyGeneration.value++;
   error.value = ""; blocked.value = false;
   return !storageError.value;
 }
-async function mutate<O extends EditorMutation | "card.set_tag" | "card.restore_text">(operation: O, parameters: Parameters[O]) {
+async function mutate<O extends EditorMutation | "card.set_tag" | "card.restore_text" | "card.resolve_text">(operation: O, parameters: Parameters[O]) {
   if (draft.value && !persist()) return false;
   const id = await createMutation(operation, parameters, draft.value?.subject ?? subject);
   if (operation === "card.begin_editing") begunHere.add(id);
@@ -175,6 +179,11 @@ async function retry() {
 async function inspectCurrent() {
   await task(async () => { comparison.value = await read("card.read", { space: snapshot.value.space, card: snapshot.value.card }); });
 }
+function acceptComparison() {
+  if (!comparison.value || pending.value || busy.value) return;
+  snapshot.value = comparison.value; comparison.value = undefined; blocked.value = false; error.value = "";
+  if (!textConflicted.value) resolving.value = false;
+}
 async function applyDraft() {
   if (!comparison.value || !draft.value || pending.value || !validTitle.value || !props.ready) return;
   await task(async () => {
@@ -196,6 +205,20 @@ async function toggleCompleted() {
     subject ||= (await mutationCredential()).subject;
     await mutate("card.set_completed", { space: snapshot.value.space, card: snapshot.value.card, expected: snapshot.value.version, completed: !snapshot.value.completed[0] });
   });
+}
+async function resolveText(title: string, description: string) {
+  if (!resolving.value || !textConflicted.value || busy.value || blocked.value || pending.value || !props.ready || !/[^\p{White_Space}]/u.test(title)) return;
+  await task(async () => {
+    subject ||= (await mutationCredential()).subject;
+    const value = snapshot.value;
+    if (await mutate("card.resolve_text", { space: value.space, card: value.card, expected: value.version, title, description })) {
+      resolving.value = false;
+    }
+  });
+}
+async function cancelResolution() {
+  resolving.value = false;
+  await nextTick(); resolveButton.value?.focus();
 }
 async function setTag(tag: Tag) {
   if (editing.value || !mutable.value || !props.ready || blocked.value || pending.value) return;
@@ -317,6 +340,7 @@ defineExpose({ requestClose });
 <template>
   <div class="card-editor">
     <CardHistory v-if="historyOpen" :key="historyGeneration" :card="snapshot" :ready="ready" :disabled="busy || !!pending" :mutable="mutable && !blocked" @restore="restoreText" @refresh="openHistory" @close="closeHistory" @cleanup="emit('cleanup', snapshot, $event)" />
+    <CardTextResolution v-else-if="resolving" :card="snapshot" :disabled="busy || !ready || blocked || !!pending" @resolve="resolveText" @cancel="cancelResolution" />
     <div v-else-if="!editing" class="card-content">
       <h3 v-for="text in snapshot.titles" :key="text">{{ text }}</h3>
       <template v-for="text in snapshot.descriptions" :key="text">
@@ -344,12 +368,14 @@ defineExpose({ requestClose });
             <p v-if="tag.state !== 'active' || tag.names.length !== 1" class="object-note">Конфликт имени. Назначение и снятие недоступны до разрешения.</p>
           </li>
         </ul>
-        <button data-refresh-tags :disabled="busy || !ready || !!pending" @click="refreshTags">Обновить карточку и теги</button>
+        <button data-refresh-tags :disabled="busy || !ready || !!pending || resolving" @click="refreshTags">Обновить карточку и теги</button>
       </template>
     </section>
     <div class="view-actions">
+      <p v-if="snapshot.state === 'conflicted'" class="object-note">Редактирование карточки заблокировано до разрешения всех её конфликтов.</p>
+      <button v-if="!historyOpen && !editing && !resolving && textConflicted" ref="resolveButton" :disabled="busy || !ready || blocked || !!pending" @click="resolving = true">Разрешить конфликт текста</button>
       <button v-if="!historyOpen && !editing && mutable" data-editor-edit :disabled="busy || historyOpening || !ready" @click="start">Редактировать</button>
-      <button v-if="!historyOpen" ref="historyButton" data-history-open :disabled="historyOpening || closing || !ready || !!pending && !busy || storageError" @click="openHistory">История версий</button>
+      <button v-if="!historyOpen" ref="historyButton" data-history-open :disabled="resolving || historyOpening || closing || !ready || !!pending && !busy || storageError" @click="openHistory">История версий</button>
       <button v-if="editing" :disabled="busy || !ready || !validTitle || blocked || !!pending" @click="flush">Сохранить сейчас</button>
       <button v-if="!historyOpen && mutable" :aria-pressed="!!snapshot.completed[0]" :disabled="busy || !ready || dirty || blocked || !!pending" @click="toggleCompleted">{{ snapshot.completed[0] ? 'Снять отметку выполнения' : 'Отметить выполненной' }}</button>
       <button v-if="pending && blocked" data-editor-retry :disabled="busy || !ready || storageError" @click="retry">Проверить исходное действие</button>
@@ -360,7 +386,7 @@ defineExpose({ requestClose });
     <section v-if="comparison" class="comparison-panel" aria-label="Сохранённая карточка">
       <h3>Сейчас сохранено</h3><div class="card-content"><p v-for="text in comparison.titles" :key="text">{{ text }}</p><p v-for="text in comparison.descriptions" :key="text">{{ text || 'Без описания' }}</p></div>
       <button v-if="editing" :disabled="busy || !ready || !!pending || !validTitle || comparison.state !== 'active'" @click="applyDraft">Сохранить мой текст вместо показанного</button>
-      <button v-else :disabled="busy || !!pending" @click="snapshot = comparison; comparison = undefined; blocked = false; error = ''">Использовать показанную карточку</button>
+      <button v-else :disabled="busy || !!pending" @click="acceptComparison">Использовать показанную карточку</button>
     </section>
     <section v-if="forgetWarning" class="comparison-panel" role="alert">
       <p>Убирается только запись о проверке. Уже принятое изменение не отменяется. Новый ввод останется черновиком; перед новым действием сверьте сохранённую карточку.</p>

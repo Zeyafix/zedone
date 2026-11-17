@@ -27,9 +27,9 @@
 
 ## Результат
 
-P06.05.1 verified локально в `feat/p06-05-name-conflicts` от bbfdbbc.
-Реализация и все запланированные локальные проверки завершены по LOG-599.
-Commit/push/PR/новый CI/merge не выполнялись; интегрированной ревизии среза нет.
+P06.05.1 done: [PR #103](https://github.com/Zeyafix/zedone/pull/103), head b5c228d,
+merge 6781490 после всех 17 SUCCESS в attempt 1 и свежей CLEAN readiness;
+LOG-602. Реализация и запланированные локальные проверки — LOG-599.
 Все 98 определения/состояния критериев и прежние GAP/DEC сохраняются.
 
 ## Проверки
@@ -63,7 +63,8 @@ Commit/push/PR/новый CI/merge не выполнялись; интегрир
 - Документация: user spaces/columns, agent name-conflicts, developer product-core,
   ADR-0066 и журнал/очередь актуализируются в этом срезе.
 - Паритет: native Windows/Android и настоящий APK/Device подтверждены в указанном
-  объёме вместе с полным Chrome/Opera UI; физический arm64 runtime не заявлен.
+  объёме вместе с полным Chrome/Opera UI; CI Windows/Linux/native Android passed.
+  Физический arm64 runtime не заявлен.
 - Источник истины: прежний граф и SQLite/replay; нового хранилища вариантов нет.
 
 ## Передача
@@ -95,3 +96,25 @@ dark theme, viewport 1280×2000 и одинаковый кадр 1280×1500. Д�
 body, изолированные исходники базы и capture script вне Git. Новых анимаций нет.
 Синтетические app data/OS slots очищены; пользовательские данные не использованы.
 Новый CI ожидается, merge/delete только после полного успеха и свежей readiness.
+
+## Публикация — LOG-601
+
+[PR #103](https://github.com/Zeyafix/zedone/pull/103), head
+b5c228dde670f6a59a075e8015c3ccc7664eaa8b, base main/bbfdbbc опубликован
+с 31 рассмотренным source/docs файлом. Два настоящих hosted Before/After PNG
+1280×1500 совпали с локальными оригиналами по SHA-256. Body/title/sections/credit
+прочитаны обратно, ссылки корректны, медиа вне Git. Начальная readiness:
+OPEN/non-draft/MERGEABLE, замечаний нет; 14 matrix suites выполняются,
+три aggregate checks ещё ожидаются. До merge нужны все 17 expected SUCCESS
+и свежая readiness exact head/base; CI ещё не объявляется passed.
+Локальный checkpoint не меняет checked head. Все 98 определения/состояния
+и прежние GAP/DEC сохранены. Публикация/условная интеграция разрешены LOG-600;
+P06.05.2 и полный P06.05/T09 отдельно.
+
+
+## Интеграция — LOG-602
+
+- Все 17 expected checks на head b5c228d COMPLETED/SUCCESS: [Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/44038164523) и [Android](https://github.com/Zeyafix/zedone/actions/runs/44038164696), обе attempt 1 без повторов. Raw logs подтвердили baseline Node 24.22.1, новые desktop/touch и native API/HTTP/IPC/CLI сценарии, весь прежний UI, APK/Keystore/TLS/restoration/cleanup. Локальные Credential Manager/Device доказательства сохраняют отдельный scope.
+- Testing обновлён и прочитан обратно; завершающий newline нормализован для сравнения без изменения содержимого. Свежая readiness точных head/base b5c228d/bbfdbbc OPEN/non-draft/MERGEABLE/CLEAN, все 17 SUCCESS, reviews/requests/comments/inline comments/threads отсутствуют.
+- Pinned-head merge создал 678149039bd6f001f792e07f240bd6827c562dff; родители base/head и tree 08e3251b1d9d87fbcbe3e82b174b12e8c732444d проверены, дерево равно reviewed head. Main=origin/main/6781490, feature-ветка удалена local/remote/tracking. Worktrees/stash и свои checkpoint docs сохранены; source не менялся.
+- Пять правил подтверждены в scope .1, все 98 определения/состояния и прежние GAP/DEC сохранены. Итоговые journal/queue/EV-111/ADR-0066 остаются локально без дополнительного commit/push. Далее P06.05.2 planned, готов по зависимостям, реализация не начата; full P06.05/T09 и прочие ограничения прежние. Watch перед передачей выключается.

@@ -28,6 +28,8 @@ mod spaces;
 
 #[path = "commands/name_conflicts.rs"]
 mod name_conflicts;
+#[path = "commands/text_conflicts.rs"]
+mod text_conflicts;
 
 #[path = "commands/access_issuance.rs"]
 mod access_issuance;

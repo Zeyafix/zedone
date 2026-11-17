@@ -790,3 +790,23 @@ Automerge, строгий version, общий Service/ACL/replay и атомар
 Для локального APK-checkpoint `check-pairing-app.mjs` поддерживает
 `P06_EXCHANGE_UI=1 P06_NAME_CONFLICTS_UI=1`; Lifecycle только через Device,
 обычный finally восстанавливает исходный APK и все app files по SHA-256.
+
+
+## Разрешение текста карточки — P06.05.2
+
+`card.resolve_text` — общий вход Rust/HTTP/IPC/CLI, принимающий итоговые
+`title`, `description`, актуальный `card.version` и прежний envelope.
+Требуются read/write пространства и существующий текстовый конфликт.
+Прежний `CardStore.edit_card` атомарно завершает pending-серию и записывает
+текстовую пару/историю вместе с receipt. Обычные изменения conflicted-карточки
+не разрешаются; разрешение текста не меняет прочие поля/lifecycle и не
+восстанавливает объекты. Формат/SQLite schema 1/protocol 1 прежние.
+
+Сохранение разных независимых решений, поздние изменения, права, restart,
+атомарный rollback и общий dispatch проверяются `cards::tests::text_conflicts`
+и `commands/text_conflicts.rs`. Общий UI показывает исходный текст вариантов
+без интерпретации HTML, выбирает пару явно и сохраняет отправленное намерение
+прежним клиентом. `check-ui-text-conflicts.mjs` входит в полный browser runner;
+`checkTextExchange` — в настоящий Windows/Android APK runner.
+[ADR-0067](../architecture/decisions/0067-card-text-resolution.md),
+[EV-112](../agent/verification/EV-112-card-text-conflicts.md).

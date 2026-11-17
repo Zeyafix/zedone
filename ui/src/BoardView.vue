@@ -8,7 +8,7 @@ import { createMutation, deliverMutation, errorMessage, mutationCredential, read
 
 const props = defineProps<{ space: Space; columns: Column[]; cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; trash: boolean; cardTrash: boolean; refresh: () => Promise<void> }>();
 const emit = defineEmits<{
-  open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.trash" | "column.restore"; target: Column }, event: Event];
+  open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.resolve_name" | "column.trash" | "column.restore"; target: Column }, event: Event];
   lock: [value: boolean];
 }>();
 const presented = ref<Column[]>([]);
@@ -21,8 +21,8 @@ let alive = true;
 let opener: HTMLElement | undefined;
 let dragged: MoveTarget | undefined;
 let dragIdentity: Promise<string | undefined> | undefined;
-const enabled = computed(() => !props.trash && !props.cardTrash && !props.blocked && props.space.state === "active" && !columnConflict(props.space));
-const writable = (item: Column | Space) => item.state === "active" && !columnConflict(item);
+const enabled = computed(() => !props.trash && !props.cardTrash && !props.blocked && props.space.state === "active");
+const writable = (item: Column | Space) => item.state === "active" && (!("positions" in item) || item.positions.length === 1);
 const locked = computed(() => working.value || dragging.value || dialog.value);
 watch(locked, value => emit("lock", value), { flush: "sync" });
 onBeforeUnmount(() => { alive = false; emit("lock", false); });
@@ -54,7 +54,7 @@ async function open(next: MoveTarget, event: Event) {
     if (!alive || !enabled.value) return;
     if (target.kind === "card.move" ? !movableCard(target.target) : columnConflict(target.target)) throw new Error("conflict");
     intent.value = target; subject.value = credential.subject;
-    choices.value = props.columns.filter(item => item.state === "active" && !columnConflict(item)); notes.value = [...props.cards];
+    choices.value = props.columns.filter(item => writable(item)); notes.value = [...props.cards];
     destination.value = target.kind === "card.move" ? target.target.columns[0]! : target.target.column;
     before.value = ""; dialog.value = true;
   } catch (cause) { failure.value = errorMessage(cause); }
@@ -117,7 +117,7 @@ async function end(event: DraggableEvent) {
     :disabled="!enabled || working || dialog" @start="start($event, 'column.move')" @end="end">
     <section v-for="item in presented" :key="item.column" class="column-panel" :class="{ 'move-locked': columnConflict(item) }" :data-column="item.column" :aria-label="objectTitle(item)">
       <div class="column-heading"><button v-if="enabled && !columnConflict(item)" class="column-handle drag-handle" :aria-label="`Переместить: ${objectTitle(item)}`" title="Удерживайте для перетаскивания или нажмите, чтобы выбрать место" @click="open({ kind: 'column.move', target: item }, $event)">⠿</button><h3>{{ objectTitle(item) }}</h3></div>
-      <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения недоступны до разрешения.</p>
+      <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения самой колонки недоступны до разрешения; при споре только названия работа с карточками продолжается.</p>
       <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
       <template v-if="!trash">
         <CardsList :cards="columnCards(item.column)" :tags="tags" :blocked="blocked || working || dialog" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
@@ -126,6 +126,7 @@ async function end(event: DraggableEvent) {
         <button v-if="!cardTrash" class="create-card" :disabled="blocked || locked || !writable(space) || !writable(item)" @click="emit('open', { kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>
       </template>
       <div class="column-actions">
+        <button v-if="item.state === 'active' && item.names.length > 1" class="resolve-column-name" :disabled="blocked || locked || space.state !== 'active'" @click="emit('open', { kind: 'column.resolve_name', target: item }, $event)">Разрешить название</button>
         <button v-if="!trash && !cardTrash" class="move-column" :disabled="!enabled || locked || columnConflict(item)" @click="open({ kind: 'column.move', target: item }, $event)">Переместить колонку</button>
         <button v-if="item.state === 'active'" class="rename-column" :disabled="blocked || locked || !writable(space) || columnConflict(item)" @click="emit('open', { kind: 'column.rename', target: item }, $event)">Переименовать</button>
         <button :disabled="blocked || locked || !writable(space) || columnConflict(item)" @click="emit('open', { kind: item.state === 'trashed' ? 'column.restore' : 'column.trash', target: item }, $event)">{{ item.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>

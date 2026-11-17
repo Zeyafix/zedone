@@ -2,8 +2,10 @@
 
 Дата: 2026-11-17. P06.04; проверка — [EV-110](../../agent/verification/EV-110-sync-recovery.md).
 
-Статус: P06.04 verified локально, включая финальный полный APK runner и
-свежую Device UI-приёмку; LOG-592. Новый CI/интеграция ещё ожидаются.
+Статус: P06.04 done — PR #102/head 7ae016e, merge bbfdbbc после всех 17 SUCCESS
+и свежей CLEAN readiness; EV-110/LOG-597. Локальные полный APK runner/Device UI
+подтверждены LOG-592. Первый Windows touch-search failure остаётся в GAP-028;
+успешный повтор не доказывает устранения причины.
 
 ## Решение
 

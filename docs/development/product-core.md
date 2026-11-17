@@ -775,3 +775,18 @@ AGENT_DEVICE_COMMAND; lifecycle не выполняется через adb. CI �
 Исходный APK/файлы восстанавливаются по SHA-256, тестовые OS-ключи/правила очищаются.
 Охват и ограничения — [EV-102](../agent/verification/EV-102-two-device-pairing.md)
 и [ADR-0059](../architecture/decisions/0059-device-host-and-paired-acceptance.md).
+
+## Разрешение названий контейнеров — P06.05.1
+
+`space.resolve_name` и `column.resolve_name` используют прежние регистры
+Automerge, строгий version, общий Service/ACL/replay и атомарную запись.
+Формат документа, SQLite schema и транспорт не меняются; отдельного списка
+вариантов в клиенте нет. [ADR-0066](../architecture/decisions/0066-container-name-resolution.md),
+[EV-111](../agent/verification/EV-111-container-name-conflicts.md).
+Новый fixture `shell-fixture --serve-conflicts` (либо `--prepare-conflicts`)
+создаёт синтетические независимые переименования на двух репликах.
+`check-ui-name-conflicts.mjs` входит в полный `ui:check`: desktop/touch,
+варианты/отмена/работа с содержимым/устаревшее решение/сохранность после reload.
+Для локального APK-checkpoint `check-pairing-app.mjs` поддерживает
+`P06_EXCHANGE_UI=1 P06_NAME_CONFLICTS_UI=1`; Lifecycle только через Device,
+обычный finally восстанавливает исходный APK и все app files по SHA-256.

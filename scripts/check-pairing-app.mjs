@@ -294,7 +294,15 @@ try {
         const nativeSeed=resolve(report,'ui-native.sqlite');
         for(const ext of ['', '-wal', '-shm']){const file=invoke([adb,'-s',serial,'exec-out','run-as',app,'cat',`${fixture}/data.sqlite${ext}`],{allowFailure:true});if(file.exitCode===0)await Bun.write(nativeSeed+ext,file.stdout);else assert.notEqual(ext,'','Missing native fixture');}
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
-        const subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
+        let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
+        let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
+        if (process.env.P06_NAME_CONFLICTS_UI === '1') {
+            const namesDirectory = resolve(report, 'name-conflicts-seed');
+            invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), '--prepare-conflicts', namesDirectory]);
+            const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
+            subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
+            await Bun.write(seed, await Bun.file(resolve(namesDirectory, 'zedone.sqlite')).arrayBuffer());
+        }
         device('shell','run-as',app,'mkdir',uiFolder);
         const uiRemote=`/data/local/tmp/zedone-ui-seed-${uiRun}.sqlite`;
         device('push',seed,uiRemote);
@@ -302,9 +310,9 @@ try {
         device('shell','rm',uiRemote);
         const copied=device('exec-out','run-as',app,'cat',`${uiFolder}/zedone.sqlite`);
         assert.equal(createHash('sha256').update(copied).digest('hex'),createHash('sha256').update(Buffer.from(await Bun.file(seed).arrayBuffer())).digest('hex'),'UI seed transfer checksum mismatch');
-        write(`${uiFolder}/local-session.json`,JSON.stringify({subject,key:(await Bun.file(android.keyFile).text()).trim()}));
+        write(`${uiFolder}/local-session.json`,JSON.stringify({subject,key:uiKey}));
         write('pairing-ui-run',uiRun);uiFixture=uiFolder;
-        await Bun.write(resolve(report,'ui-checkpoint.json'),JSON.stringify({uiRun,uiFolder,space,pairing:uiRequest.request}));
+        await Bun.write(resolve(report,'ui-checkpoint.json'),JSON.stringify({uiRun,uiFolder,space:uiSpace,pairing:uiRequest.request}));
         console.log(`Device UI checkpoint ready: ${report}`);
         launch();
         await until(()=>Bun.file(resolve(report,'ui-continue')).exists(),'Device UI exchange verification',300000);

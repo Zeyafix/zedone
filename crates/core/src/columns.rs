@@ -74,6 +74,19 @@ impl Command for RenameColumn {
     const NAME: &'static str = "column.rename";
     type Output = ColumnSnapshot;
 }
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolveColumnName {
+    pub space: String,
+    pub column: String,
+    pub name: String,
+    pub expected: StateVersion,
+}
+impl Command for ResolveColumnName {
+    const NAME: &'static str = "column.resolve_name";
+    type Output = ColumnSnapshot;
+}
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TrashColumn {
@@ -218,6 +231,7 @@ pub fn list(
 
 enum Change<'a> {
     Rename(&'a str),
+    ResolveName(&'a str),
     Trash,
     Restore,
 }
@@ -242,14 +256,18 @@ fn change<C: Command<Output = ColumnSnapshot>>(
             active(tx, space)?;
             let before = tx.column_snapshot(space, column)?;
             replay::require_current(expected, before.version)?;
-            if before.names.len() != 1
-                || before.positions.len() != 1
-                || before.state == SpaceState::Conflicted
+            if before.state == SpaceState::Conflicted
+                || match action {
+                    Change::ResolveName(_) => before.names.len() < 2,
+                    _ => before.names.len() != 1 || before.positions.len() != 1,
+                }
             {
                 return Err(error(ErrorCode::Conflict));
             }
             match action {
-                Change::Rename(name) if before.state == SpaceState::Active => {
+                Change::Rename(name) | Change::ResolveName(name)
+                    if before.state == SpaceState::Active =>
+                {
                     tx.rename_column(space, column, name)?
                 }
                 Change::Trash if before.state == SpaceState::Active => {
@@ -275,6 +293,24 @@ fn change<C: Command<Output = ColumnSnapshot>>(
             }
             tx.column_snapshot(space, column)
         },
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/column.resolve_name", operation_id = "column_resolve_name", request_body = CommandRequest<ResolveColumnName>, responses((status = 200, body = CommandResponse<ColumnSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_name(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveColumnName>,
+) -> CommandResult<Execution<ColumnSnapshot>> {
+    let p = &request.parameters;
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.column, p.expected),
+        Change::ResolveName(&p.name),
     )
 }
 

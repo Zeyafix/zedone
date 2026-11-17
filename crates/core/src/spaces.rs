@@ -88,6 +88,18 @@ impl Command for RenameSpace {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ResolveSpaceName {
+    pub space: String,
+    pub name: String,
+    pub expected: StateVersion,
+}
+impl Command for ResolveSpaceName {
+    const NAME: &'static str = "space.resolve_name";
+    type Output = SpaceSnapshot;
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TrashSpace {
     pub space: String,
     pub expected: StateVersion,
@@ -233,6 +245,7 @@ pub fn list(
 
 enum Change<'a> {
     Rename(&'a str),
+    ResolveName(&'a str),
     Trash,
     Restore,
 }
@@ -259,11 +272,18 @@ fn change<C: Command<Output = SpaceSnapshot>>(
         |tx, subject| {
             let before = tx.space_snapshot(space)?;
             replay::require_current(expected, before.version)?;
-            if before.names.len() != 1 || before.state == SpaceState::Conflicted {
+            if before.state == SpaceState::Conflicted
+                || match action {
+                    Change::ResolveName(_) => before.names.len() < 2,
+                    _ => before.names.len() != 1,
+                }
+            {
                 return Err(error(ErrorCode::Conflict));
             }
             match action {
-                Change::Rename(name) if before.state == SpaceState::Active => {
+                Change::Rename(name) | Change::ResolveName(name)
+                    if before.state == SpaceState::Active =>
+                {
                     tx.rename_space(space, name)?
                 }
                 Change::Trash if before.state == SpaceState::Active => {
@@ -303,6 +323,24 @@ fn change<C: Command<Output = SpaceSnapshot>>(
             }
             tx.space_snapshot(space)
         },
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/space.resolve_name", operation_id = "space_resolve_name", request_body = CommandRequest<ResolveSpaceName>, responses((status = 200, body = CommandResponse<SpaceSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_name(
+    tx: &mut impl crate::cards::CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveSpaceName>,
+) -> CommandResult<Execution<SpaceSnapshot>> {
+    let p = &request.parameters;
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, p.expected),
+        Change::ResolveName(&p.name),
     )
 }
 

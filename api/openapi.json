@@ -860,6 +860,40 @@
         ]
       }
     },
+    "/v1/commands/column.resolve_name": {
+      "post": {
+        "tags": [
+          "columns"
+        ],
+        "operationId": "column_resolve_name",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveColumnName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ColumnSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/column.restore": {
       "post": {
         "tags": [
@@ -1449,6 +1483,40 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest_RenameSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.resolve_name": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "space_resolve_name",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveSpaceName"
               }
             }
           },
@@ -4588,6 +4656,100 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ResolveColumnName": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "column",
+              "name",
+              "expected"
+            ],
+            "properties": {
+              "column": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ResolveSpaceName": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "name",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "name": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RestoreCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -7677,6 +7839,50 @@
             "description": "Claimed display name, never an authenticated device identity."
           },
           "request": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveColumnName": {
+        "type": "object",
+        "required": [
+          "space",
+          "column",
+          "name",
+          "expected"
+        ],
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "name": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveSpaceName": {
+        "type": "object",
+        "required": [
+          "space",
+          "name",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "name": {
+            "type": "string"
+          },
+          "space": {
             "type": "string"
           }
         },

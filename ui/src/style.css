@@ -152,6 +152,8 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .action-dialog .dialog-header { align-items: flex-start; }
 .action-dialog .dialog-header h2 { overflow-wrap: anywhere; }
 .name-field { display: grid; gap: 10px; margin: 24px 0; }
+.name-variants { display: grid; gap: 10px; margin: 24px 0; min-width: 0; }
+.name-variants button { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
 .name-field input, .name-field textarea, .name-field select { width: 100%; min-width: 0; min-height: 46px; border: 1px solid var(--border); border-radius: 5px; padding: 10px; color: var(--ink); background: var(--surface); }
 .name-field textarea { resize: vertical; }
 .cards-list { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 12px; }

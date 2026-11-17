@@ -30,10 +30,11 @@
 
 ## Результат
 
-P06.04 verified локально в `feat/p06-04-sync-recovery` от main/54a95bc.
+P06.04 done: [PR #102](https://github.com/Zeyafix/zedone/pull/102), head 7ae016e,
+merge bbfdbbc после всех 17 SUCCESS и свежей CLEAN readiness; LOG-597.
 Полный APK runner и ручная Android UI-приёмка завершены по LOG-592.
 Все прежние определения/состояния 98 критериев и GAP/DEC сохранены;
-полные T09/конфликты/Tailscale/измерения отдельно. Новый CI ещё не выполнен.
+полные T09/конфликты/Tailscale/измерения отдельно. GAP-028 остаётся открыт.
 
 Общий `incompatible_sync` отличает неподдержанный протокол/формат от ошибки
 запроса, сети и явной паузы; права/выбор/пауза проверяются до допуска транспорта.
@@ -102,3 +103,78 @@ LNK1104 связан с одновременной работой host exe APK-�
   Медиа/исходники capture/body вне Git. Новых анимаций/переходов нет.
 - P06.04 verified локально. Публикация/новый CI/интеграция выполняются далее;
   текущие результаты не означают полный T09 или проверку будущих форматов.
+
+## Публикация — LOG-593
+
+[PR #102](https://github.com/Zeyafix/zedone/pull/102), head
+7ae016e48b0ebd0d8a5abb8dbbefcd8b6b9a3cd2, base main/54a95bc опубликован
+с 27 проверенными файлами. Показаны реальные Before/After 1280×1080, hosted
+bytes сверены SHA-256; медиа вне Git. Начальная readiness MERGEABLE, замечаний
+нет, 14 matrix checks выполняются; полный expected набор 17 ещё не завершён.
+P06.04 verified локально, CI не объявляется passed. Ожидание через штатный watch,
+затем свежая readiness и условный merge/delete по поручению разработчика.
+
+## CI attempt 1: Windows touch search — LOG-594
+
+[Windows shell job](https://github.com/Zeyafix/zedone/actions/runs/44025459072/job/133844584267)
+на head 7ae016e завершился failure до pairing/exchange: touch search ждёт
+обновления после закрытия редактора на check-ui-search.mjs:83, timeout 10000ms.
+Диагностика правильной страницы: mounted/complete, connection confirmed,
+busy false, results unavailable; space.list/read HTTP 200 valid 333/466ms,
+card.list/column.list/tag.list без headers и ERR_ABORTED через 9988ms.
+Симптом добавлен в открытый GAP-028; общая первопричина пока не доказана.
+Строгий Windows aggregate корректно передал failure. Выполняется полный
+локальный UI-прогон; код/права/таймауты/assertions/матрица/head не меняются.
+Один ограниченный CI rerun после проверки не закрывает GAP-028 сам по себе.
+Все 98 определения/состояния сохраняются; до полного CI/readiness merge нет.
+
+## Перепроверка после CI failure — LOG-595
+
+Полный `bun run ui:check` завершён без изменения кода: desktop/touch browser
+matrix, включая оба search-сценария, pairing/exchange и все предшествующие
+QR/typecheck/build/fmt/Clippy/shell Rust проверки passed. Raw log:
+`docs/reports/p06-04-checks/ui-after-ci-failure.log`; assertion/process/cleanup
+failure отсутствуют. Причина CI-сбоя не установлена, GAP-028 остаётся открыт.
+
+Один `gh run rerun 44025459072 --failed` принят для Windows shell и зависимого
+aggregate на прежнем 7ae016e; завершённый результат ожидается через штатный
+watch. Проверки/таймауты/права/матрица неизменны, нового commit/push нет.
+Testing PR отражает первоначальный failure и локальный успех; это не закрывает
+GAP-028. До всех 17 SUCCESS и свежей readiness merge/delete не выполняются.
+
+## Уведомление Windows aggregate — LOG-596
+
+[Aggregate job 133848933786](https://github.com/Zeyafix/zedone/actions/runs/44025459072/job/133848933786)
+относится к run_attempt 1: `Require every Windows suite` получил `RESULT:
+failure` после прежнего shell failure и корректно завершился exit 1. Нового
+тестового отказа в этом job нет. Raw log сохранён в
+`docs/reports/p06-04-checks/ci-windows-aggregate-attempt1.log`.
+
+Единственный ранее запрошенный rerun уже выполняется как attempt 2, Windows
+shell job 133851460927 на прежнем 7ae016e. Дополнительного rerun и изменений
+нет; ожидание результата через существующий watch, merge пока заблокирован.
+
+## Интеграция — LOG-597
+
+- Все 17 expected checks на неизменном head 7ae016e COMPLETED/SUCCESS:
+  [Windows/Linux attempt 2](https://github.com/Zeyafix/zedone/actions/runs/44025459072),
+  [Android attempt 1](https://github.com/Zeyafix/zedone/actions/runs/44025458922).
+  Единственный повтор failed Windows shell/aggregate прошёл. Первый отказ
+  честно сохранён в Testing; GAP-028 открыт, причина не доказана. Код,
+  assertions, права, таймауты и матрица не менялись.
+- Raw Windows shell подтвердил baseline Node 24.22.1, оба search-сценария,
+  полный desktop/touch и pairing/exchange. Android shell подтвердил настоящий
+  APK/Keystore/TLS/API/CLI, SHA-256 restoration и cleanup; CI host memory
+  fixture сохраняет отдельный scope от локального Credential Manager/Device.
+- Testing прочитан обратно; финальная readiness точных head/base 7ae016e/
+  54a95bc OPEN/non-draft/MERGEABLE/CLEAN, точный набор 17 SUCCESS,
+  reviews/requests/comments/inline comments/threads отсутствуют.
+- Pinned-head merge создал bbfdbbc49d4dea6d20bb687e979a4681ac56a3e9.
+  Проверены родители base/head и равенство merge tree reviewed head
+  (00cb7968f78abc3e866cdc2613021d4f246ce905). Main=origin/main/bbfdbbc;
+  feature-ветка удалена local/remote/tracking. Worktrees/stash и исходные
+  checkpoint docs сохранены, source fingerprints прежние.
+- Пять правил подтверждены в согласованном scope. Все 98 определения/состояния
+  и прежние GAP/DEC сохранены. P06.04 done; P06.05 planned, готов по зависимостям,
+  реализация не начата. Итоговые записи остаются локально без commit/push;
+  новых runtime проверок неизменного кода после merge не требуется.

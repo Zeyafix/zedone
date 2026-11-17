@@ -84,6 +84,8 @@ macro_rules! run {
             .await
     }};
 }
+mod name_conflicts;
+
 async fn setup() -> (TempDir, Storage, Arc<PendingAccess>) {
     let dir = TempDir::new().unwrap();
     let storage = Storage::open(dir.path().join("spaces.db")).await.unwrap();

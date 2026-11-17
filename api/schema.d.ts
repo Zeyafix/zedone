@@ -399,6 +399,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/column.resolve_name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_resolve_name"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/column.restore": {
         parameters: {
             query?: never;
@@ -681,6 +697,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.resolve_name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_resolve_name"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2222,6 +2254,59 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_ResolveColumnName: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                name: string;
+                space: string;
+            };
+        };
+        CommandRequest_ResolveSpaceName: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                name: string;
+                space: string;
+            };
+        };
         CommandRequest_RestoreCard: {
             id: [
                 number,
@@ -3076,6 +3161,17 @@ export interface components {
             label: string;
             request: string;
         };
+        ResolveColumnName: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            name: string;
+            space: string;
+        };
+        ResolveSpaceName: {
+            expected: components["schemas"]["StateVersion"];
+            name: string;
+            space: string;
+        };
         RestoreCard: {
             card: string;
             column?: string | null;
@@ -3834,6 +3930,29 @@ export interface operations {
             };
         };
     };
+    column_resolve_name: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveColumnName"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
     column_restore: {
         parameters: {
             query?: never;
@@ -4235,6 +4354,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_RenameSpace"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
+    space_resolve_name: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveSpaceName"];
             };
         };
         responses: {

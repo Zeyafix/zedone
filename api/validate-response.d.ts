@@ -1,5 +1,5 @@
 import type { components } from "./schema";
-export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "invitation.cancel" | "invitation.create" | "invitation.inspect" | "invitation.list" | "pairing.cancel" | "pairing.confirm" | "pairing.inspect" | "pairing.list" | "pairing.reject" | "pairing.unlink" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.restore" | "space.trash" | "sync.catalog" | "sync.inspect" | "sync.pause" | "sync.pull" | "sync.push" | "sync.select" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
+export type Operation = "access.inspect" | "access.issue" | "access.list" | "access.replace" | "access.revoke" | "card.autosave" | "card.begin_editing" | "card.create" | "card.edit" | "card.finish_editing" | "card.history" | "card.list" | "card.move" | "card.read" | "card.restore" | "card.restore_text" | "card.search" | "card.set_completed" | "card.set_tag" | "card.trash" | "column.create" | "column.list" | "column.move" | "column.read" | "column.rename" | "column.resolve_name" | "column.restore" | "column.trash" | "history.clear" | "history.inspect" | "invitation.cancel" | "invitation.create" | "invitation.inspect" | "invitation.list" | "pairing.cancel" | "pairing.confirm" | "pairing.inspect" | "pairing.list" | "pairing.reject" | "pairing.unlink" | "space.create" | "space.list" | "space.read" | "space.rename" | "space.resolve_name" | "space.restore" | "space.trash" | "sync.catalog" | "sync.inspect" | "sync.pause" | "sync.pull" | "sync.push" | "sync.select" | "tag.create" | "tag.delete" | "tag.list" | "tag.read" | "tag.rename" | "trash.inspect" | "trash.purge";
 export type Parameters = {
   "access.inspect": components["schemas"]["CommandRequest_InspectAccess"]["parameters"];
   "access.issue": components["schemas"]["CommandRequest_IssueAccess"]["parameters"];
@@ -26,6 +26,7 @@ export type Parameters = {
   "column.move": components["schemas"]["CommandRequest_MoveColumn"]["parameters"];
   "column.read": components["schemas"]["CommandRequest_ReadColumn"]["parameters"];
   "column.rename": components["schemas"]["CommandRequest_RenameColumn"]["parameters"];
+  "column.resolve_name": components["schemas"]["CommandRequest_ResolveColumnName"]["parameters"];
   "column.restore": components["schemas"]["CommandRequest_RestoreColumn"]["parameters"];
   "column.trash": components["schemas"]["CommandRequest_TrashColumn"]["parameters"];
   "history.clear": components["schemas"]["CommandRequest_ClearHistory"]["parameters"];
@@ -44,6 +45,7 @@ export type Parameters = {
   "space.list": components["schemas"]["CommandRequest_ListSpaces"]["parameters"];
   "space.read": components["schemas"]["CommandRequest_ReadSpace"]["parameters"];
   "space.rename": components["schemas"]["CommandRequest_RenameSpace"]["parameters"];
+  "space.resolve_name": components["schemas"]["CommandRequest_ResolveSpaceName"]["parameters"];
   "space.restore": components["schemas"]["CommandRequest_RestoreSpace"]["parameters"];
   "space.trash": components["schemas"]["CommandRequest_TrashSpace"]["parameters"];
   "sync.catalog": components["schemas"]["CommandRequest_CatalogSync"]["parameters"];

@@ -29,7 +29,12 @@ async fn main() {
         2,
         "Expected --prepare or --serve and an empty test directory"
     );
-    assert!(args[0] == "--prepare" || args[0] == "--serve");
+    assert!(
+        args[0] == "--prepare"
+            || args[0] == "--serve"
+            || args[0] == "--prepare-conflicts"
+            || args[0] == "--serve-conflicts"
+    );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
     assert_eq!(
@@ -60,7 +65,10 @@ async fn main() {
         .unwrap(),
     )
     .unwrap();
-    if args[0] == "--prepare" {
+    if args[0] == "--prepare-conflicts" || args[0] == "--serve-conflicts" {
+        seed_name_conflicts(&storage, &access).await;
+    }
+    if args[0] == "--prepare" || args[0] == "--prepare-conflicts" {
         storage.shutdown().await.unwrap();
         return;
     }
@@ -87,6 +95,75 @@ async fn main() {
     axum::serve(listener, zedone_shell::web::router(shell, address))
         .await
         .unwrap();
+}
+
+async fn seed_name_conflicts(
+    storage: &zedone_storage::Storage,
+    access: &Arc<zedone_storage::access::PendingAccess>,
+) {
+    use zedone_core::{
+        cards::{CardStore, CreateCard},
+        columns::ColumnStore,
+        spaces::SpaceStore,
+    };
+    const SPACE: &str = "000000000000000000000000000000c9";
+    const COLUMN: &str = "000000000000000000000000000000ca";
+    let owner = access.clone();
+    let initial = storage
+        .transact(move |tx| {
+            tx.create_space(SPACE, "Общее имя", owner.subject())?;
+            tx.create_column(SPACE, COLUMN, "Общая колонка")?;
+            tx.create_card(
+                &CreateCard {
+                    space: SPACE.into(),
+                    column: COLUMN.into(),
+                    card: "000000000000000000000000000000cb".into(),
+                    title: "Сохранённая карточка".into(),
+                    description: "Содержимое при конфликте названия".into(),
+                },
+                owner.subject(),
+                "000000000000000000000000000000cc",
+            )?;
+            zedone_storage::sync_engine::page(tx.read().document(SPACE)?, SPACE, &vec![])
+        })
+        .await
+        .unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let remote = zedone_storage::Storage::open(temporary.path().join("peer.sqlite"))
+        .await
+        .unwrap();
+    let owner = access.clone();
+    remote
+        .transact(move |tx| {
+            tx.bootstrap_access(&owner)?;
+            let pairing = "000000000000000000000000000000cd";
+            let selection = tx.read().sync_selection(SPACE, pairing)?;
+            tx.set_sync_selected(SPACE, pairing, true, selection.version)?;
+            tx.receive_sync_page(SPACE, pairing, owner.subject(), &initial)?;
+            tx.rename_space(SPACE, "Название с телефона")?;
+            tx.rename_column(SPACE, COLUMN, "Колонка с телефона")?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let page = remote
+        .transact(|tx| {
+            zedone_storage::sync_engine::page(tx.read().document(SPACE)?, SPACE, &vec![])
+        })
+        .await
+        .unwrap();
+    storage
+        .transact(move |tx| {
+            tx.rename_space(SPACE, "Название с компьютера")?;
+            tx.rename_column(SPACE, COLUMN, "Колонка с компьютера")?;
+            tx.apply_changes(
+                SPACE,
+                zedone_storage::sync_engine::decode_changes(&page.changes)?,
+            )
+        })
+        .await
+        .unwrap();
+    remote.shutdown().await.unwrap();
 }
 
 #[cfg(not(windows))]

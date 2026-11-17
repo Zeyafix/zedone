@@ -78,6 +78,7 @@ mod completion;
 mod history;
 mod ordering;
 mod search;
+mod text_conflicts;
 mod trash_groups;
 fn rejected<T: std::fmt::Debug>(result: StorageResult<T>, code: ErrorCode) {
     assert_eq!(

@@ -14,8 +14,8 @@ use zedone_core::{
     access_commands::{self, InspectAccess, IssueAccess, ListAccess, ReplaceAccess, RevokeAccess},
     card_history::{AutosaveCard, BeginCardEditing, FinishCardEditing, RestoreCardText},
     cards::{
-        self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, RestoreCard,
-        SetCardCompleted, TrashCard,
+        self, CreateCard, EditCard, ListCards, ReadCard, ReadCardHistory, ResolveCardText,
+        RestoreCard, SetCardCompleted, TrashCard,
     },
     cleanup::{self, ClearHistory, InspectHistory, InspectTrash, PurgeTrash},
     columns::{
@@ -140,6 +140,7 @@ impl Service {
                 FinishCardEditing::NAME => run!(FinishCardEditing, cards::finish_editing),
                 RestoreCardText::NAME => run!(RestoreCardText, cards::restore_text),
                 EditCard::NAME => run!(EditCard, cards::edit),
+                ResolveCardText::NAME => run!(ResolveCardText, cards::resolve_text),
                 SetCardCompleted::NAME => run!(SetCardCompleted, cards::set_completed),
                 TrashCard::NAME => run!(TrashCard, cards::trash),
                 RestoreCard::NAME => run!(RestoreCard, cards::restore),

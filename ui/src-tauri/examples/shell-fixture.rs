@@ -34,6 +34,8 @@ async fn main() {
             || args[0] == "--serve"
             || args[0] == "--prepare-conflicts"
             || args[0] == "--serve-conflicts"
+            || args[0] == "--prepare-text-conflicts"
+            || args[0] == "--serve-text-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -66,9 +68,15 @@ async fn main() {
     )
     .unwrap();
     if args[0] == "--prepare-conflicts" || args[0] == "--serve-conflicts" {
-        seed_name_conflicts(&storage, &access).await;
+        seed_conflicts(&storage, &access, false).await;
     }
-    if args[0] == "--prepare" || args[0] == "--prepare-conflicts" {
+    if args[0] == "--prepare-text-conflicts" || args[0] == "--serve-text-conflicts" {
+        seed_conflicts(&storage, &access, true).await;
+    }
+    if args[0] == "--prepare"
+        || args[0] == "--prepare-conflicts"
+        || args[0] == "--prepare-text-conflicts"
+    {
         storage.shutdown().await.unwrap();
         return;
     }
@@ -97,9 +105,10 @@ async fn main() {
         .unwrap();
 }
 
-async fn seed_name_conflicts(
+async fn seed_conflicts(
     storage: &zedone_storage::Storage,
     access: &Arc<zedone_storage::access::PendingAccess>,
+    text: bool,
 ) {
     use zedone_core::{
         cards::{CardStore, CreateCard},
@@ -140,8 +149,23 @@ async fn seed_name_conflicts(
             let selection = tx.read().sync_selection(SPACE, pairing)?;
             tx.set_sync_selected(SPACE, pairing, true, selection.version)?;
             tx.receive_sync_page(SPACE, pairing, owner.subject(), &initial)?;
-            tx.rename_space(SPACE, "Название с телефона")?;
-            tx.rename_column(SPACE, COLUMN, "Колонка с телефона")?;
+            if text {
+                let card = tx.card_snapshot(SPACE, "000000000000000000000000000000cb")?;
+                tx.edit_card(
+                    &zedone_core::cards::EditCard {
+                        space: SPACE.into(),
+                        card: card.card,
+                        title: "Заголовок с телефона".into(),
+                        description: "Описание с телефона\n**Markdown**".into(),
+                        expected: card.version,
+                    },
+                    owner.subject(),
+                    "000000000000000000000000000000ce",
+                )?;
+            } else {
+                tx.rename_space(SPACE, "Название с телефона")?;
+                tx.rename_column(SPACE, COLUMN, "Колонка с телефона")?;
+            }
             Ok(())
         })
         .await
@@ -152,10 +176,26 @@ async fn seed_name_conflicts(
         })
         .await
         .unwrap();
+    let owner = access.clone();
     storage
         .transact(move |tx| {
-            tx.rename_space(SPACE, "Название с компьютера")?;
-            tx.rename_column(SPACE, COLUMN, "Колонка с компьютера")?;
+            if text {
+                let card = tx.card_snapshot(SPACE, "000000000000000000000000000000cb")?;
+                tx.edit_card(
+                    &zedone_core::cards::EditCard {
+                        space: SPACE.into(),
+                        card: card.card,
+                        title: "Заголовок с компьютера".into(),
+                        description: "Описание с компьютера\n<script>сырой текст</script>".into(),
+                        expected: card.version,
+                    },
+                    owner.subject(),
+                    "000000000000000000000000000000cf",
+                )?;
+            } else {
+                tx.rename_space(SPACE, "Название с компьютера")?;
+                tx.rename_column(SPACE, COLUMN, "Колонка с компьютера")?;
+            }
             tx.apply_changes(
                 SPACE,
                 zedone_storage::sync_engine::decode_changes(&page.changes)?,

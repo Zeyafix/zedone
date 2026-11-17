@@ -34,7 +34,7 @@ use utoipa::OpenApi;
         spaces::trash, spaces::restore, spaces::resolve_name,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, ordering::move_column, ordering::move_card,
-        cards::create, cards::read, cards::history, cards::list, cards::edit,
+        cards::create, cards::read, cards::history, cards::list, cards::edit, cards::resolve_text,
         cards::set_completed, cards::trash, cards::restore,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,
         tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,

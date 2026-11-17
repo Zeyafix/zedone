@@ -223,6 +223,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.resolve_text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_resolve_text"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.restore": {
         parameters: {
             query?: never;
@@ -2254,6 +2270,34 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_ResolveCardText: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                description: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+                title: string;
+            };
+        };
         CommandRequest_ResolveColumnName: {
             id: [
                 number,
@@ -3161,6 +3205,13 @@ export interface components {
             label: string;
             request: string;
         };
+        ResolveCardText: {
+            card: string;
+            description: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+            title: string;
+        };
         ResolveColumnName: {
             column: string;
             expected: components["schemas"]["StateVersion"];
@@ -3664,6 +3715,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_ReadCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_resolve_text: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveCardText"];
             };
         };
         responses: {

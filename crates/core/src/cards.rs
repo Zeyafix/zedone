@@ -119,6 +119,19 @@ impl Command for EditCard {
 }
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ResolveCardText {
+    pub space: String,
+    pub card: String,
+    pub title: String,
+    pub description: String,
+    pub expected: StateVersion,
+}
+impl Command for ResolveCardText {
+    const NAME: &'static str = "card.resolve_text";
+    type Output = CardSnapshot;
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SetCardCompleted {
     pub space: String,
     pub card: String,
@@ -496,6 +509,44 @@ pub fn edit(
         request,
         (&p.space, &p.card, p.expected),
         Change::Edit(p),
+    )
+}
+#[utoipa::path(post, path = "/v1/commands/card.resolve_text", operation_id = "card_resolve_text", request_body = CommandRequest<ResolveCardText>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_text(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveCardText>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    validate(request, &p.space, Some(&p.card))?;
+    title(&p.title)?;
+    replay::execute_as(
+        tx,
+        credential,
+        clock,
+        &required(&p.space, SpacePermission::ReadWrite),
+        request.id,
+        p,
+        |tx, subject| {
+            let before = tx.card_snapshot(&p.space, &p.card)?;
+            replay::require_current(p.expected, before.version)?;
+            if before.titles.len() < 2 && before.descriptions.len() < 2 {
+                return Err(error(ErrorCode::Conflict));
+            }
+            tx.edit_card(
+                &EditCard {
+                    space: p.space.clone(),
+                    card: p.card.clone(),
+                    title: p.title.clone(),
+                    description: p.description.clone(),
+                    expected: p.expected,
+                },
+                subject,
+                &command_id(&request.id),
+            )?;
+            tx.card_snapshot(&p.space, &p.card)
+        },
     )
 }
 #[utoipa::path(post, path = "/v1/commands/card.set_completed", operation_id = "card_set_completed", request_body = CommandRequest<SetCardCompleted>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]

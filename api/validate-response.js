@@ -9835,6 +9835,7 @@ const responseValidators = Object.freeze({
 "card.list": CommandResponse_CardList,
 "card.move": CommandResponse_CardSnapshot,
 "card.read": CommandResponse_CardSnapshot,
+"card.resolve_text": CommandResponse_CardSnapshot,
 "card.restore": CommandResponse_CardSnapshot,
 "card.restore_text": CommandResponse_CardSnapshot,
 "card.search": CommandResponse_SearchResults,

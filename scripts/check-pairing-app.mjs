@@ -1,4 +1,4 @@
-import { checkSpaceExchange } from "./check-space-exchange.mjs";
+import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -219,6 +219,7 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
+    checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
         ['sync.push', { protocol:999, space, base:[], changes:[] }],
@@ -296,9 +297,9 @@ try {
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
         let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
         let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
-        if (process.env.P06_NAME_CONFLICTS_UI === '1') {
+        if (process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1') {
             const namesDirectory = resolve(report, 'name-conflicts-seed');
-            invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), '--prepare-conflicts', namesDirectory]);
+            invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts', namesDirectory]);
             const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
             subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
             await Bun.write(seed, await Bun.file(resolve(namesDirectory, 'zedone.sqlite')).arrayBuffer());

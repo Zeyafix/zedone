@@ -6,6 +6,8 @@ import { createMutation, deliverMutation, errorMessage, forgetMutation, mutation
 import CardsList from "./CardsList.vue";
 import CardEditor from "./CardEditor.vue";
 import BoardView from "./BoardView.vue";
+import PlacementConflicts from "./PlacementConflicts.vue";
+import { placementConflict } from "./board-order";
 import SearchPanel from "./SearchPanel.vue";
 import TrashPanel from "./TrashPanel.vue";
 import TrashScope from "./TrashScope.vue";
@@ -40,6 +42,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
   "trash.purge": "Очистить окончательно",
   "card.restore_text": "Восстановить версию карточки",
+  "card.resolve_placement": "Разрешить место карточки",
   "card.resolve_text": "Разрешить конфликт текста карточки",
   "history.clear": "Очистить историю",
 };
@@ -68,7 +71,7 @@ const showTrash = ref(false);
 const showCardTrash = ref(false);
 const loading = ref(false);
 const busy = ref(false);
-const moving = ref(false);
+const moving = ref(false), placementBusy = ref(false);
 const error = ref("");
 const notice = ref("");
 const pending = ref<Pending[]>([]);
@@ -87,7 +90,7 @@ let opener: HTMLElement | undefined;
 let generation = 0;
 let localGeneration = 0, lastUrl = location.href, pendingUrl: string | undefined;
 const boardBlocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready || loading.value);
-const blocked = computed(() => boardBlocked.value || moving.value);
+const blocked = computed(() => boardBlocked.value || moving.value || placementBusy.value);
 const resolving = computed(() => action.value?.kind === "space.resolve_name" || action.value?.kind === "column.resolve_name" ? action.value.target : undefined);
 const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename") || !!resolving.value);
 const lifecycleTarget = computed(() => {
@@ -110,6 +113,7 @@ const cardGroups = computed(() => {
   const activeColumns = new Set(columns.value.filter(item => item.state !== "trashed").map(item => item.column));
   const byColumn = new Map<string, Card[]>(), unplaced: Card[] = [];
   for (const card of visibleCards.value) {
+    if (placementConflict(card)) continue;
     const id = card.columns.length === 1 ? card.columns[0] : undefined;
     if (!id || !activeColumns.has(id)) { unplaced.push(card); continue; }
     const group = byColumn.get(id) ?? [];
@@ -462,7 +466,8 @@ function pendingName(item: Pending) {
           <p v-if="!tags.length" class="object-note">Тегов пока нет. Создайте тег для одной темы.</p>
           <button class="create-tag" :disabled="blocked || space.state !== 'active'" @click="open({ kind: 'tag.create', space: space.space }, $event)">Создать тег</button>
         </details>
-        <BoardView v-if="!showTrash" :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :tags="tagNames" :blocked="boardBlocked || dialogOpen" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
+        <PlacementConflicts v-if="!showTrash && !showCardTrash" :key="`placements-${space.space}`" :cards="visibleCards.filter(placementConflict)" :all-cards="cards" :columns="columns" :tags="tagNames" :blocked="boardBlocked || dialogOpen || moving || space.state !== 'active'" :refresh="refresh" @open="open" @lock="placementBusy = $event" />
+        <BoardView v-if="!showTrash" :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :tags="tagNames" :blocked="boardBlocked || dialogOpen || placementBusy" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
       </template>
     </template>
 

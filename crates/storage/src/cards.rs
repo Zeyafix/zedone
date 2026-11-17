@@ -260,6 +260,9 @@ pub(crate) fn memberships<'a>(
     for (root, projection) in projections {
         if root.strip_prefix("card:").is_some_and(valid_id) {
             for op in projection.values() {
+                if op["action"] == "del" {
+                    continue;
+                }
                 let column = if op["key"] == "column" {
                     op["value"].as_str().map(str::to_owned)
                 } else if op["key"] == "placement" {

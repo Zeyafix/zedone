@@ -175,6 +175,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.inspect_placements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_inspect_placements"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.list": {
         parameters: {
             query?: never;
@@ -217,6 +233,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["card_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.resolve_placement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_resolve_placement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1038,6 +1070,10 @@ export interface components {
             column: string;
             rank: components["schemas"]["Rank"];
         };
+        CardPlacements: {
+            card: components["schemas"]["CardSnapshot"];
+            choices: components["schemas"]["PlacementChoice"][];
+        };
         CardSnapshot: {
             card: string;
             columns: string[];
@@ -1499,6 +1535,31 @@ export interface components {
             operation: string;
             parameters: {
                 subject: string;
+            };
+        };
+        CommandRequest_InspectCardPlacements: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                space: string;
             };
         };
         CommandRequest_InspectHistory: {
@@ -2270,6 +2331,33 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_ResolveCardPlacement: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                placement: components["schemas"]["CardPlacement"];
+                space: string;
+            };
+        };
         CommandRequest_ResolveCardText: {
             id: [
                 number,
@@ -2718,6 +2806,7 @@ export interface components {
         CommandResponse_AccessSnapshot: components["schemas"]["CommandSuccess_AccessSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardHistory: components["schemas"]["CommandSuccess_CardHistory"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardList: components["schemas"]["CommandSuccess_CardList"] | components["schemas"]["CommandFailure"];
+        CommandResponse_CardPlacements: components["schemas"]["CommandSuccess_CardPlacements"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardSnapshot: components["schemas"]["CommandSuccess_CardSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
@@ -2770,6 +2859,14 @@ export interface components {
             replayed: boolean;
             result: {
                 cards: components["schemas"]["CardSnapshot"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_CardPlacements: {
+            replayed: boolean;
+            result: {
+                card: components["schemas"]["CardSnapshot"];
+                choices: components["schemas"]["PlacementChoice"][];
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3029,6 +3126,10 @@ export interface components {
         InspectAccess: {
             subject: string;
         };
+        InspectCardPlacements: {
+            card: string;
+            space: string;
+        };
         InspectHistory: {
             card?: string | null;
             space: string;
@@ -3128,6 +3229,10 @@ export interface components {
             paused: boolean;
             space: string;
         };
+        PlacementChoice: {
+            before?: string | null;
+            placement: components["schemas"]["CardPlacement"];
+        };
         PullSync: {
             known: number[][];
             protocol: number;
@@ -3204,6 +3309,12 @@ export interface components {
             invitation: string;
             label: string;
             request: string;
+        };
+        ResolveCardPlacement: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            placement: components["schemas"]["CardPlacement"];
+            space: string;
         };
         ResolveCardText: {
             card: string;
@@ -3659,6 +3770,29 @@ export interface operations {
             };
         };
     };
+    card_inspect_placements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectCardPlacements"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardPlacements"];
+                };
+            };
+        };
+    };
     card_list: {
         parameters: {
             query?: never;
@@ -3715,6 +3849,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_ReadCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_resolve_placement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveCardPlacement"];
             };
         };
         responses: {

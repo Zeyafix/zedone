@@ -3,12 +3,13 @@ import { ref, watch } from "vue";
 import { VueDraggable, type DraggableEvent } from "vue-draggable-plus";
 import type { Card } from "./workspace-api";
 import TagNames from "./TagNames.vue";
-import { cardTitle, dragOptions, movableCard } from "./board-order";
+import { cardTitle, dragOptions, movableCard, placementConflict } from "./board-order";
 
-const props = defineProps<{ cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; readonly?: boolean; movable?: boolean; column?: string; group?: string; reset?: number }>();
+const props = defineProps<{ cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; readonly?: boolean; movable?: boolean; resolvePlacement?: boolean; column?: string; group?: string; reset?: number }>();
 const emit = defineEmits<{
   open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card }, event: Event];
   move: [card: Card, event: Event]; start: [event: DraggableEvent]; end: [event: DraggableEvent];
+  resolve: [card: Card, event: Event];
 }>();
 const presented = ref<Card[]>([]);
 watch(() => [props.cards, props.reset], () => { presented.value = [...props.cards]; }, { immediate: true });
@@ -25,6 +26,7 @@ watch(() => [props.cards, props.reset], () => { presented.value = [...props.card
       <p v-if="card.completed.length === 1 && card.completed[0]" class="object-note">Выполнено</p>
       <TagNames :ids="card.tags" :tags="tags" />
       <p v-if="card.state === 'conflicted'" class="object-note">Есть конфликт. Все варианты доступны при открытии; изменения — после разрешения.</p>
+      <button v-if="resolvePlacement && placementConflict(card)" class="resolve-card-placement" :disabled="blocked || !!card.deletion_groups.length" @click="emit('resolve', card, $event)">Разрешить место</button>
       <button v-if="movable" class="move-card" :disabled="blocked || readonly || !movableCard(card)" @click="emit('move', card, $event)">Переместить карточку</button>
       <button v-if="!readonly" :disabled="blocked || card.state === 'conflicted'" @click="emit('open', { kind: card.state === 'trashed' ? 'card.restore' : 'card.trash', target: card }, $event)">{{ card.state === 'trashed' ? 'Восстановить' : 'В корзину' }}</button>
     </li>

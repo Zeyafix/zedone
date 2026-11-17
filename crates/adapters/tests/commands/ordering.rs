@@ -2,7 +2,7 @@ use super::cards::{creation, setup_cards};
 use super::spaces::{cli, sid};
 use super::*;
 
-async fn all_entries(
+pub(super) async fn all_entries(
     service: &Service,
     dir: &TempDir,
     secret: &str,

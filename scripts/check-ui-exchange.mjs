@@ -22,6 +22,13 @@ export async function checkExchangeUI({ first, second, a, b, api, space, pairing
   await until(automatic.names[0]);
   const restored=await api(a,'space.rename',{space,name:original.names[0],expected:automatic.version});assert.equal(restored.status,'ok');await until(original.names[0]);
   await second.goto(`${b.url}/#/settings`);await receiver.getByRole('button',{name:'Показать пространства устройства',exact:true}).click();
+  await second.route('**/host/devices/exchange.run',route=>route.fulfill({json:{status:'error',error:{code:'incompatible_sync'}}}));
+  await row.getByRole('button',{name:'Обменяться сейчас',exact:true}).click();
+  await receiver.getByRole('alert').filter({hasText:'протокол или формат данных другого устройства не поддерживается'}).waitFor();
+  assert.equal(await receiver.locator('[data-exchange-result]').count(),0);
+  assert.equal((await api(b,'space.read',{space})).status,'ok');
+  assert.equal((await api(b,'sync.inspect',{space,pairing})).result.paused,false);
+  await second.unroute('**/host/devices/exchange.run');
   await row.getByRole('button',{name:'Приостановить получение',exact:true}).click();
   await row.getByText('Пространство на явной паузе.',{exact:false}).waitFor();
   assert.equal(await row.getByRole('button',{name:'Обменяться сейчас',exact:true}).count(),0);

@@ -22,6 +22,7 @@ fn heads_schema() -> utoipa::openapi::schema::Array {
         .build()
 }
 pub const PROTOCOL: u32 = 1;
+pub const FORMAT: u32 = 1;
 pub const PAGE_BYTES: usize = 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -268,7 +269,7 @@ pub fn catalog(
             Ok(Execution {
                 result: SyncCatalog {
                     protocol: PROTOCOL,
-                    format: 1,
+                    format: FORMAT,
                     pairing: subject.into(),
                     spaces,
                 },
@@ -318,13 +319,13 @@ pub fn pull(
     r: &CommandRequest<PullSync>,
 ) -> CommandResult<Execution<SyncPage>> {
     validate(r)?;
-    if r.parameters.protocol != PROTOCOL
-        || !crate::spaces::valid_id(&r.parameters.space)
-        || r.parameters.known.len() > 1024
-    {
+    if !crate::spaces::valid_id(&r.parameters.space) || r.parameters.known.len() > 1024 {
         return Err(error(ErrorCode::InvalidRequest));
     }
     admitted(tx, key, clock, &r.parameters.space, false, |tx, subject| {
+        if r.parameters.protocol != PROTOCOL {
+            return Err(error(ErrorCode::IncompatibleSync));
+        }
         tx.pull_sync(&r.parameters.space, subject, &r.parameters.known)
     })
 }
@@ -336,10 +337,7 @@ pub fn push(
     r: &CommandRequest<PushSync>,
 ) -> CommandResult<Execution<SyncPage>> {
     validate(r)?;
-    if r.parameters.protocol != PROTOCOL
-        || !crate::spaces::valid_id(&r.parameters.space)
-        || r.parameters.base.len() > 1024
-    {
+    if !crate::spaces::valid_id(&r.parameters.space) || r.parameters.base.len() > 1024 {
         return Err(error(ErrorCode::InvalidRequest));
     }
     admitted(
@@ -349,6 +347,9 @@ pub fn push(
         &r.parameters.space,
         !r.parameters.changes.is_empty(),
         |tx, subject| {
+            if r.parameters.protocol != PROTOCOL {
+                return Err(error(ErrorCode::IncompatibleSync));
+            }
             tx.push_sync(
                 &r.parameters.space,
                 subject,

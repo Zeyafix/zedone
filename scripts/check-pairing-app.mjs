@@ -62,6 +62,7 @@ const hashes = () => {
     return result;
 };
 const normalized = map => JSON.stringify([...map].sort(([a], [b]) => a.localeCompare(b)));
+close();
 const originalPath = device('shell', 'pm', 'path', app).toString().trim().replace(/^package:/, '');
 assert.match(originalPath, /^\/data\/app\/[^\r\n]+\/base.apk$/);
 device('pull', originalPath, resolve(report, 'original.apk'));
@@ -218,6 +219,34 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
+    for (const [operation, parameters] of [
+        ['sync.pull', { protocol:999, space, known:[] }],
+        ['sync.push', { protocol:999, space, base:[], changes:[] }],
+    ]) error(deliver(operation, parameters), 'incompatible_sync');
+    const recoverySession = ok(call(android, 'session.status', {}));
+    const recoveryControl = () => ok(command(android, 'sync.inspect', {space,pairing:second.request}));
+    device('reverse', '--remove', reverse);
+    const offline = ok(command(android, 'card.read', {space,card:exchangeIds.card}));
+    ok(command(android, 'card.edit', {space,card:exchangeIds.card,title:'Saved offline after disconnect',description:offline.descriptions[0],expected:offline.version}));
+    error(call(android, 'exchange.run', {space}), 'unavailable');
+    let paused = recoveryControl();
+    ok(command(android, 'sync.pause', {space,pairing:second.request,paused:true,expected:paused.pause_version}));
+    device('exec-out', 'run-as', app, 'rm', '--', `${fixture}/public.json`);
+    launch(); await forwardAndroid();
+    assert.deepEqual(ok(call(android, 'session.status', {})), recoverySession);
+    assert.equal(recoveryControl().paused,true);
+    device('reverse', '--no-rebind', reverse, reverse);
+    error(call(android, 'exchange.run', {space}), 'conflict');
+    assert.deepEqual(ok(command(host,'card.read',{space,card:exchangeIds.card})).titles,['Exchange card']);
+    paused = recoveryControl();
+    ok(command(android, 'sync.pause', {space,pairing:second.request,paused:false,expected:paused.pause_version}));
+    ok(call(android, 'exchange.run', {space}));
+    assert.deepEqual(ok(command(host,'card.read',{space,card:exchangeIds.card})).titles,['Saved offline after disconnect']);
+    const recoveredHistory = ok(command(host,'card.history',{space,card:exchangeIds.card,after:null,limit:50,expected:null}));
+    for(let repeat=0;repeat<2;repeat++)ok(call(android,'exchange.run',{space}));
+    assert.deepEqual(ok(command(host,'card.history',{space,card:exchangeIds.card,after:null,limit:50,expected:null})),recoveredHistory);
+    assert.equal(recoveryControl().selected,true);
+    console.log('APK exchange recovery: unsupported protocol, real disconnected transport, offline card edit, Keystore restart, retained explicit pause, resume and duplicate-free history passed.');
     const access = ok(command(host, 'access.inspect', { subject: second.request }));
     ok(command(host, 'access.revoke', { subject: second.request, expected: access.version }));
     error(deliver('space.read', { space }), 'access_denied');

@@ -3,6 +3,10 @@
 Дата: 2026-11-16. Техническое решение P06.03; текущая проверка —
 [EV-109](../../agent/verification/EV-109-space-exchange.md).
 
+Статус: P06.03/.1–.4 done через [PR #101](https://github.com/Zeyafix/zedone/pull/101),
+head 69df2e3, merge 54a95bc после 17 SUCCESS; EV-109/LOG-589.
+Полная матрица обрывов/совместимости и конфликтов остаётся последующим шагам.
+
 ## Контракт и права
 
 Общий Service предоставляет `sync.inspect/select/pause/catalog/pull/push`.

@@ -1,14 +1,15 @@
 use super::*;
 use serde_json::{Value, json};
-use std::sync::atomic::{AtomicU8, Ordering};
 const SPACE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-static NEXT: AtomicU8 = AtomicU8::new(1);
+#[path = "recovery_tests.rs"]
+mod recovery_tests;
 async fn api(service: &Service, key: &str, op: &str, p: Value) -> Value {
-    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    let mut id = [0; 16];
+    getrandom::fill(&mut id).unwrap();
     let reply = service
         .dispatch(
             op,
-            json!({"id":vec![id;16],"operation":op,"parameters":p})
+            json!({"id":id,"operation":op,"parameters":p})
                 .to_string()
                 .as_bytes(),
             key,

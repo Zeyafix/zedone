@@ -19,7 +19,7 @@ const peers=computed(()=>{
 const rows=computed(()=>catalog.value?.spaces.map(entry=>({entry,c:remoteControls.value[entry.space]}))??[]);
 const blocked=computed(()=>!props.ready||busy.value||pending.value.length>0);
 async function loadPending(){try{const value=await pendingCommands();if(alive)pending.value=value;}catch{if(alive){error.value="Не удалось проверить незавершённые действия. Новые действия недоступны.";pending.value=[{id:"",intention:{subject:"",operation:"sync.select",body:""}}];}}}
-async function work(action:()=>Promise<void>){if(busy.value||!props.ready)return;busy.value=true;error.value="";try{await action();}catch(cause){if(alive)error.value=errorMessage(cause);}finally{if(alive)busy.value=false;}}
+async function work(action:()=>Promise<void>){if(busy.value||!props.ready)return;busy.value=true;error.value="";notice.value="";try{await action();}catch(cause){if(alive)error.value=errorMessage(cause);}finally{if(alive)busy.value=false;}}
 async function inspect(){
   const version=++generation;control.value=undefined;
   if(!space.value||!pairing.value)return;

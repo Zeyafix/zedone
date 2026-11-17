@@ -9,8 +9,9 @@ use zedone_core::{
     wire::{CommandRequest, CommandResponse, decode_request},
 };
 
-const ERRORS: [(ErrorCode, &str); 8] = [
+const ERRORS: [(ErrorCode, &str); 9] = [
     (ErrorCode::InvalidRequest, "invalid_request"),
+    (ErrorCode::IncompatibleSync, "incompatible_sync"),
     (ErrorCode::AccessDenied, "access_denied"),
     (ErrorCode::NotFound, "not_found"),
     (ErrorCode::StaleState, "stale_state"),

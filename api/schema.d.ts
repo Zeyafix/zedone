@@ -2876,7 +2876,7 @@ export interface components {
             space: string;
             title: string;
         };
-        ErrorCode: "invalid_request" | "access_denied" | "not_found" | "stale_state" | "conflict" | "command_mismatch" | "unavailable" | "outcome_unknown";
+        ErrorCode: "invalid_request" | "incompatible_sync" | "access_denied" | "not_found" | "stale_state" | "conflict" | "command_mismatch" | "unavailable" | "outcome_unknown";
         ErrorStatus: "error";
         FinishCardEditing: {
             card: string;

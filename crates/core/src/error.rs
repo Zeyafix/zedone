@@ -10,6 +10,7 @@ use utoipa::ToSchema;
 )]
 pub enum ErrorCode {
     InvalidRequest,
+    IncompatibleSync,
     AccessDenied,
     NotFound,
     StaleState,

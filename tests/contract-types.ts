@@ -30,7 +30,7 @@ function consume(response: Response): unknown {
   }
   const code: ErrorCode = response.error.code;
   switch (code) {
-    case "invalid_request": case "access_denied": case "not_found":
+    case "invalid_request": case "incompatible_sync": case "access_denied": case "not_found":
     case "stale_state": case "conflict": case "command_mismatch": case "unavailable":
     case "outcome_unknown": return code;
     default: {

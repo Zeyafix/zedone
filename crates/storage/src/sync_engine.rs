@@ -15,6 +15,25 @@ fn invalid() -> StorageError {
     }
     .into()
 }
+fn incompatible() -> StorageError {
+    CommandError {
+        code: ErrorCode::IncompatibleSync,
+    }
+    .into()
+}
+fn compatible(graph: &Automerge) -> StorageResult<()> {
+    let formats = graph.get_all(automerge::ROOT, "format")?;
+    if formats.is_empty() || formats.iter().any(|(v, _)| v.as_str().is_none()) {
+        return Err(invalid());
+    }
+    if formats
+        .iter()
+        .any(|(v, _)| v.as_str() != Some("zedone.space.v1"))
+    {
+        return Err(incompatible());
+    }
+    Ok(())
+}
 fn hashes(heads: &Heads) -> Vec<ChangeHash> {
     heads.iter().copied().map(ChangeHash).collect()
 }
@@ -207,6 +226,7 @@ impl WriteContext<'_> {
             let before = crate::spaces::domain_projections(graph)?;
             let mut merged = graph.clone();
             merged.apply_changes(changes.clone())?;
+            compatible(&merged)?;
             let after = crate::spaces::domain_projections(&merged)?;
             let cards = self
                 .connection()
@@ -237,10 +257,10 @@ impl WriteContext<'_> {
         page: &SyncPage,
     ) -> StorageResult<()> {
         let result = (|| {
-            if page.protocol != PROTOCOL
-                || page.space != space
-                || self.sync_known(space, pairing)? != page.base
-            {
+            if page.protocol != PROTOCOL {
+                return Err(incompatible());
+            }
+            if page.space != space || self.sync_known(space, pairing)? != page.base {
                 return Err(invalid());
             }
             let changes = decode_changes(&page.changes)?;
@@ -264,6 +284,7 @@ impl WriteContext<'_> {
                 if !page.complete {
                     return Ok(());
                 }
+                compatible(&ack)?;
                 self.create_document(space)?;
                 self.apply_changes(space, ack.get_changes(&[]))?;
                 self.connection().execute(
@@ -303,7 +324,10 @@ impl WriteContext<'_> {
         page: &SyncPage,
     ) -> StorageResult<()> {
         let result = (|| {
-            if page.protocol != PROTOCOL || page.space != space || !page.changes.is_empty() {
+            if page.protocol != PROTOCOL {
+                return Err(incompatible());
+            }
+            if page.space != space || !page.changes.is_empty() {
                 return Err(invalid());
             }
             let graph = self.read().document(space)?;

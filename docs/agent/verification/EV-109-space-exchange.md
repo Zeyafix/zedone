@@ -27,13 +27,12 @@
 
 ## Текущий результат
 
-P06.03/.1–.4 verified локально в `feat/p06-03-space-sync` от caaf6df;
-LOG-586. Core/storage/защищённый host и общий UI реализованы. EV-108 сохраняет исходный
-охват .1; развитие .2 разрешает сохранять явный выбор ещё не полученного
-пространства до появления его данных. Такая запись не даёт прав и не создаёт
-частичный документ. Все локальные проверки и Android restoration завершены;
-98 определения/состояния и прежние GAP/DEC сохраняются. Публикации/нового CI
-и интеграции не было; это не done интегрированного этапа и не полная приёмка T09.
+P06.03/.1–.4 done: [PR #101](https://github.com/Zeyafix/zedone/pull/101),
+head 69df2e3, merge 54a95bc после всех 17 Windows/Linux/Android SUCCESS;
+LOG-589. Core/storage/host/API/CLI/UI интегрированы. Все локальные проверки,
+Device UI и Android restoration LOG-586 сохраняют свой охват; новый CI описан
+ниже. Ветка удалена локально и на GitHub, main=origin/main. 98 определения/
+состояния и GAP/DEC прежние; это завершение P06.03, а не полная приёмка T09.
 
 ## Выполненные проверки
 
@@ -96,3 +95,27 @@ Commit/push/PR/новый CI/merge не выполнялись. Далее — �
 LOG-586/EV-109 сохраняет verified до окончания нового CI и проверки readiness.
 Публикация выполняется целиком из feat/p06-03-space-sync; следующий продуктовый
 шаг P06.04 не начат. Результаты CI/интеграции фиксируются отдельно после выполнения.
+
+## Интеграция — LOG-589
+
+[PR #101](https://github.com/Zeyafix/zedone/pull/101) с 54 согласованными файлами
+и настоящими Before/After PNG 1280×1080 опубликован; обе hosted картинки
+проверены по SHA-256. Медиа вне Git. Head
+69df2e3b83db69dfd2e220f83f77e120b21c4c89 получил 17 COMPLETED/SUCCESS в attempt 1:
+[Windows/Linux CI](https://github.com/Zeyafix/zedone/actions/runs/43919617091),
+[Android CI](https://github.com/Zeyafix/zedone/actions/runs/43919617078).
+Raw shell обеих ОС подтвердил Node 24.22.1, полный desktop/touch pairing/exchange
+и автообмен с закрытой страницей. Android подтвердил native/обе ABI/guards,
+парный APK/TLS/API/CLI и исходный SHA-256 restoration/cleanup. Host memory fixture
+CI не заменяет локальный Windows Credential Manager и Device UI из LOG-586.
+
+Перед merge свежие head/base 69df2e3/caaf6df: OPEN/non-draft/MERGEABLE/CLEAN,
+все 17 expected checks SUCCESS, замечаний/reviews/requests/threads нет.
+Merge API с pinned head создал 54a95bc0705f35a61db787e20bbe7df9ff181c01;
+родители — checked base/head, merge tree равен reviewed head. Main fast-forward,
+remote feature удалён с lease head, local branch-d; все feature refs отсутствуют.
+Другие worktrees/stash сохранены. P06.03/.1–.4 done, пять правил подтверждены
+в его scope; все 98 определения/состояния и GAP/DEC прежние. T09/A03/A48 not_run,
+A08 partial; P06.04/полные конфликты/Tailscale/измерения отдельно, не начаты.
+Итоговые документы остаются локально после merge без нового commit/push;
+продуктовый source равен проверенному merge tree. Active_work null.

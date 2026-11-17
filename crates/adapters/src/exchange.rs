@@ -5,7 +5,9 @@ use zedone_core::{
     command::Command,
     error::{CommandError, ErrorCode},
     replay::Execution,
-    sync::{CatalogSync, PROTOCOL, PullSync, PushSync, SyncCatalog, SyncControl, SyncStore},
+    sync::{
+        CatalogSync, FORMAT, PROTOCOL, PullSync, PushSync, SyncCatalog, SyncControl, SyncStore,
+    },
     wire::{CommandRequest, CommandResponse},
 };
 
@@ -82,11 +84,11 @@ fn local<T>(
 impl<S: SecretStore + 'static> DeviceHost<S> {
     async fn remote_catalog(&self, session: &PendingSession) -> Result<SyncCatalog, ErrorCode> {
         let catalog = remote(session, CatalogSync {}).await?;
-        if catalog.pairing != session.request.parameters.request
-            || catalog.protocol != PROTOCOL
-            || catalog.format != 1
-        {
+        if catalog.pairing != session.request.parameters.request {
             return Err(ErrorCode::InvalidRequest);
+        }
+        if catalog.protocol != PROTOCOL || catalog.format != FORMAT {
+            return Err(ErrorCode::IncompatibleSync);
         }
         Ok(catalog)
     }
@@ -259,12 +261,12 @@ impl<S: SecretStore + 'static> DeviceHost<S> {
                     PushSync {
                         protocol: PROTOCOL,
                         space: space.clone(),
-                        base: outgoing.base,
+                        base: outgoing.base.clone(),
                         changes: outgoing.changes,
                     },
                 )
                 .await?;
-                if ack.heads != expected_heads {
+                if ack.heads != expected_heads || ack.base != outgoing.base || !ack.complete {
                     return Err(ErrorCode::OutcomeUnknown);
                 }
                 let (s, p) = (space.clone(), pairing.clone());

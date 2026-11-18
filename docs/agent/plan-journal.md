@@ -7,11 +7,11 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.16
+current_step: CI.17
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.16/b82bbcf prototype-native failed: synthetic guard touched real KVM before setup. Fixture-only KVM isolation fix prepared; EV-122/LOG-667"
-next_action: "Опубликовать fixture KVM fix, затем существующий watch/real Linux lifecycle guard/27 outcomes и cold-hit/queues/all executions. Production KVM/preflight/сценарии/лимиты прежние; merge/delete не поручены."
+active_work: "CI.17/EV-123 verified локально: полный Windows UI и full/slice/failure guards passed; Linux 3 jobs/max-parallel=2, 24 checks. Далее PR/CI"
+next_action: "Проверить union/default failures и реальный полный UI pipeline, затем PR #109/24 outcomes/queue/wall/cache metrics. После успеха один controlled benchmark на том же head. Цель <=10m, ориентир <=5m; merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036, GAP-037]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-667
+last_event: LOG-670
 ```
 
 CI.15/EV-121 verified локально: Windows main UI/три isolated concurrent
@@ -6913,3 +6913,20 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - b82bbcf prototype-native/job 134816413437 failed за 98s в новом lifecycle guard до SDK/preparation: copied driver обращался к реальному /dev/kvm до настройки прав. Полный failed log/job metadata и snapshots обоих runs/jobs сохранены. Это установленная ошибка изоляции fixture; rerun не запрашивался.
 - Только copied driver использует CASE/kvm, отдельный readable/writable synthetic file. Original real KVM predicate проверяется перед подстановкой и не меняется. Добавлен missing-kvm: отказ до старта preparation/runtime. Production driver/SDK/verifier/27 checks/сценарии/бюджеты прежние.
 - ShellCheck/Bash syntax/точная подстановка и syntax copied driver/Android routing/tool-cache guards/comment policy passed локально. Реальные Linux process groups и новый CI pending; 98 criterion rows прежние, GAP/DEC прежние. Все initial/возможные cancelled executions учитывать после нового head. Далее publish/watch, без повторного CI на том же коде. Merge/delete не поручены.
+
+### LOG-668 — 2026-11-18 — агент Codex, KVM fixture fix опубликован
+
+- 0ca86be отправлен в существующий PR #109; PR Testing описывает установленную fixture KVM причину b82bbcf и новый head pending. Head/body прочитаны обратно, same-head rerun не запрашивался. Первый API snapshot содержит 0 новых runs; IDs . Expected 27 прежний.
+- Original failure/job log и run/jobs snapshots сохранены, последующие cancelled executions включить после terminal. Runtime/preparation/KVM production source и thresholds прежние. Существующий watch сохранён без повторной регистрации; далее настоящий Linux guard и все outcomes/метрики. Merge/delete не поручены; checkpoint локальный без нового CI-triggering push.
+
+### LOG-669 — 2026-11-18 — агент Codex, CI.16 принят по покрытию; CI.17 сокращает очередь
+
+- 0ca86be все 27 SUCCESS в attempt 1. Реальные Linux lifecycle fixture и production overlap/runtime/cleanup passed, SDK cold install/save passed. Полный wall 12:18, pairing-fields 10:00 плюс queue 1:44; product-native queue 3:03. Наблюдаемый peak 20 одновременно исполнявшихся jobs. Все исходные b82bbcf failed/cancelled metadata сохранены.
+- CI.17/EV-123: три полных Linux suites product/prototype/shell вместо шести срезов, max-parallel=2, длинные product/shell первыми. Все checks через прежние full commands, без потери Rust/contracts/release/unsafe/browser/pairing и их отказов. UI full теперь main parallel + conflicts + pairing с одной подготовкой. Windows шесть/Android двенадцать suites прежние, aggregates прежние; всего 24 expected. Account quota/paid settings не меняются.
+- SDK key/Android workflow прежние, первый следующий run может прочитать новый cache. Warm benchmark до устранения очереди отложен; после успешного CI.17 один controlled повтор на том же head, все расходы сохранить. Cache snapshot 17 entries, удалённые/новые IDs/bytes записаны; eviction наблюдается и учитывается. Новых CI.17 результатов нет, dirty checkpoints сохранены; merge/delete не поручены.
+
+### LOG-670 — 2026-11-18 — агент Codex, CI.17 verified локально
+
+- Полный Windows ui:check с pinned Node прошёл единую native/types/build подготовку, три parallel main slices, все desktop/touch conflicts/восемь combined positions, scanner/pairing/administration/exchange UI. Product/prototype full commands прежние, guard подтверждает точную union с прежними срезами. Default UI failures/signals на каждом шаге проверены, режимы main/conflicts/pairing не пропускаются.
+- Host/tool-cache/main-slice guards, actionlint с ShellCheck, Node syntax/comment policy 390 sources/diff passed. Новый реальный Linux grouping и его очередь ещё pending CI. 98 criterion rows сверены без изменений; Android workflow/SDK key и оба platform scenarios прежние. Пять правил в scope EV-123 соблюдены.
+- Далее публикация CI.17 в PR #109 и 24 checks/queue/wall/runner/cache metrics; при success один controlled benchmark на том же head. Цель <=10m/идеальная <=5m ещё не принята, merge/delete не поручены.

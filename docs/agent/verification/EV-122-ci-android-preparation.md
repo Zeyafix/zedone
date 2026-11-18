@@ -67,3 +67,27 @@ Android routing/tool-cache guards и comment policy passed локально.
 
 Исходный отказ и незавершённые/возможные отменённые executions учитываются
 в метриках. Это исправление теста в новом head, не повтор прежнего CI.
+
+KVM fixture fix опубликован в PR #109/head 0ca86be (LOG-668).
+Новые Linux fixtures/27 checks pending; без same-head rerun. Исходные
+failed/возможные cancelled executions сохраняются для итоговых метрик.
+
+## CI.16 результат / LOG-669
+
+0ca86be: все 27 SUCCESS в attempt 1. Настоящий Linux lifecycle guard
+прошёл оба порядка, build/boot/runtime failures, сигнал, descendant cleanup,
+missing-KVM и invalid args. Prototype-ui реально выполнил boot одновременно
+с прежним host/APK build, runtime начался после обоих успехов.
+
+SDK cold install passed, новый cache сохранён. Полный wall 12:18, самый
+длинный job ровно 10:00; pairing-fields дополнительно ждал runner 1:44,
+product-native 3:03. Цель полного <=10m не достигнута. Наблюдаемый пик
+одновременных jobs — 20; это измерение данной серии, не изменение квоты.
+Snapshot caches: 17 entries; удаление старых entries за интервал реально
+наблюдалось, полный список/байты сохранены. Новых quota/paid settings нет.
+
+b82bbcf failed/cancelled executions и metadata сохранены отдельно. Вместо
+полного warm benchmark, который не устраняет очередь, следующий CI.17
+уменьшает число host jobs. Android workflow/SDK key остаются прежними и
+могут читать сохранённый cache. Контролируемое сравнение на одном head
+выполнить после успешного CI.17; различие head не скрывать в метриках.

@@ -1,5 +1,21 @@
 # Проверки PR и кэши сборки
 
+## Группировка по времени и очереди CI.17
+
+Windows сохраняет шесть срезов, Android — двенадцать. Linux запускает три
+полных pipeline: product, shell, prototype-ui. Последний включает весь
+prototype, включая native checks. Одновременно выполняются не более двух
+Linux jobs, длинные product/shell перечислены первыми. Это уменьшает
+конкуренцию host с Android и повторную подготовку; квота аккаунта не меняется.
+
+Полный `ui:check` выполняет parallel main, conflicts и pairing после одной
+types/build/native подготовки. Explicit `--main`/`--conflicts` сохраняются.
+Все уникальные проверки обоих срезов обязательны и в полной команде.
+Новый набор — 24 checks с прежними тремя strict aggregate names. Порогов
+и исключений continue-on-error нет; фактическое полное время зависит и от
+очереди runners. Полнота и failures проверяются host routing guard.
+Приёмка и замеры — [EV-123](../agent/verification/EV-123-ci-linux-capacity.md).
+
 ## Подготовка Android во время boot CI.16
 
 `prototype-ui` запускает прежние host release endpoint и x86_64 APK с

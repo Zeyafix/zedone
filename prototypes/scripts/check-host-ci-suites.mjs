@@ -225,10 +225,10 @@ for (const result of [shellFull, shellMain, shellConflicts]) assert.equal(result
 const sharedShell = command => command.includes('--version') || command.includes('ui:build') || command.includes('build') || command.includes('scripts/check-ui-browser.mjs');
 assert.deepEqual(commands([...shellMain.calls, ...shellConflicts.calls].filter(call => !sharedShell(call))),
   commands(shellFull.calls.filter(call => !sharedShell(call))), 'Shell slices retain every nonshared check exactly once');
-for (const [mode, result] of [['--main', shellMain], ['--conflicts', shellConflicts]]) {
+for (const [mode, result] of [[undefined, shellFull], ['--main', shellMain], ['--conflicts', shellConflicts]]) {
   assert.ok(result.calls.some(call => call.includes('ui:build')));
   assert.ok(result.calls.some(call => call.includes('build') && call.includes('shell-fixture')));
-  assert.ok(result.calls.some(call => call.includes('scripts/check-ui-browser.mjs') && call.at(-1) === mode));
+  assert.deepEqual(result.calls.filter(call => call.includes('scripts/check-ui-browser.mjs')).map(call => call.at(-1)), mode ? [mode] : ['--main', '--conflicts']);
   for (let index = 1; index < result.calls.length; index++) for (const failure of [{ exitCode: 23 }, { signalCode: 'SIGTERM' }]) {
     const failed = await shellDispatch(mode, failure, index);
     assert.ok(failed.error);
@@ -247,16 +247,22 @@ const expectedSteps = [
   ["matrix.suite == 'shell'", "bun run ui:check --main", "."],
   ["matrix.suite == 'shell-conflicts'", "bun run ui:check --conflicts", "."],
 ];
+const linuxSteps = [
+  ["matrix.suite == 'product'", "bun scripts/check-product.mjs", "."],
+  ["matrix.suite == 'prototype-ui'", "bun run check", "prototypes"],
+  ["matrix.suite == 'shell'", "bun run ui:check", "."],
+];
 for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "windows-2025", 20]]) {
   const job = workflow.jobs[`${os}-checks`];
   assert.deepEqual(job.strategy.matrix.suite, os === 'windows'
-    ? ['shell', 'shell-conflicts', 'product', 'product-build', 'prototype-ui', 'prototype-native'] : suites);
+    ? ['shell', 'shell-conflicts', 'product', 'product-build', 'prototype-ui', 'prototype-native'] : ['product', 'shell', 'prototype-ui']);
+  assert.equal(job.strategy['max-parallel'], os === 'linux' ? 2 : undefined);
   assert.equal(job.strategy["fail-fast"], false);
   assert.equal(job["runs-on"], runner);
   assert.equal(job["timeout-minutes"], budget);
   assert.equal(job.defaults.run.shell, "pwsh");
   assert.equal(job.steps.find(step => step.uses === "./.github/actions/prepare-host-check").with.suite, "${{ matrix.suite }}");
-  assert.deepEqual(job.steps.filter(step => step.run).map(step => [step.if, step.run, step["working-directory"] || "."]), expectedSteps);
+  assert.deepEqual(job.steps.filter(step => step.run).map(step => [step.if, step.run, step["working-directory"] || "."]), os === 'linux' ? linuxSteps : expectedSteps);
   const gate = workflow.jobs[os];
   assert.equal(gate.name, `check (${runner})`);
   assert.equal(gate.needs, `${os}-checks`);

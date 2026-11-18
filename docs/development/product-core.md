@@ -1,5 +1,12 @@
 # Разработка продуктового Rust-ядра
 
+Полная проверка продукта (`bun scripts/check-product.mjs`, `--host-tests`
+или native Android runtime) включает отдельный обязательный search probe
+по 1000 карточкам с прежним <30s. Он ignored в обычном cargo test, чтобы
+измерение не конкурировало с другими тестами процесса. Driver требует
+ровно один успешный exact probe; изменение не сокращает workload или
+проверки результата. Подробности — [проверки CI](ci-checks.md#отдельный-search-probe-ci18).
+
 Полный P06.03: [ADR-0064](../architecture/decisions/0064-space-exchange.md),
 [EV-109](../agent/verification/EV-109-space-exchange.md). `core::sync`
 проверяет управление/текущие paired grants; `storage::sync_engine` владеет

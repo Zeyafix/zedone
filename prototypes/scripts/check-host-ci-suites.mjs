@@ -129,7 +129,9 @@ const executeProduct = new (Object.getPrototypeOf(async function () {}).construc
   "Bun", "process", "assert", "resolve", "relative", "probe", "contract", "checkChannelPair", "randomUUID", "console", productDriver
     .replace(/^import .*;\r?\n/gm, "")
     .replaceAll("import.meta.dir", JSON.stringify(resolve(root, "../scripts"))));
-async function productDispatch(mode, { failure, mismatch = false, serial = "emulator-5554" } = {}) {
+const searchProbe = "cards::tests::search::search_thousand_card_probe_uses_authoritative_graph_without_an_index";
+const passedSearch = "test result: ok. 1 passed; 0 failed; 0 ignored;";
+async function productDispatch(mode, { failure, mismatch = false, serial = "emulator-5554", searchOutput = passedSearch, searchFailure, missingStorage = false } = {}) {
   const calls = [], probes = [], paired = [];
   let clients = 0, contracts = 0, error;
   const generated = Buffer.from("product contract fixture\n");
@@ -146,11 +148,15 @@ async function productDispatch(mode, { failure, mismatch = false, serial = "emul
         if (command.includes("metadata")) stdout = Buffer.from(JSON.stringify({
           workspace_members: ["core"], packages: [{ id: "core", name: "zedone-core", manifest_path: resolve(productRoot, "crates/core/Cargo.toml"), dependencies: [] }],
         }));
-        else if (command.includes("--message-format=json")) stdout = Buffer.from(JSON.stringify({ reason: "compiler-artifact", profile: { test: true }, target: { name: "zedone_adapters" }, executable: "/fixture/native-tests" }) + "\n");
+        else if (command.includes("--message-format=json")) stdout = Buffer.from([
+          { reason: "compiler-artifact", profile: { test: true }, target: { name: "zedone_adapters" }, executable: "/fixture/native-tests" },
+          ...(command.includes("--target") && !missingStorage ? [{ reason: "compiler-artifact", profile: { test: true }, target: { name: "zedone_storage" }, executable: "/fixture/storage-tests" }] : []),
+        ].map(item => JSON.stringify(item)).join("\n") + "\n");
+        else if (command.includes(searchProbe)) stdout = Buffer.from(searchOutput);
         else if (command.includes("getprop")) stdout = Buffer.from(({ "ro.kernel.qemu": "1", "ro.build.version.sdk": "33", "ro.product.cpu.abi": "x86_64" })[command.at(-1)]);
         else if (command.includes("shell") && command.at(-1).endsWith("/export-contract")) stdout = mismatch ? Buffer.from("wrong contract") : generated;
-        else if (command.includes("shell") && command.at(-1).includes("/test-")) stdout = Buffer.from("test result: ok. 1 passed");
-        return { exitCode: 0, stdout, ...(command.includes(mode === "--host-tests" ? "clippy" : "build") ? failure : {}) };
+        else if (command.includes("shell") && command.some(arg => arg.includes("/test-"))) stdout = Buffer.from("test result: ok. 1 passed");
+        return { exitCode: 0, stdout, ...(command.includes(mode === "--host-tests" ? "clippy" : "build") ? failure : {}), ...(command.includes(searchProbe) ? searchFailure : {}) };
       },
     }, {
       execPath: "fixture-bun", platform: process.platform,
@@ -167,6 +173,15 @@ for (const mode of [undefined, "--host-tests", "--host-build", "--check-types", 
   assert.equal(result.error, undefined, mode);
   assert.equal(result.clients, [undefined, "--host-tests"].includes(mode) ? 1 : 0, "Android slices must not rerun host client tests");
   assert.equal(result.contracts, ["--host-build", "--android-x86_64", "--android-arm64"].includes(mode) ? 0 : 1, "Runtime slice owns standalone Android contract checks");
+  const searchCalls = result.calls.filter(call => call.includes(searchProbe));
+  const hasSearch = [undefined, "--host-tests", "--android", "--android-native", "--android-runtime"].includes(mode);
+  assert.equal(searchCalls.length, hasSearch ? 1 : 0, "Exactly one isolated probe in each runtime owner");
+  if (hasSearch) {
+    for (const flag of ['--ignored', '--exact', '--nocapture', '--test-threads=1']) assert.ok(searchCalls[0].includes(flag));
+    for (const searchOutput of ['', 'test result: ok. 0 passed; 0 failed;', 'test result: ok. 2 passed; 0 failed;', `${passedSearch}\n${passedSearch}`, 'test result: FAILED. 1 passed; 1 failed;']) assert.ok((await productDispatch(mode, { searchOutput })).error);
+    if (!mode?.startsWith('--android')) assert.ok(searchCalls[0].includes('--workspace'), 'Keep the original workspace feature unification and test profile');
+    for (const searchFailure of [{ exitCode: 23 }, { signalCode: 'SIGTERM' }]) assert.ok((await productDispatch(mode, { searchFailure })).error);
+  }
   if (mode?.startsWith("--android")) {
     const targets = ["--android-native", "--android-runtime", "--android-x86_64"].includes(mode) ? ["x86_64-linux-android"] : mode === "--android-arm64" ? ["aarch64-linux-android"] : ["x86_64-linux-android", "aarch64-linux-android"];
     assert.deepEqual(result.probes, mode === "--android-runtime" ? [] : targets.map(target => ["--target", target]));
@@ -180,9 +195,13 @@ for (const mode of [undefined, "--host-tests", "--host-build", "--check-types", 
       assert.ok(result.calls.some(command => command.includes("shell") && command.at(-1).endsWith("/export-contract")));
       assert.ok((await productDispatch(mode, { mismatch: true })).error, "A different device contract must fail");
       assert.ok((await productDispatch(mode, { serial: "physical-device" })).error);
+      assert.ok((await productDispatch(mode, { missingStorage: true })).error, "Missing search binary cannot skip the probe");
     }
   }
 }
+const searchSource = await Bun.file(resolve(productRoot, 'crates/storage/src/cards/tests/search.rs')).text();
+assert.match(searchSource, /#\[ignore[^\n]*\]\s*async fn search_thousand_card_probe_uses_authoritative_graph_without_an_index/);
+assert.ok(searchSource.includes('assert!(elapsed < Duration::from_secs(30));'));
 for (const mode of [undefined, "--host-tests", "--host-build", "--android", "--android-native", "--android-runtime", "--android-x86_64", "--android-arm64"]) {
   for (const failure of [{ exitCode: 23 }, { exitCode: 0, signalCode: "SIGTERM" }]) {
     const failed = await productDispatch(mode, { failure });

@@ -1,5 +1,17 @@
 # Проверки PR и кэши сборки
 
+## Отдельный search probe CI.18
+
+Поиск по 1000 карточкам остаётся обязательным с прежним реальным временем
+<30s и полным набором проверок результата. Обычный cargo test пропускает этот
+ignored probe; полный `check-product.mjs`/`--host-tests` запускает его отдельно
+после workspace tests и client peer. Native Android runtime после обычных
+test binaries запускает тот же probe из zedone_storage. В обоих случаях —
+ignored/exact/nocapture/test-threads=1, ровно один passed test обязателен.
+Debug profile, graph и threshold прежние; других тестов в его процессе нет.
+Missing binary, нулевой count, ошибка или сигнал не превращаются в SUCCESS.
+Проверка и ограничения — [EV-124](../agent/verification/EV-124-ci-isolated-search-probe.md).
+
 ## Группировка по времени и очереди CI.17
 
 Windows сохраняет шесть срезов, Android — двенадцать. Linux запускает три

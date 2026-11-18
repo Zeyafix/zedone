@@ -47,3 +47,18 @@ signal каждого шага полного UI, оба browser режима и
 main-slice guards/actionlint с ShellCheck/Node syntax/comment policy
 390 sources/diff passed. Android workflow и его SDK fingerprint прежние.
 98 criterion rows/GAP/DEC не меняются; merge/delete не поручены.
+
+## Публикация / LOG-671
+
+2be1ec6 в PR #109; 24 expected checks, новый CI pending. Полные Linux
+pipelines/queue/wall ещё не приняты. Далее существующий watch и один
+controlled benchmark после успеха; merge/delete не поручены.
+
+## Linux product search timing failure / LOG-672
+
+На 2be1ec6 Linux product отказал на прежнем 1000-card probe: 31208ms,
+1000 корректных результатов; остальные storage tests 283 passed. Release/
+unsafe после отказавшего test stage в этой job не исполнялись и не приняты.
+GAP-034 остаётся open; без диагноза повтор не запрашивается. Исходные
+log/job/run snapshots сохранены. CI.18/EV-124 сохраняет workload и <30s,
+но делает probe отдельным обязательным запуском на host/native Android.

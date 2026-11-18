@@ -28,6 +28,14 @@ function run(command, { cwd = root, extraEnv = {}, capture = false, failure = fa
 }
 const cargo = args => ["cargo", `+${versions.rust}`, ...args];
 const locked = ["--locked", "--offline"];
+const searchProbe = "cards::tests::search::search_thousand_card_probe_uses_authoritative_graph_without_an_index";
+const isolatedTestArgs = ["--ignored", "--exact", "--nocapture", "--test-threads=1"];
+function requireSearchProbe(output) {
+  console.log(output);
+  const results = [...output.matchAll(/test result: (\w+)\. (\d+) passed; (\d+) failed;/g)];
+  assert.ok(results.every(result => result[1] === "ok" && Number(result[3]) === 0), "Search probe must not fail");
+  assert.equal(results.reduce((count, result) => count + Number(result[2]), 0), 1, "Exactly one search probe must pass");
+}
 async function checkWithClients(checkNative, label) {
   const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
   console.log(`> ${command.join(" ")}`);
@@ -107,6 +115,7 @@ if (!mode || mode === "--host-tests") {
       ["test", "--workspace", "--all-features", ...locked],
     ]) run(cargo(args));
   }, "Host product checks failed");
+  requireSearchProbe(run(cargo(["test", "--workspace", "--all-features", ...locked, searchProbe, "--", ...isolatedTestArgs]), { capture: true }).stdout.toString());
 }
 if (!mode || mode === "--host-build") {
   run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked]));
@@ -219,6 +228,9 @@ async function checkAndroid() {
         console.log(output);
         assert.ok(output.includes("test result: ok."));
       }
+      const storageIndex = tests.findIndex(item => item.target.name === "zedone_storage");
+      assert.ok(storageIndex >= 0, "Isolated search probe test binary required");
+      requireSearchProbe(device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, `${remote}/test-${storageIndex}`, searchProbe, ...isolatedTestArgs));
       const hostArtifacts = run(cargo(["test", "-p", "zedone-adapters", "--lib", "--no-run", "--message-format=json", ...locked]), { capture: true })
         .stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line));
       const hostBinary = hostArtifacts.find(item => item.reason === "compiler-artifact" && item.profile.test && item.target.name === "zedone_adapters" && item.executable)?.executable;

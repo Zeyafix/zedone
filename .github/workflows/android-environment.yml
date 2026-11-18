@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, pairing, shell-arm64]
+        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-fields, pairing-placements, pairing-positions, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -93,7 +93,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
+          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64' || matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-') || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -201,20 +201,22 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64'
+        if: matrix.suite == 'product-native' || matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-') || matrix.suite == 'shell-arm64'
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)
-          if [[ '${{ matrix.suite }}' == shell || '${{ matrix.suite }}' == pairing || '${{ matrix.suite }}' == shell-arm64 ]]; then
+          if [[ "$SUITE" == shell || "$SUITE" == pairing-* || "$SUITE" == shell-arm64 ]]; then
             cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
           else
             cargo "+$rust" fetch --locked
           fi
       - name: Prepare locked shared viewer dependencies
-        if: matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64'
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Prepare locked prototype dependencies and contracts
-        if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64'
         working-directory: prototypes
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
@@ -234,16 +236,18 @@ jobs:
         working-directory: prototypes
         run: bun run android:build
       - name: Build Android arm64 APK and instrumentation
-        if: matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-arm64'
         working-directory: prototypes
         run: bun run android:build aarch64
       - name: Build x86_64 UI shell and host fixture for device checks
-        if: matrix.suite == 'shell' || matrix.suite == 'pairing'
+        if: matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-')
         run: |
           chmod +x ui/src-tauri/gen/android/gradlew
           bun scripts/build-ui-android.mjs x86_64
-          rust=$(jq -r .rust scripts/environment-versions.json)
-          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
+          if [[ '${{ matrix.suite }}' == shell ]]; then
+            rust=$(jq -r .rust scripts/environment-versions.json)
+            CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
+          fi
       - name: Build arm64 UI shell on a separate runner
         if: matrix.suite == 'shell-arm64'
         run: |
@@ -254,7 +258,7 @@ jobs:
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
-        if: matrix.suite != 'product-arm64' && matrix.suite != 'shell-arm64'
+        if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
         run: |
           # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
           test -f /etc/apt/apt-mirrors.txt
@@ -271,13 +275,13 @@ jobs:
           sudo udevadm settle --timeout=10
           test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
-        if: matrix.suite != 'product-arm64' && matrix.suite != 'shell-arm64'
+        if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
         run: |
           shellcheck scripts/check-android-environment.sh
           bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
-      - name: Check product arm64 build without emulator
-        if: matrix.suite == 'product-arm64'
-        run: bun prototypes/scripts/check-android-ci.mjs product-arm64
+      - name: Check product ABI build without emulator
+        if: matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64'
+        run: bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
       - name: Check rejection and cleanup on compiler failure
         if: matrix.suite == 'prototype-native'
         run: |

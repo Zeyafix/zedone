@@ -10,7 +10,7 @@ const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun, "Use pinned Bun");
 const mode = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android", "--android-native", "--android-arm64"].includes(mode));
+assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--host-tests", "--host-build", "--android", "--android-native", "--android-runtime", "--android-x86_64", "--android-arm64"].includes(mode));
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 
@@ -98,17 +98,19 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
   }
 }
 
-if (!mode) {
+if (!mode || mode === "--host-tests") {
   run([process.execPath, "test", resolve(root, "tests/source-comments.test.mjs")]);
   await checkWithClients(async () => {
     for (const args of [
       ["fmt", "--all", "--", "--check"],
       ["clippy", "--workspace", "--all-targets", "--all-features", ...locked, "--", "-D", "warnings"],
       ["test", "--workspace", "--all-features", ...locked],
-      ["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked],
     ]) run(cargo(args));
-    await checkUnsafe();
   }, "Host product checks failed");
+}
+if (!mode || mode === "--host-build") {
+  run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked]));
+  await checkUnsafe();
 }
 
 async function checkContracts() {
@@ -168,11 +170,11 @@ async function checkContracts() {
   return generated;
 }
 
-const generated = mode === "--android-arm64" ? undefined : await checkContracts();
+const generated = ["--host-build", "--android-x86_64", "--android-arm64"].includes(mode) ? undefined : await checkContracts();
 
 async function checkAndroid() {
   const serial = env.ANDROID_SERIAL;
-  const runtime = mode !== "--android-arm64";
+  const runtime = !["--android-x86_64", "--android-arm64"].includes(mode);
   if (runtime) assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
   assert.ok(env.ANDROID_HOME && env.NDK_HOME, "ANDROID_HOME and NDK_HOME required");
   assert.ok((await Bun.file(resolve(env.NDK_HOME, "source.properties")).text()).includes(versions.android.ndk));
@@ -184,7 +186,7 @@ async function checkAndroid() {
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
   const tools = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin`);
   const linker = resolve(tools, `clang${suffix}`);
-  const targets = mode === "--android-native" ? ["x86_64-linux-android"]
+  const targets = ["--android-native", "--android-runtime", "--android-x86_64"].includes(mode) ? ["x86_64-linux-android"]
     : mode === "--android-arm64" ? ["aarch64-linux-android"]
     : ["x86_64-linux-android", "aarch64-linux-android"];
   for (const target of targets) {
@@ -197,9 +199,9 @@ async function checkAndroid() {
       [`${prefix}_LINKER`]: linker,
       [`${prefix}_RUSTFLAGS`]: `-C link-arg=--target=${target}33`,
     };
-    run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
-    await checkUnsafe(["--target", target], extraEnv);
-    if (target !== "x86_64-linux-android") continue;
+    run(cargo(["build", "--workspace", mode === "--android-runtime" ? "--bins" : "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
+    if (mode !== "--android-runtime") await checkUnsafe(["--target", target], extraEnv);
+    if (!runtime || target !== "x86_64-linux-android") continue;
     const result = run(cargo(["test", "--workspace", "--all-features", "--no-run", "--message-format=json", "--target", target, ...locked]), { extraEnv, capture: true });
     const tests = result.stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line))
       .filter(item => item.reason === "compiler-artifact" && item.profile.test && item.executable);
@@ -232,13 +234,9 @@ async function checkAndroid() {
       device("shell", "rm", "-r", remote);
     }
   }
-  console.log(mode === "--android-native"
-    ? "Android native tests/contract passed; x86_64 ABI build and unsafe guards passed."
-    : mode === "--android-arm64"
-      ? "Android arm64 ABI build and unsafe guards passed."
-      : "Android native tests/contract passed; both ABI builds and unsafe guards passed.");
+  console.log(`Android product ${mode}: selected build/runtime/contract/unsafe checks passed.`);
 }
 
-if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
+if (mode?.startsWith("--android")) {
   await checkAndroid();
 }

@@ -148,3 +148,160 @@ fingerprints финальной локальной проверки прежни
   локально в ignored reports и показать разработчику сравнение с графиком.
 
 Новый CI ещё не запускался; значения «после» и выигрыш не предполагаются.
+
+## PR #109 опубликован — LOG-641
+
+[PR #109](https://github.com/Zeyafix/zedone/pull/109), head
+863e64b26573b4563bac21d90028083c4f4c8df3, base main/693b1fb.
+Commit `ci: reduce repeated checks while preserving platform coverage`:
+14 source/docs файлов, 797 insertions/177 deletions; обычный commit/push,
+noreply author/committer, staged scope/privacy/98 definitions/states проверены.
+Шесть source fingerprints прежние. Исходные related EV-117/journal/queue
+checkpoint включены по происхождению; локальные logs/данные вне Git.
+
+English title/body, порядок Summary/Changes/Testing, реальные проверки/ограничения
+и generation credit прочитаны обратно. PR linked сразу после создания;
+визуального продуктового изменения нет, медиа неприменимы.
+Initial readiness OPEN/non-draft/MERGEABLE/UNSTABLE, comments/reviews/requests
+отсутствуют. 15 suites IN_PROGRESS, три aggregate ещё ожидаются, полный expected
+набор 18 сверен с сохранёнными baseline jobs. Это не новый CI успех.
+
+Далее watch и после полного CI сбор метрик по методике выше. Raw before metadata/
+jobs/steps/logs/cache и continuation state сохранены в ignored reports.
+Merge/delete не поручены. Итоговые checkpoint остаются локальными, чтобы не
+менять tested head дополнительным commit/push.
+
+## Linux product attempt 1 failed — GAP-034 / LOG-642
+
+На прежнем head 863e64b [job 134671814924](https://github.com/Zeyafix/zedone/actions/runs/44266376564/job/134671814924)
+завершился failure в Rust storage:
+`cards::tests::search::search_thousand_card_probe_uses_authoritative_graph_without_an_index`.
+Все 1000 результатов и проверенные поля корректны, поиск занял 30209ms
+при прежнем `elapsed < Duration::from_secs(30)`. Storage: 283 passed/1 failed.
+Сверка diff подтвердила отсутствие изменений теста, search implementation
+и порога. Причина превышения неизвестна; исторический BUG-008 касался другого
+совместного выполнения Android native/arm64, тождество причин не доказано.
+
+Raw job log/metadata/annotations сохранены в ignored metrics reports.
+`gh run view --log-failed` пока не выдаёт лог незавершённого workflow;
+прямой jobs/logs endpoint позволил прочитать завершённый job. Escape sequences
+оставлены в raw файле, при диагностическом выводе удалены.
+
+Один bounded rerun только этого job на неизменном head ещё не принят:
+CLI ответил `job 134671814924 cannot be rerun`, прямой jobs/rerun endpoint
+подтвердил HTTP 403 `The workflow run containing this job is already running`.
+Другие jobs не отменяются. После terminal run 44266376564 выполнить один
+штатный job rerun; не делать циклических повторов и не ослаблять threshold,
+assertions/бюджеты. При повторном отказе нужна диагностика, а не ещё один rerun.
+
+PR Testing обновлён фактическим failure/неизвестной причиной/ожидающим повтором,
+head прочитан обратно. Workflow/checks продолжаются, новых CI успехов нет.
+Для метрик первая попытка — неполная: после storage отказа release/unsafe
+часть не выполнялась, её короткую длительность нельзя сравнивать с полным
+успехом как ускорение. Сохранить отдельно failure, rerun work/очередь и полное
+время до зелёного результата; одного повтора недостаточно для объяснения причины.
+Все прежние продуктовые definitions/states сохранены, добавлен GAP-034;
+новой продуктовой приёмки/исправления поиска не заявляется.
+
+## Linux aggregate failure — LOG-643
+
+[Aggregate job 134675766660](https://github.com/Zeyafix/zedone/actions/runs/44266376564/job/134675766660)
+завершился failure на шаге `Require every Linux suite`: raw log показывает
+`RESULT: failure` и штатный `test "$RESULT" = success`. Это ожидаемое
+распространение уже известного отказа Linux product/GAP-034; новой причины
+отказа или ослабления aggregate нет. Все три остальные Linux suites SUCCESS.
+
+Exact head прежний 863e64b, host workflow ещё in_progress (Windows product/shell
+продолжаются). Повтор job не запрашивался снова до terminal workflow;
+accepted_reruns остаётся 0 из разрешённого одного. Raw aggregate log сохранён
+для учёта attempt 1. Существующий watch продолжается; результатов полного
+CI и метрик «после» пока нет, merge/delete не выполнялись.
+
+## Android pairing failure и принятые rerun — LOG-644
+
+Initial оба workflow завершились failure на head 863e64b. Остальные 14 checks
+SUCCESS; два product/pairing failure и два dependent aggregate failure.
+Сохранены metadata и весь состав jobs/steps обеих attempt 1 до повторов.
+
+Android [pairing job 134671814719](https://github.com/Zeyafix/zedone/actions/runs/44266376707/job/134671814719)
+завершился не по 15m timeout: standard suite после text/combined fields/card
+placements получила `Unexpected command failure: access_denied`, затем finally
+увидел host fixture exit 101. Восстановление исходных APK и всех app files
+по SHA-256 passed. `--positions` после failed standard не запускалась.
+Android [aggregate job 134678153604](https://github.com/Zeyafix/zedone/actions/runs/44266376707/job/134678153604)
+штатно отказал с `RESULT=failure`.
+
+Причина access_denied и итог host fixture cleanup не установлены (GAP-035).
+Fixture имеет прежний предел 240s без UI env; время сценария/exit 101 совместимы
+с timeout, но server-errors.log записан только в ignored directory удалённого
+runner и не попал в job log. Timeout не выдаётся за доказанную причину.
+Acceptance source/сценарии/пороги/240s/15m/cleanup assertions в CI.12 не менялись.
+
+После terminal workflows GitHub принял по одному rerun только failed jobs:
+Linux product 134671814924/run 44266376564 и Android pairing 134671814719/run
+44266376707. Head прежний; accepted_reruns=1 для каждого записан в resume-state.
+Новых повторов при повторном отказе не делать: требуется диагностика.
+Результатов повторов ещё нет; новые CI успехи/снятие GAP не заявляются.
+Все attempts/очередь/rerun overhead сохраняются для метрик, первоначальные
+короткие failed runs не являются доказательством ускорения полного CI.
+
+## Все 18 SUCCESS и метрики — LOG-645
+
+Exact head 863e64b/base 693b1fb: полный expected набор 18 COMPLETED/SUCCESS,
+PR OPEN/MERGEABLE/CLEAN, comments/reviews отсутствуют. Final attempt 2 обоих
+workflow: [Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/44266376564),
+[Android](https://github.com/Zeyafix/zedone/actions/runs/44266376707).
+Linux product job 134679456275 и pairing 134680023677 прошли после ровно одного
+принятого повтора каждого. Четырнадцать остальных checks унаследованы из
+attempt 1. Pairing выполнил обе isolated suites, два SHA-256 восстановления
+исходных APK/app files и два OS cleanup. Source/threshold/240s/15m прежние.
+Успех повторов не устанавливает причину первых отказов; GAP-034/035 open.
+
+| Наблюдение | До: PR #108 | После: PR #109 | Изменение |
+| --- | ---: | ---: | ---: |
+| От создания workflow до всех зелёных checks, с повторами | 16:27 | 32:02 | +15:35 / +94.7% |
+| Сумма времени последних успешных исполнений 18 jobs | 134:33 | 124:20 | −10:13 / −7.6% |
+| Сумма всех реальных исполнений, включая отказы | 134:33 | 141:10 | +6:37 / +4.9% |
+
+Все длительности — минуты:секунды, суммы могут превышать час. Это не billed
+minutes и не оценка стоимости. Initial failed executions составили 16:50
+runner time; новые rerun executions — 21:44 (они уже входят в успешный набор).
+Полный wall учитывает GitHub запрет повторять до окончания workflow, задержку
+до запроса повтора и очереди. Сумма scheduler queues: 0:42 baseline, 0:40 у
+успешного набора и 0:48 у всех новых исполнений. Ожидание от завершения первого
+workflow до создания rerun — 2:36 host и 3:44 Android.
+
+Для расчёта получены raw run/jobs/steps/logs всех четырёх workflow и обеих
+текущих attempts. GitHub в attempt 2 создаёт новые ID/run_attempt/created_at
+для 14 inherited success records со старыми start/end/steps. Они не выполнялись
+заново: совпадения проверены по workflow/name/start/end/conclusion/steps и
+исключены из повторного счёта. Реальных исполнений 22 вместо 18; успешный
+набор смешивает attempts и не моделирует чистый одновременный workflow.
+
+Наблюдаемые отдельные jobs: Windows product 16:19→13:04, Android product-arm64
+11:38→8:02, shell-arm64 6:13→4:37; Linux product 5:48→6:42, Android native
+9:58→12:13, pairing 14:53→14:56. Одного общего ускорения нет. Pairing около
+четырёх секунд от прежних 15m, будущий/cold runtime не гарантируется.
+
+Шаги по успешному Android-набору: installer controls 7→1 исполнений (сумма
+4s→0s по секундным API timestamps), compiler-failure controls 7→1 (15s→2s),
+KVM setup 7→5 (150s→125s). 0s не означает мгновенную работу. Environment
+callback сменил состав 6→5 jobs; новый отдельный arm64 build 333s нельзя
+игнорировать при сравнении прежнего runtime callback. Полная таблица steps
+сохранена отдельно, step/job totals не складываются повторно.
+
+Cache evidence: на обеих сторонах 15 Rust full-match restores, семь Tauri и
+четыре Gradle restores, ключи совпадают. Это cache-hit наблюдения, не cold
+benchmark. Четыре назначения runner image отличаются: два aggregates и обе
+arm64 suites. Source invalidation/host load/последовательность повторов не
+изолированы; изменение времени нельзя целиком приписать удалению дублей.
+
+PR Testing переписан фактическими CI результатами, всеми 18 job timings,
+ключевыми step totals, методом/повторами/cache evidence/ограничениями и
+generation credit; body/head прочитаны обратно. Локальные comparison.md,
+summary/job/step/phase/cache JSON, CSV, actual-executions и исходные logs
+сохранены в ignored reports. График проверен offline (два payload) и реальным
+HTML preview без console errors. Новых commit/push для метрик нет, tested
+head сохранён. Пять правил прежние; документация дополнена, все 98 definitions/
+states и прежние GAP/DEC сохранены. Active_work null, PR не merged; merge/delete
+не поручены. Поручение PR + сбор метрик выполнено, далее рассмотрение PR.

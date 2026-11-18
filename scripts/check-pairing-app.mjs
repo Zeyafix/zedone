@@ -14,7 +14,7 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--positions'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions'].includes(suite), 'Unknown pairing acceptance suite');
 if (!suite) {
     for (const current of ['--standard', '--positions']) {
         const env = { ...process.env };
@@ -240,12 +240,15 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
-    if (suite === '--standard') {
+    if (suite === '--standard' || suite === '--fields') {
         checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (suite === '--standard' || suite === '--placements') {
         checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkColumnPositionExchange({host,android,space,pairing:second.request,call,command,ok,error});
-    } else {
+    }
+    if (suite === '--positions') {
         checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
     }
     for (const [operation, parameters] of [
@@ -310,7 +313,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? suite === '--positions' : suite === '--standard')) {
+    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? suite === '--positions' : suite !== '--positions')) {
         const incomingOffer=ok(call(android,'offer.create',{}));
         ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
         const uiRequest=ok(call(host,'session.submit',{}));
@@ -350,7 +353,9 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = [suite === '--positions'
+    passedChecks = [suite === '--fields' ? 'text and field conflicts/preservation/reverse'
+        : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
+        : suite === '--positions'
         ? 'combined card/column positions/both orders/same and cross-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse'
         : 'text/field/card-placement/column-position conflicts including independent decisions, neighbors, preservation and reverse',
         'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];

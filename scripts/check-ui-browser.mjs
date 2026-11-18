@@ -26,9 +26,21 @@ import { checkColumnPositions } from "./check-ui-column-positions.mjs";
 import { shellDiagnosticState, observeShellReads, observeShellReadLifecycle, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
 
 const root = resolve(import.meta.dir, "..");
+const mode = Bun.argv[2];
+assert.ok(Bun.argv.length <= 3 && [undefined, "--main", "--conflicts"].includes(mode));
 const directory = await mkdtemp(resolve(tmpdir(), "zedone-ui-"));
 const suffix = process.platform === "win32" ? ".exe" : "";
 const target = resolve(process.env.CARGO_TARGET_DIR || resolve(root, "target"));
+async function checkConflicts(browser) {
+  const binary = resolve(target, `debug/examples/shell-fixture${suffix}`);
+  await checkWorkspaceTouchHost(browser, binary);
+  await checkNameConflicts(browser, binary);
+  await checkTextConflicts(browser, binary);
+  await checkFieldConflicts(browser, binary);
+  await checkPlacementConflicts(browser, binary);
+  await checkColumnPositions(browser, binary);
+  await checkPositionConflicts(browser, binary);
+}
 const fixture = Bun.spawn([resolve(target, `debug/examples/shell-fixture${suffix}`), "--serve", directory], {
   stdout: "pipe", stderr: "inherit", env: { ...process.env, ZEDONE_CLOCK_DIAGNOSTICS: "1" },
 });
@@ -54,6 +66,13 @@ try {
     const launchOptions = { executablePath, headless: true, args: ["--disable-frame-rate-limit"] };
     browser = await chromium.launch(launchOptions);
     console.log(`UI browser: ${browser.version()}`);
+    if (mode === "--conflicts") {
+      await checkConflicts(browser);
+      await browser.close();
+      browser = undefined;
+      console.log('UI workspace/conflicts/positions passed.');
+      continue;
+    }
     await checkNativeControls(browser);
     await checkShellFailureDiagnostics(browser, url, JSON.parse(originalSession.toString()).key);
     await browser.close();
@@ -192,13 +211,7 @@ try {
     await blockedPage.getByRole("status").filter({ hasText: "Тема применена" }).waitFor();
     assert.equal(await blockedPage.locator("html").getAttribute("data-theme"), "dark");
     await blocked.close();
-    await checkWorkspaceTouchHost(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkNameConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkTextConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkFieldConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkPlacementConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkColumnPositions(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
-    await checkPositionConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
+    if (!mode) await checkConflicts(browser);
     await browser.close();
     browser = undefined;
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");

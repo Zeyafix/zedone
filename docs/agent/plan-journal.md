@@ -7,21 +7,62 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.12
+current_step: CI.13
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.12 / EV-118: PR и после GitHub CI сравнение метрик с PR #108 по поручению разработчика; без merge/delete"
-next_action: "Опубликовать проверенный CI.12, дождаться полного expected набора 18 и собрать job/step/wall/cache метрики до/после по EV-118. Baseline PR #108/head 5ca0ee8 сохранён. P06.07 и продуктовые критерии/GAP прежние."
+active_work: "CI.13: локальные проверки passed; публикация PR #109 и замер нового CI; EV-119"
+next_action: "Опубликовать CI.13 в PR #109 и измерить новый CI (26 expected checks). Локальные Windows/native Android/APK/restore/guards passed. Прежние 18 SUCCESS не подтверждают новое распределение; merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-640
+last_event: LOG-647
 ```
+
+CI.13 verified локально (EV-119/LOG-647), Windows/native Android/APK/guards/
+restore passed; Device выключен. Далее публикация и новый CI/метрики.
+Независимые release/runtime/browser/
+pairing/ABI проверки разделяются между обязательными jobs. Порогов, сценариев
+и продуктовых изменений нет; EV-119/LOG-646. Новый GitHub CI ещё не запускался.
+Ниже результаты прежнего head, не приёмка CI.13.
+
+PR #109/head 863e64b: все 18 expected SUCCESS, оба workflow final attempt 2;
+по одному product/pairing rerun, 14 исходных успехов унаследованы. Метрики
+против PR #108 готовы: wall до зелёного 16:27 → 32:02; успешные jobs суммарно
+134:33 → 124:20 (−7.6%), со всеми отказами 141:10 (+4.9%). PR Testing обновлён.
+Pairing 14:56/15m, причины GAP-034/035 не установлены и не закрываются повтором.
+Отчёт/CSV/JSON/raw logs в ignored reports, EV-118/LOG-645. Active_work null;
+merge/delete не поручены, новых commit/push для checkpoint нет.
+
+После terminal обоих workflow GitHub принял по одному штатному rerun только
+Linux product и Android pairing на прежнем head 863e64b; результатов ещё нет.
+Pairing attempt 1: неожиданный access_denied, host fixture exit 101, исходные
+APK/app files восстановлены по SHA-256; причина не установлена (GAP-035).
+Android aggregate корректно failed с RESULT=failure. Все initial metadata/
+jobs/steps и failed logs сохранены; пороги/guards/бюджеты прежние. LOG-644.
+
+Linux aggregate job 134675766660 тоже failed: его `RESULT=failure` корректно
+отражает прежний Linux product search timing failure, нового дефекта нет.
+Host workflow 44266376564 ещё in_progress из-за Windows jobs; pending rerun
+не запускался повторно. Существующий watch/план одного rerun после terminal
+workflow и последующих метрик сохранены; LOG-643.
+
+PR #109/head 863e64b: Linux product attempt 1 failed на прежнем 1000-card search
+guard: корректные 1000 результатов, 30209ms при требовании <30s. Код поиска/
+тест/порог не менялись, причина пока неизвестна (GAP-034). Один bounded rerun
+ещё не принят GitHub: «The workflow run containing this job is already running».
+Дождаться terminal workflow через существующий watch, затем повторить только
+job на прежнем head. Исходную попытку и стоимость повтора сохранить в метриках.
+
+CI.12 опубликован в [PR #109](https://github.com/Zeyafix/zedone/pull/109),
+head 863e64b/base main 693b1fb. 15 suites IN_PROGRESS, три aggregates ожидаются;
+полный expected набор — 18. Baseline PR #108/attempt 1 сохранён. После CI —
+фактические метрики/PR Testing/график; результатов «после» пока нет. Active_work
+— штатный watch. Merge/delete не поручены; checkpoint локальный без нового push.
 
 Разработчик поручил PR CI.12 и после GitHub CI сравнение времени; EV-118/LOG-640.
 Baseline PR #108: обе workflow attempt 1/18 SUCCESS, metadata/jobs/steps/logs/cache
@@ -1599,6 +1640,8 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| GAP-035 | gap | open | CI.12 CI / T09, T16 revalidation | EV-118/LOG-644/645: PR #109/head 863e64b pairing attempt 1 неожиданно получил access_denied/fixture exit 101; причина и initial host cleanup outcome неизвестны, timeout лишь гипотеза без server stderr. Единственный rerun job 134680023677/run 44266376707 passed: обе suites, два SHA-256 restoration/OS cleanup, 14:56 при прежних 15m. Около 4s запаса не гарантируют будущую устойчивость, успешный повтор не доказывает исправление; GAP остаётся open. Source/assert/240s/15m прежние. |
+| GAP-034 | gap | open | CI.12 CI / T16, T17 revalidation | EV-118/LOG-642/645: Linux product attempt 1 на 863e64b нарушил прежний search <30s guard: корректные 1000 результатов, 30209ms, storage 283 passed/1 failed. Единственный rerun job 134679456275/run 44266376564 passed на том же head; весь expected CI 18 SUCCESS. Причина первого превышения/тождество с историческим BUG-008 не установлены, исправление не заявляется, GAP остаётся open. Исходный отказ и стоимость повторов сохранены в метриках; threshold/бюджеты прежние. |
 | GAP-030 | gap | resolved | P06.02.3; A51/T09 | EV-107/LOG-577: текущий продуктовый APK показывает читаемый SVG, Device подтверждает permission/cancel/Back/Home/20-секундную неготовность и ручной путь, парный QR API/TLS/CLI passed. Доступен только Android 13/AOSP x86_64 без GMS; оптическое чтение и повтор после готовности модели не выполнены. Приоритет high: блокирует итог P06.02. Условие снятия — текущий APK на Android Device с работающей камерой/GMS-моделью, точное чтение QR Windows без автоотправки, явные pending/confirm/отказ/cancel/unlink/повтор/сохранность и cleanup. EV-022 прототипа/независимый jsQR/сборка arm64 не заменяют эту проверку; Tailscale/целевой телефон отмечать отдельно. EV-107/LOG-580: условие локальной оптической приёмки выполнено на текущем APK Galaxy A32/Android 13 arm64 с GMS — четыре точных чтения Windows QR, native запрос/ожидание без доступа, Windows UI read-only confirm, process restart/Keystore, unlink/reject/cancel, отказ старому отменённому коду/сохранность и cleanup passed. Свои OS slots/rules/APK/data очищены, исходное отсутствие установки восстановлено. GAP resolved; холодная модель/настоящий Tailscale и приёмка производительности отдельно. |
 | GAP-031 | gap | open | P06.05 / T09, A23, S04 | EV-114: исходники закреплённого Automerge и диагностический тест P06.06.1 подтвердили оптимизацию put существующего победителя в del проигравших. Для места карточки используются новые причинные присваивания. Прежние name/text runners проверяют независимые новые итоговые значения; выбор уже сохранённого победителя против другого сохранённого варианта отдельно не проверен. Это пробел охвата, не заявленный воспроизведённый дефект названий/текста. Приоритет normal, blocks: []; не блокирует самостоятельный P06.06.1. Следующее действие — отдельный двухрепличный regression сохранённых name/text choices и исправление при подтверждении; не закрывать полный T09/S04 без этой проверки. |
 | GAP-032 | gap | open | PR #107 CI / T08, T09 | Android shell run 44153619224/job 134288323820/head 4e8a03a attempt 1: старый checkWorkspaceTouch после column trash/restore/reload получил localStorage.length=1 вместо 0. Лог не содержит типа/содержимого записи, поэтому причина не установлена; не объявляется инфраструктурной ошибкой или доказанной регрессией P06.06.2. Локальные полные Chromium/Opera и Device проверки прошли в своём scope. Требуется один bounded CI rerun того же head без изменения assertions/бюджетов; при воспроизведении — безопасная диагностика категории записи без значений/секретов и исправление доказанной причины. Не смешивать причину с GAP-028 без доказательств; исходный отказ сохраняется. До успешного CI интеграция запрещена. |
@@ -6608,3 +6651,55 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Разработчик поручил PR и после GitHub CI собрать метрики до/после; merge/delete не поручены. База main/origin/main=693b1fb после fetch; ветка test/remove-redundant-checks, существующего PR по head нет. Шесть source fingerprints EV-118 прежние, локальная приёмка сохраняет охват.
 - Сохранены metadata/jobs/steps/raw logs/cache evidence обоих успешных PR #108 workflow: 44257694922 и 44257695082, head 5ca0ee8, attempt 1, 18 SUCCESS. Методика wall/job/step/queue/cache и ограничения одиночного сравнения добавлены в EV-118. После нового CI нужны фактические результаты точного head, PR Testing, график/отчёт; новых метрик пока нет.
 - В docs scope включены связанные исходные checkpoint приёмки/интеграции P06.06. Визуального изменения продукта нет; реальные before/after UI media неприменимы. Все 98 определения/состояния и GAP/DEC прежние, P06.07 не начат. Active_work — публикация/ожидание CI/метрики.
+
+### LOG-641 — 2026-11-18 — агент Codex, PR #109 опубликован и ожидает CI/метрики
+
+- Commit 863e64b26573b4563bac21d90028083c4f4c8df3 «ci: reduce repeated checks while preserving platform coverage»: 14 source/docs файлов, 797 insertions/177 deletions; обычный commit/push/pre-push passed, noreply author/committer, staged scope/privacy/98 definitions/states и шесть source fingerprints проверены. Включены связанные checkpoint предыдущей интеграции, локальные baseline/logs вне Git.
+- PR https://github.com/Zeyafix/zedone/pull/109 создан в main/693b1fb и linked немедленно. English title/body/порядок Summary/Changes/Testing/credit GPT-6.1 Sol/T3 Code/Codex прочитаны обратно; реального UI diff нет, медиа не нужны. Initial readiness OPEN/non-draft/MERGEABLE/UNSTABLE, feedback/reviews/requests отсутствуют.
+- 15 suites IN_PROGRESS, три aggregate ещё ожидаются; полный expected набор 18 сверен с PR #108 baseline jobs. Сохранены оба прежних run 44257694922/44257695082, head 5ca0ee8, attempt 1: metadata/jobs/steps/raw/cache evidence. Нового успеха или метрик «после» пока нет.
+- По поручению после GitHub CI собрать сравнение wall/job/step/queue/cache/attempts, обновить Testing PR, локальные EV/журнал и показать график. Методика в EV-118, continuation state и raw данные — в ignored docs/reports/ci12-ci-metrics. Не смешивать rerun/cold/cache влияние с доказанным эффектом удаления повторов.
+- Active_work — штатный watch PR #109 и метрики после полного exact-head CI; merge/delete не поручены. Checkpoint локальный без дополнительного commit/push, tested head сохраняется. Все 98 определения/состояния и прежние GAP/DEC, пять правил в scope EV-118 сохранены; P06.07 не начат.
+
+### LOG-642 — 2026-11-18 — агент Codex, Linux product search timing failure
+
+- По CI wake PR #109/head 863e64b прочитаны job metadata/annotations и raw logs через jobs/logs endpoint: linux-checks (product), job 134671814924/run 44266376564 attempt 1, storage 283 passed/1 failed. Прежний search_thousand_card_probe вернул корректные 1000 результатов/поля, но 30209ms нарушили прежнее требование <30s. Тест/код поиска/порог не менялись; причина неизвестна, создан GAP-034. Исторический BUG-008 имел другой контекст Android native/arm64 concurrency; тождество причин не доказано.
+- Попытка одного bounded rerun только failed job не принята: gh CLI «job cannot be rerun», direct GitHub jobs/rerun HTTP 403 «The workflow run containing this job is already running». Workflow ещё in_progress, остальные jobs не отменялись. После terminal workflow выполнить один rerun exact head; accepted_reruns=0 записан в ignored resume-state. При повторном failure — диагностика без ослабления guard/бюджетов и без бесконечных повторов.
+- PR Testing обновлён фактическим отказом и ожидающим повтором, body/неизменный head прочитаны обратно. Raw log/metadata сохранены локально. Исходный короткий failed job не сравнивать как успешное ускорение: после storage failure release/unsafe часть не выполнялась. После полного CI учесть все attempts, rerun overhead/очередь, успешные job/step и cache evidence; метрики/график ещё ожидаются.
+- Source fingerprints прежние, код/CI/порог не менялись. Все 98 definitions/states и прежние GAP/DEC сохранены, добавлен GAP-034 без заявления об исправлении/новой продуктовой приёмке. Watch PR #109 остаётся активным, не перевключался; commit/push/merge/delete нет. Active_work — ожидающий штатный повтор и метрики после полного CI.
+
+### LOG-643 — 2026-11-18 — агент Codex, ожидаемый Linux aggregate failure
+
+- По CI wake прочитаны exact-head PR #109/863e64b, aggregate job 134675766660 metadata/raw log и host workflow status. Aggregate получил RESULT=failure и штатно отказал на test "$RESULT" = success из-за прежнего product search timing failure (GAP-034); три остальные Linux suites SUCCESS. Нового независимого дефекта нет, guard/strict aggregate не менялись.
+- Run 44266376564 ещё in_progress: Windows product/shell продолжаются. Известный GitHub запрет rerun до terminal workflow сохраняется, новый преждевременный запрос не выполнялся; accepted_reruns=0. Raw aggregate log сохранён, resume-state дополнен. После terminal workflow нужен один job rerun и затем метрики со всеми attempts/rerun overhead.
+- Код/head и все 98 definitions/states прежние; новых passed CI/метрик/продуктовой приёмки нет. Watch не перевключался, PR остаётся linked; commit/push/merge/delete не выполнялись.
+
+### LOG-644 — 2026-11-18 — агент Codex, pairing failure и принятые bounded rerun
+
+- По CI wake прочитаны pairing job 134671814719 и Android aggregate 134678153604 metadata/raw logs. Standard suite после text/combined field/card placements получила неожиданный access_denied; finally сообщил host fixture exit 101. Исходные APK/app files восстановлены по SHA-256, positions suite не начата. Причина/host cleanup outcome неизвестны, создан GAP-035; fixture 240s timeout возможен, но server-errors файл не попал в job log, поэтому причина не объявляется доказанной. Android aggregate корректно failed с RESULT=failure.
+- Оба initial workflows завершились failure на head 863e64b; остальные 14 expected checks SUCCESS. До повторов сохранены metadata/jobs/steps обеих attempt 1 и failed logs. GitHub принял по одному rerun только Linux product/run 44266376564 и Android pairing/run 44266376707 на неизменном head. Accepted reruns=1 каждого, повторные rerun при отказе не планируются.
+- Код/threshold/fixture/15m/cleanup assertions не менялись; новых CI результатов/исправлений причин/GAP закрытий нет. После полного CI собрать метрики со всеми attempts/rerun cost/очередью/cache и график, короткие failed jobs не считать ускорением. PR Testing обновляется; watch не перевключался, commit/push/merge/delete нет.
+
+### LOG-645 — 2026-11-18 — агент Codex, PR #109 all SUCCESS и итоговые CI метрики
+
+- Свежая exact-head/base проверка PR #109: 863e64b/693b1fb, все 18 expected COMPLETED/SUCCESS, OPEN/MERGEABLE/CLEAN, comments/reviews отсутствуют. Оба workflows final attempt 2: 44266376564/44266376707. По одному Linux product/pairing rerun, остальные 14 успешных checks унаследованы. Pairing raw log подтвердил обе suites, два SHA-256 restoration и два OS cleanup. Source/threshold/240s/15m прежние.
+- Исходные GAP-034/035 остаются open: успех повторов не устанавливает причины. Pairing rerun 14:56 против 14:53 baseline, около 4s от 15m; устойчивость будущего/cold запуска не доказана. Продуктовые API/schema/runtime не менялись.
+- Все raw metadata/jobs/steps/logs/cache сохранены. Вычисление исключило 14 копий inherited records с новыми IDs/created_at, проверив те же name/start/end/conclusion/steps; реальных исполнений 22. Wall time до зелёного: 16:27→32:02 (+15:35/+94.7%). Runner successful-set 18: 134:33→124:20 (−10:13/−7.6%); все реальные исполнения с отказами 141:10 (+6:37/+4.9%). Это job durations, не billed minutes/стоимость.
+- Failed work 16:50; новые rerun executions 21:44 уже входят в successful-set total. Queue sums 0:42 baseline/0:40 successful/0:48 all; ожидание от initial workflow end до rerun creation 2:36 host/3:44 Android входит в wall. Successful set не моделирует чистый одновременный workflow.
+- Ключевые jobs: Windows product 16:19→13:04, product-arm64 11:38→8:02, shell-arm64 6:13→4:37; Linux product 5:48→6:42, Android native 9:58→12:13, pairing 14:53→14:56. Controls owners 7→1, KVM setups 7→5; step composition/секундная resolution учтены. 15 Rust full-match, 7 Tauri, 4 Gradle restores с одинаковыми ключами с обеих сторон. Четыре runner image assignments различались; один cache-hit замер с rerun не доказывает стабильный эффект удаления дублей.
+- PR Testing обновлён фактическими результатами, full job/step comparison, методом/cache/attempts/caveats и credit, прочитан обратно с неизменным head. comparison.md/CSV/JSON/raw и анализатор сохранены в ignored reports. График двух метрик offline validated/previewed без console errors, данные совпадают с summary JSON. Source fingerprints и все 98 definitions/states прежние.
+- Пять правил в scope EV-118 сохранены: обратимость изменения проверки, общий human/agent API, docs, Windows/Android suites и один Rust contract/data источник. CI.12 остаётся verified до интеграции. Поручение PR + метрики выполнено; active_work null. Watch отключается перед handback, linked PR сохраняется. Новых commit/push для checkpoint нет; merge/delete не поручены и не выполнялись. Далее рассмотрение PR с учётом открытых GAP.
+
+### LOG-646 — 2026-11-18 — агент Codex, CI.13: критический путь CI
+
+- По поручению разработчика продолжается PR #109 на локальной ветке test/remove-redundant-checks/head 863e64b. Три исходных dirty docs сохранены отдельно; старые результаты не удаляются. EV-119 задаёт scope/матрицу/проверки.
+- Raw CI.12 timestamps подтверждают release all-targets 6:06 внутри Windows product; пять jobs превышают 10m, pairing 14:56/15m. Разделяются независимые проверки; assertions/профили/таймеры/пороги/strict aggregates прежние.
+- Новое распределение: 6+6 host suites, 11 Android suites и три aggregates — 26 checks. Guard exact union/обязательные владельцы/ошибки/сигналы passed; реальные проверки выполняются. Нового CI/commit/push/merge/delete нет. Все 98 definitions/states и GAP/DEC сохраняются.
+
+### LOG-647 — 2026-11-18 — агент Codex, CI.13 verified локально
+
+- EV-119: Windows host-tests (384 Rust, 27 client/280 assertions, 28 comment tests, contract/types/11 negative diagnostics), host-build (release all-targets/all-features, восемь unsafe и comment rejection/recovery), оба browser slices passed. Все 20 вызовов browser сценариев сохранены относительно 863e64b; QR/types/Vite/native shell, полный desktop/touch/conflicts/positions/pairing/agent reverse passed.
+- Native Android на Device-owned AOSP API 33/x86_64: 381 Rust, оба paired probes, release CLI/exporter и точный host/device contract passed. Отдельный x86_64 release all-targets/unsafe/comment slice passed без runtime. Свой remote native каталог удалён.
+- Три новых fields/placements/positions APK selectors passed, Windows Credential Manager↔Keystore/TLS/API/CLI. Все три result.json passed/restored=true/cleanup=true; все собственные OS keys/rules удалены, исходные APK/app files восстановлены по SHA-256. Затем production rebuild passed и все девять первоначальных APK/metadata/native-library artifacts восстановлены по SHA-256. Worker exit 0, Device выключен штатно; ручной UI checkpoint не заявляется.
+- Guards exact union/ABI ownership/отказы/сигналы/strict gates/cache owners/default compatibility passed. actionlint 1.7.12 с настоящим ShellCheck passed; Pyflakes отсутствует и отключён. Первый SC2193 исправлен выбором manifest через matrix env SUITE, guard сохранён. Node syntax/comment policy 385 sources/diff check passed.
+- Docs обновлены, scope >300 строк объяснён неделимым перераспределением двух workflows/общего драйвера и guards. Исходный dirty EV-118 побайтово сохранён. Все 98 definitions/states и прежние GAP/DEC сохранены; пять правил соблюдены в scope EV-119. Linux/isolated SDK/bootstrap/реальный новый CI/cache runtime и ускорение ещё не подтверждены.
+- Далее commit/push в существующий PR #109, актуальные title/body/26 checks, watch и реальные метрики против прежнего head 863e64b с учётом очередей/отказов. Merge/delete не поручены.

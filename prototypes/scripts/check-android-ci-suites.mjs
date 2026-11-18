@@ -40,12 +40,14 @@ const full = [
 for (const [args, expected] of [
   [[], full],
   [["native"], [full[0], full[2]]],
-  [["product-native"], [[product, "--android-native"]]],
+  [["product-native"], [[product, "--android-runtime"]]],
+  [["product-x86_64"], [[product, "--android-x86_64"]]],
   [["product-arm64"], [[product, "--android-arm64"]]],
   [["prototype-native"], [full[2]]],
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
+  ...['fields', 'placements', 'positions'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -54,20 +56,29 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "pairing", "shell-arm64"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-fields", "pairing-placements", "pairing-positions", "shell-arm64"];
+const pairedSuites = ["pairing-fields", "pairing-placements", "pairing-positions"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
-const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite } });
-for (const [target, owners] of [["x86_64", ["shell", "pairing"]], ["aarch64", ["shell-arm64"]]]) {
+const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite }, startsWith: (value, prefix) => value.startsWith(prefix) });
+for (const [target, owners] of [["x86_64", ["shell", ...pairedSuites]], ["aarch64", ["shell-arm64"]]]) {
   const builds = jobs.steps.filter(step => step.run?.includes(`bun scripts/build-ui-android.mjs ${target}`));
   assert.equal(builds.length, 1, `${target} must be built exactly once`);
   assert.deepEqual(suites.filter(suite => enabled(builds[0], suite)), owners);
 }
 const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
-assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", "pairing"]);
+assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", ...pairedSuites]);
+assert.ok(fixture.run.includes("if [[ '${{ matrix.suite }}' == shell ]]; then"), "Paired API probes must not rebuild the unused browser shell fixture");
+const prototypeArm64 = jobs.steps.find(step => step.name === 'Build Android arm64 APK and instrumentation');
+assert.deepEqual(suites.filter(suite => enabled(prototypeArm64, suite)), ['prototype-arm64']);
+assert.equal(prototypeArm64.run, 'bun run android:build aarch64');
+const prototypeDependencies = jobs.steps.find(step => step.name === 'Prepare locked prototype dependencies and contracts');
+assert.ok(enabled(prototypeDependencies, 'prototype-arm64'));
+const viewerDependencies = jobs.steps.find(step => step.name === 'Prepare locked shared viewer dependencies');
+assert.deepEqual(suites.filter(suite => enabled(viewerDependencies, suite)), ['prototype-ui', 'prototype-arm64']);
 const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
-const runtimeSuites = suites.filter(suite => !["product-arm64", "shell-arm64"].includes(suite));
+const runtimeSuites = suites.filter(suite => !["product-x86_64", "product-arm64", "prototype-arm64", "shell-arm64"].includes(suite));
 assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), runtimeSuites);
 const hostPreparation = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/actions/prepare-host-check/action.yml`).text());
 const mirrors = hostPreparation.runs.steps.find(step => step.name === "Use Ubuntu HTTPS mirrors for browser dependencies");
@@ -77,14 +88,15 @@ assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-i
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
 assert.deepEqual(suites.filter(suite => enabled(environment, suite)), runtimeSuites);
 assert.ok(environment.run.includes("bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'"));
-const arm64 = jobs.steps.find(step => step.name === "Check product arm64 build without emulator");
-assert.deepEqual(suites.filter(suite => enabled(arm64, suite)), ["product-arm64"]);
-assert.equal(arm64.run, "bun prototypes/scripts/check-android-ci.mjs product-arm64");
+const arm64 = jobs.steps.find(step => step.name === "Check product ABI build without emulator");
+assert.deepEqual(suites.filter(suite => enabled(arm64, suite)), ["product-x86_64", "product-arm64"]);
+assert.equal(arm64.run, "bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'");
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");
 assert.ok(enabled(dependencies, "shell-arm64"));
-assert.ok(enabled(dependencies, "pairing"));
-assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == shell-arm64"));
-assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == pairing"));
+assert.ok(enabled(dependencies, "pairing-fields"));
+assert.equal(dependencies.env.SUITE, '${{ matrix.suite }}');
+assert.ok(dependencies.run.includes('"$SUITE" == shell-arm64'));
+assert.ok(dependencies.run.includes('"$SUITE" == pairing-*'));
 assert.ok(dependencies.run.includes("--manifest-path ui/src-tauri/Cargo.toml"));
 const negative = jobs.steps.find(step => step.name === "Check rejection and cleanup on compiler failure");
 const installer = jobs.steps.find(step => step.name === "Check Tauri CLI cache fallback and cleanup");
@@ -105,7 +117,8 @@ assert.deepEqual(dispatch([], { exitCode: 23 }), { calls: [full[0]], exit: 23 })
 assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
-for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)]]) {
+for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
+  ...['fields', 'placements', 'positions'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -200,7 +213,20 @@ for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_
     assert.equal(result.calls[1 - ui].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--standard", "--positions"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--standard", "--fields", "--placements", "--positions"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
+assert.ok(exchangeStart > 0);
+const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
+function exchanges(suite) {
+  const calls = [];
+  const names = ['checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
+  runInNewContext(splitExchanges, { suite, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
+    ...Object.fromEntries(names.map(name => [name, () => calls.push(name)])) });
+  return calls;
+}
+assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
+assert.equal(exchanges('--standard').length, 4);
+assert.deepEqual(exchanges('--positions'), ['checkPositionConflictsExchange']);
 assert.ok((await pairingSuites({}, ["invalid"])).error);
 for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
   const result = await pairingSuites({}, [], failure, index);

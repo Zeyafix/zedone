@@ -116,9 +116,9 @@ await assert.rejects(interrupted(async () => {}, "signal control"), error =>
   error instanceof AggregateError && /Client tests interrupted/.test(error.errors[0].message));
 
 const contractStart = product.indexOf("async function checkContracts() {");
-const contractEnd = product.indexOf('\nconst generated = mode === "--android-arm64"', contractStart);
+const contractEnd = product.indexOf('\nconst generated = [', contractStart);
 const unsafeStart = product.indexOf("async function checkUnsafe(");
-const unsafeEnd = product.indexOf("\nif (!mode)", unsafeStart);
+const unsafeEnd = product.indexOf("\nif (!mode ||", unsafeStart);
 assert.ok(unsafeStart > 0 && unsafeEnd > unsafeStart && contractStart > unsafeEnd && contractEnd > contractStart);
 const productDriver = product.slice(0, unsafeStart)
   + "async function checkUnsafe(targets = []) { probe(targets); }\n"
@@ -150,7 +150,7 @@ async function productDispatch(mode, { failure, mismatch = false, serial = "emul
         else if (command.includes("getprop")) stdout = Buffer.from(({ "ro.kernel.qemu": "1", "ro.build.version.sdk": "33", "ro.product.cpu.abi": "x86_64" })[command.at(-1)]);
         else if (command.includes("shell") && command.at(-1).endsWith("/export-contract")) stdout = mismatch ? Buffer.from("wrong contract") : generated;
         else if (command.includes("shell") && command.at(-1).includes("/test-")) stdout = Buffer.from("test result: ok. 1 passed");
-        return { exitCode: 0, stdout, ...(command.includes("build") ? failure : {}) };
+        return { exitCode: 0, stdout, ...(command.includes(mode === "--host-tests" ? "clippy" : "build") ? failure : {}) };
       },
     }, {
       execPath: "fixture-bun", platform: process.platform,
@@ -162,16 +162,16 @@ async function productDispatch(mode, { failure, mismatch = false, serial = "emul
   } catch (caught) { error = caught; }
   return { calls, probes, paired, clients, contracts, error };
 }
-for (const mode of [undefined, "--check-types", "--android", "--android-native", "--android-arm64"]) {
-  const result = await productDispatch(mode, { serial: mode === "--android-arm64" ? null : "emulator-5554" });
+for (const mode of [undefined, "--host-tests", "--host-build", "--check-types", "--android", "--android-native", "--android-runtime", "--android-x86_64", "--android-arm64"]) {
+  const result = await productDispatch(mode, { serial: ["--android-x86_64", "--android-arm64"].includes(mode) ? null : "emulator-5554" });
   assert.equal(result.error, undefined, mode);
-  assert.equal(result.clients, mode === undefined ? 1 : 0, "Android slices must not rerun host client tests");
-  assert.equal(result.contracts, mode === "--android-arm64" ? 0 : 1, "Runtime slice owns standalone Android contract checks");
+  assert.equal(result.clients, [undefined, "--host-tests"].includes(mode) ? 1 : 0, "Android slices must not rerun host client tests");
+  assert.equal(result.contracts, ["--host-build", "--android-x86_64", "--android-arm64"].includes(mode) ? 0 : 1, "Runtime slice owns standalone Android contract checks");
   if (mode?.startsWith("--android")) {
-    const targets = mode === "--android-native" ? ["x86_64-linux-android"] : mode === "--android-arm64" ? ["aarch64-linux-android"] : ["x86_64-linux-android", "aarch64-linux-android"];
-    assert.deepEqual(result.probes, targets.map(target => ["--target", target]));
+    const targets = ["--android-native", "--android-runtime", "--android-x86_64"].includes(mode) ? ["x86_64-linux-android"] : mode === "--android-arm64" ? ["aarch64-linux-android"] : ["x86_64-linux-android", "aarch64-linux-android"];
+    assert.deepEqual(result.probes, mode === "--android-runtime" ? [] : targets.map(target => ["--target", target]));
     assert.deepEqual(result.calls.filter(command => command.includes("build")).map(command => command[command.indexOf("--target") + 1]), targets);
-    if (mode === "--android-arm64") {
+    if (["--android-x86_64", "--android-arm64"].includes(mode)) {
       assert.ok(!result.calls.some(command => command.includes("shell") || command.includes("push") || command.includes("test")));
       assert.deepEqual(result.paired, []);
     } else {
@@ -183,20 +183,69 @@ for (const mode of [undefined, "--check-types", "--android", "--android-native",
     }
   }
 }
-for (const mode of [undefined, "--android", "--android-native", "--android-arm64"]) {
+for (const mode of [undefined, "--host-tests", "--host-build", "--android", "--android-native", "--android-runtime", "--android-x86_64", "--android-arm64"]) {
   for (const failure of [{ exitCode: 23 }, { exitCode: 0, signalCode: "SIGTERM" }]) {
     const failed = await productDispatch(mode, { failure });
     assert.ok(failed.error, "Product build failure/signal must fail its slice");
   }
 }
 
+const hostFull = await productDispatch();
+const hostTests = await productDispatch('--host-tests');
+const hostBuild = await productDispatch('--host-build');
+assert.deepEqual(commands([...hostTests.calls, ...hostBuild.calls].filter(call => !call.includes('metadata'))),
+  commands(hostFull.calls.filter(call => !call.includes('metadata'))), 'Host slices retain every command exactly once except per-job metadata');
+assert.deepEqual([...hostTests.probes, ...hostBuild.probes], hostFull.probes);
+const nativeRuntime = await productDispatch('--android-runtime');
+assert.ok(nativeRuntime.calls.some(call => call.includes('--bins') && call.includes('--release')), 'Runtime must execute release CLI/exporter');
+const nativeBuild = await productDispatch('--android-x86_64', { serial: null });
+assert.ok(nativeBuild.calls.some(call => call.includes('--all-targets') && call.includes('--release')));
+assert.deepEqual(nativeBuild.probes, [['--target', 'x86_64-linux-android']]);
+
+const uiSource = (await Bun.file(resolve(productRoot, 'scripts/check-ui.mjs')).text())
+  .replace(/^import .*;\r?\n/gm, '').replaceAll('import.meta.dir', JSON.stringify(resolve(productRoot, 'scripts')));
+const executeUI = new (Object.getPrototypeOf(async function () {}).constructor)('Bun', 'process', 'assert', 'resolve', 'console', uiSource);
+async function shellDispatch(mode, failure = {}, failureAt = -1) {
+  const calls = [];
+  let error;
+  try {
+    await executeUI({ ...Bun, argv: ['fixture-bun', 'ui', ...(mode ? [mode] : [])],
+      spawnSync(command) {
+        calls.push(command);
+        return { exitCode: 0, stdout: Buffer.from(`v${versions.node}\n`), ...(calls.length - 1 === failureAt ? failure : {}) };
+      },
+    }, { execPath: 'fixture-bun', env: {} }, assert, resolve, { log() {} });
+  } catch (cause) { error = cause; }
+  return { calls, error };
+}
+const shellFull = await shellDispatch();
+const shellMain = await shellDispatch('--main');
+const shellConflicts = await shellDispatch('--conflicts');
+for (const result of [shellFull, shellMain, shellConflicts]) assert.equal(result.error, undefined);
+const sharedShell = command => command.includes('--version') || command.includes('ui:build') || command.includes('build') || command.includes('scripts/check-ui-browser.mjs');
+assert.deepEqual(commands([...shellMain.calls, ...shellConflicts.calls].filter(call => !sharedShell(call))),
+  commands(shellFull.calls.filter(call => !sharedShell(call))), 'Shell slices retain every nonshared check exactly once');
+for (const [mode, result] of [['--main', shellMain], ['--conflicts', shellConflicts]]) {
+  assert.ok(result.calls.some(call => call.includes('ui:build')));
+  assert.ok(result.calls.some(call => call.includes('build') && call.includes('shell-fixture')));
+  assert.ok(result.calls.some(call => call.includes('scripts/check-ui-browser.mjs') && call.at(-1) === mode));
+  for (let index = 1; index < result.calls.length; index++) for (const failure of [{ exitCode: 23 }, { signalCode: 'SIGTERM' }]) {
+    const failed = await shellDispatch(mode, failure, index);
+    assert.ok(failed.error);
+    assert.equal(failed.calls.length, index + 1, 'Shell failures/signals stop the selected pipeline');
+  }
+}
+assert.ok((await shellDispatch('invalid')).error);
+
 const workflow = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/workflows/prototype-foundation.yml")).text());
-const suites = ["product", "prototype-native", "prototype-ui", "shell"];
+const suites = ["product", "product-build", "prototype-native", "prototype-ui", "shell", "shell-conflicts"];
 const expectedSteps = [
-  ["matrix.suite == 'product'", "bun scripts/check-product.mjs", "."],
+  ["matrix.suite == 'product'", "bun scripts/check-product.mjs --host-tests", "."],
+  ["matrix.suite == 'product-build'", "bun scripts/check-product.mjs --host-build", "."],
   ["matrix.suite == 'prototype-native'", "bun run check --host-native", "prototypes"],
   ["matrix.suite == 'prototype-ui'", "bun run check --host-ui", "prototypes"],
-  ["matrix.suite == 'shell'", "bun run ui:check", "."],
+  ["matrix.suite == 'shell'", "bun run ui:check --main", "."],
+  ["matrix.suite == 'shell-conflicts'", "bun run ui:check --conflicts", "."],
 ];
 for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "windows-2025", 20]]) {
   const job = workflow.jobs[`${os}-checks`];
@@ -220,17 +269,21 @@ assert.ok(!JSON.stringify(workflow).includes("continue-on-error"));
 
 const preparation = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/actions/prepare-host-check/action.yml")).text());
 const restores = preparation.runs.steps.filter(step => step.uses?.startsWith("actions/cache/restore@"));
-assert.equal(restores.length, 2);
+assert.equal(restores.length, 3);
 assert.equal(restores[0].with["lookup-only"], true);
 assert.equal(restores[0].with["restore-keys"], "zedone-rust-v1-prototype-host-${{ inputs.suite }}-${{ steps.versions.outputs.cache-platform }}-x64-");
 assert.equal(restores[1].with["restore-keys"], "zedone-rust-v1-prototype-host-${{ steps.versions.outputs.cache-platform }}-x64-");
 assert.equal(restores[1].with.path, "${{ steps.versions.outputs.legacy-cache-paths }}");
+assert.equal(restores[2].with.path, "${{ steps.versions.outputs.cache-paths }}");
+assert.equal(restores[2].with['restore-keys'], 'zedone-rust-v1-prototype-host-${{ steps.versions.outputs.cache-seed }}-${{ steps.versions.outputs.cache-platform }}-x64-');
 for (const os of ["Windows", "Linux", "macOS"]) {
   for (const suite of ["all", ...suites]) {
     for (const matchedKey of ["", "existing-suite-key"]) {
       const context = { runner: { os }, inputs: { suite }, matchedKey };
       const fallback = restores[1].if.replace("steps.suite-cache.outputs.cache-matched-key", "matchedKey");
-      assert.equal(runInNewContext(fallback, context), os !== "macOS" && suite !== "all" && matchedKey === "");
+      assert.equal(runInNewContext(fallback, context), os !== "macOS" && !['all', 'product-build', 'shell-conflicts'].includes(suite) && matchedKey === "");
+      const seed = restores[2].if.replace("steps.suite-cache.outputs.cache-matched-key", "matchedKey");
+      assert.equal(runInNewContext(seed, context), os !== 'macOS' && ['product-build', 'shell-conflicts'].includes(suite) && matchedKey === '');
       assert.equal(runInNewContext(restores[0].if, context), os !== "macOS" && suite !== "all");
     }
   }

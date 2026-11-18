@@ -11,12 +11,15 @@ const checks = [
   ["pairing", ["../../scripts/check-pairing-app.mjs"]],
 ];
 const productSlices = new Map([
-  ["product-native", ["../../scripts/check-product.mjs", "--android-native"]],
+  ["product-native", ["../../scripts/check-product.mjs", "--android-runtime"]],
+  ["product-x86_64", ["../../scripts/check-product.mjs", "--android-x86_64"]],
   ["product-arm64", ["../../scripts/check-product.mjs", "--android-arm64"]],
 ]);
+const pairingSlices = new Map([['pairing-fields', '--fields'], ['pairing-placements', '--placements'], ['pairing-positions', '--positions']]);
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && (suite === undefined || suite === "native" || productSlices.has(suite) || checks.some(([name]) => name === suite)), "Unknown Android suite");
+assert.ok(Bun.argv.length <= 3 && (suite === undefined || suite === "native" || productSlices.has(suite) || pairingSlices.has(suite) || checks.some(([name]) => name === suite)), "Unknown Android suite");
 const selected = productSlices.has(suite) ? [[suite, productSlices.get(suite)]]
+  : pairingSlices.has(suite) ? checks.filter(([name]) => name === 'pairing').map(([name, args]) => [name, args[0].endsWith('/check-pairing-app.mjs') ? [...args, pairingSlices.get(suite)] : args])
   : checks.filter(([name]) => suite === undefined || (suite === "native" ? name.endsWith("-native") : name === suite));
 for (const [name, args] of selected) {
   console.log(`Android suite ${name}: ${args.join(" ")}`);

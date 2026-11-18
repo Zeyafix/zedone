@@ -58,6 +58,16 @@ bash scripts/check-android-environment.sh 2>&1 | tee docs/reports/p00-06/linux-c
 
 ## Actions, ограничения и отмена
 
+Текущее распределение CI.13: одиннадцать обязательных suites; product-native
+исполняет runtime, product-x86_64/product-arm64 — отдельные ABI release/unsafe
+builds, prototype-arm64 собирает прежние APK/instrumentation без AVD.
+Pairing разделён на pairing-fields, pairing-placements и pairing-positions,
+каждый со своим AVD/production bootstrap/acceptance APK/полной очисткой и
+восстановлением исходного APK и app files. Prototype-native/prototype-ui/
+shell/shell-arm64 сохранены. `android` требует успеха всей матрицы; 15m на
+suite и 1m на aggregate прежние. Команды полных локальных запусков совместимы;
+матрица владельцев и ограничения измерений — в [проверках CI](ci-checks.md).
+
 Workflow запускается при PR и push в `main`, затрагивающем его, скрипты Android/Tauri CI, JSON версий или `prototypes/`. Push feature-ветки отдельно не запускается. После интеграции в основную ветку доступен **Actions → Android environment and prototype → Run workflow**. Журнал запуска сохраняет версии инструментов, SDK и образ runner; результаты исходной приёмки среды — в [EV-009](../agent/verification/EV-009-android-environment-ci.md), оптимизации — в [EV-028](../agent/verification/EV-028-pr-checks.md). Состояние конкретной машины хранится только в `docs/reports/state.json`.
 
 Стандартные hosted runners [бесплатны в публичном репозитории](https://docs.github.com/en/billing/concepts/product-billing/github-actions); приватный репозиторий использует квоту аккаунта. Для публичного `ubuntu-24.04` x64 [заявлены](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) 4 CPU, 16 ГБ RAM и 14 ГБ SSD; доступность и фактическое свободное место зависят от образа. Не используйте larger runners и платные device farms для этой проверки. Тайм-аут каждого набора — 15 минут; итоговый status job имеет отдельную минуту на проверку результата матрицы; новый запуск той же ветки/PR отменяет предыдущий. Runner image и системный пакет `libpulse0` обновляются отдельно от закреплённых Rust/SDK. Загрузка зависит от доступности Google, Ubuntu, Rust, Temurin и Bun. Добавлены раздельные кэши Tauri CLI, Rust и Gradle; политика, очистка и измерения описаны в [проверках CI](ci-checks.md). Выгрузки APK и других артефактов нет; логи хранятся согласно политике Actions. Node.js обслуживает actions; `vue-tsc` требует закреплённый Node LTS в общих проверках P01.03, но Android-сборка запускает Vite под Bun. Node не включается в APK.

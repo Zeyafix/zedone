@@ -531,6 +531,14 @@ bun scripts/check-product.mjs --android
 удаляется в finally. Физические устройства не принимаются этим драйвером;
 arm64-сборка не является нативной проверкой arm64.
 
+В CI.13 `--host-tests` и `--host-build` делят полный host check на обязательные
+tests/contracts и release all-targets/unsafe/comment guards. Android
+`--android-runtime` исполняет полный host contract/TS, native x86_64 тесты,
+оба paired probes и release CLI/exporter; `--android-x86_64` отдельно проверяет
+release all-targets/unsafe/comment guards без AVD. Полный локальный запуск
+без аргументов, `--android` и `--android-native` совместимы. Матрица и лимиты —
+[CI checks](ci-checks.md), [EV-119](../agent/verification/EV-119-ci-critical-path.md).
+
 `--android-native` выполняет полный host contract/TS check и native x86_64
 набор. `--android-arm64` — только release/unsafe/comment guards arm64,
 без эмулятора и повторной проверки host-контракта/TypeScript. Обе команды

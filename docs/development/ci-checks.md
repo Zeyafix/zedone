@@ -1,5 +1,47 @@
 # Проверки PR и кэши сборки
 
+## Текущее распределение CI.13
+
+Чтобы уменьшить критический путь jobs >10m, независимые группы запускаются
+на отдельных runners. Тела сценариев, assertions, профили, API и временные
+пороги сохранены. Полный локальный запуск остаётся доступен без аргументов.
+
+| Workflow | Suite | Команда / назначение |
+| --- | --- | --- |
+| Windows/Linux | product | `bun scripts/check-product.mjs --host-tests`: fmt/Clippy/Rust/client/contract/types |
+| Windows/Linux | product-build | `bun scripts/check-product.mjs --host-build`: release all-targets/all-features, unsafe/comment rejection и recovery |
+| Windows/Linux | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
+| Windows/Linux | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
+| Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
+| Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
+| Android | pairing-fields / pairing-placements / pairing-positions | Самостоятельные text/fields, card/column placements, combined positions suites |
+
+Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
+shell/shell-arm64 сохраняются. Всего 26 checks: 6 Windows + 6 Linux + 11 Android
+и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
+`fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
+Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая
+`--android-native`, старый `pairing` dispatcher и `--standard`, совместимы.
+
+Каждый pairing runner собирает обычный production APK, устанавливает его
+в собственный AVD, затем собирает acceptance APK и запускает явный selector.
+Общие TLS/rights/replay/recovery/restart/reverse/SHA-256 restoration/OS cleanup
+выполняются в каждом срезе с прежними бюджетами. Неиспользуемый browser
+`shell-fixture` в pairing больше не собирается; shell сохраняет его.
+Product runtime исполняет release CLI и exporter; полный x86_64 release
+all-targets/unsafe — отдельный обязательный владелец. Прототипная arm64
+сборка не требует AVD; проверка WebView остаётся в prototype-ui.
+
+Новые host suites пишут каждый в свой main cache namespace; первый запуск
+может получить seed прежнего владельца product/shell. Это не обмен артефактами
+между непроверенными jobs и не основание пропустить проверку. Android Rust
+cache сохраняет единственного writer product-native. Дополнительные runners
+повторяют setup/build, поэтому уменьшение wall time не означает экономии
+суммарных runner minutes. Новый GitHub runtime пока не измерен; результаты
+предыдущего head не доказывают все jobs <10m. [EV-119](../agent/verification/EV-119-ci-critical-path.md).
+Нижеследующие описания CI.01–CI.12 сохраняют историю прежнего распределения.
+
 Host shell записывает ошибку общего touch-набора до закрытия его browser context:
 `UI failure state` содержит label `host touch`, конкретный stage, состояние
 этой страницы и до 30 метаданных чтений, включая tag.list. Запросы/headers,

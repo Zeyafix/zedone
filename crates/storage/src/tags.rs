@@ -13,6 +13,7 @@ use zedone_core::{
     tags::{CreateTag, SetCardTag, TagSnapshot, TagState, TagStore, name_key},
 };
 
+pub(crate) mod convergence;
 #[cfg(test)]
 mod tests;
 
@@ -78,11 +79,7 @@ fn deleted(graph: &Automerge, object: &ObjId) -> StorageResult<Vec<bool>> {
     values.dedup();
     Ok(values)
 }
-struct RawTag {
-    names: Vec<String>,
-    deleted: Vec<bool>,
-}
-fn raw(graph: &Automerge, tag: &str) -> StorageResult<RawTag> {
+fn raw(graph: &Automerge, tag: &str) -> StorageResult<()> {
     let object = object(graph, tag)?;
     if strings(graph, &object, "format")? != ["zedone.tag.v1"]
         || graph
@@ -95,14 +92,8 @@ fn raw(graph: &Automerge, tag: &str) -> StorageResult<RawTag> {
     if names.iter().any(|n| n.trim().is_empty()) {
         return Err(invalid());
     }
-    Ok(RawTag {
-        names,
-        deleted: deleted(graph, &object)?,
-    })
-}
-
-pub(crate) fn blocks_card(graph: &Automerge, tag: &str) -> StorageResult<bool> {
-    Ok(deleted(graph, &object(graph, tag)?)? != [false])
+    deleted(graph, &object)?;
+    Ok(())
 }
 
 pub(crate) fn snapshots(
@@ -110,16 +101,8 @@ pub(crate) fn snapshots(
     space: &str,
     projections: &BTreeMap<String, Projection>,
 ) -> StorageResult<BTreeMap<String, TagSnapshot>> {
-    let mut raw_tags = BTreeMap::new();
-    for root in graph.keys(ROOT) {
-        if let Some(tag) = root.strip_prefix("tag:") {
-            if !valid_id(tag) {
-                return Err(invalid());
-            }
-            raw_tags.insert(tag.to_owned(), raw(graph, tag)?);
-        }
-    }
-    if raw_tags.is_empty() {
+    let groups = convergence::groups(graph)?;
+    if groups.is_empty() {
         return Ok(BTreeMap::new());
     }
     let mut links = BTreeMap::<String, BTreeMap<String, Projection>>::new();
@@ -130,7 +113,7 @@ pub(crate) fn snapshots(
             let (map, assignments) = assignments(graph, &object)?;
             let assignment_map = map.to_string();
             for (tag, values) in assignments {
-                if !raw_tags.contains_key(&tag) {
+                if !groups.iter().any(|g| g.ids.contains(&tag)) {
                     continue;
                 }
                 if values.contains(&true) {
@@ -152,15 +135,17 @@ pub(crate) fn snapshots(
         .iter()
         .filter(|(k, _)| !crate::columns::known_root(k))
         .collect();
-    let names: BTreeMap<_, _> = raw_tags
-        .keys()
+    let names: BTreeMap<_, _> = groups
+        .iter()
+        .flat_map(|g| &g.ids)
         .map(|id| Ok((id, projections.get(&key(id)).ok_or_else(invalid)?)))
         .collect::<StorageResult<_>>()?;
     let mut result = BTreeMap::new();
-    for (tag, raw) in &raw_tags {
+    for raw in &groups {
+        let tag = &raw.ids[0];
         let collision = raw.deleted != [true]
-            && raw_tags.iter().any(|(other_id, other)| {
-                other_id != tag
+            && groups.iter().any(|other| {
+                other.ids[0] != *tag
                     && other.deleted != [true]
                     && raw
                         .names
@@ -170,7 +155,8 @@ pub(crate) fn snapshots(
         let state = if raw.names.len() != 1
             || raw.deleted.len() != 1
             || collision
-            || (raw.deleted == [true] && live.contains(tag))
+            || raw.ambiguous
+            || (raw.deleted == [true] && raw.ids.iter().any(|id| live.contains(id)))
         {
             TagState::Conflicted
         } else if raw.deleted == [true] {
@@ -178,21 +164,26 @@ pub(crate) fn snapshots(
         } else {
             TagState::Active
         };
-        let projection = projections.get(&key(tag)).ok_or_else(invalid)?;
+        let projection: BTreeMap<_, _> = raw
+            .ids
+            .iter()
+            .map(|id| Ok((id, projections.get(&key(id)).ok_or_else(invalid)?)))
+            .collect::<StorageResult<_>>()?;
+        let links: BTreeMap<_, _> = raw.ids.iter().map(|id| (id, links.get(id))).collect();
         let version = state_version(
             &("tag.v1", space, tag),
-            &(projection, links.get(tag), &unknown, &names),
+            &(projection, links, &unknown, &names),
         )?;
-        result.insert(
-            tag.clone(),
-            TagSnapshot {
-                space: space.into(),
-                tag: tag.clone(),
-                names: raw.names.clone(),
-                state,
-                version,
-            },
-        );
+        let snapshot = TagSnapshot {
+            space: space.into(),
+            tag: tag.clone(),
+            names: raw.names.clone(),
+            state,
+            version,
+        };
+        for id in &raw.ids {
+            result.insert(id.clone(), snapshot.clone());
+        }
     }
     Ok(result)
 }
@@ -234,35 +225,54 @@ impl TagStore for WriteContext<'_> {
         self.space_snapshot(space)?;
         let graph = self.read().document(space)?;
         Ok(snapshots(graph, space, &domain_projections(graph)?)?
-            .into_values()
+            .into_iter()
+            .filter(|(id, tag)| *id == tag.tag)
+            .map(|(_, tag)| tag)
             .collect())
     }
     fn rename_tag(&mut self, space: &str, tag: &str, name: &str) -> CommandResult<()> {
-        let object = object(self.read().document(space)?, tag)?;
+        let graph = self.read().document(space)?;
+        let objects = convergence::aliases(graph, tag)?
+            .iter()
+            .map(|id| object(graph, id))
+            .collect::<StorageResult<Vec<_>>>()?;
         Ok(self.edit(space, |doc| {
-            doc.put(&object, "name", name)?;
+            for object in objects {
+                doc.put(&object, "name", name)?;
+            }
             Ok(())
         })?)
     }
     fn delete_tag(&mut self, space: &str, tag: &str) -> CommandResult<()> {
         let result = (|| -> StorageResult<_> {
             let graph = self.read().document(space)?;
-            let object = object(graph, tag)?;
+            let aliases = convergence::aliases(graph, tag)?;
+            let objects = aliases
+                .iter()
+                .map(|id| object(graph, id))
+                .collect::<StorageResult<Vec<_>>>()?;
             let mut maps = Vec::new();
             for root in graph.keys(ROOT) {
                 if let Some(card) = root.strip_prefix("card:") {
                     let card = crate::cards::object(graph, card)?;
                     let (map, assignments) = assignments(graph, &card)?;
-                    if assignments.get(tag).is_some_and(|v| v.contains(&true)) {
+                    if aliases
+                        .iter()
+                        .any(|id| assignments.get(id).is_some_and(|v| v.contains(&true)))
+                    {
                         maps.push(map);
                     }
                 }
             }
             self.edit(space, |doc| {
                 for map in maps {
-                    doc.put(&map, tag, false)?;
+                    for alias in &aliases {
+                        doc.put(&map, alias.as_str(), false)?;
+                    }
                 }
-                doc.put(&object, "deleted", true)?;
+                for object in objects {
+                    doc.put(&object, "deleted", true)?;
+                }
                 Ok(())
             })
         })();
@@ -272,8 +282,11 @@ impl TagStore for WriteContext<'_> {
         let graph = self.read().document(&p.space)?;
         let card = crate::cards::object(graph, &p.card)?;
         let map = assignments(graph, &card)?.0;
+        let aliases = convergence::aliases(graph, &p.tag)?;
         Ok(self.edit(&p.space, |doc| {
-            doc.put(&map, p.tag.as_str(), p.present)?;
+            for alias in aliases {
+                doc.put(&map, alias, p.present)?;
+            }
             Ok(())
         })?)
     }

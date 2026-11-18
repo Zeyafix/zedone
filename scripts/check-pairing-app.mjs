@@ -1,5 +1,6 @@
 import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import { checkFieldConflictsExchange } from "./check-field-conflicts-exchange.mjs";
+import { checkTagConflictsExchange } from "./check-tag-conflicts-exchange.mjs";
 import { checkPlacementExchange } from "./check-placement-exchange.mjs";
 import { checkPositionConflictsExchange } from "./check-position-conflicts-exchange.mjs";
 import { checkColumnPositionExchange } from "./check-column-position-exchange.mjs";
@@ -14,14 +15,14 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags'].includes(suite), 'Unknown pairing acceptance suite');
 const positions = suite?.startsWith('--positions');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
 if (!suite) {
-    for (const current of ['--standard', '--positions']) {
+    for (const current of ['--standard', '--positions', '--tags']) {
         const env = { ...process.env };
-        const positionUi = env.P06_POSITION_CONFLICTS_UI === '1';
-        if (positionUi ? current === '--standard' : current === '--positions') {
+        const uiSuite = env.P06_TAG_CONFLICTS_UI === '1' ? '--tags' : env.P06_POSITION_CONFLICTS_UI === '1' ? '--positions' : '--standard';
+        if (current !== uiSuite) {
             if (env.P06_EXCHANGE_UI !== undefined) env.P06_EXCHANGE_UI = '0';
         }
         const child = Bun.spawn([process.execPath, import.meta.path, current], { cwd: root, env, stdin: 'ignore', stdout: 'inherit', stderr: 'inherit' });
@@ -29,7 +30,7 @@ if (!suite) {
         assert.ok(!child.signalCode, 'Pairing acceptance suite interrupted');
         assert.equal(code, 0, `Pairing acceptance suite failed: ${current}`);
     }
-    console.log('Both isolated pairing suites passed with their original fixture and cleanup budgets.');
+    console.log('All isolated pairing suites passed with their original fixture and cleanup budgets.');
     process.exit(0);
 }
 const serial = process.env.ANDROID_SERIAL;
@@ -254,6 +255,9 @@ try {
     if (positions) {
         checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error,sameColumn:positionScope});
     }
+    if (suite === '--tags') {
+        checkTagConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
         ['sync.push', { protocol:999, space, base:[], changes:[] }],
@@ -316,7 +320,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? positions : !positions)) {
+    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_TAG_CONFLICTS_UI === '1' ? suite === '--tags' : process.env.P06_POSITION_CONFLICTS_UI === '1' ? positions : !positions && suite !== '--tags')) {
         const incomingOffer=ok(call(android,'offer.create',{}));
         ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
         const uiRequest=ok(call(host,'session.submit',{}));
@@ -331,9 +335,9 @@ try {
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
         let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
         let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
-        if (process.env.P06_POSITION_CONFLICTS_UI === '1' || process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
+        if (process.env.P06_TAG_CONFLICTS_UI === '1' || process.env.P06_POSITION_CONFLICTS_UI === '1' || process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
             const namesDirectory = resolve(report, 'name-conflicts-seed');
-            const mode = process.env.P06_POSITION_CONFLICTS_UI === '1' ? '--prepare-position-conflicts' : process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
+            const mode = process.env.P06_TAG_CONFLICTS_UI === '1' ? '--prepare-tag-conflicts' : process.env.P06_POSITION_CONFLICTS_UI === '1' ? '--prepare-position-conflicts' : process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
             invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), mode, namesDirectory]);
             const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
             subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
@@ -356,7 +360,8 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = [suite === '--fields' ? 'text and field conflicts/preservation/reverse'
+    passedChecks = [suite === '--tags' ? 'tag convergence/aliases/spelling/S05/independent decisions/late bridge/whole names/preservation/reverse'
+        : suite === '--fields' ? 'text and field conflicts/preservation/reverse'
         : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
         : positions
         ? `combined card/column positions/both orders/${positionScope === undefined ? 'same and cross' : positionScope ? 'same' : 'cross'}-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse`

@@ -48,7 +48,7 @@ for (const [args, expected] of [
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
-  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
+  ...['tags', 'fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -57,8 +57,8 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
-const pairedSuites = ["pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
+const pairedSuites = ["pairing-tags", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
@@ -133,7 +133,7 @@ assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
 for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
-  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
+  ...['tags', 'fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -217,24 +217,24 @@ async function pairingSuites(env = {}, args = [], failure = {}, failureAt = 0) {
   } catch (cause) { if (cause !== stopped) error = cause; }
   return { calls, exit, error };
 }
-for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_POSITION_CONFLICTS_UI: "1" }]) {
+for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_POSITION_CONFLICTS_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_TAG_CONFLICTS_UI: "1" }]) {
   const result = await pairingSuites(env);
   assert.equal(result.error, undefined); assert.equal(result.exit, 0);
-  assert.deepEqual(result.calls.map(call => call.command), ["--standard", "--positions"].map(suite => ["fixture-bun", "/fixture/check-pairing-app.mjs", suite]));
+  assert.deepEqual(result.calls.map(call => call.command), ["--standard", "--positions", "--tags"].map(suite => ["fixture-bun", "/fixture/check-pairing-app.mjs", suite]));
   for (const call of result.calls) assert.equal(Object.hasOwn(call.env, "P06_EXCHANGE_UI"), Object.hasOwn(env, "P06_EXCHANGE_UI"), "Fixture timeout presence must not change");
   if (env.P06_EXCHANGE_UI === "1") {
-    const ui = env.P06_POSITION_CONFLICTS_UI === "1" ? 1 : 0;
+    const ui = env.P06_TAG_CONFLICTS_UI === "1" ? 2 : env.P06_POSITION_CONFLICTS_UI === "1" ? 1 : 0;
     assert.equal(result.calls[ui].env.P06_EXCHANGE_UI, "1");
-    assert.equal(result.calls[1 - ui].env.P06_EXCHANGE_UI, "0");
+    for (let i = 0; i < 3; i++) if (i !== ui) assert.equal(result.calls[i].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--tags", "--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
 const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
 assert.ok(exchangeStart > 0);
 const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
 function exchanges(suite) {
   const calls = [];
-  const names = ['checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
+  const names = ['checkTagConflictsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
   runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
     ...Object.fromEntries(names.map(name => [name, options => {
       calls.push(name);
@@ -245,6 +245,7 @@ function exchanges(suite) {
 }
 assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
 assert.equal(exchanges('--standard').length, 4);
+assert.deepEqual(exchanges('--tags'), ['checkTagConflictsExchange']);
 assert.deepEqual(exchanges('--positions'), ['checkPositionConflictsExchange']);
 for (const scope of ['--positions-cross', '--positions-same']) assert.deepEqual(exchanges(scope), ['checkPositionConflictsExchange']);
 assert.deepEqual(positionConflictCases(), [

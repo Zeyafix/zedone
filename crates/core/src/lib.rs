@@ -17,6 +17,8 @@ mod schema_descriptions;
 pub mod search;
 pub mod spaces;
 pub mod sync;
+pub mod tag_assignments;
+pub mod tag_names;
 pub mod tags;
 mod text;
 pub mod wire;
@@ -42,6 +44,8 @@ use utoipa::OpenApi;
         cards::set_completed, cards::trash, cards::restore,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,
         tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,
+        tag_assignments::inspect, tag_assignments::resolve,
+        tag_names::resolve,
         search::search, cleanup::inspect_trash, cleanup::purge_trash, cleanup::inspect_history, cleanup::clear_history),
     modifiers(&Security, &SchemaDescriptions),
     components(schemas(

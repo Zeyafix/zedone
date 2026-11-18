@@ -181,6 +181,21 @@ async fn tag_commands_reject_malformed_fields_and_stale_conditions_on_every_adap
             json!({"space":sid(1),"tag":sid(4)}),
             "invalid_request",
         ),
+        (
+            "card.inspect_tags",
+            json!({"space":sid(1),"card":sid(3),"extra":true}),
+            "invalid_request",
+        ),
+        (
+            "card.resolve_tag",
+            json!({"space":sid(1),"card":sid(3),"tag":sid(4),"present":true,"expected":vec![0;32],"expected_tag":t["result"]["version"]}),
+            "stale_state",
+        ),
+        (
+            "tag.resolve_names",
+            json!({"space":sid(1),"tag":sid(4),"names":[{"tag":sid(4),"name":"New","expected":t["result"]["version"]}]}),
+            "conflict",
+        ),
     ] {
         let body = request(3, op, params);
         let expected = json!({"status":"error","error":{"code":code}});

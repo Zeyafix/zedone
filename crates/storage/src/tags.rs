@@ -7,6 +7,7 @@ use crate::{
 use automerge::{Automerge, ObjId, ObjType, ROOT, ReadDoc, transaction::Transactable};
 use std::collections::BTreeMap;
 use zedone_core::{
+    cards::CardStore,
     command::CommandResult,
     error::{CommandError, ErrorCode},
     spaces::SpaceStore,
@@ -179,16 +180,80 @@ pub(crate) fn snapshots(
             tag: tag.clone(),
             names: raw.names.clone(),
             state,
+            name_group: raw.bridge.clone(),
             version,
         };
         for id in &raw.ids {
             result.insert(id.clone(), snapshot.clone());
         }
     }
+    let blocked: std::collections::BTreeSet<_> = result
+        .values()
+        .filter(|t| t.state == TagState::Conflicted)
+        .flat_map(|t| t.name_group.iter().cloned())
+        .collect();
+    for snapshot in result.values_mut() {
+        if blocked.contains(&snapshot.tag) {
+            snapshot.state = TagState::Conflicted;
+        }
+    }
     Ok(result)
 }
 
 impl TagStore for WriteContext<'_> {
+    fn tag_name_group(&mut self, space: &str, tag: &str) -> CommandResult<Vec<TagSnapshot>> {
+        let snapshot = self.tag_snapshot(space, tag)?;
+        let graph = self.read().document(space)?;
+        let groups = convergence::groups(graph)?;
+        if snapshot.name_group.is_empty()
+            || groups.iter().any(|g| {
+                g.ids.iter().any(|id| snapshot.name_group.contains(id)) && g.deleted != [false]
+            })
+        {
+            return Err(CommandError {
+                code: ErrorCode::Conflict,
+            });
+        }
+        let snapshots = snapshots(graph, space, &domain_projections(graph)?)?;
+        Ok(snapshot
+            .name_group
+            .iter()
+            .map(|id| snapshots.get(id).cloned().ok_or_else(invalid))
+            .collect::<StorageResult<_>>()?)
+    }
+    fn resolve_tag_names(
+        &mut self,
+        space: &str,
+        names: &[zedone_core::tag_names::TagNameChoice],
+    ) -> CommandResult<()> {
+        let graph = self.read().document(space)?;
+        let objects = names
+            .iter()
+            .map(|n| object(graph, &n.tag))
+            .collect::<StorageResult<Vec<_>>>()?;
+        Ok(self.edit(space, |doc| {
+            for (choice, object) in names.iter().zip(objects) {
+                doc.delete(&object, "name")?;
+                doc.put(&object, "name", choice.name.as_str())?;
+            }
+            Ok(())
+        })?)
+    }
+    fn card_tag_assignments(
+        &mut self,
+        space: &str,
+        card: &str,
+    ) -> CommandResult<Vec<zedone_core::tag_assignments::TagAssignment>> {
+        self.card_snapshot(space, card)?;
+        let graph = self.read().document(space)?;
+        let tags = snapshots(graph, space, &domain_projections(graph)?)?;
+        Ok(
+            convergence::merged_assignments(graph, &crate::cards::object(graph, card)?, &tags)?
+                .into_iter()
+                .map(|(tag, values)| zedone_core::tag_assignments::TagAssignment { tag, values })
+                .collect(),
+        )
+    }
     fn create_tag(&mut self, p: &CreateTag) -> CommandResult<TagSnapshot> {
         let result = (|| -> StorageResult<_> {
             if !self
@@ -285,6 +350,7 @@ impl TagStore for WriteContext<'_> {
         let aliases = convergence::aliases(graph, &p.tag)?;
         Ok(self.edit(&p.space, |doc| {
             for alias in aliases {
+                doc.delete(&map, alias.as_str())?;
                 doc.put(&map, alias, p.present)?;
             }
             Ok(())

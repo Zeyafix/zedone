@@ -27,7 +27,12 @@
 
 ## Результат
 
-P06.07.1 verified локально в `feat/p06-07-tag-convergence` от main/83c4643.
+P06.07.1 done: [PR #110](https://github.com/Zeyafix/zedone/pull/110), head
+e32768e, merge 7776b67 после всех 24 expected SUCCESS в Windows/Linux/Android
+attempt 1 и свежей CLEAN/MERGEABLE readiness без feedback. Дерево merge равно
+tested head. Main обновлена, feature-ветка удалена remote/local/tracking,
+watch отключён. Полный P06.07/критерии/GAP остаются открытыми в прежнем объёме.
+Ниже локальная история проверки в `feat/p06-07-tag-convergence` от main/83c4643.
 Исходные три
 изменённых документа сохранены с SHA-256 в игнорируемых reports; EV-127 сохранён
 побайтово. Продуктовые определения/состояния всех 98 критериев не менялись.
@@ -125,3 +130,15 @@ fingerprints копий равны финальному source, UI/API assertion
 Новый CI пока не запускался. До интеграции нужны все 24 expected SUCCESS,
 свежая проверка точных head/base и отсутствие нерешённых замечаний. Полные
 T09/A49/S05, совместная парная UI-приёмка и остальные GAP остаются отдельными.
+
+## Публикация / LOG-697
+
+PR #110/head e32768e/base main83c4643 опубликован. Title/body/sections/credit и точные refs прочитаны обратно, initial MERGEABLE/UNSTABLE, feedback отсутствует. Оба hosted PNG проверены скачиванием и SHA-256 против просмотренных original. Все21 suites ожидаются/выполняются, три strict aggregates появятся после dependencies: expected всего24. Новый CI ещё не принят; до всех24 SUCCESS и fresh head/base/feedback readiness merge/delete не выполняются. Поручение на условную интеграцию активно, watch регистрируется в текущем треде. Product source прежний, полный P06.07/критерии/GAP не повышаются. Checkpoint локальный без дополнительного commit/push.
+
+## Интеграция / LOG-698
+
+Оба workflows44353587764/44353587781 завершили initial attempt1 success на e32768e: все24 expected COMPLETED/SUCCESS, включая три strict aggregates. Все шесть новых матриц найдены в raw Windows/Linux product и native Android logs. PR Testing обновлён по actual результатам и прочитан обратно; hosted PNG и credit сохранены.
+
+Непосредственно перед merge: exact head e32768e/base83c4643, CLEAN/MERGEABLE, reviews/comments/threads отсутствуют. PR #110 merged2026-11-18 17:13:35UTC, merge7776b67; parents ровно83c4643/e32768e, tree совпал с tested head. Три dirty checkpoint сохранены по SHA-256 до/после fast-forward main и switch, затем итоговые записи дополнены. Feature-ветка удалена remote с lease exact head, локально branch-d; tracking ref отсутствует. Main=origin/main=7776b67; другие worktrees не менялись.
+
+P06.07.1 done, active_work null. Watch отключён, PR остаётся linked. Все98 определения/состояния критериев и GAP/DEC сохранены; пять правил подтверждены в scope выше. Полный P06.07 и tag-specific paired UI/решения впереди, следующий готовый шаг P06.07.2. Этот итоговый checkpoint локальный без дополнительного commit/push/manual CI; CI-оптимизация остаётся на паузе.

@@ -191,6 +191,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.inspect_tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_inspect_tags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.list": {
         parameters: {
             query?: never;
@@ -249,6 +265,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["card_resolve_placement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/card.resolve_tag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_resolve_tag"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1007,6 +1039,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/tag.resolve_names": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_resolve_names"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/trash.inspect": {
         parameters: {
             query?: never;
@@ -1119,6 +1167,10 @@ export interface components {
             tags: string[];
             titles: string[];
             version: components["schemas"]["StateVersion"];
+        };
+        CardTags: {
+            assignments: components["schemas"]["TagAssignment"][];
+            card: components["schemas"]["CardSnapshot"];
         };
         CardTextVersion: {
             description: string;
@@ -1578,6 +1630,31 @@ export interface components {
             };
         };
         CommandRequest_InspectCardPlacements: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                space: string;
+            };
+        };
+        CommandRequest_InspectCardTags: {
             id: [
                 number,
                 number,
@@ -2423,6 +2500,35 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_ResolveCardTag: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                expected_tag: components["schemas"]["StateVersion"];
+                present: boolean;
+                space: string;
+                tag: string;
+            };
+        };
         CommandRequest_ResolveCardText: {
             id: [
                 number,
@@ -2529,6 +2635,32 @@ export interface components {
                 expected: components["schemas"]["StateVersion"];
                 name: string;
                 space: string;
+            };
+        };
+        CommandRequest_ResolveTagNames: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                names: components["schemas"]["TagNameChoice"][];
+                space: string;
+                tag: string;
             };
         };
         CommandRequest_RestoreCard: {
@@ -2900,6 +3032,7 @@ export interface components {
         CommandResponse_CardList: components["schemas"]["CommandSuccess_CardList"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardPlacements: components["schemas"]["CommandSuccess_CardPlacements"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardSnapshot: components["schemas"]["CommandSuccess_CardSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_CardTags: components["schemas"]["CommandSuccess_CardTags"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnPositions: components["schemas"]["CommandSuccess_ColumnPositions"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
@@ -2978,6 +3111,14 @@ export interface components {
                 tags: string[];
                 titles: string[];
                 version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_CardTags: {
+            replayed: boolean;
+            result: {
+                assignments: components["schemas"]["TagAssignment"][];
+                card: components["schemas"]["CardSnapshot"];
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3134,6 +3275,7 @@ export interface components {
         CommandSuccess_TagSnapshot: {
             replayed: boolean;
             result: {
+                name_group?: string[];
                 names: string[];
                 space: string;
                 state: components["schemas"]["TagState"];
@@ -3228,6 +3370,10 @@ export interface components {
             subject: string;
         };
         InspectCardPlacements: {
+            card: string;
+            space: string;
+        };
+        InspectCardTags: {
             card: string;
             space: string;
         };
@@ -3421,6 +3567,14 @@ export interface components {
             placement: components["schemas"]["CardPlacement"];
             space: string;
         };
+        ResolveCardTag: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            expected_tag: components["schemas"]["StateVersion"];
+            present: boolean;
+            space: string;
+            tag: string;
+        };
         ResolveCardText: {
             card: string;
             description: string;
@@ -3444,6 +3598,11 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             name: string;
             space: string;
+        };
+        ResolveTagNames: {
+            names: components["schemas"]["TagNameChoice"][];
+            space: string;
+            tag: string;
         };
         RestoreCard: {
             card: string;
@@ -3572,10 +3731,20 @@ export interface components {
             protocol: number;
             space: string;
         };
+        TagAssignment: {
+            tag: string;
+            values: boolean[];
+        };
         TagList: {
             tags: components["schemas"]["TagSnapshot"][];
         };
+        TagNameChoice: {
+            expected: components["schemas"]["StateVersion"];
+            name: string;
+            tag: string;
+        };
         TagSnapshot: {
+            name_group?: string[];
             names: string[];
             space: string;
             state: components["schemas"]["TagState"];
@@ -3904,6 +4073,29 @@ export interface operations {
             };
         };
     };
+    card_inspect_tags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectCardTags"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardTags"];
+                };
+            };
+        };
+    };
     card_list: {
         parameters: {
             query?: never;
@@ -3983,6 +4175,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_ResolveCardPlacement"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_resolve_tag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveCardTag"];
             };
         };
         responses: {
@@ -5073,6 +5288,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    tag_resolve_names: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveTagNames"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagList"];
                 };
             };
         };

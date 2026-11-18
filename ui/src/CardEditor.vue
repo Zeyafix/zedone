@@ -12,6 +12,7 @@ const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: s
 const emit = defineEmits<{ changed: []; close: []; stay: []; cleanup: [card: Card, event: Event] }>();
 const snapshot = ref<Card>(props.card);
 const tags = ref<Tag[]>(props.tags);
+const tagAssignments = ref<{ tag: string; values: boolean[] }[]>([]);
 const tagNames = computed(() => new Map(tags.value.map(tag => [tag.tag, tag.names.join(' / ')])));
 const draft = ref<EditorDraft>();
 const comparison = ref<Card>();
@@ -119,7 +120,7 @@ async function confirmDelivery(id: string) {
   error.value = ""; blocked.value = false;
   return !storageError.value;
 }
-async function mutate<O extends EditorMutation | "card.set_tag" | "card.restore_text" | "card.resolve_text">(operation: O, parameters: Parameters[O]) {
+async function mutate<O extends EditorMutation | "card.set_tag" | "card.resolve_tag" | "card.restore_text" | "card.resolve_text">(operation: O, parameters: Parameters[O]) {
   if (draft.value && !persist()) return false;
   const id = await createMutation(operation, parameters, draft.value?.subject ?? subject);
   if (operation === "card.begin_editing") begunHere.add(id);
@@ -237,11 +238,23 @@ async function refreshTags() {
     if (pending.value) { blocked.value = true; return; }
     const value = snapshot.value;
     const [fresh, labels] = await Promise.all([
-      read("card.read", { space: value.space, card: value.card }),
+      read("card.inspect_tags", { space: value.space, card: value.card }),
       read("tag.list", { space: value.space, include_deleted: false }),
     ]);
-    snapshot.value = fresh; tags.value = labels.tags; blocked.value = false; error.value = ""; comparison.value = undefined;
+    snapshot.value = fresh.card; tagAssignments.value = fresh.assignments; tags.value = labels.tags; blocked.value = false; error.value = ""; comparison.value = undefined;
     emit("changed");
+  });
+}
+async function resolveTag(tag: Tag, present: boolean) {
+  if (editing.value || busy.value || !props.ready || blocked.value || pending.value) return;
+  await task(async () => {
+    subject ||= (await mutationCredential()).subject;
+    const value = snapshot.value;
+    if (await mutate("card.resolve_tag", { space: value.space, card: value.card, tag: tag.tag, present, expected: value.version, expected_tag: tag.version })) {
+      const fresh = await read("card.inspect_tags", { space: value.space, card: value.card });
+      snapshot.value = fresh.card; tagAssignments.value = fresh.assignments;
+      tags.value = (await read("tag.list", { space: value.space, include_deleted: false })).tags;
+    }
   });
 }
 async function openHistory() {
@@ -328,6 +341,7 @@ watch(warning, async visible => {
 onMounted(() => {
   document.addEventListener("visibilitychange", visibility); window.addEventListener("pagehide", suspend); window.addEventListener("beforeunload", beforeUnload);
   if (props.draftId) void start();
+  else if (props.card.state === "conflicted") void refreshTags();
 });
 onUnmounted(() => {
   disposed = true; clearTimers();
@@ -364,6 +378,11 @@ defineExpose({ requestClose });
         <ul class="tag-list">
           <li v-for="tag in tags" :key="tag.tag" :data-tag="tag.tag">
             <span>{{ tag.names.join(' / ') }}</span>
+            <div v-if="tagAssignments.some(a => a.tag === tag.tag && a.values.length > 1)" class="tag-assignment-conflict">
+              <p>Тег одновременно назначен и снят на разных устройствах. Выберите итог этой связи.</p>
+              <button class="resolve-card-tag-present" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active'" @click="resolveTag(tag, true)">Оставить тег</button>
+              <button class="resolve-card-tag-absent" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active'" @click="resolveTag(tag, false)">Подтвердить снятие тега</button>
+            </div>
             <button class="set-card-tag" :aria-pressed="snapshot.tags.includes(tag.tag)" :disabled="busy || !ready || !mutable || blocked || !!pending || tag.state !== 'active' || tag.names.length !== 1" @click="setTag(tag)">{{ snapshot.tags.includes(tag.tag) ? 'Снять тег' : 'Назначить тег' }}</button>
             <p v-if="tag.state !== 'active' || tag.names.length !== 1" class="object-note">Конфликт имени. Назначение и снятие недоступны до разрешения.</p>
           </li>

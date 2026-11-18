@@ -4,6 +4,8 @@ use std::sync::Arc;
 mod column_position_fixture;
 #[path = "fixtures/placements.rs"]
 mod placement_fixture;
+#[path = "fixtures/tags.rs"]
+mod tag_fixture;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -50,6 +52,8 @@ async fn main() {
             || args[0] == "--serve-position-conflicts"
             || args[0] == "--serve-same-position-conflicts"
             || args[0] == "--prepare-position-conflicts"
+            || args[0] == "--prepare-tag-conflicts"
+            || args[0] == "--serve-tag-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -117,7 +121,11 @@ async fn main() {
         )
         .await;
     }
+    if args[0] == "--prepare-tag-conflicts" || args[0] == "--serve-tag-conflicts" {
+        tag_fixture::seed(&storage, &access).await;
+    }
     if args[0] == "--prepare"
+        || args[0] == "--prepare-tag-conflicts"
         || args[0] == "--prepare-position-conflicts"
         || args[0] == "--prepare-column-position-conflicts"
         || args[0] == "--prepare-conflicts"

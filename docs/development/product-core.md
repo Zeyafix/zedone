@@ -1,5 +1,12 @@
 # Разработка продуктового Rust-ядра
 
+Полная проверка продукта (`bun scripts/check-product.mjs`, `--host-tests`
+или native Android runtime) включает отдельный обязательный search probe
+по 1000 карточкам с прежним <30s. Он ignored в обычном cargo test, чтобы
+измерение не конкурировало с другими тестами процесса. Driver требует
+ровно один успешный exact probe; изменение не сокращает workload или
+проверки результата. Подробности — [проверки CI](ci-checks.md#отдельный-search-probe-ci18).
+
 Полный P06.03: [ADR-0064](../architecture/decisions/0064-space-exchange.md),
 [EV-109](../agent/verification/EV-109-space-exchange.md). `core::sync`
 проверяет управление/текущие paired grants; `storage::sync_engine` владеет
@@ -531,6 +538,20 @@ bun scripts/check-product.mjs --android
 удаляется в finally. Физические устройства не принимаются этим драйвером;
 arm64-сборка не является нативной проверкой arm64.
 
+В CI.13 `--host-tests` и `--host-build` делят полный host check на обязательные
+tests/contracts и release all-targets/unsafe/comment guards. Android
+`--android-runtime` исполняет полный host contract/TS, native x86_64 тесты,
+оба paired probes и release CLI/exporter; `--android-x86_64` отдельно проверяет
+release all-targets/unsafe/comment guards без AVD. Полный локальный запуск
+без аргументов, `--android` и `--android-native` совместимы. Матрица и лимиты —
+[CI checks](ci-checks.md), [EV-119](../agent/verification/EV-119-ci-critical-path.md).
+
+`--android-native` выполняет полный host contract/TS check и native x86_64
+набор. `--android-arm64` — только release/unsafe/comment guards arm64,
+без эмулятора и повторной проверки host-контракта/TypeScript. Обе команды
+требуют закреплённый NDK и `ANDROID_HOME`; `ANDROID_SERIAL` нужен только
+для runtime. Полная `--android` сохраняет оба ABI и host/device contract parity.
+
 Для bundled SQLite драйвер задаёт NDK clang/llvm-ar и API33 одновременно
 для Rust linker и C-компилятора. Нативные тесты используют `TMPDIR` внутри
 собственного удаляемого каталога; дочерние crash-тесты наследуют его.
@@ -638,11 +659,13 @@ FIX.01 меняет стартовый layout на месте по ADR-0047: п�
 [ADR-0039](../architecture/decisions/0039-command-adapters-and-delivery.md)
 закрепляет framing, origin, таймауты и явное продолжение.
 Product-check выполняет также клиентские failure/restart/timeout-тесты.
-На host и Android эти независимые delivery-тесты запускаются параллельно
-нативным проверкам через общий `checkWithClients`; он дожидается обеих сторон
-и сохраняет обе ошибки при одновременном отказе. Контракт/типы и все прежние
-Rust/unsafe проверки остаются обязательными. Набор клиентских команд прежний;
-их параллельный запуск не использует Cargo output или эмулятор.
+На Windows/Linux эти независимые delivery-тесты запускаются параллельно
+нативным проверкам через `checkWithClients`; он дожидается обеих сторон
+и сохраняет обе ошибки при одновременном отказе. Android-срезы не повторяют
+host Bun delivery tests: это не тесты Android JS-движка. Набор клиентских
+команд, все Rust/unsafe проверки и сверка контракта настоящего Android
+остаются обязательными; standalone Android workflow выполняет host contract/TS
+в product-native. Распределение закреплено guards CI.12/EV-118.
 
 Для диагностики CI доступен opt-in `ZEDONE_CLOCK_DIAGNOSTICS=1` только в
 debug-сборке: stderr получает категорию storage-отказа и при откате календаря

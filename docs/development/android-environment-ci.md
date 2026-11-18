@@ -1,10 +1,14 @@
 # Проверка Android-окружения в Linux (P00.06)
 
-CI.11: проверки распределены между параллельными `product-native`,
+CI.12: проверки распределены между параллельными `product-native`,
 `product-arm64`, `prototype-native`, `prototype-ui`, `shell`, `pairing` и
-`shell-arm64` jobs с отдельными SDK/AVD и прежним лимитом 15 минут на job.
-Итоговый `android` успешен только после всех семи. `shell-arm64` собирает APK
-без положительного emulator callback, но сохраняет общий negative preflight.
+`shell-arm64` jobs с отдельными SDK и прежним лимитом 15 минут на job.
+Runtime suites владеют отдельными AVD; product-arm64 и shell-arm64 не готовят
+KVM/runtime и не запускают эмулятор. Итоговый `android` успешен только после
+всех семи. `shell-arm64` собирает APK; product-arm64 выполняет release/unsafe
+guards напрямую через dispatcher. Общие installer/compiler-failure negative
+controls выполняет один обязательный prototype-native job. Проверка реальных
+инструментов и очистка собственных runtime ресурсов остаются в каждом владельце.
 `shell` выполняет обычный UI; `pairing` устанавливает обычный production APK
 на свежий CI AVD, затем собирает acceptance APK и проверяет полный парный набор
 с восстановлением APK и файлов по SHA-256, включая пустой исходный набор.
@@ -53,6 +57,25 @@ bash scripts/check-android-environment.sh 2>&1 | tee docs/reports/p00-06/linux-c
 Свой AVD, лог эмулятора и бинарники создаются в уникальном подкаталоге `temp/`; имя AVD также уникально и сверяется через adb перед проверками. При ошибке последние 80 строк лога попадают в журнал проверки. Эмулятор запускается в отдельной группе процессов через `setsid`: при завершении/INT/TERM скрипт отправляет этой группе TERM, ждёт не более 10 секунд и завершает оставшиеся процессы группы через KILL, затем удаляет свой каталог. Это учитывает наблюдавшееся игнорирование TERM со стороны QEMU. Существующие AVD и подключения adb сохраняются; общий сервер adb не останавливается. Принудительное завершение процесса или VM может прервать cleanup: оставшийся каталог удаляйте только после проверки пути и остановки своего эмулятора.
 
 ## Actions, ограничения и отмена
+
+CI.14: один SDK writer prototype-native сохраняет bundle после успешных probes
+и negative controls; AVD/app data/OS keys не входят в cache. Общий SDK verifier
+проверяет SHA CLI, инициализацию, версию и все package revisions на miss/hit,
+включая build-only jobs. Пороги и runtime checks прежние; corrupt SDK означает
+ошибку. Для локального Linux воспроизведения после блока Install pinned
+Android tools выполните также Verify SDK identity and install pinned Rust
+targets из workflow. Размер/эффект caches — [EV-120](../agent/verification/EV-120-ci-tool-caches.md).
+
+Текущее распределение CI.13: двенадцать обязательных suites; product-native
+исполняет runtime, product-x86_64/product-arm64 — отдельные ABI release/unsafe
+builds, prototype-arm64 собирает прежние APK/instrumentation без AVD.
+Pairing разделён на pairing-fields, pairing-placements, pairing-positions-cross
+и pairing-positions-same,
+каждый со своим AVD/production bootstrap/acceptance APK/полной очисткой и
+восстановлением исходного APK и app files. Prototype-native/prototype-ui/
+shell/shell-arm64 сохранены. `android` требует успеха всей матрицы; 15m на
+suite и 1m на aggregate прежние. Команды полных локальных запусков совместимы;
+матрица владельцев и ограничения измерений — в [проверках CI](ci-checks.md).
 
 Workflow запускается при PR и push в `main`, затрагивающем его, скрипты Android/Tauri CI, JSON версий или `prototypes/`. Push feature-ветки отдельно не запускается. После интеграции в основную ветку доступен **Actions → Android environment and prototype → Run workflow**. Журнал запуска сохраняет версии инструментов, SDK и образ runner; результаты исходной приёмки среды — в [EV-009](../agent/verification/EV-009-android-environment-ci.md), оптимизации — в [EV-028](../agent/verification/EV-028-pr-checks.md). Состояние конкретной машины хранится только в `docs/reports/state.json`.
 

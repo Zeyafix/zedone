@@ -30,6 +30,13 @@
 
 ## Результат
 
+P06.06 done: [PR #108](https://github.com/Zeyafix/zedone/pull/108), head 5ca0ee8,
+merge 693b1fb после всех 18 SUCCESS в Windows/Linux/Android attempt 1 и свежей
+CLEAN/MERGEABLE readiness без feedback. Merge tree равен tested head, main
+обновлена, feature-ветка удалена remote/local/tracking. Все 98 определения/
+состояния и GAP/DEC сохранены; полный T09 отдельно. Ниже локальная история.
+
+
 P06.06 verified локально в `test/p06-06-position-conflicts-acceptance` от
 main/531cf34. Совместные места карточек и колонок, оба порядка решения,
 независимые одинаковые/разные решения, одинаковые соседи и доступность
@@ -218,3 +225,52 @@ reports. GAP-028/031/032 не считаются исправленными ус
 до merge/delete нужны все 18 expected SUCCESS и свежая readiness точных
 head/base без замечаний. Определения/состояния всех 98 критериев и GAP/DEC
 сохранены; это не закрывает полный T09 и не гарантирует cold CI runtime.
+
+
+## Публикация — LOG-634
+
+[PR #108](https://github.com/Zeyafix/zedone/pull/108), head
+5ca0ee8ebdc291f4414e5a6b6c2a863f949cd69b, base main/531cf34. Все семь source
+fingerprints прежние; 17 связанных source/docs файлов включены после scope/
+privacy/98 criteria/noreply проверки, обычный commit/push/pre-push passed.
+Title/body/sections/credit прочитаны обратно, визуального изменения нет.
+
+15 suites IN_PROGRESS, три strict aggregates ещё ожидаются; весь expected
+набор 18 подтверждён по PR #107 при неизменных workflows. Начальная readiness
+MERGEABLE/UNSTABLE, reviews/requests/comments/threads отсутствуют. Локальная
+приёмка выше сохраняет охват, это не полный новый CI и не закрытие T09/GAP.
+До merge/delete нужны все 18 SUCCESS и fresh readiness точных head/base.
+Active_work — штатный watch/условная интеграция. Checkpoint локальный, tested
+head не меняется дополнительным commit/push.
+
+
+## Финальный CI и интеграция — LOG-635/636
+
+- Все 18 expected checks на head 5ca0ee8 COMPLETED/SUCCESS: [Windows/Linux](https://github.com/Zeyafix/zedone/actions/runs/44257694922)
+  и [Android](https://github.com/Zeyafix/zedone/actions/runs/44257695082), обе
+  attempt 1 без повторов. Raw Windows/Linux shell logs подтверждают по восемь
+  новых combined desktop/touch случаев. Android pairing выполнил default
+  orchestration обеих suites, все четыре combined APK случая, два restoration
+  SHA-256 и два OS cleanup; environment/negative cleanup и strict aggregates passed.
+- Android shell 11:34, pairing 14:53 при прежних 15m. Фактический запас pairing
+  семь секунд; этот cache-hit run не гарантирует будущий/cold runtime. Проверки
+  и бюджеты не ослаблялись, GAP-028/031/032 исходными причинами не закрываются.
+- Testing обновлён фактическими результатами и прочитан обратно вместе с
+  title/sections/credit. Свежая exact-head/base readiness 5ca0ee8/531cf34:
+  OPEN/non-draft/MERGEABLE/CLEAN, все 18 SUCCESS, reviews/requests/comments/
+  inline threads отсутствуют. Нового product source delta после проверок нет.
+- Merge API закрепил head 5ca0ee8 и вернул merge 693b1fbea654e5f22ee2cb9ff08af4b6cc08ccc9.
+  Родители строго [531cf34, 5ca0ee8]; дерево bd324495b8d5618a7cfa5c2e652b6d0a7a4e6916
+  совпало с tested head. Повтор неизменных тестов после merge не требовался.
+- Три локальных checkpoint документа сохранены по SHA-256. Local main обновлена
+  обычным non-force fast-forward fetch, пока не была checkout в worktree;
+  затем switch между идентичными деревьями сохранил все три checkpoint и семь
+  source fingerprints побайтово. Main=origin/main/693b1fb, index чист.
+- Remote feature-ветка удалена с lease tip=5ca0ee8, local — обычным -d после
+  ancestor main; отсутствие remote/local/tracking проверено. Прежние stashes
+  и остальные worktrees сохранены. Итоговые journal/queue/EV записи локальные
+  без дополнительного commit/push; active_work null. Watch выключен перед handback.
+- Пять правил подтверждены в scope EV-117: обратимость, общий UI/HTTP/IPC/CLI,
+  актуальные docs, Windows/Android и авторитетный набор данных. Все 98 определения/
+  состояния сохранены; P06.06 done. Далее P06.07 planned, реализация не начата.
+  Полный T09, GAP-028/031/032, физический arm64/Tailscale/измерения отдельно.

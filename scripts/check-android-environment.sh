@@ -2,6 +2,17 @@
 set -euo pipefail
 
 fail() { echo "$*" >&2; exit 1; }
+preparation=()
+if [[ ${1:-} == --prepare ]]; then
+    [[ ${CI:-} == true ]] || fail 'Concurrent preparation is CI-only.'
+    shift
+    while (( $# )) && [[ $1 != -- ]]; do
+        preparation+=("$1")
+        shift
+    done
+    (( ${#preparation[@]} > 0 && $# > 1 )) || fail 'Expected --prepare command -- runtime command.'
+    shift
+fi
 [[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || fail 'This check requires Linux x64.'
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 versions="$root/scripts/environment-versions.json"
@@ -14,18 +25,7 @@ export PATH="$android_home/platform-tools:$android_home/emulator:$tools:$PATH"
 image=$(jq -r .android.image "$versions")
 [[ $(bun --version) == "$(jq -r .bun "$versions")" ]] || fail 'Unexpected Bun version.'
 [[ $(javac -version 2>&1) == "javac $(jq -r .android.jdk "$versions")" ]] || fail 'Unexpected JDK version.'
-expected_android_cli=$(jq -r .android.cli "$versions")
-actual_android_cli=$(android --no-metrics --version) || fail 'Unable to read Android CLI version.'
-[[ $actual_android_cli == "$expected_android_cli" ]] || \
-    fail "Unexpected Android CLI version: expected $(printf '%q' "$expected_android_cli"), got $(printf '%q' "$actual_android_cli") (executable: $(command -v android))."
-while IFS=@ read -r package revision; do
-    properties="$android_home/$package/source.properties"
-    [[ -f $properties ]] || fail "Missing SDK package: $package"
-    actual=$(sed -n 's/^Pkg.Revision *= *//p' "$properties" | tr -d '\r')
-    actual=${actual%.0}; actual=${actual%.0}
-    revision=${revision%.0}; revision=${revision%.0}
-    [[ $actual == "$revision" ]] || fail "Unexpected $package revision: $actual"
-done < <(jq -r '.android.packages[]' "$versions")
+bash "$root/scripts/check-android-sdk.sh"
 git --version
 java -version
 android --no-metrics "--sdk=$android_home" sdk list
@@ -41,18 +41,20 @@ mkdir -p "$root/temp"
 probe=$(mktemp -d "$root/temp/android-environment.XXXXXXXX")
 avd_name=$(basename -- "$probe")
 emulator_pid=''
+preparation_pid=''
 cleanup() {
     status=$?
     trap - EXIT
-    if [[ -n $emulator_pid ]]; then
-        if [[ $status != 0 ]]; then
-            tail -n 80 "$probe/emulator.log" >&2 || true
-        fi
-        kill -TERM -- "-$emulator_pid" 2>/dev/null || true
-        timeout 10 tail --pid="$emulator_pid" -f /dev/null >/dev/null 2>&1 || true
-        kill -KILL -- "-$emulator_pid" 2>/dev/null || true
-        wait "$emulator_pid" 2>/dev/null || true
+    if [[ -n $emulator_pid && $status != 0 ]]; then
+        tail -n 80 "$probe/emulator.log" >&2 || true
     fi
+    for owned_pid in "$preparation_pid" "$emulator_pid"; do
+        [[ -n $owned_pid ]] || continue
+        kill -TERM -- "-$owned_pid" 2>/dev/null || true
+        timeout 10 tail --pid="$owned_pid" -f /dev/null >/dev/null 2>&1 || true
+        kill -KILL -- "-$owned_pid" 2>/dev/null || true
+        wait "$owned_pid" 2>/dev/null || true
+    done
     rm -rf -- "$probe"
     echo 'Android probe cleanup completed.'
     exit "$status"
@@ -71,6 +73,11 @@ for target in aarch64-linux-android armv7-linux-androideabi i686-linux-android x
     rustc "+$rust" --edition 2024 --target "$target" -C "linker=$clang" \
         -C "link-arg=--target=${clang_target}33" "$probe/main.rs" -o "$probe/$target"
 done
+if (( ${#preparation[@]} )); then
+    echo 'Starting independent preparation before emulator boot.'
+    setsid "${preparation[@]}" &
+    preparation_pid=$!
+fi
 printf 'no\n' | avdmanager create avd --name "$avd_name" --package "${image//\//;}" --device pixel_5
 ports=$(ss -H -ltn)
 echo "$ports" | awk '{print $4}' | grep -Eq ':(5554|5555)$' && fail 'Emulator ports 5554/5555 are occupied.'
@@ -80,6 +87,10 @@ emulator_pid=$!
 booted=false
 deadline=$((SECONDS + 300))
 while (( SECONDS < deadline )); do
+    if [[ -n $preparation_pid ]] && ! kill -0 "$preparation_pid" 2>/dev/null; then
+        wait "$preparation_pid"
+        preparation_pid=''
+    fi
     kill -0 "$emulator_pid" 2>/dev/null || fail 'Emulator exited before boot.'
     if [[ $(timeout 10 adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r') == 1 ]]; then
         booted=true
@@ -106,6 +117,11 @@ device_adb shell rm -f "$remote_probe"
 echo 'Android 13 / API 33 / x86_64 / GMS absent; ZEDONE_ANDROID_TOOLCHAIN_OK'
 echo 'Android environment check passed.'
 
+if [[ -n $preparation_pid ]]; then
+    wait "$preparation_pid"
+    preparation_pid=''
+fi
+if (( ${#preparation[@]} )); then echo 'Independent preparation completed successfully before runtime.'; fi
 if (( $# )); then
     ANDROID_SERIAL=emulator-5554 "$@"
 fi

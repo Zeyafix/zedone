@@ -55,8 +55,9 @@ jobs:
   linux-checks:
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
-        suite: [product, prototype-native, prototype-ui, shell]
+        suite: [product, shell, prototype-ui]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -69,18 +70,14 @@ jobs:
       - uses: ./.github/actions/prepare-host-check
         with:
           suite: ${{ matrix.suite }}
-      - name: Check product boundaries, contract and unsafe rejection
+      - name: Check all product Rust, contracts, release and unsafe rejection
         if: matrix.suite == 'product'
         run: bun scripts/check-product.mjs
-      - name: Check prototype Rust, restart probe and generated contracts
-        if: matrix.suite == 'prototype-native'
-        working-directory: prototypes
-        run: bun run check --host-native
-      - name: Check prototype release, Vue and HTTP in Chromium
+      - name: Check all prototype Rust, contracts, release and browser scenarios
         if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
-        run: bun run check --host-ui
-      - name: Check shared UI shell and real product HTTP in Chromium
+        run: bun run check
+      - name: Check all shared UI shell, conflicts and pairing scenarios
         if: matrix.suite == 'shell'
         run: bun run ui:check
 
@@ -101,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product, prototype-native, prototype-ui, shell]
+        suite: [shell, shell-conflicts, product, product-build, prototype-ui, prototype-native]
     runs-on: windows-2025
     # Keep the previous cold-build budget until the split has been measured.
     # The warm workflow target is 10 minutes, not the sum of these job budgets.
@@ -118,7 +115,10 @@ jobs:
           suite: ${{ matrix.suite }}
       - name: Check product boundaries, contract and unsafe rejection
         if: matrix.suite == 'product'
-        run: bun scripts/check-product.mjs
+        run: bun scripts/check-product.mjs --host-tests
+      - name: Check product release and unsafe rejection
+        if: matrix.suite == 'product-build'
+        run: bun scripts/check-product.mjs --host-build
       - name: Check prototype Rust, restart probe and generated contracts
         if: matrix.suite == 'prototype-native'
         working-directory: prototypes
@@ -129,7 +129,10 @@ jobs:
         run: bun run check --host-ui
       - name: Check shared UI shell and real product HTTP in Chromium
         if: matrix.suite == 'shell'
-        run: bun run ui:check
+        run: bun run ui:check --main
+      - name: Check shared UI conflicts and pairing in Chromium
+        if: matrix.suite == 'shell-conflicts'
+        run: bun run ui:check --conflicts
 
   # Preserve the required check name. Only a complete successful matrix passes.
   windows:

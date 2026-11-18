@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { positionConflictCases } from "../../scripts/check-position-conflicts-exchange.mjs";
 
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
   .replace('import assert from "node:assert/strict";', "")
@@ -40,12 +41,14 @@ const full = [
 for (const [args, expected] of [
   [[], full],
   [["native"], [full[0], full[2]]],
-  [["product-native"], [[product, "--android-native"]]],
+  [["product-native"], [[product, "--android-runtime"]]],
+  [["product-x86_64"], [[product, "--android-x86_64"]]],
   [["product-arm64"], [[product, "--android-arm64"]]],
   [["prototype-native"], [full[2]]],
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
+  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -54,36 +57,73 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-arm64", "prototype-native", "prototype-ui", "shell", "pairing", "shell-arm64"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
+const pairedSuites = ["pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
-const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite } });
-for (const [target, owners] of [["x86_64", ["shell", "pairing"]], ["aarch64", ["shell-arm64"]]]) {
-  const builds = jobs.steps.filter(step => step.run?.includes(`bun scripts/build-ui-android.mjs ${target}`));
-  assert.equal(builds.length, 1, `${target} must be built exactly once`);
-  assert.deepEqual(suites.filter(suite => enabled(builds[0], suite)), owners);
-}
-const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
-assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", "pairing"]);
+const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite }, startsWith: (value, prefix) => value.startsWith(prefix) });
+const arm64ShellBuilds = jobs.steps.filter(step => step.run?.includes("bun scripts/build-ui-android.mjs aarch64"));
+assert.equal(arm64ShellBuilds.length, 1, "aarch64 must be built exactly once");
+assert.deepEqual(suites.filter(suite => enabled(arm64ShellBuilds[0], suite)), ["shell-arm64"]);
+assert.ok(!jobs.steps.some(step => step.run?.includes("bun scripts/build-ui-android.mjs x86_64")), "x86_64 preparation must overlap emulator boot");
+const shellPreparation = await Bun.file(`${import.meta.dir}/../../scripts/prepare-android-shell-ci.sh`).text();
+assert.ok(shellPreparation.includes(["shell", ...pairedSuites].join("|")));
+assert.equal(shellPreparation.split("bun scripts/build-ui-android.mjs x86_64").length, 2);
+assert.ok(shellPreparation.includes('if [[ $1 == shell ]]; then'), "Paired API probes must not rebuild the unused browser shell fixture");
+assert.ok(shellPreparation.includes('CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline'));
+const prototypeArm64 = jobs.steps.find(step => step.name === 'Build Android arm64 APK and instrumentation');
+assert.deepEqual(suites.filter(suite => enabled(prototypeArm64, suite)), ['prototype-arm64']);
+assert.equal(prototypeArm64.run, 'bun run android:build aarch64');
+const prototypeDependencies = jobs.steps.find(step => step.name === 'Prepare locked prototype dependencies and contracts');
+assert.ok(enabled(prototypeDependencies, 'prototype-arm64'));
+const viewerDependencies = jobs.steps.find(step => step.name === 'Prepare locked shared viewer dependencies');
+assert.deepEqual(suites.filter(suite => enabled(viewerDependencies, suite)), ['prototype-ui', 'prototype-arm64']);
 const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
-assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), suites,
-  "Every compiler-failure preflight needs emulator libraries and KVM access");
+const runtimeSuites = suites.filter(suite => !["product-x86_64", "product-arm64", "prototype-arm64", "shell-arm64"].includes(suite));
+assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), runtimeSuites);
 const hostPreparation = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/actions/prepare-host-check/action.yml`).text());
 const mirrors = hostPreparation.runs.steps.find(step => step.name === "Use Ubuntu HTTPS mirrors for browser dependencies");
 assert.ok(runtime.run.startsWith(mirrors.run), "Android must use the same signed Ubuntu mirror setup as Linux host checks");
 assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-install-recommends -y libpulse0\n"),
   "Mirror selection cannot replace installing emulator dependencies");
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
-assert.deepEqual(suites.filter(suite => enabled(environment, suite)), suites.filter(suite => suite !== "shell-arm64"));
+assert.deepEqual(suites.filter(suite => enabled(environment, suite)), runtimeSuites);
+assert.equal(environment.env.SUITE, '${{ matrix.suite }}');
+assert.ok(environment.run.includes('bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs "$SUITE"'));
+assert.ok(environment.run.includes('if [[ "$SUITE" == prototype-ui ]]; then'));
+assert.ok(environment.run.includes("--prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs"));
+assert.ok(environment.run.includes('elif [[ "$SUITE" == shell || "$SUITE" == pairing-* ]]; then'));
+assert.ok(environment.run.includes('--prepare bash scripts/prepare-android-shell-ci.sh "$SUITE" -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"'));
+assert.ok(!jobs.steps.some(step => step.name === 'Build host comparison endpoint' || step.name === 'Build Android x86_64 APK and instrumentation'));
+const preparation = await Bun.file(`${import.meta.dir}/../../scripts/prepare-android-prototype-ci.sh`).text();
+assert.ok(preparation.includes('cargo "+$rust" build --release --locked --offline --bin serve-echo'));
+assert.ok(preparation.includes('CARGO_TARGET_DIR="$PWD/target"'));
+assert.ok(preparation.includes('bun run android:build'));
+assert.ok(preparation.indexOf('serve-echo') < preparation.indexOf('bun run android:build'));
+const arm64 = jobs.steps.find(step => step.name === "Check product ABI build without emulator");
+assert.deepEqual(suites.filter(suite => enabled(arm64, suite)), ["product-x86_64", "product-arm64"]);
+assert.equal(arm64.run, "bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'");
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");
 assert.ok(enabled(dependencies, "shell-arm64"));
-assert.ok(enabled(dependencies, "pairing"));
-assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == shell-arm64"));
-assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == pairing"));
+assert.ok(enabled(dependencies, "pairing-fields"));
+assert.equal(dependencies.env.SUITE, '${{ matrix.suite }}');
+assert.ok(dependencies.run.includes('"$SUITE" == shell-arm64'));
+assert.ok(dependencies.run.includes('"$SUITE" == pairing-*'));
 assert.ok(dependencies.run.includes("--manifest-path ui/src-tauri/Cargo.toml"));
 const negative = jobs.steps.find(step => step.name === "Check rejection and cleanup on compiler failure");
-assert.ok(suites.every(suite => enabled(negative, suite)));
+const installer = jobs.steps.find(step => step.name === "Check Tauri CLI cache fallback and cleanup");
+for (const control of [negative, installer]) {
+  assert.deepEqual(suites.filter(suite => enabled(control, suite)), ["prototype-native"], "One mandatory owner must run shared infrastructure controls");
+}
+assert.ok(installer.run.includes("bash scripts/check-ci-tauri.sh"));
+assert.ok(installer.run.includes("bun prototypes/scripts/check-android-ci-suites.mjs"), "Standalone Android workflow must check its own routing even without host workflow triggers");
+assert.ok(installer.run.includes("bash scripts/check-android-preparation.sh"));
+assert.ok(installer.run.includes("bash scripts/check-android-shell-preparation.sh"));
+for (const required of ["Unexpected Bun version", 'test "$status" -eq 23', 'cmp "$test_dir/before" "$test_dir/after"', 'existing-avd/sentinel']) {
+  assert.ok(negative.run.includes(required), "Negative controls must retain version rejection, exit code and cleanup evidence");
+}
+assert.ok(!JSON.stringify(workflow).includes("continue-on-error"));
 assert.equal(workflow.jobs.android.needs, "android-checks");
 assert.equal(workflow.jobs.android.if, "always()");
 assert.equal(workflow.jobs.android.steps[0].run, 'test "$RESULT" = success');
@@ -92,7 +132,8 @@ assert.deepEqual(dispatch([], { exitCode: 23 }), { calls: [full[0]], exit: 23 })
 assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
-for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)]]) {
+for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
+  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -187,7 +228,48 @@ for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_
     assert.equal(result.calls[1 - ui].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--standard", "--positions"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
+assert.ok(exchangeStart > 0);
+const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
+function exchanges(suite) {
+  const calls = [];
+  const names = ['checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
+  runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
+    ...Object.fromEntries(names.map(name => [name, options => {
+      calls.push(name);
+      if (name === 'checkPositionConflictsExchange') assert.equal(options.sameColumn,
+        suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined);
+    }])) });
+  return calls;
+}
+assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
+assert.equal(exchanges('--standard').length, 4);
+assert.deepEqual(exchanges('--positions'), ['checkPositionConflictsExchange']);
+for (const scope of ['--positions-cross', '--positions-same']) assert.deepEqual(exchanges(scope), ['checkPositionConflictsExchange']);
+assert.deepEqual(positionConflictCases(), [
+  {same:false,columnFirst:false}, {same:false,columnFirst:true}, {same:true,columnFirst:false}, {same:true,columnFirst:true},
+]);
+assert.deepEqual([...positionConflictCases(false), ...positionConflictCases(true)], positionConflictCases(), 'Both mandatory slices retain all four scenarios and both resolution orders exactly once');
+for (const invalid of ['same', null, 0, 1]) assert.throws(() => positionConflictCases(invalid));
+const failureStart = pairingSource.indexOf('    const serverCode = await server.exited;');
+const failureReport = pairingSource.slice(failureStart, pairingSource.indexOf('    if (cleanupError)', failureStart));
+assert.ok(failureStart > 0 && failureReport.includes('assert.equal(serverCode, 0'));
+for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixture timeout','fixture_timeout'], [101,'private-key-secret other panic','unclassified']]) {
+  const messages = [];
+  let error, reads = 0;
+  try {
+    await runInNewContext('(async () => {' + failureReport + '})()', {
+      server: {exited:Promise.resolve(code)}, serverStarted:100, serverDirectory:'/fixture', Date:{now:()=>200}, resolve,
+      Bun:{file:()=>({text:async()=>{reads++;return stderr;}})}, assert, console:{error:value=>messages.push(value)},
+    });
+  } catch (cause) { error = cause; }
+  assert.equal(Boolean(error),code!==0,'Fixture failure must still fail acceptance');
+  assert.equal(reads,code===0?0:1);
+  assert.deepEqual(messages,code===0?[]:[`Host fixture failure: exit=${code} reason=${reason} elapsed_ms=100`]);
+  assert.ok(!messages.join('').includes('private-key-secret'));
+}
+
 assert.ok((await pairingSuites({}, ["invalid"])).error);
 for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
   const result = await pairingSuites({}, [], failure, index);
@@ -195,3 +277,4 @@ for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode:
   assert.equal(result.calls.length, index + 1, "A failed suite must prevent a successful aggregate");
 }
 console.log("Android CI routing: full/default/native compatibility, independent UI/paired APK suites, exact ABI job ownership, CI-only production APK bootstrap, empty/valid/invalid file manifests, all runtime/negative checks, 15m budgets, strict aggregate, invalid input, child failures and signals passed.");
+await import('./check-ci-tool-caches.mjs');

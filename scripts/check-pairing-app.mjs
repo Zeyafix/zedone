@@ -14,7 +14,9 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--positions'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same'].includes(suite), 'Unknown pairing acceptance suite');
+const positions = suite?.startsWith('--positions');
+const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
 if (!suite) {
     for (const current of ['--standard', '--positions']) {
         const env = { ...process.env };
@@ -98,6 +100,7 @@ invoke(['cargo', `+${versions.rust}`, 'build', '-p', 'zedone-adapters', '--bin',
 const cli = resolve(root, `target/debug/zedone${suffix}`);
 const serverDirectory = resolve(report, 'server');
 await mkdir(serverDirectory);
+const serverStarted = Date.now();
 const server = Bun.spawn([testBinary, '--ignored', '--exact', 'device_host::tests::acceptance_server'], {
     cwd: root, env: { ...process.env, ZEDONE_PAIRING_FIXTURE: serverDirectory }, stdin: 'ignore', stdout: Bun.file(resolve(report, 'server.log')), stderr: Bun.file(resolve(report, 'server-errors.log')),
 });
@@ -240,13 +243,16 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
-    if (suite === '--standard') {
+    if (suite === '--standard' || suite === '--fields') {
         checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (suite === '--standard' || suite === '--placements') {
         checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkColumnPositionExchange({host,android,space,pairing:second.request,call,command,ok,error});
-    } else {
-        checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (positions) {
+        checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error,sameColumn:positionScope});
     }
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
@@ -310,7 +316,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? suite === '--positions' : suite === '--standard')) {
+    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? positions : !positions)) {
         const incomingOffer=ok(call(android,'offer.create',{}));
         ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
         const uiRequest=ok(call(host,'session.submit',{}));
@@ -350,8 +356,10 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = [suite === '--positions'
-        ? 'combined card/column positions/both orders/same and cross-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse'
+    passedChecks = [suite === '--fields' ? 'text and field conflicts/preservation/reverse'
+        : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
+        : positions
+        ? `combined card/column positions/both orders/${positionScope === undefined ? 'same and cross' : positionScope ? 'same' : 'cross'}-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse`
         : 'text/field/card-placement/column-position conflicts including independent decisions, neighbors, preservation and reverse',
         'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
     console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
@@ -398,7 +406,13 @@ finally {
         assert.equal(await sha('original.apk'), await sha('restored.apk'));
         console.log('Original APK and every application file restored by SHA-256.');
     }
-    assert.equal(await server.exited, 0, 'Windows fixture or secret cleanup failed');
+    const serverCode = await server.exited;
+    if (serverCode !== 0) {
+        const stderr = await Bun.file(resolve(serverDirectory, 'server-errors.log')).text().catch(() => '');
+        const reason = stderr.includes('fixture timeout') ? 'fixture_timeout' : 'unclassified';
+        console.error(`Host fixture failure: exit=${serverCode} reason=${reason} elapsed_ms=${Date.now() - serverStarted}`);
+    }
+    assert.equal(serverCode, 0, 'Windows fixture or secret cleanup failed');
     if (cleanupError)
         throw cleanupError;
     if (passedChecks) {

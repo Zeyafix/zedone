@@ -10,7 +10,7 @@ const root = resolve(import.meta.dir, "..");
 const versions = await Bun.file(resolve(root, "scripts/environment-versions.json")).json();
 assert.equal(Bun.version, versions.bun, "Use pinned Bun");
 const mode = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--android", "--android-native", "--android-arm64"].includes(mode));
+assert.ok(Bun.argv.length <= 3 && [undefined, "--write-openapi", "--check-openapi", "--write-types", "--check-types", "--host-tests", "--host-build", "--android", "--android-native", "--android-runtime", "--android-x86_64", "--android-arm64"].includes(mode));
 const env = { ...process.env, CARGO_TARGET_DIR: resolve(root, "target") };
 const suffix = process.platform === "win32" ? ".exe" : "";
 
@@ -28,6 +28,14 @@ function run(command, { cwd = root, extraEnv = {}, capture = false, failure = fa
 }
 const cargo = args => ["cargo", `+${versions.rust}`, ...args];
 const locked = ["--locked", "--offline"];
+const searchProbe = "cards::tests::search::search_thousand_card_probe_uses_authoritative_graph_without_an_index";
+const isolatedTestArgs = ["--ignored", "--exact", "--nocapture", "--test-threads=1"];
+function requireSearchProbe(output) {
+  console.log(output);
+  const results = [...output.matchAll(/test result: (\w+)\. (\d+) passed; (\d+) failed;/g)];
+  assert.ok(results.every(result => result[1] === "ok" && Number(result[3]) === 0), "Search probe must not fail");
+  assert.equal(results.reduce((count, result) => count + Number(result[2]), 0), 1, "Exactly one search probe must pass");
+}
 async function checkWithClients(checkNative, label) {
   const command = [process.execPath, "test", resolve(root, "tests/commands.test.ts")];
   console.log(`> ${command.join(" ")}`);
@@ -98,87 +106,96 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
   }
 }
 
-if (!mode) {
-  run([process.execPath, "test", "tests/source-comments.test.mjs"]);
+if (!mode || mode === "--host-tests") {
+  run([process.execPath, "test", resolve(root, "tests/source-comments.test.mjs")]);
   await checkWithClients(async () => {
     for (const args of [
       ["fmt", "--all", "--", "--check"],
       ["clippy", "--workspace", "--all-targets", "--all-features", ...locked, "--", "-D", "warnings"],
       ["test", "--workspace", "--all-features", ...locked],
-      ["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked],
     ]) run(cargo(args));
-    await checkUnsafe();
   }, "Host product checks failed");
+  requireSearchProbe(run(cargo(["test", "--workspace", "--all-features", ...locked, searchProbe, "--", ...isolatedTestArgs]), { capture: true }).stdout.toString());
+}
+if (!mode || mode === "--host-build") {
+  run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", ...locked]));
+  await checkUnsafe();
 }
 
-const generated = run(cargo(["run", "--quiet", "--bin", "export-contract", ...locked]), { capture: true }).stdout;
-const artifact = Bun.file(resolve(root, "api/openapi.json"));
-if (mode === "--write-openapi") {
-  await Bun.write(artifact, generated);
-  console.log("Generated api/openapi.json from Rust.");
-} else {
-  assert.ok(await artifact.exists(), "Generate api/openapi.json first");
-  assert.ok(generated.equals(Buffer.from(await artifact.arrayBuffer())), "api/openapi.json is stale; run bun scripts/check-product.mjs --write-openapi");
-  console.log("Product OpenAPI matches Rust.");
-}
-
-if (mode !== "--write-openapi") {
-  const { default: openapiTS, astToString } = await import("openapi-typescript");
-  const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true })), "schema.d.ts");
-  const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
-  const { default: Ajv } = await import("ajv/dist/2020.js");
-  const { default: standalone } = await import("ajv/dist/standalone/index.js");
-  const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
-    .replaceAll("#/components/schemas/", "#/$defs/"));
-  const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
-  const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
-    operation: path.slice("/v1/commands/".length),
-    request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
-    response: item.post.responses["200"].content["application/json"].schema.$ref.split("/").at(-1),
-  })).sort((a, b) => a.operation.localeCompare(b.operation));
-  const responses = [...new Set(routes.map(route => route.response))];
-  ajv.addSchema({ $id: "zedone.responses", $defs: schemas });
-  const checks = Object.fromEntries(responses.map(name => [name, `zedone.responses#/$defs/${name}`]));
-  const mapping = routes.map(route => `${JSON.stringify(route.operation)}: ${route.response}`).join(",\n");
-  const validator = standalone(ajv, checks) + `\nconst responseValidators = Object.freeze({\n${mapping}\n});\nexport const operations = Object.freeze(Object.keys(responseValidators));\nexport default function validate(value, operation) {\n  if (operation !== undefined) return Object.hasOwn(responseValidators, operation) && responseValidators[operation](value);\n  return Object.values(responseValidators).some(check => check(value));\n}\n`;
-  assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
-  const validatorTypes = 'import type { components } from "./schema";\n'
-    + `export type Operation = ${routes.map(route => JSON.stringify(route.operation)).join(" | ")};\n`
-    + `export type Parameters = {\n${routes.map(route => `  ${JSON.stringify(route.operation)}: components["schemas"][${JSON.stringify(route.request)}]["parameters"];`).join("\n")}\n};\n`
-    + `export type Response = ${responses.map(name => `components["schemas"][${JSON.stringify(name)}]`).join(" | ")};\n`
-    + 'export const operations: readonly Operation[];\nexport default function validate(value: unknown, operation?: Operation): value is Response;\n';
-  if (mode === "--write-types") {
-    await Bun.write(typesFile, types);
-    await Bun.write(resolve(root, "api/validate-response.js"), validator);
-    await Bun.write(resolve(root, "api/validate-response.d.ts"), validatorTypes);
-    console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
+async function checkContracts() {
+  const generated = run(cargo(["run", "--quiet", "--bin", "export-contract", ...locked]), { capture: true }).stdout;
+  const artifact = Bun.file(resolve(root, "api/openapi.json"));
+  if (mode === "--write-openapi") {
+    await Bun.write(artifact, generated);
+    console.log("Generated api/openapi.json from Rust.");
   } else {
-    assert.ok(await typesFile.exists() && await typesFile.text() === types,
-      "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
-    console.log("Product TypeScript matches Rust/OpenAPI.");
-    assert.equal(await Bun.file(resolve(root, "api/validate-response.js")).text(), validator,
-      "Response validator is stale; run --write-types");
-    assert.equal(await Bun.file(resolve(root, "api/validate-response.d.ts")).text(), validatorTypes,
-      "Response validator types are stale; run --write-types");
+    assert.ok(await artifact.exists(), "Generate api/openapi.json first");
+    assert.ok(generated.equals(Buffer.from(await artifact.arrayBuffer())), "api/openapi.json is stale; run bun scripts/check-product.mjs --write-openapi");
+    console.log("Product OpenAPI matches Rust.");
   }
-  run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
-  run([process.execPath, "scripts/check-type-errors.mjs"]);
+
+  if (mode !== "--write-openapi") {
+    const { default: openapiTS, astToString } = await import("openapi-typescript");
+    const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true })), "schema.d.ts");
+    const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
+    const { default: Ajv } = await import("ajv/dist/2020.js");
+    const { default: standalone } = await import("ajv/dist/standalone/index.js");
+    const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
+      .replaceAll("#/components/schemas/", "#/$defs/"));
+    const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
+    const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
+      operation: path.slice("/v1/commands/".length),
+      request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
+      response: item.post.responses["200"].content["application/json"].schema.$ref.split("/").at(-1),
+    })).sort((a, b) => a.operation.localeCompare(b.operation));
+    const responses = [...new Set(routes.map(route => route.response))];
+    ajv.addSchema({ $id: "zedone.responses", $defs: schemas });
+    const checks = Object.fromEntries(responses.map(name => [name, `zedone.responses#/$defs/${name}`]));
+    const mapping = routes.map(route => `${JSON.stringify(route.operation)}: ${route.response}`).join(",\n");
+    const validator = standalone(ajv, checks) + `\nconst responseValidators = Object.freeze({\n${mapping}\n});\nexport const operations = Object.freeze(Object.keys(responseValidators));\nexport default function validate(value, operation) {\n  if (operation !== undefined) return Object.hasOwn(responseValidators, operation) && responseValidators[operation](value);\n  return Object.values(responseValidators).some(check => check(value));\n}\n`;
+    assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
+    const validatorTypes = 'import type { components } from "./schema";\n'
+      + `export type Operation = ${routes.map(route => JSON.stringify(route.operation)).join(" | ")};\n`
+      + `export type Parameters = {\n${routes.map(route => `  ${JSON.stringify(route.operation)}: components["schemas"][${JSON.stringify(route.request)}]["parameters"];`).join("\n")}\n};\n`
+      + `export type Response = ${responses.map(name => `components["schemas"][${JSON.stringify(name)}]`).join(" | ")};\n`
+      + 'export const operations: readonly Operation[];\nexport default function validate(value: unknown, operation?: Operation): value is Response;\n';
+    if (mode === "--write-types") {
+      await Bun.write(typesFile, types);
+      await Bun.write(resolve(root, "api/validate-response.js"), validator);
+      await Bun.write(resolve(root, "api/validate-response.d.ts"), validatorTypes);
+      console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
+    } else {
+      assert.ok(await typesFile.exists() && await typesFile.text() === types,
+        "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
+      console.log("Product TypeScript matches Rust/OpenAPI.");
+      assert.equal(await Bun.file(resolve(root, "api/validate-response.js")).text(), validator,
+        "Response validator is stale; run --write-types");
+      assert.equal(await Bun.file(resolve(root, "api/validate-response.d.ts")).text(), validatorTypes,
+        "Response validator types are stale; run --write-types");
+    }
+    run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
+    run([process.execPath, "scripts/check-type-errors.mjs"]);
+  }
+  return generated;
 }
+
+const generated = ["--host-build", "--android-x86_64", "--android-arm64"].includes(mode) ? undefined : await checkContracts();
 
 async function checkAndroid() {
   const serial = env.ANDROID_SERIAL;
-  assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
+  const runtime = !["--android-x86_64", "--android-arm64"].includes(mode);
+  if (runtime) assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
   assert.ok(env.ANDROID_HOME && env.NDK_HOME, "ANDROID_HOME and NDK_HOME required");
   assert.ok((await Bun.file(resolve(env.NDK_HOME, "source.properties")).text()).includes(versions.android.ndk));
   const adb = resolve(env.ANDROID_HOME, `platform-tools/adb${suffix}`);
   const device = (...args) => run([adb, "-s", serial, ...args], { capture: true }).stdout.toString().replaceAll("\r\n", "\n");
-  for (const [property, expected] of [["ro.kernel.qemu", "1"], ["ro.build.version.sdk", "33"], ["ro.product.cpu.abi", "x86_64"]]) {
+  if (runtime) for (const [property, expected] of [["ro.kernel.qemu", "1"], ["ro.build.version.sdk", "33"], ["ro.product.cpu.abi", "x86_64"]]) {
     assert.equal(device("shell", "getprop", property).trim(), expected);
   }
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
   const tools = resolve(env.NDK_HOME, `toolchains/llvm/prebuilt/${host}/bin`);
   const linker = resolve(tools, `clang${suffix}`);
-  const targets = mode === "--android-native" ? ["x86_64-linux-android"]
+  const targets = ["--android-native", "--android-runtime", "--android-x86_64"].includes(mode) ? ["x86_64-linux-android"]
     : mode === "--android-arm64" ? ["aarch64-linux-android"]
     : ["x86_64-linux-android", "aarch64-linux-android"];
   for (const target of targets) {
@@ -191,9 +208,9 @@ async function checkAndroid() {
       [`${prefix}_LINKER`]: linker,
       [`${prefix}_RUSTFLAGS`]: `-C link-arg=--target=${target}33`,
     };
-    run(cargo(["build", "--workspace", "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
-    await checkUnsafe(["--target", target], extraEnv);
-    if (target !== "x86_64-linux-android") continue;
+    run(cargo(["build", "--workspace", mode === "--android-runtime" ? "--bins" : "--all-targets", "--all-features", "--release", "--target", target, ...locked]), { extraEnv });
+    if (mode !== "--android-runtime") await checkUnsafe(["--target", target], extraEnv);
+    if (!runtime || target !== "x86_64-linux-android") continue;
     const result = run(cargo(["test", "--workspace", "--all-features", "--no-run", "--message-format=json", "--target", target, ...locked]), { extraEnv, capture: true });
     const tests = result.stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line))
       .filter(item => item.reason === "compiler-artifact" && item.profile.test && item.executable);
@@ -211,6 +228,9 @@ async function checkAndroid() {
         console.log(output);
         assert.ok(output.includes("test result: ok."));
       }
+      const storageIndex = tests.findIndex(item => item.target.name === "zedone_storage");
+      assert.ok(storageIndex >= 0, "Isolated search probe test binary required");
+      requireSearchProbe(device("shell", `TMPDIR=${remote}`, `ZEDONE_TEST_CLI=${remote}/zedone`, `${remote}/test-${storageIndex}`, searchProbe, ...isolatedTestArgs));
       const hostArtifacts = run(cargo(["test", "-p", "zedone-adapters", "--lib", "--no-run", "--message-format=json", ...locked]), { capture: true })
         .stdout.toString().split("\n").filter(Boolean).map(line => JSON.parse(line));
       const hostBinary = hostArtifacts.find(item => item.reason === "compiler-artifact" && item.profile.test && item.target.name === "zedone_adapters" && item.executable)?.executable;
@@ -226,13 +246,9 @@ async function checkAndroid() {
       device("shell", "rm", "-r", remote);
     }
   }
-  console.log(mode === "--android-native"
-    ? "Android native tests/contract passed; x86_64 ABI build and unsafe guards passed."
-    : mode === "--android-arm64"
-      ? "Android arm64 ABI build and unsafe guards passed."
-      : "Android native tests/contract passed; both ABI builds and unsafe guards passed.");
+  console.log(`Android product ${mode}: selected build/runtime/contract/unsafe checks passed.`);
 }
 
-if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
-  await checkWithClients(checkAndroid, "Android product checks failed");
+if (mode?.startsWith("--android")) {
+  await checkAndroid();
 }

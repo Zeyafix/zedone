@@ -299,6 +299,13 @@ async fn every_card_field_invalidates_every_mutation_at_all_entries_even_after_u
         assert_eq!(b.read("column").await, returned_column, "{field}");
         assert_eq!(b.read("space").await, returned_space, "{field}");
         assert_eq!(b.history().await, returned_history, "{field}");
+        if field == "description" {
+            let completed = b
+                .change("card.set_completed", &returned, json!({"completed":true}))
+                .await;
+            assert_eq!(completed["completed"], json!([true]));
+            assert_eq!(b.history().await, returned_history);
+        }
         b.storage.shutdown().await.unwrap();
     }
 }

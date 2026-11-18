@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, pairing, shell-arm64]
+        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-fields, pairing-placements, pairing-positions-cross, pairing-positions-same, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -93,7 +93,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
+          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64' || matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-') || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -109,10 +109,22 @@ jobs:
       - name: Report disk before Android setup
         run: df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
       - name: Check Tauri CLI cache fallback and cleanup
+        if: matrix.suite == 'prototype-native'
         run: |
+          bun prototypes/scripts/check-android-ci-suites.mjs
+          shellcheck scripts/check-android-preparation.sh scripts/prepare-android-prototype-ci.sh scripts/prepare-android-shell-ci.sh scripts/check-android-shell-preparation.sh
+          bash scripts/check-android-shell-preparation.sh
+          timeout 90 bash scripts/check-android-preparation.sh
           shellcheck scripts/install-ci-tauri.sh scripts/check-ci-tauri.sh
           bash scripts/check-ci-tauri.sh
+      - name: Restore pinned Android SDK
+        id: sdk-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/zedone-android-sdk
+          key: zedone-android-sdk-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/environment-versions.json', '.github/workflows/android-environment.yml', 'scripts/check-android-sdk.sh') }}
       - name: Install pinned Android tools in an isolated SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
           sdk="$RUNNER_TEMP/zedone-android-sdk"
@@ -164,6 +176,12 @@ jobs:
           # These downloads/unpacked copies belong to this one-off setup only.
           rm -- "$RUNNER_TEMP/android-tools.zip" "$RUNNER_TEMP/android-emulator.zip"
           rm -r -- "$RUNNER_TEMP/zedone-unpinned-emulator"
+      - name: Verify SDK identity and install pinned Rust targets
+        run: |
+          versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
+          sdk="$RUNNER_TEMP/zedone-android-sdk"
+          shellcheck scripts/check-android-sdk.sh
+          ANDROID_HOME="$sdk" ANDROID_SDK_ROOT="$sdk" bash scripts/check-android-sdk.sh
           {
             echo "ANDROID_HOME=$sdk"
             echo "ANDROID_SDK_ROOT=$sdk"
@@ -172,7 +190,24 @@ jobs:
           rustup toolchain install "$(jq -r .rust "$versions")" --profile minimal \
             --target aarch64-linux-android --target armv7-linux-androideabi \
             --target i686-linux-android --target x86_64-linux-android
+      - name: Keep only pinned Rust in the cache fingerprint
+        shell: pwsh
+        run: ./scripts/prepare-ci-rust.ps1
+      - name: Look up the prototype UI Rust cache
+        if: matrix.suite == 'prototype-ui'
+        id: prototype-rust-cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-android-ui-ndk-${{ steps.versions.outputs.ndk }}
+          workspaces: prototypes -> target
+          cache-bin: false
+          lookup-only: true
+          save-if: false
       - name: Restore Rust dependencies and Android build cache
+        if: matrix.suite != 'prototype-ui' || steps.prototype-rust-cache.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         env:
           RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
@@ -186,6 +221,18 @@ jobs:
           # One writer retains the existing cache namespace and restore paths;
           # parallel suites must not race to publish different subsets.
           save-if: ${{ github.ref == 'refs/heads/main' && matrix.suite == 'product-native' }}
+      - name: Restore and retain prototype UI Rust dependencies
+        if: matrix.suite == 'prototype-ui'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-android-ui-ndk-${{ steps.versions.outputs.ndk }}
+          workspaces: prototypes -> target
+          cache-bin: false
+          # This suite owns its namespace; PR saves stay scoped to that PR.
+          save-if: true
       - name: Restore pinned Tauri CLI
         id: tauri-cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
@@ -199,20 +246,22 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64'
+        if: matrix.suite == 'product-native' || matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-') || matrix.suite == 'shell-arm64'
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)
-          if [[ '${{ matrix.suite }}' == shell || '${{ matrix.suite }}' == pairing || '${{ matrix.suite }}' == shell-arm64 ]]; then
+          if [[ "$SUITE" == shell || "$SUITE" == pairing-* || "$SUITE" == shell-arm64 ]]; then
             cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
           else
             cargo "+$rust" fetch --locked
           fi
       - name: Prepare locked shared viewer dependencies
-        if: matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64'
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Prepare locked prototype dependencies and contracts
-        if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-native' || matrix.suite == 'prototype-ui' || matrix.suite == 'prototype-arm64'
         working-directory: prototypes
         run: |
           versions="$GITHUB_WORKSPACE/scripts/environment-versions.json"
@@ -221,27 +270,10 @@ jobs:
           bun install --frozen-lockfile
           if [[ '${{ matrix.suite }}' == prototype-native ]]; then bun run check:types; fi
           chmod +x src-tauri/gen/android/gradlew
-      - name: Build host comparison endpoint
-        if: matrix.suite == 'prototype-ui'
-        working-directory: prototypes
-        run: |
-          rust=$(jq -r .rust "$GITHUB_WORKSPACE/scripts/environment-versions.json")
-          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
-      - name: Build Android x86_64 APK and instrumentation
-        if: matrix.suite == 'prototype-ui'
-        working-directory: prototypes
-        run: bun run android:build
       - name: Build Android arm64 APK and instrumentation
-        if: matrix.suite == 'prototype-ui'
+        if: matrix.suite == 'prototype-arm64'
         working-directory: prototypes
         run: bun run android:build aarch64
-      - name: Build x86_64 UI shell and host fixture for device checks
-        if: matrix.suite == 'shell' || matrix.suite == 'pairing'
-        run: |
-          chmod +x ui/src-tauri/gen/android/gradlew
-          bun scripts/build-ui-android.mjs x86_64
-          rust=$(jq -r .rust scripts/environment-versions.json)
-          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
       - name: Build arm64 UI shell on a separate runner
         if: matrix.suite == 'shell-arm64'
         run: |
@@ -252,8 +284,7 @@ jobs:
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
-        # The build-only job also runs the shared compiler-failure preflight,
-        # which checks emulator dependencies and KVM before invoking rustc.
+        if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
         run: |
           # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
           test -f /etc/apt/apt-mirrors.txt
@@ -270,11 +301,23 @@ jobs:
           sudo udevadm settle --timeout=10
           test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
-        if: matrix.suite != 'shell-arm64'
+        if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
           shellcheck scripts/check-android-environment.sh
-          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+          if [[ "$SUITE" == prototype-ui ]]; then
+            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"
+          elif [[ "$SUITE" == shell || "$SUITE" == pairing-* ]]; then
+            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-shell-ci.sh "$SUITE" -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"
+          else
+            bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs "$SUITE"
+          fi
+      - name: Check product ABI build without emulator
+        if: matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64'
+        run: bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
       - name: Check rejection and cleanup on compiler failure
+        if: matrix.suite == 'prototype-native'
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")
           trap 'status=$?; if (( status != 0 )); then cat "$test_dir/"*.log; fi; rm -rf -- "$test_dir"; exit "$status"' EXIT
@@ -315,6 +358,12 @@ jobs:
         with:
           path: ${{ runner.temp }}/zedone-tauri-cli/bin/cargo-tauri
           key: ${{ steps.tauri-cache.outputs.cache-primary-key }}
+      - name: Save verified Android SDK
+        if: success() && matrix.suite == 'prototype-native' && steps.sdk-cache.outputs.cache-hit != 'true' && steps.sdk-cache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/zedone-android-sdk
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
 
   # Keep one stable required check. An omitted, cancelled or failed suite fails
   # the aggregate; a green subset can never approve this PR.

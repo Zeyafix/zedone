@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 
-export function checkPositionConflictsExchange({ host, android, space, pairing, call, command, ok, error }) {
+export function positionConflictCases(sameColumn) {
+  assert.ok(sameColumn === undefined || typeof sameColumn === 'boolean', 'Unknown position conflict scope');
+  return (sameColumn === undefined ? [false, true] : [sameColumn])
+    .flatMap(same => [false, true].map(columnFirst => ({ same, columnFirst })));
+}
+
+export function checkPositionConflictsExchange({ host, android, space, pairing, call, command, ok, error, sameColumn }) {
   const id = () => randomBytes(16).toString("hex");
   const exchange = () => { ok(call(android, "exchange.run", { space })); ok(call(android, "exchange.run", { space })); };
   const pause = paused => {
     const current = ok(command(android, "sync.inspect", { space, pairing }));
     ok(command(android, "sync.pause", { space, pairing, paused, expected: current.pause_version }));
   };
-  for (const same of [false, true]) for (const columnFirst of [false, true]) {
+  for (const { same, columnFirst } of positionConflictCases(sameColumn)) {
     const [column, other, a, b, x, y, card, child, ca, cb, cx, cy, tag] = Array.from({ length: 13 }, id);
     const read = (target, current = card) => ok(command(target, "card.read", { space, card: current }));
     const parent = target => ok(command(target, "column.read", { space, column }));

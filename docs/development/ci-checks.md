@@ -1,5 +1,165 @@
 # Проверки PR и кэши сборки
 
+## Отдельный search probe CI.18
+
+Поиск по 1000 карточкам остаётся обязательным с прежним реальным временем
+<30s и полным набором проверок результата. Обычный cargo test пропускает этот
+ignored probe; полный `check-product.mjs`/`--host-tests` запускает его отдельно
+после workspace tests и client peer. Native Android runtime после обычных
+test binaries запускает тот же probe из zedone_storage. В обоих случаях —
+ignored/exact/nocapture/test-threads=1, ровно один passed test обязателен.
+Debug profile, graph и threshold прежние; других тестов в его процессе нет.
+Missing binary, нулевой count, ошибка или сигнал не превращаются в SUCCESS.
+Проверка и ограничения — [EV-124](../agent/verification/EV-124-ci-isolated-search-probe.md).
+
+## Группировка по времени и очереди CI.17
+
+Windows сохраняет шесть срезов, Android — двенадцать. Linux запускает три
+полных pipeline: product, shell, prototype-ui. Последний включает весь
+prototype, включая native checks. Одновременно выполняются не более двух
+Linux jobs, длинные product/shell перечислены первыми. Это уменьшает
+конкуренцию host с Android и повторную подготовку; квота аккаунта не меняется.
+
+Полный `ui:check` выполняет parallel main, conflicts и pairing после одной
+types/build/native подготовки. Explicit `--main`/`--conflicts` сохраняются.
+Все уникальные проверки обоих срезов обязательны и в полной команде.
+Новый набор — 24 checks с прежними тремя strict aggregate names. Порогов
+и исключений continue-on-error нет; фактическое полное время зависит и от
+очереди runners. Полнота и failures проверяются host routing guard.
+Приёмка и замеры — [EV-123](../agent/verification/EV-123-ci-linux-capacity.md).
+
+## Подготовка Android во время boot CI.16/CI.19
+
+`prototype-ui` запускает прежние host release endpoint и x86_64 APK с
+instrumentation через `prepare-android-prototype-ci.sh` во время boot AVD.
+`shell` и четыре `pairing-*` suite тем же способом запускают прежнюю x86_64
+APK-сборку через `prepare-android-shell-ci.sh <suite>`. Только `shell` также
+собирает host browser fixture; paired API проверки его не используют.
+Помощник принимает ровно один разрешённый suite и работает только в CI.
+`check-android-environment.sh --prepare command -- runtime command` доступен
+только в CI. Он ждёт успешной подготовки и всех прежних проверок устройства
+перед runtime. При ошибке или сигнале cleanup завершает собственные build и
+emulator process groups с descendants; коды отказов не теряются. Остальные
+suites и default без prepare сохраняют последовательный путь.
+
+Синтетические lifecycle fixtures `bash scripts/check-android-preparation.sh`
+выполняются в prototype-native до SDK install. Нужны Linux, jq и setsid;
+настоящий SDK/AVD они не открывают. Проверяются оба порядка завершения,
+build/boot/runtime failure, сигнал и cleanup. Версии, профили сборки,
+instrumentation, negative controls и текущие 24 обязательных checks сохраняются.
+`bash scripts/check-android-shell-preparation.sh` проверяет реальные argv,
+порядок и владельцев сборок, отказ без CI/с неверным suite и передачу ошибок
+до запуска последующих команд. Shell/paired runtime, production bootstrap,
+acceptance APK rebuild и восстановление данных остаются последовательными
+после обеих успешных подготовок. Workflow входит в SDK cache fingerprint:
+его изменение даёт новый cold key, который проверяется как раньше.
+Результаты и непроверенный охват — [EV-122](../agent/verification/EV-122-ci-android-preparation.md).
+Продолжение — [EV-125](../agent/verification/EV-125-ci-shell-preparation.md).
+
+## Параллельные main browser-сценарии CI.15
+
+В существующих host shell jobs `check-ui-browser.mjs --main` запускает три
+независимых slice: lifecycle/editor, desktop board/navigation и touch. Каждый получает
+свой каталог fixture/SQLite/session, HTTP origin и browser/contexts. Бинарник
+и собранные assets общие, только для чтения. Все 20 вызовов сценариев остаются
+обязательными; их внутренние assertions и временные границы не сокращаются.
+Снимки desktop/mobile принадлежат только board/navigation slice.
+
+Dispatcher ждёт завершения и cleanup каждого slice, включая случай отказа
+другого. Sync/async ошибки собираются в общий failure. Full/default и
+`--conflicts` сохраняют последовательный путь. Матрица из 27 checks,
+strict aggregates и budgets прежние. Host routing guard проверяет точное
+покрытие main/full и ожидание всех peers при отказе. Tab-навигация остаётся
+после desktop accessibility на той же page с прежней подготовкой состояния
+и проверкой перехода на radio. Изменение не затрагивает Android runtime.
+
+Локальные результаты и ограничения измерений — в
+[EV-121](../agent/verification/EV-121-ci-parallel-browser.md).
+
+## Подготовка инструментов CI.14
+
+Матрица CI.13 (27 checks) и все сценарии/лимиты сохранены. Android SDK
+восстанавливается только по ключу OS/arch + fingerprints versions/setup/verifier;
+при miss исполняется прежняя полная установка с проверкой архивных SHA-256.
+Общий `check-android-sdk.sh` на miss и hit проверяет SHA CLI, успешную
+инициализацию, отдельное точное чтение версии и все package revisions.
+Runtime preflight использует тот же verifier; Rust targets, KVM/AVD/probes,
+builds и negative controls выполняются по-прежнему. Corrupt/missing SDK
+означает failure, а не пропуск проверки. Один SDK writer — prototype-native
+после всех его успешных checks. Кэшируется только SDK, без AVD/app data/keys.
+
+Host browser cache раздельный для shell/prototype, OS/arch и фактически
+установленной Playwright version. Writer каждой family один; scopes PR/main
+сохраняют [ограничения GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
+После hit по-прежнему выполняется install --with-deps --only-shell chromium:
+все CI launch используют headless, поэтому full Chromium не загружается.
+OS dependencies не считаются кэшированными. Browser path — собственный каталог
+RUNNER_TEMP; локальные команды без CI env сохраняют обычный путь Playwright.
+Host Cargo fetch ограничен фактической host triple из pinned rustc; --locked,
+all-targets/all-features checks и offline builds прежние. Node setup пропускается
+только в product-build, где Node-команды не исполняются.
+
+Windows matrix начинает с длинного shell slice, затем shell-conflicts;
+это приоритет запуска при очереди, а не изменение обязательного состава.
+
+Playwright [не рекомендует browser cache по умолчанию](https://playwright.dev/docs/ci#caching-browsers),
+поскольку restore может стоить столько же, сколько download. Здесь конкретный
+Windows download занимал около трёх минут; выигрыша заранее не обещаем.
+SDK/browser keys не имеют restore-prefix fallback. Новые tool caches могут
+сохраняться в PR merge-ref scope для измерения повторной подготовки; main
+не читает PR caches, Rust/Tauri/Gradle writer policy не меняется. Размер новых
+entries и eviction требуется измерить: исходно 19 entries/9.025 GiB, включая
+старые ключи. Квота/платные настройки не меняются. При cache miss/corruption
+запуск не выдаётся за warm benchmark. Cold/hit сравниваются на одном head,
+со всеми attempts/очередями/runner work; [EV-120](../agent/verification/EV-120-ci-tool-caches.md).
+
+## Текущее распределение CI.13
+
+Чтобы уменьшить критический путь jobs >10m, независимые группы запускаются
+на отдельных runners. Тела сценариев, assertions, профили, API и временные
+пороги сохранены. Полный локальный запуск остаётся доступен без аргументов.
+
+| Workflow | Suite | Команда / назначение |
+| --- | --- | --- |
+| Windows/Linux | product | `bun scripts/check-product.mjs --host-tests`: fmt/Clippy/Rust/client/contract/types |
+| Windows/Linux | product-build | `bun scripts/check-product.mjs --host-build`: release all-targets/all-features, unsafe/comment rejection и recovery |
+| Windows/Linux | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
+| Windows/Linux | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
+| Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
+| Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
+| Android | pairing-fields / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, card/column placements, combined positions suites |
+
+Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
+shell/shell-arm64 сохраняются. Всего 27 checks: 6 Windows + 6 Linux + 12 Android
+и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
+`fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
+Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая
+`--android-native`, старый `pairing` dispatcher и `--standard`, совместимы.
+
+Каждый pairing runner собирает обычный production APK, устанавливает его
+в собственный AVD, затем собирает acceptance APK и запускает явный selector.
+Четыре combined-position случая делятся по cross/same-column, в каждом
+сохраняются оба порядка решений. Полный --positions остаётся совместимым.
+При отказе host fixture выводятся только exit, классификация fixture_timeout/
+unclassified и elapsed_ms; сырой stderr с возможными ключами не печатается.
+240s без UI env, job/scenario budgets и failure assertions прежние.
+Общие TLS/rights/replay/recovery/restart/reverse/SHA-256 restoration/OS cleanup
+выполняются в каждом срезе с прежними бюджетами. Неиспользуемый browser
+`shell-fixture` в pairing больше не собирается; shell сохраняет его.
+Product runtime исполняет release CLI и exporter; полный x86_64 release
+all-targets/unsafe — отдельный обязательный владелец. Прототипная arm64
+сборка не требует AVD; проверка WebView остаётся в prototype-ui.
+
+Новые host suites пишут каждый в свой main cache namespace; первый запуск
+может получить seed прежнего владельца product/shell. Это не обмен артефактами
+между непроверенными jobs и не основание пропустить проверку. Android Rust
+cache сохраняет единственного writer product-native. Дополнительные runners
+повторяют setup/build, поэтому уменьшение wall time не означает экономии
+суммарных runner minutes. Новый GitHub runtime пока не измерен; результаты
+предыдущего head не доказывают все jobs <10m. [EV-119](../agent/verification/EV-119-ci-critical-path.md).
+Нижеследующие описания CI.01–CI.12 сохраняют историю прежнего распределения.
+
 Host shell записывает ошибку общего touch-набора до закрытия его browser context:
 `UI failure state` содержит label `host touch`, конкретный stage, состояние
 этой страницы и до 30 метаданных чтений, включая tag.list. Запросы/headers,
@@ -85,7 +245,15 @@ instrumentation прототипа, host HTTP endpoint и весь UI/lifecycle-
 `pairing` (production и acceptance x86_64 APK, полный парный TLS/API/CLI-набор),
 `shell-arm64` (production arm64 APK без положительного emulator callback).
 Каждый job владеет отдельным SDK; runtime suites также владеют отдельным AVD.
-Все сохраняют прежний negative-cleanup preflight и лимит 15 минут.
+Все сохраняют лимит 15 минут. Общие installer/compiler-failure negative
+controls выполняются один раз в обязательном `prototype-native`; реальные
+tool checks и очистка своих runtime ресурсов остаются в каждом владельце.
+`product-arm64` выполняет build/guards напрямую без x86_64 AVD; оба build-only
+jobs также не готовят KVM/emulator libraries. Host client tests остаются в
+Windows/Linux product; standalone Android host contract/TS — в product-native.
+Этот же обязательный владелец controls запускает Android routing guard внутри
+Android workflow, включая изменения только его YAML без запуска host workflow.
+Результаты удаления повторов и границы проверки — [EV-118](../agent/verification/EV-118-test-deduplication.md).
 `fail-fast: false` сохраняет диагностику остальных наборов при одном отказе.
 Итоговый стабильный check `android` с `if: always()` требует успеха всей матрицы:
 failure/cancelled/skipped не принимаются как успех. Прежний аргумент `native`
@@ -107,11 +275,14 @@ main-кэша; наличие shell build artifacts в кэше не гаран�
 прототипный набор не успел завершиться. Все пять исходных команд и их порядок
 в полном dispatcher сохранены. Каждый native runner готовит только собственные
 JS/Cargo зависимости, host Automerge проверяется в prototype-native.
-Объём SDK/проверки environment/negative-cleanup и лимиты не сокращаются.
-P04.06 запускает независимые клиентские delivery-тесты параллельно нативной
+Исторически объём SDK/проверки environment/negative-cleanup и лимиты сохранялись.
+В CI.12 повторы общих controls убраны с сохранением одного обязательного владельца.
+P04.06 запускал независимые клиентские delivery-тесты параллельно нативной
 product-сборке в том же job: они не используют эмулятор или Cargo output.
 Драйвер ждёт оба результата и сохраняет все отказы через AggregateError;
 ранняя ошибка одного набора не оставляет другой без ожидания и cleanup.
+С CI.12 эта параллельность нужна только host product: Android jobs не повторяют
+те же host Bun tests, работающие вне Android.
 Это убирает последовательное ожидание клиентских таймаутов из критического
 пути; достижение прежнего лимита подтверждается только новым CI, не предполагается.
 Дополнительный runner может увеличить суммарное машинное время; результат
@@ -404,6 +575,38 @@ DOM click вместо ввода не добавляются. Локальна�
 
 ## Отмена
 
+Android `prototype-ui` имеет собственный Rust namespace
+`prototype-android-ui-ndk-<pin>` и workspace `prototypes -> target`.
+Его host release/Android dependencies не собирает прежний cache owner
+`product-native`. Перед restore выполняется lookup exact identity; при
+miss прежний общий Android cache используется как начальный seed, при
+exact hit его лишний download пропускается. Затем обычный rust-cache
+восстанавливает/сохраняет новый namespace с прежним полным fingerprint.
+Только успешный `prototype-ui` — writer нового namespace, в том числе
+в PR scope. GitHub ограничивает доступ к PR cache этим PR: main и другие
+PR его не читают. Legacy namespace по-прежнему пишет только main/product-native.
+Кэш содержит registry/git/prototype target с pruning workspace crates;
+app data/keys/AVD не включаются. Начальный cold и повтор с заполненным cache
+измеряются отдельно вместе с bytes/eviction/всеми расходами runners.
+
+Перед восстановлением Rust-кэша host и Android CI вызывают
+`scripts/prepare-ci-rust.ps1` после установки закреплённого compiler.
+Helper допускает только одноразовые GitHub-hosted runners: проверяет
+release/host и наличие pin из `environment-versions.json`, выбирает pin как
+default этого runner и проверяет active toolchain, затем удаляет остальные
+toolchains через rustup и требует ровно pinned inventory. Это сохраняет
+Rust/environment hash кэша при обновлении предустановленных compiler в образе
+runner; закреплённый rust-cache учитывает все установленные toolchains.
+Явный default нужен до удаления: rustup может автоматически установить
+удалённый active compiler после вывода списка toolchains, возвращая устаревший
+снимок inventory. Regression fixture моделирует этот side effect и проверяет
+итоговое состояние независимо от возвращённого списка.
+Локальный/self-hosted запуск отказывает до вызова Rust, личные toolchains
+не меняются. Цели/компоненты закреплённого compiler и все проверки прежние.
+Проверка отказов и Windows/Linux inventory с заглушками:
+`bun prototypes/scripts/check-ci-rust.mjs`; реальные restore hits и время
+требуют GitHub CI. Отмена — revert helper/call sites и новый disposable job.
+
 Остановить текущий запуск — **Cancel workflow**, отключить — **Disable workflow**.
 Удалить кэш — **Actions → Caches**, отменить настройки — обратным коммитом.
 Удалённый кэш просто приводит к закреплённой холодной сборке. Личные SDK,
@@ -465,8 +668,9 @@ callback, устанавливает production APK через CI-only `prepare-
 Свежая установка может иметь пустой список файлов: runner сохраняет пустой
 manifest и проверяет его точное восстановление; неверные строки по-прежнему
 отвергаются. Bootstrap запрещён вне CI/эмулятора; отказ/сигнал установки
-завершает suite ошибкой. Обе suites сохраняют общий compiler/version/cleanup
-negative control. Все прежние команды default dispatcher и их порядок
+завершает suite ошибкой. В CI.11 обе suites сохраняли общий compiler/version/cleanup
+negative control; с CI.12 он имеет одного владельца prototype-native.
+Все прежние команды default dispatcher и их порядок
 сохранены с добавлением production install перед acceptance build.
 
 Матрица содержит семь suites, общий `android` требует успеха каждой;

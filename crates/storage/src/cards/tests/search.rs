@@ -518,6 +518,7 @@ async fn search_receipt_failure_does_not_change_domain_data_and_can_be_retried()
 }
 
 #[tokio::test]
+#[ignore = "Run as the mandatory isolated search probe in check-product"]
 async fn search_thousand_card_probe_uses_authoritative_graph_without_an_index() {
     let (_dir, s, a) = setup().await;
     s.transact(|ctx| {

@@ -7,21 +7,41 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.14
+current_step: CI.15
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.14/EV-120 verified локально: tool-cache guards, main/prototype UI и lint passed; новый CI/метрики pending. GAP-036 open"
-next_action: "Commit/push в PR #109, новый CI/27 и controlled cold/hit measurement. Проверить cache size/eviction и все attempts; квоту/лимиты/сценарии не менять, merge/delete не поручены."
+active_work: "CI.15/EV-121 verified локально: три isolated concurrent main browser slices passed. Далее PR #109/new CI и Android >10m"
+next_action: "Опубликовать CI.15 в PR #109, затем штатный watch/27 checks/метрики. Далее Android >10m и полный wall <=10m, ориентир <=5m. Merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036, GAP-037]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-657
+last_event: LOG-662
 ```
+
+CI.15/EV-121 verified локально: Windows main UI/три isolated concurrent
+slices/guards passed. Два focus failures и сохранение исходной
+подготовки navigation после accessibility описаны в LOG-662. CI.14 warm все 27 SUCCESS, полный результат
+13:07; цель <=10m ещё не достигнута, Android >10m остаётся. Далее PR/CI.
+Ниже исторические checkpoints.
+
+
+CI.14/279cb85: все 27 SUCCESS после одного arm64 recovery rerun; GAP-037
+не закрыт. До 10m ещё не уложились три suites. Запущен один full warm
+benchmark на прежнем head: host attempt 2/Android attempt 3. Далее фактические
+метрики кешей/очередей/всех executions и оставшиеся ускорения; LOG-660.
+Ниже исторические checkpoints.
+
+
+CI.14/279cb85: prototype-arm64 failed при instrumentation dependency
+resolution — Maven Central HTTP 429 на JUnit 4.13.2 (LOG-659/GAP-037).
+SDK cache miss, полная установка и SDK verification passed. Android run ещё
+in_progress; один bounded rerun запланирован после terminal, accepted=0/1.
+Source/guards/лимиты прежние; далее 27 checks и метрики всех attempts.
 
 CI.13/a040174: все 27 SUCCESS после единственного cross rerun. Both cross
 cases/restoration/cleanup passed, GAP-036 root cause open. Далее CI.14/EV-120:
@@ -1682,6 +1702,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| GAP-037 | gap | open | CI.14 / T16 revalidation | EV-120/LOG-659: 279cb85, prototype-arm64 job 134772951165 failed при разрешении instrumentation dependencies: repo.maven.apache.org ответил HTTP 429 Too Many Requests для junit:junit:4.13.2. SDK cache miss/полная установка/CLI SHA-version-package verification passed; SDK cache restore не был причиной этого отказа. Причина rate limiting неизвестна, успех остальных jobs/повтора её не доказывает. После terminal workflow — один bounded failed-job rerun без смены dependencies/guards/лимитов; все attempts/time учитывать. |
 | GAP-036 | gap | open | CI.13 / T16 revalidation | EV-119/LOG-652: a040174, cross job 134736418875 failed при acceptance APK build: fail-closed source-comment guard не смог загрузить PowerShell/.NET System.Collections.Concurrent (FileLoadException/invalid assembly name). Pairing runtime не начат. PS1/scanner исходники не менялись, 11 fingerprints прежние; причина runtime failure неизвестна. Один bounded job rerun после terminal workflow, без изменения guards/лимитов; успех повтора не доказывает причину/исправление. Все attempts/cost учитывать. |
 | GAP-035 | gap | open | CI.12 CI / T09, T16 revalidation | EV-118/LOG-644/645: PR #109/head 863e64b pairing attempt 1 неожиданно получил access_denied/fixture exit 101; причина и initial host cleanup outcome неизвестны, timeout лишь гипотеза без server stderr. Единственный rerun job 134680023677/run 44266376707 passed: обе suites, два SHA-256 restoration/OS cleanup, 14:56 при прежних 15m. Около 4s запаса не гарантируют будущую устойчивость, успешный повтор не доказывает исправление; GAP остаётся open. Source/assert/240s/15m прежние. |
 | GAP-034 | gap | open | CI.12 CI / T16, T17 revalidation | EV-118/LOG-642/645: Linux product attempt 1 на 863e64b нарушил прежний search <30s guard: корректные 1000 результатов, 30209ms, storage 283 passed/1 failed. Единственный rerun job 134679456275/run 44266376564 passed на том же head; весь expected CI 18 SUCCESS. Причина первого превышения/тождество с историческим BUG-008 не установлены, исправление не заявляется, GAP остаётся open. Исходный отказ и стоимость повторов сохранены в метриках; threshold/бюджеты прежние. |
@@ -6811,3 +6832,56 @@ limitations: "Непроверенные части и связанные BUG/GA
 - SDK cache содержит только pinned tools, один успешный writer; runtime/negative controls прежние. Browser install с OS deps выполняется после hit. Windows shell идёт первым при очереди. CI/save/restore/cache size/eviction/ускорение ещё не измерены; старые 27 SUCCESS не являются проверкой нового setup. После cold success один контролируемый warm benchmark на том же head, все executions/очереди/cost сохранять.
 - Пять правил соблюдены в scope EV-120: обратимая подготовка, прежний human/agent API, docs, прежние обе платформы/сценарии, единый versions/verifier без cache verdict. Все 98 definition/state rows и GAP/DEC прежние. >300 строк — неделимая граница SDK/browser setup с verifier/отказными guards/docs; без продукта/новых dependencies.
 - Далее commit/push в существующий PR #109 и штатный watch нового CI. Merge/delete не поручены. Локальная Linux SDK restore/save не заявляется; Device/UI Android не менялись.
+
+### LOG-658 — 2026-11-18 — агент Codex, CI.14 опубликован
+
+- Commit 279cb859e4d33cd3cb94635f500b868a6d75c617 (ci: reuse pinned tools during platform checks) отправлен в существующий PR #109 и сразу linked. Title/body переписаны по финальному scope, latest CI pending, старые all27 SUCCESS/исходный loader failure/неизвестная причина сохранены. Readback подтвердил head/base/title/body/sections/credit; comments/reviews отсутствуют.
+- Все 14 tested source fingerprints прежние, 98 definition/state rows сохранены; staged scope/whitespace/noreply/privacy проверены. Новый expected набор 27 прежний; initial readback показывает 24 runtime suites pending, aggregates ещё ожидаются. Runs 44295967556/44295967341. Полные initial metadata/source/resume-state — ignored ci14-tool-caches.
+- Далее существующий watch, реальные cold SDK save/restore/size/eviction и job/step/queue/all-executions metrics. После cold success один controlled full warm benchmark на неизменном head. Квота/paid settings/guards/пороги прежние, GAP-034/035/036 open, merge/delete не поручены. Этот checkpoint локальный без нового CI-triggering commit/push.
+
+### LOG-659 — 2026-11-18 — агент Codex, arm64 instrumentation dependency HTTP 429
+
+- Head 279cb85, job 134772951165/Android run 44295967556/attempt 1 failed в Build Android arm64 APK and instrumentation. Maven Central отверг JUnit 4.13.2 POM HTTP 429 Too Many Requests; configuration cache discarded вследствие unresolved runtime classpath. SDK cache miss/full pinned install/CLI SHA-version-package verification passed; новый SDK restore не исполнялся. GAP-037 root cause rate limiting open.
+- Полные failed job metadata/log и run/jobs/cache snapshot сохранены. gh сначала отказал печатать terminal escapes; повторное скачивание с --allow-escape-sequences в ignored файл succeeded, CI job не повторялся. Source/14 fingerprints/assertions/лимиты прежние, зависимость не заменяется.
+- Android workflow in_progress на момент решения; failed-job rerun ещё не запрашивается. После terminal сохранить attempt 1 и выполнить ровно один rerun job на прежнем head, accepted=0/limit=1 в resume-state. При повторном отказе диагностика без ещё одного повтора. Все failed executions/очереди/cost учитывать, cache hit повтора не выдавать за cold результат.
+- PR Testing обновляется фактическим отказом/pending recovery, source commit/push отсутствуют. Все 98 definition/state rows/пять правил прежние; GAP-034/035/036 не закрыты. Существующий watch продолжает задачу, после revalidation остаются cache footprint/eviction/cold-hit и итоговые метрики. Merge/delete не поручены.
+
+### LOG-660 — 2026-11-18 — агент Codex, все 27 SUCCESS и controlled warm benchmark
+
+279cb85: все 27 expected checks SUCCESS после единственного arm64 rerun.
+Исходные HTTP 429/aggregate failure сохранены; GAP-037 остаётся open, как
+GAP-034/035/036. Runtime/SDK verifier, APK/app-files restore и cleanup passed.
+Предел 10m ещё не достигнут: Windows shell 12:43, Android shell 10:45,
+prototype-ui 10:23. Для Windows browser miss/install занял около 3:14;
+Android SDK miss/install — 80–87s в этих двух suites.
+
+Сохранены оба final run, все jobs/steps, complete logs трёх bottlenecks и
+cache inventory. SDK cache 2.08 GiB, четыре browser caches суммарно 0.44 GiB;
+весь inventory 24 entries/11.54 GiB, quota не менялась. Это snapshot, не
+доказательство устойчивости к eviction; повторно проверить после benchmark.
+GitHub скопировал 11 inherited successes в новые job IDs: фактически 29
+executions, а не 40 records; дедупликация по run/name/start/end/conclusion.
+Все failures, scheduling и rerun cost сохраняются в ignored cold-summary/raw.
+
+Запрошено ровно по одному полному warm rerun обоих workflows на том же head
+(теперь host attempt 2, Android attempt 3). Это benchmark после SDK/browser
+save, а не второй recovery retry. Код, guards, сценарии и budgets прежние.
+Далее штатный watch, реальные hit/miss/restore timing, wall до полного зелёного
+и runner work, затем необходимые ускорения до <=10m с ориентиром <=5m.
+Проверять весь набор, включая очередь; одна серия не доказывает стабильность.
+Merge/delete не поручены. Пять правил в scope прежние: обратимая подготовка,
+общий API, актуальные docs, прежние Windows/Android suites, единые pins/data.
+
+### LOG-661 — 2026-11-18 — агент Codex, CI.14 warm и начало CI.15
+
+- 279cb85: warm host attempt 2/Android attempt 3 все 27 SUCCESS без отказов. Windows shell 12:29, Android shell 10:25, prototype-ui 10:41, pairing-placements 10:37. Полный результат через 13:07 после принятия benchmark; цель <=10m, ориентир <=5m ещё не выполнены.
+- Browser cache hit сохранён, но Media Foundation install занимает 185.9s на Windows и после hit. SDK restore 42–65s у двух bottlenecks вместо исходных 80–87s install; реальный SDK validation/runtime/cleanup passed. Полные raw metadata/logs и cache snapshot сохранены в ignored reports; причины GAP-034/035/036/037 прежние.
+- CI.15/EV-121: изолировать lifecycle/editor, desktop board и touch в три параллельных main browser slices внутри прежних host jobs. Общие binary/assets immutable; каждому собственные fixture directory/SQLite/session, browser/origin/context. Сохранить full/default последовательный режим, все вызовы сценариев/assertions/ожидания, 27 checks и budgets. Любой отказ завершает suite ошибкой после cleanup всех slices. Android последовательная подготовка остаётся следующим bottleneck.
+- Dirty checkpoint CI.14 сохранён отдельно перед изменением. Новых passed результатов CI.15 нет; продуктовые критерии/продукт/API не меняются. Merge/delete не поручены.
+
+### LOG-662 — 2026-11-18 — агент Codex, CI.15 verified локально
+
+- Windows полный ui:check --main с pinned Node passed: QR/types/Vite/fmt/Clippy/native shell/build и три concurrent browser slices. Каждый fixture/SQLite/session/browser изолирован. Все 20 main сценарных вызовов и прежние assertions/timers сохранены; full/default/conflicts последовательны.
+- Два запуска: board/touch passed, lifecycle focus assertion failed. Ожидание focus на h1 не помогло и убрано. Навигация перенесена за desktop accessibility на той же page, сохраняя исходную подготовку состояния и assert radio. Новый полный запуск passed; peers drained/cleaned, оба failures сохранены. Assertions/timers прежние, принудительного focus или повторного Tab нет.
+- Host/tool-cache/slice guards passed, в том числе sync/async/multiple failures/all-peer draining; Node syntax/comment policy 388 sources/diff passed. 98 criterion rows сверены с checkpoint; продукт/API/Android код/GAP/DEC не менялись. Пять правил в scope EV-121 соблюдены. Большой diff source — механический отступ существующего тела внутрь функции, новые строки служат одной границе concurrency.
+- CI.14 warm: 27 SUCCESS, полный wall 13:07, runners 166:11; SDK/browser hits проверены. Между inventory snapshots одинаковые 24 IDs/11.54 GiB, eviction не наблюдался; будущая устойчивость не доказана. Причинный speedup/цель <=10m не заявляются. Android >10m остаётся; далее PR #109/new CI, метрики и продолжение. Merge/delete не поручены.

@@ -298,3 +298,4 @@ const cacheNames = ["all", ...suites].map(suite => runInNewContext(cacheExpressi
 assert.deepEqual(cacheNames, ["prototype-host", ...suites.map(suite => `prototype-host-${suite}`)]);
 console.log("Host CI routing/pairing/workflow: exact full/slice coverage, both OS matrices/strict gates, cache owners/fallback, legacy modes and failure draining passed.");
 await import('./check-ci-tool-caches.mjs');
+await import('./check-ui-main-slices.mjs');

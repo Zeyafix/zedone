@@ -1,5 +1,25 @@
 # Проверки PR и кэши сборки
 
+## Параллельные main browser-сценарии CI.15
+
+В существующих host shell jobs `check-ui-browser.mjs --main` запускает три
+независимых slice: lifecycle/editor, desktop board/navigation и touch. Каждый получает
+свой каталог fixture/SQLite/session, HTTP origin и browser/contexts. Бинарник
+и собранные assets общие, только для чтения. Все 20 вызовов сценариев остаются
+обязательными; их внутренние assertions и временные границы не сокращаются.
+Снимки desktop/mobile принадлежат только board/navigation slice.
+
+Dispatcher ждёт завершения и cleanup каждого slice, включая случай отказа
+другого. Sync/async ошибки собираются в общий failure. Full/default и
+`--conflicts` сохраняют последовательный путь. Матрица из 27 checks,
+strict aggregates и budgets прежние. Host routing guard проверяет точное
+покрытие main/full и ожидание всех peers при отказе. Tab-навигация остаётся
+после desktop accessibility на той же page с прежней подготовкой состояния
+и проверкой перехода на radio. Изменение не затрагивает Android runtime.
+
+Локальные результаты и ограничения измерений — в
+[EV-121](../agent/verification/EV-121-ci-parallel-browser.md).
+
 ## Подготовка инструментов CI.14
 
 Матрица CI.13 (27 checks) и все сценарии/лимиты сохранены. Android SDK

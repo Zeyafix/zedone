@@ -12,6 +12,38 @@ const sdkRestore = android.steps.find(s => s.id === 'sdk-cache');
 const sdkInstall = android.steps.find(s => s.name === 'Install pinned Android tools in an isolated SDK');
 const sdkVerify = android.steps.find(s => s.name === 'Verify SDK identity and install pinned Rust targets');
 const sdkSave = android.steps.find(s => s.name === 'Save verified Android SDK');
+const rustLookup = android.steps.find(s => s.id === 'prototype-rust-cache');
+const rustLegacy = android.steps.find(s => s.name === 'Restore Rust dependencies and Android build cache');
+const rustPrototype = android.steps.find(s => s.name === 'Restore and retain prototype UI Rust dependencies');
+for (const step of [rustLookup, rustLegacy, rustPrototype]) {
+  assert.equal(step.uses, 'Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0');
+  assert.equal(step.env.RUSTUP_TOOLCHAIN, '${{ steps.versions.outputs.rust }}');
+  assert.equal(step.with['prefix-key'], 'zedone-rust-v1');
+  assert.equal(step.with['cache-bin'], false);
+  for (const input of ['cache-on-failure', 'cache-all-crates', 'cache-workspace-crates', 'add-rust-environment-hash-key']) assert.equal(step.with[input], undefined);
+}
+assert.equal(rustLookup.with['lookup-only'], true);
+assert.equal(rustLookup.with['save-if'], false);
+assert.equal(rustPrototype.with['save-if'], true);
+assert.equal(rustPrototype.with['lookup-only'], undefined);
+assert.equal(rustPrototype.with['shared-key'], 'prototype-android-ui-ndk-${{ steps.versions.outputs.ndk }}');
+assert.equal(rustPrototype.with.workspaces, 'prototypes -> target');
+for (const input of ['shared-key', 'workspaces']) assert.equal(rustLookup.with[input], rustPrototype.with[input]);
+assert.equal(rustLegacy.with['shared-key'], 'prototype-android-ndk-${{ steps.versions.outputs.ndk }}');
+assert.equal(rustLegacy.with.workspaces.trim(), '. -> target\nprototypes -> target');
+assert.equal(rustLegacy.with['save-if'], "${{ github.ref == 'refs/heads/main' && matrix.suite == 'product-native' }}");
+assert.ok(android.steps.indexOf(rustLookup) < android.steps.indexOf(rustLegacy));
+assert.ok(android.steps.indexOf(rustLegacy) < android.steps.indexOf(rustPrototype));
+for (const suite of android.strategy.matrix.suite) for (const hit of ['', 'false', 'true']) for (const ref of ['refs/heads/main', 'refs/pull/109/merge']) {
+  const context = {matrix:{suite}, github:{ref}, hit};
+  const enabled = step => runInNewContext(step.if.replaceAll('steps.prototype-rust-cache.outputs.cache-hit', 'hit'), context);
+  assert.equal(enabled(rustLookup), suite === 'prototype-ui');
+  assert.equal(enabled(rustPrototype), suite === 'prototype-ui');
+  assert.equal(enabled(rustLegacy), suite !== 'prototype-ui' || hit !== 'true');
+  const legacyWriter = enabled(rustLegacy) && runInNewContext(rustLegacy.with['save-if'].replace(/^\$\{\{\s*|\s*\}\}$/g, ''), context);
+  assert.equal(legacyWriter, ref === 'refs/heads/main' && suite === 'product-native');
+  assert.equal(Number(legacyWriter) + Number(enabled(rustPrototype)), suite === 'prototype-ui' || ref === 'refs/heads/main' && suite === 'product-native' ? 1 : 0);
+}
 assert.equal(sdkRestore.with.path, '${{ runner.temp }}/zedone-android-sdk');
 assert.equal(sdkSave.with.path, sdkRestore.with.path);
 assert.equal(sdkSave.with.key, '${{ steps.sdk-cache.outputs.cache-primary-key }}');

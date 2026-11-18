@@ -105,3 +105,26 @@ helper возвращает success, затем независимая пров�
 восстановленный default/inventory. Новый helper проходит тот же контроль.
 Workflow/YAML/SDK fingerprint не меняются; прежний actionlint сохраняет
 применимость. Diff check и все 98 definitions/states passed.
+
+## Default fix опубликован / LOG-686
+
+c724c45 в PR #109, head/body/sections/credit прочитаны обратно; reviews/comments
+отсутствуют. Android 44335566307 / host 44335566493 созданы 15:25:59 UTC,
+новые 24 outcomes/cache/runtime/time pending. Existing watch сохраняется.
+Проверить pinned default/active/no reinstall, actual Rust restore и exact SDK
+hit, затем все исполнения/очереди/полное время/cache eviction. При повторе
+Markdown timeout расследовать GAP-039, не делать retries по кругу. Цель
+<=10m/<=5m не принята; старые executions/cost сохраняются. При успехе и
+необходимости один controlled warm этого head 0/1; merge/delete не поручены.
+
+## CI.20 runtime acceptance / LOG-688
+
+c724c45 все 24 SUCCESS/attempt1, без recovery. Full10:55, runner158:31,
+actual pinned default/active/no reinstall и Rust restores на Windows/Linux/
+Android доказаны. SDK exact hit/verification passed, cache17/9.54GiB.
+Linux isolated search1000 matches/14305ms, Windows24008ms passed.
+Shell/Markdown passed, GAP-039 cause unknown остаётся open. Предыдущий
+f2b9975 failed/cancelled182:28 учтён отдельно. Полный target <=10m не принят:
+Windows product10:30/Android prototype-ui10:44. Далее CI.21/EV-127 own
+prototype dependency cache, затем Windows product; новых same-head reruns
+c724c45 не запрашивалось. Merge/delete не поручены.

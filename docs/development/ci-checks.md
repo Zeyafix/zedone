@@ -575,6 +575,20 @@ DOM click вместо ввода не добавляются. Локальна�
 
 ## Отмена
 
+Android `prototype-ui` имеет собственный Rust namespace
+`prototype-android-ui-ndk-<pin>` и workspace `prototypes -> target`.
+Его host release/Android dependencies не собирает прежний cache owner
+`product-native`. Перед restore выполняется lookup exact identity; при
+miss прежний общий Android cache используется как начальный seed, при
+exact hit его лишний download пропускается. Затем обычный rust-cache
+восстанавливает/сохраняет новый namespace с прежним полным fingerprint.
+Только успешный `prototype-ui` — writer нового namespace, в том числе
+в PR scope. GitHub ограничивает доступ к PR cache этим PR: main и другие
+PR его не читают. Legacy namespace по-прежнему пишет только main/product-native.
+Кэш содержит registry/git/prototype target с pruning workspace crates;
+app data/keys/AVD не включаются. Начальный cold и повтор с заполненным cache
+измеряются отдельно вместе с bytes/eviction/всеми расходами runners.
+
 Перед восстановлением Rust-кэша host и Android CI вызывают
 `scripts/prepare-ci-rust.ps1` после установки закреплённого compiler.
 Helper допускает только одноразовые GitHub-hosted runners: проверяет

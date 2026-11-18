@@ -193,7 +193,21 @@ jobs:
       - name: Keep only pinned Rust in the cache fingerprint
         shell: pwsh
         run: ./scripts/prepare-ci-rust.ps1
+      - name: Look up the prototype UI Rust cache
+        if: matrix.suite == 'prototype-ui'
+        id: prototype-rust-cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-android-ui-ndk-${{ steps.versions.outputs.ndk }}
+          workspaces: prototypes -> target
+          cache-bin: false
+          lookup-only: true
+          save-if: false
       - name: Restore Rust dependencies and Android build cache
+        if: matrix.suite != 'prototype-ui' || steps.prototype-rust-cache.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         env:
           RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
@@ -207,6 +221,18 @@ jobs:
           # One writer retains the existing cache namespace and restore paths;
           # parallel suites must not race to publish different subsets.
           save-if: ${{ github.ref == 'refs/heads/main' && matrix.suite == 'product-native' }}
+      - name: Restore and retain prototype UI Rust dependencies
+        if: matrix.suite == 'prototype-ui'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.versions.outputs.rust }}
+        with:
+          prefix-key: zedone-rust-v1
+          shared-key: prototype-android-ui-ndk-${{ steps.versions.outputs.ndk }}
+          workspaces: prototypes -> target
+          cache-bin: false
+          # This suite owns its namespace; PR saves stay scoped to that PR.
+          save-if: true
       - name: Restore pinned Tauri CLI
         id: tauri-cache
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0

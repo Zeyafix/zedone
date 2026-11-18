@@ -58,10 +58,11 @@ bash scripts/check-android-environment.sh 2>&1 | tee docs/reports/p00-06/linux-c
 
 ## Actions, ограничения и отмена
 
-Текущее распределение CI.13: одиннадцать обязательных suites; product-native
+Текущее распределение CI.13: двенадцать обязательных suites; product-native
 исполняет runtime, product-x86_64/product-arm64 — отдельные ABI release/unsafe
 builds, prototype-arm64 собирает прежние APK/instrumentation без AVD.
-Pairing разделён на pairing-fields, pairing-placements и pairing-positions,
+Pairing разделён на pairing-fields, pairing-placements, pairing-positions-cross
+и pairing-positions-same,
 каждый со своим AVD/production bootstrap/acceptance APK/полной очисткой и
 восстановлением исходного APK и app files. Prototype-native/prototype-ui/
 shell/shell-arm64 сохранены. `android` требует успеха всей матрицы; 15m на

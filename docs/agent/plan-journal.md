@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: CI.13
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.13: локальные проверки passed; публикация PR #109 и замер нового CI; EV-119"
-next_action: "Опубликовать CI.13 в PR #109 и измерить новый CI (26 expected checks). Локальные Windows/native Android/APK/restore/guards passed. Прежние 18 SUCCESS не подтверждают новое распределение; merge/delete не поручены."
+active_work: "CI.13: cross/same fix verified локально, публикация PR #109 и новый CI/27 checks; EV-119"
+next_action: "Завершить новые cross/same APK slices/restore, опубликовать исправление в PR #109 и проверить 27 checks. Старый positions unavailable/host 101 остаётся failure без доказанной причины; затем оставшиеся >10m/метрики. Merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035]
@@ -20,8 +20,20 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-647
+last_event: LOG-650
 ```
+
+CI.13/head 165c378: positions и aggregate android FAILED, остальные 24
+SUCCESS. На четвёртом position случае unavailable/host fixture 101, APK/app
+files restored; причина совместима с 240s, но без stderr не доказана.
+Cross/same split (27 checks) и безопасная классификация в проверке; EV-119/LOG-649.
+Ниже предыдущие checkpoints.
+
+CI.13 опубликован в PR #109/head 165c378 (EV-119/LOG-648): 23 suites
+IN_PROGRESS/QUEUED, три aggregates ожидаются — всего 26 expected. Оба новых
+workflow запущены, финальных результатов/измерений ещё нет. Далее PR watch,
+сохранение всех attempts/очередей/runner work и сравнение с 863e64b.
+Merge/delete не поручены. Нижеследующие локальные и старые CI итоги — история.
 
 CI.13 verified локально (EV-119/LOG-647), Windows/native Android/APK/guards/
 restore passed; Device выключен. Далее публикация и новый CI/метрики.
@@ -6703,3 +6715,25 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Guards exact union/ABI ownership/отказы/сигналы/strict gates/cache owners/default compatibility passed. actionlint 1.7.12 с настоящим ShellCheck passed; Pyflakes отсутствует и отключён. Первый SC2193 исправлен выбором manifest через matrix env SUITE, guard сохранён. Node syntax/comment policy 385 sources/diff check passed.
 - Docs обновлены, scope >300 строк объяснён неделимым перераспределением двух workflows/общего драйвера и guards. Исходный dirty EV-118 побайтово сохранён. Все 98 definitions/states и прежние GAP/DEC сохранены; пять правил соблюдены в scope EV-119. Linux/isolated SDK/bootstrap/реальный новый CI/cache runtime и ускорение ещё не подтверждены.
 - Далее commit/push в существующий PR #109, актуальные title/body/26 checks, watch и реальные метрики против прежнего head 863e64b с учётом очередей/отказов. Merge/delete не поручены.
+
+### LOG-648 — 2026-11-18 — агент Codex, CI.13 опубликован, новый CI ожидается
+
+- Commit 165c378daf81181287f5ae4a0ea96dd56f9c60b7 (ci: run independent platform checks in parallel) отправлен в существующий PR #109, base main/693b1fb. PR сразу linked; обновлены English title/body, Testing pending нового CI, credit GPT-6.1 Sol/T3 Code/Codex. Обратное чтение подтвердило head/title/section order/credit, comments/reviews отсутствуют. Визуальных продуктовых изменений нет.
+- Десять финальных source fingerprints совпадают с локально проверенными; состав staged scope/whitespace/privacy/noreply identity проверен. Предыдущие dirty EV-118/journal/queue checkpoints включены как связанные итоги CI.12, история/98 definitions/states и GAP/DEC сохранены.
+- Новые workflows: host 44280676097 и Android 44280676365, attempt 1, created 2026-11-18 09:56:56 UTC. 23 suite checks наблюдаются IN_PROGRESS/QUEUED; три strict aggregates ещё ожидаются, exact expected набор 26 записан в ignored resume-state. Новых completed SUCCESS/метрик ещё нет.
+- Raw initial run/jobs/steps и PR readback сохранены в ignored docs/reports/ci13-short-jobs; baseline — ci12-ci-metrics/head 863e64b, обе исходные attempts сохранены. Дальше штатный watch; на завершении считать job execution, scheduling, all-attempt runner time и wall до зелёного. Не смешивать прежние 18 SUCCESS с новой матрицей, не объявлять все jobs <10m без измерения. Оставшиеся >10m оценить для следующего сокращения; thresholds/fixture/job budgets не ослаблять, GAP-034/035 остаются open.
+- Merge/delete не поручены. Этот publication checkpoint остаётся локальным без нового commit/push, чтобы не отменять новый CI.
+
+### LOG-649 — 2026-11-18 — агент Codex, positions failure и split cross/same
+
+- Head 165c378, Android positions job 134720207306: три случая passed, четвёртый unavailable, host fixture 101; APK/app files restored по SHA-256. Aggregate 134727174677 штатно failed RESULT=failure. Остальные 24 checks SUCCESS, host workflow success. Исходные final run/jobs/steps и оба logs.zip сохранены до нового head; rerun не запускался.
+- Acceptance 10:04:37.819→ошибка 10:09:04.595 UTC (~267s) совместим с host lifetime 240s, но server-errors.log не попал в logs; причина не доказана, GAP-035 не закрыт и не приравнен доказанно прежнему access_denied.
+- Локально проверяется cross/same split по два случая, все четыре сценария/оба порядка/тела assertions сохранены. Добавлена allowlisted диагностика exit/reason/elapsed без raw stderr/secrets. Expected 27, old full/default совместимы; fixture/job budgets прежние. Guards exact union/scope/rejection/signals/classification/redaction и body equality/lint passed. APK/Device проверка выполняется; дальнейшие >10m Windows product-build/shell и Android shell остаются следующим узким местом.
+- Пять правил и 98 definitions/states/GAP/DEC прежние, merge/delete не поручены. После local slices/restore — commit/push и новый CI в существующем watch; не менять failed head повтором без изменения/диагностики.
+
+### LOG-650 — 2026-11-18 — агент Codex, cross/same correction verified локально
+
+- EV-119: --positions-cross и --positions-same passed на Device-owned AOSP API 33/x86_64 и Windows Credential Manager↔Keystore/TLS/API/CLI. Все четыре случая/оба порядка, общий handshake/recovery/restart/reverse и по два SHA-256 APK/app-files restoration/OS cleanup passed; оба result.json passed/restored=true/cleanup=true. Acceptance/production builds passed, все девять первоначальных APK/metadata/native-library artifacts восстановлены по SHA-256, worker exit 0, Device выключен штатно.
+- Guard exact union, явные scopes, default compatibility, errors/signals/strict gate и безопасная классификация/непечать synthetic private key passed. Per-case body побайтово прежний. Node syntax/comment policy 385 sources/actionlint с ShellCheck/diff check passed. Первая попытка нового guard имела лишнюю закрывающую скобку; синтаксис исправлен, финальная проверка passed.
+- Старый head 165c378 зафиксирован: 24 success, два failure, никаких rerun. Оба полных log ZIP проверены как ZIP (118/241 entries), final runs/jobs/steps сохранены. Причина host 101 не доказана, GAP-035 дополнен без закрытия/утверждения общей причины с 863e64b.
+- Новый expected 27, бюджеты/пороги/Rust/API/schema прежние; docs обновлены, пять правил в scope и все 98 definitions/states/GAP/DEC сохранены. Далее commit/push в существующий PR #109, новый CI через прежний watch, затем оставшиеся >10m/метрики. Merge/delete не поручены.

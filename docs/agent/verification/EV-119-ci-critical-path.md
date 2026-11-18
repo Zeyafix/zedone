@@ -32,11 +32,11 @@
 | Windows/Linux | shell, shell-conflicts | UI main/desktop/touch/diagnostics и все workspace/conflict/pairing browser сценарии |
 | Android | product-native, product-x86_64 | Native Rust, release CLI/exporter, host/device contract, оба paired probes; отдельные x86_64 release all-targets/unsafe/comment-rejection |
 | Android | prototype-ui, prototype-arm64 | Прежний APK/WebView/instrumentation runtime x86_64 и отдельные arm64 APK/instrumentation builds |
-| Android | pairing-fields, pairing-placements, pairing-positions | Text/fields, card/column placements и combined positions; в каждом собственные production bootstrap, acceptance APK, handshake/recovery/reverse/restart, SHA-256 restoration и OS cleanup |
+| Android | pairing-fields, pairing-placements, pairing-positions-cross, pairing-positions-same | Text/fields, card/column placements и combined positions; в каждом собственные production bootstrap, acceptance APK, handshake/recovery/reverse/restart, SHA-256 restoration и OS cleanup |
 
 Остальные prototype-native/prototype-ui host и Android product-arm64,
-prototype-native/shell/shell-arm64 сохраняются. Всего 26 checks: по шесть
-Windows/Linux suites, одиннадцать Android suites и три strict aggregates.
+prototype-native/shell/shell-arm64 сохраняются. Всего 27 checks: по шесть
+Windows/Linux suites, двенадцать Android suites и три strict aggregates.
 Новые host suites имеют свои main cache namespaces с первоначальным seed
 из прежнего владельца. Cache не заменяет запуск проверки.
 
@@ -104,3 +104,80 @@ developer/agent docs обновлены; Windows/native Android и настоя�
 проверены локально, Linux/full CI ожидаются; authoritative Rust contract/data
 сохранён, host/device export равен. Новая полная продуктовая приёмка не
 объявляется; все 98 definitions/states и GAP/DEC прежние.
+
+## Публикация / LOG-648
+
+PR [#109](https://github.com/Zeyafix/zedone/pull/109), head 165c378, base
+main/693b1fb. Commit/push completed, linked сразу после push. English title/body,
+section order, реальные local Testing/pending CI и generation credit проверены
+обратным чтением; comments/reviews отсутствуют. Все десять source fingerprints
+прежние. Включены связанные исходные documentary checkpoints CI.12.
+
+Новый host run [44280676097](https://github.com/Zeyafix/zedone/actions/runs/44280676097)
+и Android [44280676365](https://github.com/Zeyafix/zedone/actions/runs/44280676365),
+attempt 1, created 2026-11-18 09:56:56 UTC. 23 suites IN_PROGRESS/QUEUED,
+три aggregates ещё ожидаются; expected 26. Результатов/ускорения пока нет.
+Raw initial run/jobs/steps, PR readback, expected names/resume-state сохранены
+в ignored ci13-short-jobs. Далее PR watch и сравнение с прежним head 863e64b,
+с учётом очередей/отказов/всех attempts. Остаточные jobs >10m оценить отдельно.
+Checkpoint локальный, без нового CI-triggering commit; merge/delete не поручены.
+
+## CI.13 attempt 1: positions failure / LOG-649
+
+Head 165c378: Android run 44280676365 failed. Pairing-positions job
+134720207306 завершился на четвёртом случае (same-column/column first):
+три предыдущих passed, затем unavailable; host fixture exit 101. Начало APK
+acceptance 10:04:37.819 UTC, ошибка 10:09:04.595 (около 267s). Прежние
+240s относятся к lifetime самого host fixture после подготовки, не ко всему
+runner. Временная последовательность совместима с timeout, но исходный
+server-errors.log не экспортирован, поэтому точная причина не доказана.
+GAP-035 дополнен этим отдельным наблюдением, прежние причины не закрыты.
+Исходный APK и каждый app file восстановлены по SHA-256. OS cleanup host
+не принят: exit 101 означает failure. Общий android job 134727174677
+корректно failed с RESULT=failure, отдельного дефекта aggregate нет.
+
+Остальные 24 checks SUCCESS, host workflow success. Raw final run/jobs/steps,
+оба полных logs.zip и отдельные failed logs сохранены в ignored
+ci13-short-jobs; очередей/повторов не вычитаем, rerun не запускался.
+Windows product-build 10:22 и Android shell 10:23 ещё >10m; Windows shell
+тоже >10m, включая 203s browser install. Нового all-green результата нет.
+
+Исправление в работе: pairing-positions-cross и pairing-positions-same,
+по два независимых случая/оба порядка решений. Их объединение — прежние
+четыре случая в прежнем порядке, тело каждого случая побайтово сохранено;
+--positions/default остаются совместимыми. Оба среза сохраняют общий
+handshake/recovery/restart/reverse/restoration/OS cleanup. Полный expected
+набор теперь 27, без изменения fixture/job/scenario budgets.
+
+Host failure diagnostics теперь выводят только exit, allowlisted
+fixture_timeout/unclassified и elapsed_ms, без raw stderr/ключей. Guards
+проверяют exact union четырёх случаев, явные scope параметры, invalid scope,
+ошибки/сигналы новых jobs, сохранение assertion и непечать synthetic secret.
+Body comparison/guards/Node syntax/actionlint с ShellCheck/comment policy
+passed; локальные APK slices выполняются на Device. Пять правил и все 98
+definitions/states сохраняются. Далее новые paired runs/restore, публикация
+и реальный CI; отдельные оставшиеся >10m требуют дальнейшего замера/оптимизации.
+
+## Cross/same verified локально / LOG-650
+
+- Новые --positions-cross и --positions-same passed на Device-owned API 33
+x86_64 с Windows Credential Manager↔APK/Keystore/TLS/API/CLI: по два случая
+с обоими порядками, общие handshake/recovery/restart/reverse. В обоих
+result.json passed/restored=true/cleanup=true, исходные APK/app files
+восстановлены по SHA-256; свои OS keys/rules очищены. Ручной UI checkpoint
+не заявляется. Acceptance и последующий production build passed. Все девять
+исходных APK/metadata/native-library artifacts восстановлены по SHA-256,
+worker exit 0, Device выключен штатным инструментом.
+- Guards подтверждают exact union прежних четырёх случаев, явные scope
+параметры, прежние default/full режимы, ошибки/сигналы и строгий aggregate.
+Каждый case body побайтово совпадает с 165c378. Classification/redaction
+control сохраняет nonzero assertion и не выводит synthetic private key.
+Node syntax, source-comment policy 385 sources, actionlint с ShellCheck и
+diff check passed. Первый запуск обновлённого guard остановился на лишней
+закрывающей скобке в самом control; исправлен синтаксис, final guard passed.
+- Продуктовые Rust/API/schema/таймеры не менялись; их 24 успешных CI checks
+на 165c378 — история, не успех нового head. Пять правил в scope соблюдены,
+все 98 definitions/states и GAP/DEC прежние. Причина прежнего host exit 101
+остаётся недоказанной, split не выдаётся за доказанную диагностику.
+- Далее commit/push в PR #109 и новый CI (27 expected) на существующем watch;
+оставшиеся >10m и итоговые метрики требуют продолжения. Merge/delete нет.

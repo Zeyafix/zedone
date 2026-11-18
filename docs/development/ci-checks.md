@@ -15,10 +15,10 @@
 | Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
 | Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
 | Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
-| Android | pairing-fields / pairing-placements / pairing-positions | Самостоятельные text/fields, card/column placements, combined positions suites |
+| Android | pairing-fields / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, card/column placements, combined positions suites |
 
 Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
-shell/shell-arm64 сохраняются. Всего 26 checks: 6 Windows + 6 Linux + 11 Android
+shell/shell-arm64 сохраняются. Всего 27 checks: 6 Windows + 6 Linux + 12 Android
 и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
 `fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
 Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая
@@ -26,6 +26,11 @@ Windows 20m, Android 15m, aggregates 1m. Ручные полные команд�
 
 Каждый pairing runner собирает обычный production APK, устанавливает его
 в собственный AVD, затем собирает acceptance APK и запускает явный selector.
+Четыре combined-position случая делятся по cross/same-column, в каждом
+сохраняются оба порядка решений. Полный --positions остаётся совместимым.
+При отказе host fixture выводятся только exit, классификация fixture_timeout/
+unclassified и elapsed_ms; сырой stderr с возможными ключами не печатается.
+240s без UI env, job/scenario budgets и failure assertions прежние.
 Общие TLS/rights/replay/recovery/restart/reverse/SHA-256 restoration/OS cleanup
 выполняются в каждом срезе с прежними бюджетами. Неиспользуемый browser
 `shell-fixture` в pairing больше не собирается; shell сохраняет его.

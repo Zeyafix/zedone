@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { positionConflictCases } from "../../scripts/check-position-conflicts-exchange.mjs";
 
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
   .replace('import assert from "node:assert/strict";', "")
@@ -47,7 +48,7 @@ for (const [args, expected] of [
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
-  ...['fields', 'placements', 'positions'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
+  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -56,8 +57,8 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-fields", "pairing-placements", "pairing-positions", "shell-arm64"];
-const pairedSuites = ["pairing-fields", "pairing-placements", "pairing-positions"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
+const pairedSuites = ["pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
@@ -118,7 +119,7 @@ assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
 for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
-  ...['fields', 'placements', 'positions'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
+  ...['fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -213,20 +214,48 @@ for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_
     assert.equal(result.calls[1 - ui].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--standard", "--fields", "--placements", "--positions"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
 const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
 assert.ok(exchangeStart > 0);
 const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
 function exchanges(suite) {
   const calls = [];
   const names = ['checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
-  runInNewContext(splitExchanges, { suite, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
-    ...Object.fromEntries(names.map(name => [name, () => calls.push(name)])) });
+  runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
+    ...Object.fromEntries(names.map(name => [name, options => {
+      calls.push(name);
+      if (name === 'checkPositionConflictsExchange') assert.equal(options.sameColumn,
+        suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined);
+    }])) });
   return calls;
 }
 assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
 assert.equal(exchanges('--standard').length, 4);
 assert.deepEqual(exchanges('--positions'), ['checkPositionConflictsExchange']);
+for (const scope of ['--positions-cross', '--positions-same']) assert.deepEqual(exchanges(scope), ['checkPositionConflictsExchange']);
+assert.deepEqual(positionConflictCases(), [
+  {same:false,columnFirst:false}, {same:false,columnFirst:true}, {same:true,columnFirst:false}, {same:true,columnFirst:true},
+]);
+assert.deepEqual([...positionConflictCases(false), ...positionConflictCases(true)], positionConflictCases(), 'Both mandatory slices retain all four scenarios and both resolution orders exactly once');
+for (const invalid of ['same', null, 0, 1]) assert.throws(() => positionConflictCases(invalid));
+const failureStart = pairingSource.indexOf('    const serverCode = await server.exited;');
+const failureReport = pairingSource.slice(failureStart, pairingSource.indexOf('    if (cleanupError)', failureStart));
+assert.ok(failureStart > 0 && failureReport.includes('assert.equal(serverCode, 0'));
+for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixture timeout','fixture_timeout'], [101,'private-key-secret other panic','unclassified']]) {
+  const messages = [];
+  let error, reads = 0;
+  try {
+    await runInNewContext('(async () => {' + failureReport + '})()', {
+      server: {exited:Promise.resolve(code)}, serverStarted:100, serverDirectory:'/fixture', Date:{now:()=>200}, resolve,
+      Bun:{file:()=>({text:async()=>{reads++;return stderr;}})}, assert, console:{error:value=>messages.push(value)},
+    });
+  } catch (cause) { error = cause; }
+  assert.equal(Boolean(error),code!==0,'Fixture failure must still fail acceptance');
+  assert.equal(reads,code===0?0:1);
+  assert.deepEqual(messages,code===0?[]:[`Host fixture failure: exit=${code} reason=${reason} elapsed_ms=100`]);
+  assert.ok(!messages.join('').includes('private-key-secret'));
+}
+
 assert.ok((await pairingSuites({}, ["invalid"])).error);
 for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
   const result = await pairingSuites({}, [], failure, index);

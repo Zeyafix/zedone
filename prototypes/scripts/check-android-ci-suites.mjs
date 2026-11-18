@@ -89,6 +89,14 @@ assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-i
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
 assert.deepEqual(suites.filter(suite => enabled(environment, suite)), runtimeSuites);
 assert.ok(environment.run.includes("bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'"));
+assert.ok(environment.run.includes("if [[ '${{ matrix.suite }}' == prototype-ui ]]; then"));
+assert.ok(environment.run.includes("--prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs"));
+assert.ok(!jobs.steps.some(step => step.name === 'Build host comparison endpoint' || step.name === 'Build Android x86_64 APK and instrumentation'));
+const preparation = await Bun.file(`${import.meta.dir}/../../scripts/prepare-android-prototype-ci.sh`).text();
+assert.ok(preparation.includes('cargo "+$rust" build --release --locked --offline --bin serve-echo'));
+assert.ok(preparation.includes('CARGO_TARGET_DIR="$PWD/target"'));
+assert.ok(preparation.includes('bun run android:build'));
+assert.ok(preparation.indexOf('serve-echo') < preparation.indexOf('bun run android:build'));
 const arm64 = jobs.steps.find(step => step.name === "Check product ABI build without emulator");
 assert.deepEqual(suites.filter(suite => enabled(arm64, suite)), ["product-x86_64", "product-arm64"]);
 assert.equal(arm64.run, "bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'");
@@ -106,6 +114,7 @@ for (const control of [negative, installer]) {
 }
 assert.ok(installer.run.includes("bash scripts/check-ci-tauri.sh"));
 assert.ok(installer.run.includes("bun prototypes/scripts/check-android-ci-suites.mjs"), "Standalone Android workflow must check its own routing even without host workflow triggers");
+assert.ok(installer.run.includes("bash scripts/check-android-preparation.sh"));
 for (const required of ["Unexpected Bun version", 'test "$status" -eq 23', 'cmp "$test_dir/before" "$test_dir/after"', 'existing-avd/sentinel']) {
   assert.ok(negative.run.includes(required), "Negative controls must retain version rejection, exit code and cleanup evidence");
 }

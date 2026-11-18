@@ -7,11 +7,11 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.15
+current_step: CI.16
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.15/EV-121 verified локально: три isolated concurrent main browser slices passed. Далее PR #109/new CI и Android >10m"
-next_action: "Опубликовать CI.15 в PR #109, затем штатный watch/27 checks/метрики. Далее Android >10m и полный wall <=10m, ориентир <=5m. Merge/delete не поручены."
+active_work: "CI.16/EV-122: перекрыть prototype APK/host endpoint build загрузкой AVD, сохраняя preflight/runtime/cleanup; CI.15 все 27 SUCCESS, wall 10:01"
+next_action: "Проверить prepare/runtime barrier и process-group cleanup/failures на fixtures, затем CI #109 и cold/hit метрики. Тесты разрешено менять, гарантии сохранять. Цель <=10m, ориентир <=5m; merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036, GAP-037]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-662
+last_event: LOG-665
 ```
 
 CI.15/EV-121 verified локально: Windows main UI/три isolated concurrent
@@ -6885,3 +6885,20 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - Два запуска: board/touch passed, lifecycle focus assertion failed. Ожидание focus на h1 не помогло и убрано. Навигация перенесена за desktop accessibility на той же page, сохраняя исходную подготовку состояния и assert radio. Новый полный запуск passed; peers drained/cleaned, оба failures сохранены. Assertions/timers прежние, принудительного focus или повторного Tab нет.
 - Host/tool-cache/slice guards passed, в том числе sync/async/multiple failures/all-peer draining; Node syntax/comment policy 388 sources/diff passed. 98 criterion rows сверены с checkpoint; продукт/API/Android код/GAP/DEC не менялись. Пять правил в scope EV-121 соблюдены. Большой diff source — механический отступ существующего тела внутрь функции, новые строки служат одной границе concurrency.
 - CI.14 warm: 27 SUCCESS, полный wall 13:07, runners 166:11; SDK/browser hits проверены. Между inventory snapshots одинаковые 24 IDs/11.54 GiB, eviction не наблюдался; будущая устойчивость не доказана. Причинный speedup/цель <=10m не заявляются. Android >10m остаётся; далее PR #109/new CI, метрики и продолжение. Merge/delete не поручены.
+
+### LOG-663 — 2026-11-18 — агент Codex, CI.15 опубликован
+
+- de5501404aeb5f5b9bf57e67fa5db064f7a278b2 отправлен в существующий PR #109. PR Testing обновлён полными CI.14 cold/warm результатами и CI.15 local scope, оба неуспешных local partition attempts сохранены. Readback head/body/sections/credit passed, comments/reviews отсутствуют. Новый CI выполняется: runs 44305037759/44305037719, 24 suites pending, три aggregates ещё ожидаются, всего 27 expected.
+- Исходный active watch сохранён, повторно не регистрировался. Далее outcomes/timing/queues/all actual executions и продолжение Android >10m. Разработчик явно разрешил менять сами тесты с сохранением качества; неизменность текста тестов не является ограничением дальнейшей работы. Полный <=10m и идеальный <=5m ещё не достигнуты. Merge/delete не поручены. Checkpoint локальный, без нового CI-triggering push.
+
+### LOG-664 — 2026-11-18 — агент Codex, CI.15 все 27 SUCCESS; начало CI.16
+
+- de55014: оба workflows attempt 1/все 27 SUCCESS; Windows shell 7:35 (browser step 3:08) вместо warm 279cb85 12:29 (8:00). Linux shell passed, 20 main calls/три isolated fixtures/cleanup сохранены. Все jobs <10m, но полный wall 10:01. Runtime/queue variability не гарантируются одной серией.
+- CI.16/EV-122: prototype-ui 9:49, из них host endpoint 81s, APK/instrumentation 145s и environment/runtime 195s последовательно. Перенести те же build-команды в независимую подготовку во время boot AVD; runtime только после обоих успешных prerequisites. Оба process groups принадлежат одному cleanup, ошибки/сигналы fail-closed. Другие suites/27 checks/пороги/продукт прежние.
+- Dirty CI.15 publication checkpoints сохранены отдельно. Новый SDK key после workflow fingerprint ожидаемо miss; учитывать cold/hit/размер и eviction без изменения quota. Новых passed CI.16 результатов пока нет. Саму структуру тестов разрешено менять, проверяемые гарантии сохраняются; merge/delete не поручены.
+
+### LOG-665 — 2026-11-18 — агент Codex, CI.16 подготовлен к Linux CI
+
+- CI-only prepare/runtime argv barrier готов: прежние host release endpoint и x86_64 APK/instrumentation builds последовательно внутри подготовки, одновременно с AVD boot. Все SDK/compiler/device/runtime сценарии/27 checks/budgets сохранены. Owned process groups, exit codes и cleanup синтетически покрываются новым Linux guard в обязательном prototype-native до SDK setup.
+- Routing и прежние tool-cache/SDK refusal fixtures passed локально; ShellCheck трёх Bash scripts, actionlint с ShellCheck (без отсутствующего Pyflakes), Bash syntax, comment policy 390 sources/diff passed. Настоящий Linux process-group guard не исполнен локально: setsid/WSL нет. Это явно pending обязательный CI, успех не заявляется. Новая локальная Device UI проверка не применима к CI-only orchestration, APK/runtime код прежний.
+- 98 criteria rows сверены без изменений. Пять правил соблюдены в scope EV-122: обратимость/default, общий API, docs, прежние обе платформы, единые pins/data. Ориентир 300 строк превышен единым lifecycle изменением с отказными/cleanup fixtures и доказательствами CI.15; продукт не меняется. Далее PR #109/new CI/cold-hit/queues/all executions, затем фактическая цель <=10m/идеальная <=5m. Merge/delete не поручены.

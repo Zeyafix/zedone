@@ -1,5 +1,22 @@
 # Проверки PR и кэши сборки
 
+## Подготовка Android во время boot CI.16
+
+`prototype-ui` запускает прежние host release endpoint и x86_64 APK с
+instrumentation через `prepare-android-prototype-ci.sh` во время boot AVD.
+`check-android-environment.sh --prepare command -- runtime command` доступен
+только в CI. Он ждёт успешной подготовки и всех прежних проверок устройства
+перед runtime. При ошибке или сигнале cleanup завершает собственные build и
+emulator process groups с descendants; коды отказов не теряются. Остальные
+suites и default без prepare сохраняют последовательный путь.
+
+Синтетические lifecycle fixtures `bash scripts/check-android-preparation.sh`
+выполняются в prototype-native до SDK install. Нужны Linux, jq и setsid;
+настоящий SDK/AVD они не открывают. Проверяются оба порядка завершения,
+build/boot/runtime failure, сигнал и cleanup. Версии, профили сборки,
+instrumentation, negative controls и 27 обязательных checks сохраняются.
+Результаты и непроверенный охват — [EV-122](../agent/verification/EV-122-ci-android-preparation.md).
+
 ## Параллельные main browser-сценарии CI.15
 
 В существующих host shell jobs `check-ui-browser.mjs --main` запускает три

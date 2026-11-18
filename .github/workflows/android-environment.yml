@@ -112,6 +112,8 @@ jobs:
         if: matrix.suite == 'prototype-native'
         run: |
           bun prototypes/scripts/check-android-ci-suites.mjs
+          shellcheck scripts/check-android-preparation.sh scripts/prepare-android-prototype-ci.sh
+          timeout 90 bash scripts/check-android-preparation.sh
           shellcheck scripts/install-ci-tauri.sh scripts/check-ci-tauri.sh
           bash scripts/check-ci-tauri.sh
       - name: Restore pinned Android SDK
@@ -238,16 +240,6 @@ jobs:
           bun install --frozen-lockfile
           if [[ '${{ matrix.suite }}' == prototype-native ]]; then bun run check:types; fi
           chmod +x src-tauri/gen/android/gradlew
-      - name: Build host comparison endpoint
-        if: matrix.suite == 'prototype-ui'
-        working-directory: prototypes
-        run: |
-          rust=$(jq -r .rust "$GITHUB_WORKSPACE/scripts/environment-versions.json")
-          CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --release --locked --offline --bin serve-echo
-      - name: Build Android x86_64 APK and instrumentation
-        if: matrix.suite == 'prototype-ui'
-        working-directory: prototypes
-        run: bun run android:build
       - name: Build Android arm64 APK and instrumentation
         if: matrix.suite == 'prototype-arm64'
         working-directory: prototypes
@@ -291,7 +283,11 @@ jobs:
         if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
         run: |
           shellcheck scripts/check-android-environment.sh
-          bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+          if [[ '${{ matrix.suite }}' == prototype-ui ]]; then
+            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+          else
+            bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+          fi
       - name: Check product ABI build without emulator
         if: matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64'
         run: bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'

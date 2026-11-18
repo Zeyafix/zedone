@@ -1,6 +1,7 @@
 import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import { checkFieldConflictsExchange } from "./check-field-conflicts-exchange.mjs";
 import { checkPlacementExchange } from "./check-placement-exchange.mjs";
+import { checkPositionConflictsExchange } from "./check-position-conflicts-exchange.mjs";
 import { checkColumnPositionExchange } from "./check-column-position-exchange.mjs";
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
@@ -12,6 +13,23 @@ assert.equal(Bun.version, versions.bun);
 assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Windows host fixture is CI-only');
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
+const suite = Bun.argv[2];
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--positions'].includes(suite), 'Unknown pairing acceptance suite');
+if (!suite) {
+    for (const current of ['--standard', '--positions']) {
+        const env = { ...process.env };
+        const positionUi = env.P06_POSITION_CONFLICTS_UI === '1';
+        if (positionUi ? current === '--standard' : current === '--positions') {
+            if (env.P06_EXCHANGE_UI !== undefined) env.P06_EXCHANGE_UI = '0';
+        }
+        const child = Bun.spawn([process.execPath, import.meta.path, current], { cwd: root, env, stdin: 'ignore', stdout: 'inherit', stderr: 'inherit' });
+        const code = await child.exited;
+        assert.ok(!child.signalCode, 'Pairing acceptance suite interrupted');
+        assert.equal(code, 0, `Pairing acceptance suite failed: ${current}`);
+    }
+    console.log('Both isolated pairing suites passed with their original fixture and cleanup budgets.');
+    process.exit(0);
+}
 const serial = process.env.ANDROID_SERIAL;
 assert.match(serial || '', /^emulator-\d+$/);
 const suffix = process.platform === 'win32' ? '.exe' : '';
@@ -222,10 +240,14 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
-    checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
-    checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
-    checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});
-    checkColumnPositionExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    if (suite === '--standard') {
+        checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
+        checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+        checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});
+        checkColumnPositionExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    } else {
+        checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
         ['sync.push', { protocol:999, space, base:[], changes:[] }],
@@ -288,7 +310,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    if (process.env.P06_EXCHANGE_UI === '1') {
+    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_POSITION_CONFLICTS_UI === '1' ? suite === '--positions' : suite === '--standard')) {
         const incomingOffer=ok(call(android,'offer.create',{}));
         ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
         const uiRequest=ok(call(host,'session.submit',{}));
@@ -303,9 +325,9 @@ try {
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
         let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
         let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
-        if (process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
+        if (process.env.P06_POSITION_CONFLICTS_UI === '1' || process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
             const namesDirectory = resolve(report, 'name-conflicts-seed');
-            const mode = process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
+            const mode = process.env.P06_POSITION_CONFLICTS_UI === '1' ? '--prepare-position-conflicts' : process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
             invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), mode, namesDirectory]);
             const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
             subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
@@ -328,7 +350,10 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = ['column position conflicts/same neighbors/independent different and identical decisions/child availability/preservation/reverse', 'card placement conflicts/same neighbors/independent decisions/preservation/reverse', 'combined field conflicts/three resolution orders/independent decisions/content/history/reverse', 'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
+    passedChecks = [suite === '--positions'
+        ? 'combined card/column positions/both orders/same and cross-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse'
+        : 'text/field/card-placement/column-position conflicts including independent decisions, neighbors, preservation and reverse',
+        'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
     console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
 }
 catch (error) {

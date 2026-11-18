@@ -155,4 +155,43 @@ assert.deepEqual(manifest(`${"a".repeat(64)}  ./files/data.sqlite\n${"b".repeat(
 for (const text of ["not a checksum", `${"a".repeat(63)}  ./files/data.sqlite`, `${"a".repeat(64)}  /absolute/path`]) {
   assert.throws(() => manifest(text), /Invalid application file manifest/);
 }
+const pairedDispatch = pairingSource.slice(pairingSource.indexOf("const suite = Bun.argv[2];"), pairingSource.indexOf("const serial = process.env.ANDROID_SERIAL;"))
+  .replaceAll("import.meta.path", '"/fixture/check-pairing-app.mjs"');
+async function pairingSuites(env = {}, args = [], failure = {}, failureAt = 0) {
+  const calls = [], stopped = {};
+  let exit, error;
+  try {
+    await runInNewContext(`(async () => { ${pairedDispatch} })()`, {
+      assert, root: "/fixture", console: { log() {} },
+      process: { execPath: "fixture-bun", env, exit(code) { exit = code; throw stopped; } },
+      Bun: {
+        argv: ["fixture-bun", "pairing", ...args],
+        spawn(command, options) {
+          calls.push({ command: Array.from(command), env: { ...options.env } });
+          const result = calls.length - 1 === failureAt ? failure : {};
+          return { exited: Promise.resolve(Object.hasOwn(result, "exitCode") ? result.exitCode : 0), signalCode: result.signalCode };
+        },
+      },
+    });
+  } catch (cause) { if (cause !== stopped) error = cause; }
+  return { calls, exit, error };
+}
+for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_POSITION_CONFLICTS_UI: "1" }]) {
+  const result = await pairingSuites(env);
+  assert.equal(result.error, undefined); assert.equal(result.exit, 0);
+  assert.deepEqual(result.calls.map(call => call.command), ["--standard", "--positions"].map(suite => ["fixture-bun", "/fixture/check-pairing-app.mjs", suite]));
+  for (const call of result.calls) assert.equal(Object.hasOwn(call.env, "P06_EXCHANGE_UI"), Object.hasOwn(env, "P06_EXCHANGE_UI"), "Fixture timeout presence must not change");
+  if (env.P06_EXCHANGE_UI === "1") {
+    const ui = env.P06_POSITION_CONFLICTS_UI === "1" ? 1 : 0;
+    assert.equal(result.calls[ui].env.P06_EXCHANGE_UI, "1");
+    assert.equal(result.calls[1 - ui].env.P06_EXCHANGE_UI, "0");
+  }
+}
+for (const suite of ["--standard", "--positions"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+assert.ok((await pairingSuites({}, ["invalid"])).error);
+for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
+  const result = await pairingSuites({}, [], failure, index);
+  assert.ok(result.error); assert.equal(result.exit, undefined);
+  assert.equal(result.calls.length, index + 1, "A failed suite must prevent a successful aggregate");
+}
 console.log("Android CI routing: full/default/native compatibility, independent UI/paired APK suites, exact ABI job ownership, CI-only production APK bootstrap, empty/valid/invalid file manifests, all runtime/negative checks, 15m budgets, strict aggregate, invalid input, child failures and signals passed.");

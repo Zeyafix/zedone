@@ -21,6 +21,7 @@ import { checkNameConflicts } from "./check-ui-name-conflicts.mjs";
 import { checkTextConflicts } from "./check-ui-text-conflicts.mjs";
 import { checkFieldConflicts } from "./check-ui-field-conflicts.mjs";
 import { checkPlacementConflicts } from "./check-ui-placement-conflicts.mjs";
+import { checkPositionConflicts } from "./check-ui-position-conflicts.mjs";
 import { checkColumnPositions } from "./check-ui-column-positions.mjs";
 import { shellDiagnosticState, observeShellReads, observeShellReadLifecycle, withShellFailureDiagnostics } from "./check-ui-diagnostics.mjs";
 
@@ -197,6 +198,7 @@ try {
     await checkFieldConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await checkPlacementConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await checkColumnPositions(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
+    await checkPositionConflicts(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
     await browser.close();
     browser = undefined;
     console.log("UI lifecycle, navigation/focus, themes/restart/system/reset, storage failure, genuine HTTP allow/deny/unconfigured, delivery fault passed.");

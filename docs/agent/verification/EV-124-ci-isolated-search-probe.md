@@ -57,3 +57,26 @@ child failure/signal. Node syntax/comment policy 390 sources/diff passed.
 aggregate FAILED. Android shell прошёл, но занял 12:19 (runtime/preflight
 7:01, build 3:11, SDK restore 0:32). После нового CI остаётся анализировать
 этот bottleneck; успешный search fix не означает достижения <=10m.
+
+## Публикация / LOG-674
+
+cf03942 в PR #109, новый Linux/24 CI pending. Runs 44319061638/44319061698.
+После результатов продолжить оставшийся Android shell >10m; локальные
+probe timings не принимают общую цель времени. Merge/delete не поручены.
+
+## CI / LOG-675
+
+cf03942: все 24 checks SUCCESS в attempt 1, rerun не запрашивался.
+Linux product отдельно выполнил тот же probe: cards=1000, matching=1000,
+elapsed_ms=9916, ровно один passed; обычный batch явно показал ignored.
+Host workflow 44319061638 завершился за 9:06, Android 44319061698 за 10:40
+от создания workflow до terminal. Android shell 8:34; новый critical path
+pairing-placements 10:31, pairing-fields 10:10. SDK restore hit, install skipped.
+Сумма всех 24 job executions 150:51; cache inventory 17 entries/8.03 GiB,
+как в предыдущем snapshot. Все durations/outcomes сохранены в summary JSON.
+Raw run/jobs/steps и полные Linux/placements logs сохранены в ignored reports.
+
+Это подтверждение обязательного probe на Linux, не доказательство причин
+исторических GAP-034 и не принятие общего <=10m/идеального <=5m.
+GAP-034/035/036/037 остаются open. Далее CI.19/EV-125: убрать отдельное
+ожидание boot из shell/paired подготовки, сохранив все runtime проверки.

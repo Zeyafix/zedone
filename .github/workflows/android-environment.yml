@@ -112,7 +112,8 @@ jobs:
         if: matrix.suite == 'prototype-native'
         run: |
           bun prototypes/scripts/check-android-ci-suites.mjs
-          shellcheck scripts/check-android-preparation.sh scripts/prepare-android-prototype-ci.sh
+          shellcheck scripts/check-android-preparation.sh scripts/prepare-android-prototype-ci.sh scripts/prepare-android-shell-ci.sh scripts/check-android-shell-preparation.sh
+          bash scripts/check-android-shell-preparation.sh
           timeout 90 bash scripts/check-android-preparation.sh
           shellcheck scripts/install-ci-tauri.sh scripts/check-ci-tauri.sh
           bash scripts/check-ci-tauri.sh
@@ -244,15 +245,6 @@ jobs:
         if: matrix.suite == 'prototype-arm64'
         working-directory: prototypes
         run: bun run android:build aarch64
-      - name: Build x86_64 UI shell and host fixture for device checks
-        if: matrix.suite == 'shell' || startsWith(matrix.suite, 'pairing-')
-        run: |
-          chmod +x ui/src-tauri/gen/android/gradlew
-          bun scripts/build-ui-android.mjs x86_64
-          if [[ '${{ matrix.suite }}' == shell ]]; then
-            rust=$(jq -r .rust scripts/environment-versions.json)
-            CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline
-          fi
       - name: Build arm64 UI shell on a separate runner
         if: matrix.suite == 'shell-arm64'
         run: |
@@ -281,12 +273,16 @@ jobs:
           test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
         if: matrix.suite != 'product-x86_64' && matrix.suite != 'product-arm64' && matrix.suite != 'prototype-arm64' && matrix.suite != 'shell-arm64'
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
           shellcheck scripts/check-android-environment.sh
-          if [[ '${{ matrix.suite }}' == prototype-ui ]]; then
-            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+          if [[ "$SUITE" == prototype-ui ]]; then
+            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"
+          elif [[ "$SUITE" == shell || "$SUITE" == pairing-* ]]; then
+            bash scripts/check-android-environment.sh --prepare bash scripts/prepare-android-shell-ci.sh "$SUITE" -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"
           else
-            bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+            bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs "$SUITE"
           fi
       - name: Check product ABI build without emulator
         if: matrix.suite == 'product-x86_64' || matrix.suite == 'product-arm64'

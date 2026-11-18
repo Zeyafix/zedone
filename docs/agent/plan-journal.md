@@ -7,11 +7,11 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.18
+current_step: CI.19
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.18/EV-124 verified локально: Windows 383+1 и Android 380+1 обязательный isolated search, прежний <30s, оба paired probes/contracts passed. Далее PR/24 CI"
-next_action: "Опубликовать CI.18, затем существующий watch/24 outcomes и метрики; проверить Linux isolated probe и оставшийся Android shell >10m. Controlled benchmark только после успешного достижения времени. Merge/delete не поручены."
+active_work: "CI.19/EV-125 verified локально: shell/paired APK build во время boot; cf03942 все 24 SUCCESS, Linux probe 9916ms. Full wall 10:40, цель ещё не принята; PR #109"
+next_action: "Опубликовать CI.19, затем существующий watch: все 24 outcomes и actual shell/paired overlap/wall/queue/cache cold key. Controlled benchmark после полного <=10m. Merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036, GAP-037]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-673
+last_event: LOG-675
 ```
 
 CI.15/EV-121 verified локально: Windows main UI/три isolated concurrent
@@ -6948,3 +6948,15 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - Native Android через Device-open эмулятор/штатные native CLI passed: 380 обычных Rust +1 isolated search 11085ms, оба paired probes и точный contract compare. Прежний finally удалил свой remote TMPDIR, Device выключен штатным tool. UI через adb не выполнялся.
 - Guards требуют ровно один probe во всех runtime owners, rejects empty/zero/two/duplicate passed summaries/FAILED/missing storage binary/exit/signal; full/slice coverage прежняя. Node syntax/comment policy 390 sources/diff passed, 98 criteria rows прежние, пять правил в scope EV-124 соблюдены. Нагрузка/все assertions/<30s сохранены, GAP-034 остаётся open, новый Linux CI pending.
 - 2be1ec6 terminal: 22 SUCCESS, Linux product/aggregate FAILED, raw metadata сохранены. Android shell всё ещё 12:19, preflight/runtime 7:01/build 3:11/SDK restore 0:32; после search fix продолжить этот bottleneck. Цель <=10m/идеальная <=5m не принята, benchmark до устранения превышений не запускать. Далее PR #109/24 CI, без same-head rerun/merge/delete.
+
+### LOG-674 — 2026-11-18 — агент Codex, CI.18 опубликован
+
+- cf03942 отправлен в существующий PR #109, PR Testing переписан по конечному scope: обязательный isolated 1000-card search на host/native Android, прежний debug/workspace/30s, локальные 383+1/380+1/probes/contracts passed, старый search failure/GAP-034 и Android shell 12:19 сохранены. Head/body/sections/credit прочитаны обратно; feedback отсутствовал перед публикацией, tested fingerprints/noreply проверены.
+- Initial new runs 44319061638/44319061698, expected 24 прежний. Исходный watch сохранён без повторной регистрации. После результата нужны Linux probe/все outcomes/remaining Android shell bottleneck; общий <=10m/идеальный <=5m ещё не приняты, benchmark только после устранения превышений. Merge/delete не поручены; checkpoint локальный без нового push.
+
+### LOG-675 — 2026-11-18 — агент Codex, CI.18 все 24 passed; CI.19 shell/paired preparation
+
+- cf03942 все 24 SUCCESS/attempt 1. Linux isolated search: cards=1000/matching=1000/9916ms, ровно один passed после обычного batch. Host workflow 9:06, Android/full wall 10:40, runner sum 150:51. Shell 8:34, placements critical 10:31, fields 10:10. SDK hits/cache inventory 17 entries/8.03 GiB, как прежде. Raw runs/jobs/steps и полные Linux/placements logs сохранены; rerun не запрашивался. GAP-034 и остальные причины прежних отказов open, успешный probe их не закрывает.
+- CI.19/EV-125: прежний x86_64 APK build для shell/четырёх pairing suites выполняется во время boot через проверенный `--prepare` driver; только shell собирает browser host fixture. Placements прежде тратил 2:57 на build, затем около 0:57 на environment/probes. Runtime по-прежнему ждёт оба успеха; production bootstrap/acceptance rebuild/все сценарии/assertions/restore/cleanup/24 checks/budgets прежние. Lifecycle driver/KVM predicate/product source не меняются.
+- Локальный реальный helper с command stubs passed для всех пяти suite: exact argv/order/target, отсутствие лишнего paired fixture build, CI/invalid/missing/extra args rejection, child exit 23/остановка. Android routing/tool-cache guards, ShellCheck/actionlint/comment policy 392 sources/diff passed. Исходные local jq/actionlint failures и исправления записаны EV-125. Linux runtime/process groups нового overlap ещё pending CI, Windows host pipeline не менялся.
+- SDK key включает workflow и станет cold; verified restore/install/save прежние, учитывать cache и contention, не обещать выигрыш до CI. Пять правил в scope соблюдены, 98 criteria rows прежние. Далее публикация и существующий watch/24 outcomes/timings, controlled benchmark после полного <=10m. Merge/delete не поручены.

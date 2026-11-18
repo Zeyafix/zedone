@@ -28,10 +28,14 @@ types/build/native подготовки. Explicit `--main`/`--conflicts` сох�
 очереди runners. Полнота и failures проверяются host routing guard.
 Приёмка и замеры — [EV-123](../agent/verification/EV-123-ci-linux-capacity.md).
 
-## Подготовка Android во время boot CI.16
+## Подготовка Android во время boot CI.16/CI.19
 
 `prototype-ui` запускает прежние host release endpoint и x86_64 APK с
 instrumentation через `prepare-android-prototype-ci.sh` во время boot AVD.
+`shell` и четыре `pairing-*` suite тем же способом запускают прежнюю x86_64
+APK-сборку через `prepare-android-shell-ci.sh <suite>`. Только `shell` также
+собирает host browser fixture; paired API проверки его не используют.
+Помощник принимает ровно один разрешённый suite и работает только в CI.
 `check-android-environment.sh --prepare command -- runtime command` доступен
 только в CI. Он ждёт успешной подготовки и всех прежних проверок устройства
 перед runtime. При ошибке или сигнале cleanup завершает собственные build и
@@ -42,8 +46,15 @@ suites и default без prepare сохраняют последовательн
 выполняются в prototype-native до SDK install. Нужны Linux, jq и setsid;
 настоящий SDK/AVD они не открывают. Проверяются оба порядка завершения,
 build/boot/runtime failure, сигнал и cleanup. Версии, профили сборки,
-instrumentation, negative controls и 27 обязательных checks сохраняются.
+instrumentation, negative controls и текущие 24 обязательных checks сохраняются.
+`bash scripts/check-android-shell-preparation.sh` проверяет реальные argv,
+порядок и владельцев сборок, отказ без CI/с неверным suite и передачу ошибок
+до запуска последующих команд. Shell/paired runtime, production bootstrap,
+acceptance APK rebuild и восстановление данных остаются последовательными
+после обеих успешных подготовок. Workflow входит в SDK cache fingerprint:
+его изменение даёт новый cold key, который проверяется как раньше.
 Результаты и непроверенный охват — [EV-122](../agent/verification/EV-122-ci-android-preparation.md).
+Продолжение — [EV-125](../agent/verification/EV-125-ci-shell-preparation.md).
 
 ## Параллельные main browser-сценарии CI.15
 

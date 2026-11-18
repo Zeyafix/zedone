@@ -63,14 +63,15 @@ assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
 const enabled = (step, suite) => runInNewContext(step.if || "true", { matrix: { suite }, startsWith: (value, prefix) => value.startsWith(prefix) });
-for (const [target, owners] of [["x86_64", ["shell", ...pairedSuites]], ["aarch64", ["shell-arm64"]]]) {
-  const builds = jobs.steps.filter(step => step.run?.includes(`bun scripts/build-ui-android.mjs ${target}`));
-  assert.equal(builds.length, 1, `${target} must be built exactly once`);
-  assert.deepEqual(suites.filter(suite => enabled(builds[0], suite)), owners);
-}
-const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
-assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", ...pairedSuites]);
-assert.ok(fixture.run.includes("if [[ '${{ matrix.suite }}' == shell ]]; then"), "Paired API probes must not rebuild the unused browser shell fixture");
+const arm64ShellBuilds = jobs.steps.filter(step => step.run?.includes("bun scripts/build-ui-android.mjs aarch64"));
+assert.equal(arm64ShellBuilds.length, 1, "aarch64 must be built exactly once");
+assert.deepEqual(suites.filter(suite => enabled(arm64ShellBuilds[0], suite)), ["shell-arm64"]);
+assert.ok(!jobs.steps.some(step => step.run?.includes("bun scripts/build-ui-android.mjs x86_64")), "x86_64 preparation must overlap emulator boot");
+const shellPreparation = await Bun.file(`${import.meta.dir}/../../scripts/prepare-android-shell-ci.sh`).text();
+assert.ok(shellPreparation.includes(["shell", ...pairedSuites].join("|")));
+assert.equal(shellPreparation.split("bun scripts/build-ui-android.mjs x86_64").length, 2);
+assert.ok(shellPreparation.includes('if [[ $1 == shell ]]; then'), "Paired API probes must not rebuild the unused browser shell fixture");
+assert.ok(shellPreparation.includes('CARGO_TARGET_DIR="$PWD/target" cargo "+$rust" build --manifest-path ui/src-tauri/Cargo.toml --example shell-fixture --locked --offline'));
 const prototypeArm64 = jobs.steps.find(step => step.name === 'Build Android arm64 APK and instrumentation');
 assert.deepEqual(suites.filter(suite => enabled(prototypeArm64, suite)), ['prototype-arm64']);
 assert.equal(prototypeArm64.run, 'bun run android:build aarch64');
@@ -88,9 +89,12 @@ assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-i
   "Mirror selection cannot replace installing emulator dependencies");
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
 assert.deepEqual(suites.filter(suite => enabled(environment, suite)), runtimeSuites);
-assert.ok(environment.run.includes("bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'"));
-assert.ok(environment.run.includes("if [[ '${{ matrix.suite }}' == prototype-ui ]]; then"));
+assert.equal(environment.env.SUITE, '${{ matrix.suite }}');
+assert.ok(environment.run.includes('bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs "$SUITE"'));
+assert.ok(environment.run.includes('if [[ "$SUITE" == prototype-ui ]]; then'));
 assert.ok(environment.run.includes("--prepare bash scripts/prepare-android-prototype-ci.sh -- bun prototypes/scripts/check-android-ci.mjs"));
+assert.ok(environment.run.includes('elif [[ "$SUITE" == shell || "$SUITE" == pairing-* ]]; then'));
+assert.ok(environment.run.includes('--prepare bash scripts/prepare-android-shell-ci.sh "$SUITE" -- bun prototypes/scripts/check-android-ci.mjs "$SUITE"'));
 assert.ok(!jobs.steps.some(step => step.name === 'Build host comparison endpoint' || step.name === 'Build Android x86_64 APK and instrumentation'));
 const preparation = await Bun.file(`${import.meta.dir}/../../scripts/prepare-android-prototype-ci.sh`).text();
 assert.ok(preparation.includes('cargo "+$rust" build --release --locked --offline --bin serve-echo'));
@@ -115,6 +119,7 @@ for (const control of [negative, installer]) {
 assert.ok(installer.run.includes("bash scripts/check-ci-tauri.sh"));
 assert.ok(installer.run.includes("bun prototypes/scripts/check-android-ci-suites.mjs"), "Standalone Android workflow must check its own routing even without host workflow triggers");
 assert.ok(installer.run.includes("bash scripts/check-android-preparation.sh"));
+assert.ok(installer.run.includes("bash scripts/check-android-shell-preparation.sh"));
 for (const required of ["Unexpected Bun version", 'test "$status" -eq 23', 'cmp "$test_dir/before" "$test_dir/after"', 'existing-avd/sentinel']) {
   assert.ok(negative.run.includes(required), "Negative controls must retain version rejection, exit code and cleanup evidence");
 }

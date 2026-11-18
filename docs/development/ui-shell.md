@@ -535,3 +535,29 @@ strict stale, неизменность текущих полей и чужой p
 потерю ответов с точным replay после reload/новой версии. Общая часть включена
 в desktop/touch host и native CI; локальный Android ввод выполняется через Device.
 Фактическая приёмка и ограничения — [EV-091](../agent/verification/EV-091-history-cleanup-ui.md).
+
+### Решения тегов P06.07
+
+`CardEditor` читает варианты через `card.inspect_tags` и отправляет
+`card.resolve_tag` с исходными версиями карточки и тега. `TagNameResolution`
+читает весь `name_group` из `tag.list`, фиксирует версии каждого тега и
+отправляет один `tag.resolve_names`. Клиент не вычисляет Unicode-ключи и
+причинные группы. После definite rejection кнопка обновления явно убирает
+отклонённое намерение, сохраняет ввод по ID и перечитывает варианты;
+новое решение требует отдельного submit. Неизвестный исход остаётся в
+общем списке незавершённых действий и не превращается в новую команду.
+
+`check-ui-tag-conflicts.mjs` проверяет оба порядка решений desktop/touch,
+оба выбора S05, отмену, stale с сохранением ввода и обратные назначения.
+Синтетический стенд `shell-fixture --serve-tag-conflicts` использует
+продуктовый Automerge/Storage/Service; `--prepare-tag-conflicts` сохраняет
+такой же стенд для Device без запуска отдельного сервера.
+
+`check-pairing-app.mjs --tags` выполняет настоящие Windows↔APK/TLS/Keystore
+создания, aliases, написание, S05 с одинаковыми/разными решениями, поздний
+мост и сохранность. CI-срез `pairing-tags` обязателен вместе с прежними
+fields/placements/positions; лимиты не увеличены. Полный запуск без аргумента
+выполняет standard/positions/tags в отдельных стендах. Для локальной UI-паузы
+добавьте `P06_EXCHANGE_UI=1`, `P06_TAG_CONFLICTS_UI=1` и полученную от
+Device `AGENT_DEVICE_COMMAND`; ввод/снимки выполняются через Device.
+Матрица и ограничения — [EV-131](../agent/verification/EV-131-tag-conflicts-acceptance.md).

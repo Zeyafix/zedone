@@ -5,6 +5,7 @@ import { newCardId, newColumnId, newSpaceId, newTagId } from "../../client/comma
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, tagErrorMessage, type Card, type Column, type Mutation, type Pending, type Space, type Tag, type TrashPreview, type TrashSelection } from "./workspace-api";
 import CardsList from "./CardsList.vue";
 import CardEditor from "./CardEditor.vue";
+import TagNameResolution from "./TagNameResolution.vue";
 import BoardView from "./BoardView.vue";
 import PlacementConflicts from "./PlacementConflicts.vue";
 import { placementConflict } from "./board-order";
@@ -40,6 +41,8 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "forget-draft": "Удалить черновик",
   "card.move": "Переместить карточку", "column.move": "Переместить колонку",
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
+  "card.resolve_tag": "Разрешить назначение тега",
+  "tag.resolve_names": "Разрешить имена группы тегов",
   "trash.purge": "Очистить окончательно",
   "card.restore_text": "Восстановить версию карточки",
   "column.resolve_position": "Разрешить позицию колонки",
@@ -79,6 +82,8 @@ const pending = ref<Pending[]>([]);
 const drafts = ref<EditorDraft[]>([]);
 const recovering = ref<string>();
 const editor = ref<InstanceType<typeof CardEditor>>();
+const tagNameResolution = ref<InstanceType<typeof TagNameResolution>>();
+const tagNamesLocked = ref(false);
 const storageError = ref(false);
 const action = ref<Action>();
 const dialogOpen = ref(false);
@@ -91,7 +96,7 @@ let opener: HTMLElement | undefined;
 let generation = 0;
 let localGeneration = 0, lastUrl = location.href, pendingUrl: string | undefined;
 const boardBlocked = computed(() => busy.value || pending.value.length > 0 || storageError.value || !props.ready || loading.value);
-const blocked = computed(() => boardBlocked.value || moving.value || placementBusy.value);
+const blocked = computed(() => boardBlocked.value || moving.value || placementBusy.value || tagNamesLocked.value);
 const resolving = computed(() => action.value?.kind === "space.resolve_name" || action.value?.kind === "column.resolve_name" ? action.value.target : undefined);
 const naming = computed(() => action.value?.kind.endsWith(".create") || action.value?.kind.endsWith(".rename") || !!resolving.value);
 const lifecycleTarget = computed(() => {
@@ -461,17 +466,19 @@ function pendingName(item: Pending) {
               <div class="view-actions">
                 <button class="rename-tag" :disabled="blocked || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.rename', target: tag }, $event)">Переименовать</button>
                 <button class="delete-tag" :disabled="blocked || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.delete', target: tag }, $event)">Удалить тег</button>
+                <button v-if="tag.state === 'conflicted' && tag.name_group?.length" class="resolve-tag-names" :disabled="blocked || space.state !== 'active'" @click="tagNameResolution?.open(tag, $event)">Разрешить имена группы</button>
               </div>
             </li>
           </ul>
           <p v-if="!tags.length" class="object-note">Тегов пока нет. Создайте тег для одной темы.</p>
           <button class="create-tag" :disabled="blocked || space.state !== 'active'" @click="open({ kind: 'tag.create', space: space.space }, $event)">Создать тег</button>
         </details>
-        <PlacementConflicts v-if="!showTrash && !showCardTrash" :key="`placements-${space.space}`" :cards="visibleCards.filter(placementConflict)" :all-cards="cards" :columns="columns" :tags="tagNames" :blocked="boardBlocked || dialogOpen || moving || space.state !== 'active'" :refresh="refresh" @open="open" @lock="placementBusy = $event" />
-        <BoardView v-if="!showTrash" :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :tags="tagNames" :blocked="boardBlocked || dialogOpen || placementBusy" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
+        <PlacementConflicts v-if="!showTrash && !showCardTrash" :key="`placements-${space.space}`" :cards="visibleCards.filter(placementConflict)" :all-cards="cards" :columns="columns" :tags="tagNames" :blocked="boardBlocked || dialogOpen || moving || tagNamesLocked || space.state !== 'active'" :refresh="refresh" @open="open" @lock="placementBusy = $event" />
+        <BoardView v-if="!showTrash" :key="space.space" :space="space" :columns="visibleColumns" :cards="visibleCards" :tags="tagNames" :blocked="boardBlocked || dialogOpen || placementBusy || tagNamesLocked" :trash="showTrash" :card-trash="showCardTrash" :refresh="refresh" @open="open" @lock="moving = $event" />
       </template>
     </template>
 
+    <TagNameResolution :key="selected" ref="tagNameResolution" :blocked="boardBlocked || dialogOpen || moving || placementBusy" :refresh="refresh" @lock="tagNamesLocked = $event" />
     <DialogRoot :open="dialogOpen" @update:open="changeDialog">
       <DialogPortal><DialogOverlay class="dialog-overlay" />
         <DialogContent class="action-dialog" @open-auto-focus="initialFocus" @close-auto-focus="restoreFocus">

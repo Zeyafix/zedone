@@ -1,5 +1,7 @@
 use super::*;
 use zedone_core::{spaces::SpaceState, sync::SyncStore};
+mod names;
+mod resolution;
 
 async fn copy(db: &Storage, path: std::path::PathBuf, admin: &Arc<PendingAccess>) -> Storage {
     let page = db

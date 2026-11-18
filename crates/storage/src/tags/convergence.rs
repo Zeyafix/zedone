@@ -75,6 +75,7 @@ pub(super) struct Group {
     pub names: Vec<String>,
     pub deleted: Vec<bool>,
     pub ambiguous: bool,
+    pub bridge: Vec<String>,
 }
 
 pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
@@ -138,8 +139,25 @@ pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
                 .push(i);
         }
         for indices in members.into_values() {
+            let bridge: Vec<_> = if ambiguous.contains(&membership[indices[0]]) {
+                cohort
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| membership[*i] == membership[indices[0]])
+                    .map(|(_, c)| c.0.clone())
+                    .collect()
+            } else {
+                Vec::new()
+            };
             let objects: Vec<_> = indices.iter().map(|i| cohort[*i].1.clone()).collect();
             let names = candidates(graph, &objects, "name", |v| v.as_str().map(str::to_owned))?;
+            let mut unresolved_bridge = false;
+            for name in &names {
+                let deps = context(graph, &name.operation)?;
+                for id in &bridge {
+                    unresolved_bridge |= graph.get_at(ROOT, key(id), &deps)?.is_none();
+                }
+            }
             let mut unique: Vec<String> = names.iter().map(|c| c.value.clone()).collect();
             if names
                 .iter()
@@ -160,9 +178,18 @@ pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
                 ids: indices.iter().map(|i| cohort[*i].0.clone()).collect(),
                 names: unique,
                 deleted,
-                ambiguous: ambiguous.contains(&membership[indices[0]]),
+                ambiguous: unresolved_bridge,
+                bridge,
             });
         }
+    }
+    let blocked: BTreeSet<_> = result
+        .iter()
+        .filter(|g| g.ambiguous || g.names.len() != 1)
+        .flat_map(|g| g.bridge.iter().cloned())
+        .collect();
+    for group in &mut result {
+        group.ambiguous |= group.bridge.iter().any(|id| blocked.contains(id));
     }
     Ok(result)
 }

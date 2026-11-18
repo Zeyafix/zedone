@@ -37,6 +37,8 @@ use zedone_core::{
         self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, ResolveSpaceName, RestoreSpace,
         TrashSpace,
     },
+    tag_assignments::{self, InspectCardTags, ResolveCardTag},
+    tag_names::{self, ResolveTagNames},
     tags::{self, CreateTag, DeleteTag, ListTags, ReadTag, RenameTag, SetCardTag},
     wire::{CommandResponse, decode_request},
 };
@@ -160,6 +162,9 @@ impl Service {
                 RenameTag::NAME => run!(RenameTag, tags::rename),
                 DeleteTag::NAME => run!(DeleteTag, tags::delete),
                 SetCardTag::NAME => run!(SetCardTag, tags::set_card_tag),
+                InspectCardTags::NAME => run!(InspectCardTags, tag_assignments::inspect),
+                ResolveCardTag::NAME => run!(ResolveCardTag, tag_assignments::resolve),
+                ResolveTagNames::NAME => run!(ResolveTagNames, tag_names::resolve),
                 _ => Err(invalid()),
             }
         }

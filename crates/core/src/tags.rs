@@ -58,6 +58,8 @@ pub struct TagSnapshot {
     pub tag: String,
     pub names: Vec<String>,
     pub state: TagState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub name_group: Vec<String>,
     pub version: StateVersion,
 }
 
@@ -137,6 +139,17 @@ impl Command for SetCardTag {
 }
 
 pub trait TagStore: CardStore {
+    fn tag_name_group(&mut self, space: &str, tag: &str) -> CommandResult<Vec<TagSnapshot>>;
+    fn resolve_tag_names(
+        &mut self,
+        space: &str,
+        names: &[crate::tag_names::TagNameChoice],
+    ) -> CommandResult<()>;
+    fn card_tag_assignments(
+        &mut self,
+        space: &str,
+        card: &str,
+    ) -> CommandResult<Vec<crate::tag_assignments::TagAssignment>>;
     fn create_tag(&mut self, parameters: &CreateTag) -> CommandResult<TagSnapshot>;
     fn tag_snapshot(&mut self, space: &str, tag: &str) -> CommandResult<TagSnapshot>;
     fn tags(&mut self, space: &str) -> CommandResult<Vec<TagSnapshot>>;

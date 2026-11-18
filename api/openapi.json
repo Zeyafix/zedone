@@ -418,6 +418,40 @@
         ]
       }
     },
+    "/v1/commands/card.inspect_tags": {
+      "post": {
+        "tags": [
+          "tag_assignments"
+        ],
+        "operationId": "card_inspect_tags",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectCardTags"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardTags"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.list": {
       "post": {
         "tags": [
@@ -531,6 +565,40 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest_ResolveCardPlacement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_CardSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/card.resolve_tag": {
+      "post": {
+        "tags": [
+          "tag_assignments"
+        ],
+        "operationId": "card_resolve_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveCardTag"
               }
             }
           },
@@ -2152,6 +2220,40 @@
         ]
       }
     },
+    "/v1/commands/tag.resolve_names": {
+      "post": {
+        "tags": [
+          "tag_names"
+        ],
+        "operationId": "tag_resolve_names",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveTagNames"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TagList"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/trash.inspect": {
       "post": {
         "tags": [
@@ -2589,6 +2691,25 @@
           },
           "version": {
             "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CardTags": {
+        "type": "object",
+        "required": [
+          "card",
+          "assignments"
+        ],
+        "properties": {
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagAssignment"
+            }
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardSnapshot"
           }
         },
         "additionalProperties": false
@@ -3517,6 +3638,47 @@
         "additionalProperties": false
       },
       "CommandRequest_InspectCardPlacements": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectCardTags": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
         "required": [
@@ -5013,6 +5175,63 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ResolveCardTag": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "card",
+              "tag",
+              "present",
+              "expected",
+              "expected_tag"
+            ],
+            "properties": {
+              "card": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "expected_tag": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "present": {
+                "type": "boolean"
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ResolveCardText": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -5201,6 +5420,54 @@
                 "type": "string"
               },
               "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ResolveTagNames": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "tag",
+              "names"
+            ],
+            "properties": {
+              "names": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TagNameChoice"
+                }
+              },
+              "space": {
+                "type": "string"
+              },
+              "tag": {
                 "type": "string"
               }
             },
@@ -5908,6 +6175,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_CardTags": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_CardTags"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_ColumnList": {
         "oneOf": [
           {
@@ -6400,6 +6678,42 @@
               },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_CardTags": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "card",
+              "assignments"
+            ],
+            "properties": {
+              "assignments": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TagAssignment"
+                }
+              },
+              "card": {
+                "$ref": "#/components/schemas/CardSnapshot"
               }
             },
             "additionalProperties": false
@@ -7162,6 +7476,12 @@
               "version"
             ],
             "properties": {
+              "name_group": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "names": {
                 "type": "array",
                 "items": {
@@ -7571,6 +7891,22 @@
         "additionalProperties": false
       },
       "InspectCardPlacements": {
+        "type": "object",
+        "required": [
+          "space",
+          "card"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InspectCardTags": {
         "type": "object",
         "required": [
           "space",
@@ -8471,6 +8807,38 @@
         },
         "additionalProperties": false
       },
+      "ResolveCardTag": {
+        "type": "object",
+        "required": [
+          "space",
+          "card",
+          "tag",
+          "present",
+          "expected",
+          "expected_tag"
+        ],
+        "properties": {
+          "card": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "expected_tag": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ResolveCardText": {
         "type": "object",
         "required": [
@@ -8562,6 +8930,29 @@
             "type": "string"
           },
           "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveTagNames": {
+        "type": "object",
+        "required": [
+          "space",
+          "tag",
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagNameChoice"
+            }
+          },
+          "space": {
+            "type": "string"
+          },
+          "tag": {
             "type": "string"
           }
         },
@@ -9179,6 +9570,25 @@
         },
         "additionalProperties": false
       },
+      "TagAssignment": {
+        "type": "object",
+        "required": [
+          "tag",
+          "values"
+        ],
+        "properties": {
+          "tag": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "TagList": {
         "type": "object",
         "required": [
@@ -9194,6 +9604,26 @@
         },
         "additionalProperties": false
       },
+      "TagNameChoice": {
+        "type": "object",
+        "required": [
+          "tag",
+          "name",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "TagSnapshot": {
         "type": "object",
         "required": [
@@ -9204,6 +9634,12 @@
           "version"
         ],
         "properties": {
+          "name_group": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "names": {
             "type": "array",
             "items": {

@@ -47,6 +47,9 @@ async fn main() {
             || args[0] == "--serve-same-column-conflicts"
             || args[0] == "--serve-column-position-conflicts"
             || args[0] == "--prepare-column-position-conflicts"
+            || args[0] == "--serve-position-conflicts"
+            || args[0] == "--serve-same-position-conflicts"
+            || args[0] == "--prepare-position-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -103,7 +106,19 @@ async fn main() {
     {
         column_position_fixture::seed(&storage, &access).await;
     }
+    if args[0] == "--serve-position-conflicts"
+        || args[0] == "--serve-same-position-conflicts"
+        || args[0] == "--prepare-position-conflicts"
+    {
+        column_position_fixture::seed_combined(
+            &storage,
+            &access,
+            args[0] == "--serve-same-position-conflicts",
+        )
+        .await;
+    }
     if args[0] == "--prepare"
+        || args[0] == "--prepare-position-conflicts"
         || args[0] == "--prepare-column-position-conflicts"
         || args[0] == "--prepare-conflicts"
         || args[0] == "--prepare-text-conflicts"

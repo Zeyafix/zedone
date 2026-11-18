@@ -212,3 +212,52 @@ bootstrap/manifest/failure/signal/host guards/comment policy/actionlint passed
 приёмка продукта выше сохраняет свой scope, медиа остаются актуальны.
 Все 98 определения/состояния сохранены; merge/delete только после полного
 нового CI и fresh readiness, GAP-033 до этого in_progress.
+
+
+## Публикация CI.11 — LOG-627
+
+PR #107/head 8a549bea7b1f0e8a10cff08d1577240935a3163b, base main/806d8e6.
+Обычный CI commit/push passed, состав/noreply/privacy/doc links проверены.
+Title/body/sections/два прежних hosted images/credit прочитаны обратно;
+15 suites IN_PROGRESS, три агрегата ещё ожидаются, expected всего 18.
+Initial readiness MERGEABLE/UNSTABLE, feedback отсутствует. Полный CI успех
+не заявляется; existing watch продолжается до всех 18 SUCCESS и свежей
+readiness, затем порученные merge/delete. GAP-033 ждёт CI, GAP-032 открыт.
+Все 98 определения/состояния сохранены. Checkpoint локальный без нового push.
+
+
+Пауза LOG-628 по поручению разработчика: CI PR #107/head 8a549be не
+отменялся; watch выключен, PR linked, merge/delete отложены до явного
+возобновления. Новых commit/push нет, результат CI пока не оценивался.
+
+
+## Финальная CI приёмка и интеграция — LOG-629/630
+
+После явного возобновления разработчиком PR #107/head
+8a549bea7b1f0e8a10cff08d1577240935a3163b проверен заново: полный expected набор
+18 SUCCESS Windows/Linux/Android, CLEAN/MERGEABLE, без reviews/comments/threads.
+Android run 44161633369 attempt 1: shell/job 134316708042 — 10:30,
+pairing/job 134316708019 — 11:12. Обе suites полностью завершили environment
+и negative compiler/version/cleanup; pairing log подтверждает fresh production
+APK bootstrap, прежние TLS/API/CLI/Keystore/column-position/recovery сценарии,
+восстановление APK/каждого app file SHA-256 и очистку OS keys/transport rules.
+Host run 44161632829 и все три strict aggregates SUCCESS. Это реальный запуск
+с cache hits, не гарантия холодного либо будущего времени. Строгие assertions,
+15m, версии и вся матрица сохранены. GAP-033 resolved в указанном объёме;
+GAP-032 остаётся open, исходная причина одиночного storage residue неизвестна.
+
+Title/body/Testing/оба hosted images/credit прочитаны обратно после обновления
+результатами. Merge API закрепил проверенный head; PR MERGED в
+531cf34aefe019669b924900fae0366e79ab6611. Родители [806d8e6, 8a549be], дерево
+51316125d5b3a300c4cb0a9441bc7d72bfecc34b совпало с tested head. Локальный main
+fast-forwarded, четыре dirty checkpoint документа сохранены/восстановлены
+по SHA-256. Remote ветка удалена с lease точного tip, локальная — обычным -d;
+отсутствие обеих подтверждено. P06.06.2/CI.11 done; active_work null,
+watch выключен. Все 98 определения/состояния сохранены. Итоговый checkpoint
+локальный без дополнительного commit/push.
+
+Пять правил: отмена/обратные действия/сохранность, общий UI/HTTP/IPC/CLI,
+обновлённые docs, Windows/Android в scope EV-115 и один авторитетный набор
+данных подтверждены. Следующий готовый шаг — отдельная совместная приёмка
+P06.06; полный T09, GAP-028/031, physical arm64, Tailscale и измерения отдельно.
+Новых шагов реализации не начинали. Поручение PR/условный merge/delete завершено.

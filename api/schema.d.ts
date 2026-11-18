@@ -383,6 +383,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/column.inspect_positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_inspect_positions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/column.list": {
         parameters: {
             query?: never;
@@ -457,6 +473,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["column_resolve_name"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/column.resolve_position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_resolve_position"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1104,6 +1136,14 @@ export interface components {
         ColumnList: {
             columns: components["schemas"]["ColumnSnapshot"][];
         };
+        ColumnPositionChoice: {
+            before?: string | null;
+            position: components["schemas"]["Rank"];
+        };
+        ColumnPositions: {
+            choices: components["schemas"]["ColumnPositionChoice"][];
+            column: components["schemas"]["ColumnSnapshot"];
+        };
         ColumnSnapshot: {
             column: string;
             contents?: components["schemas"]["CardSnapshot"][] | null;
@@ -1559,6 +1599,31 @@ export interface components {
             operation: string;
             parameters: {
                 card: string;
+                space: string;
+            };
+        };
+        CommandRequest_InspectColumnPositions: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
                 space: string;
             };
         };
@@ -2413,6 +2478,33 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_ResolveColumnPosition: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                position: components["schemas"]["Rank"];
+                space: string;
+            };
+        };
         CommandRequest_ResolveSpaceName: {
             id: [
                 number,
@@ -2809,6 +2901,7 @@ export interface components {
         CommandResponse_CardPlacements: components["schemas"]["CommandSuccess_CardPlacements"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardSnapshot: components["schemas"]["CommandSuccess_CardSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
+        CommandResponse_ColumnPositions: components["schemas"]["CommandSuccess_ColumnPositions"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_HistoryPreview: components["schemas"]["CommandSuccess_HistoryPreview"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
@@ -2892,6 +2985,14 @@ export interface components {
             replayed: boolean;
             result: {
                 columns: components["schemas"]["ColumnSnapshot"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_ColumnPositions: {
+            replayed: boolean;
+            result: {
+                choices: components["schemas"]["ColumnPositionChoice"][];
+                column: components["schemas"]["ColumnSnapshot"];
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3130,6 +3231,10 @@ export interface components {
             card: string;
             space: string;
         };
+        InspectColumnPositions: {
+            column: string;
+            space: string;
+        };
         InspectHistory: {
             card?: string | null;
             space: string;
@@ -3327,6 +3432,12 @@ export interface components {
             column: string;
             expected: components["schemas"]["StateVersion"];
             name: string;
+            space: string;
+        };
+        ResolveColumnPosition: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            position: components["schemas"]["Rank"];
             space: string;
         };
         ResolveSpaceName: {
@@ -4069,6 +4180,29 @@ export interface operations {
             };
         };
     };
+    column_inspect_positions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectColumnPositions"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnPositions"];
+                };
+            };
+        };
+    };
     column_list: {
         parameters: {
             query?: never;
@@ -4171,6 +4305,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_ResolveColumnName"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
+    column_resolve_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveColumnPosition"];
             };
         };
         responses: {

@@ -18,6 +18,7 @@ use zedone_core::{
         RestoreCard, SetCardCompleted, TrashCard,
     },
     cleanup::{self, ClearHistory, InspectHistory, InspectTrash, PurgeTrash},
+    column_positions::{self, InspectColumnPositions, ResolveColumnPosition},
     columns::{
         self, CreateColumn, ListColumns, ReadColumn, RenameColumn, ResolveColumnName,
         RestoreColumn, TrashColumn,
@@ -131,6 +132,8 @@ impl Service {
                 RestoreColumn::NAME => run!(RestoreColumn, columns::restore),
                 MoveCard::NAME => run!(MoveCard, ordering::move_card),
                 MoveColumn::NAME => run!(MoveColumn, ordering::move_column),
+                InspectColumnPositions::NAME => run!(InspectColumnPositions, column_positions::inspect),
+                ResolveColumnPosition::NAME => run!(ResolveColumnPosition, column_positions::resolve),
                 InspectCardPlacements::NAME => run!(InspectCardPlacements, placements::inspect),
                 ResolveCardPlacement::NAME => run!(ResolveCardPlacement, placements::resolve),
                 CreateCard::NAME => run!(CreateCard, cards::create),

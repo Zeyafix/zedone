@@ -42,6 +42,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
   "trash.purge": "Очистить окончательно",
   "card.restore_text": "Восстановить версию карточки",
+  "column.resolve_position": "Разрешить позицию колонки",
   "card.resolve_placement": "Разрешить место карточки",
   "card.resolve_text": "Разрешить конфликт текста карточки",
   "history.clear": "Очистить историю",
@@ -263,7 +264,7 @@ async function open(next: Action, event: Event) {
     }
     if (next.kind === "card.restore") {
       restoreSpace.value = await read("space.read", { space: next.target.space });
-      restoreColumns.value = (await read("column.list", { space: next.target.space, include_trashed: false })).columns.filter(item => item.state === "active" && !conflicts(item));
+      restoreColumns.value = (await read("column.list", { space: next.target.space, include_trashed: false })).columns.filter(item => item.state === "active" && item.names.length === 1);
       restoreColumn.value = restoreColumns.value.find(item => next.kind === "card.restore" && next.target.columns.length === 1 && item.column === next.target.columns[0])?.column ?? "";
     }
     if (current !== generation || !props.ready) return;

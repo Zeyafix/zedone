@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, shell-arm64]
+        suite: [product-native, product-arm64, prototype-native, prototype-ui, shell, pairing, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -93,7 +93,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.versions.outputs.jdk }}
-          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell' || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
+          cache: ${{ (matrix.suite == 'prototype-ui' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64') && 'gradle' || '' }}
           cache-jdk: false
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-dependency-path: |
@@ -199,11 +199,11 @@ jobs:
           bash scripts/install-ci-tauri.sh
           echo "$RUNNER_TEMP/zedone-tauri-cli/bin" >> "$GITHUB_PATH"
       - name: Prepare locked product JavaScript dependencies
-        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || matrix.suite == 'shell-arm64'
+        if: matrix.suite == 'product-native' || matrix.suite == 'product-arm64' || matrix.suite == 'shell' || matrix.suite == 'pairing' || matrix.suite == 'shell-arm64'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           rust=$(jq -r .rust scripts/environment-versions.json)
-          if [[ '${{ matrix.suite }}' == shell || '${{ matrix.suite }}' == shell-arm64 ]]; then
+          if [[ '${{ matrix.suite }}' == shell || '${{ matrix.suite }}' == pairing || '${{ matrix.suite }}' == shell-arm64 ]]; then
             cargo "+$rust" fetch --locked --manifest-path ui/src-tauri/Cargo.toml
           else
             cargo "+$rust" fetch --locked
@@ -236,7 +236,7 @@ jobs:
         working-directory: prototypes
         run: bun run android:build aarch64
       - name: Build x86_64 UI shell and host fixture for device checks
-        if: matrix.suite == 'shell'
+        if: matrix.suite == 'shell' || matrix.suite == 'pairing'
         run: |
           chmod +x ui/src-tauri/gen/android/gradlew
           bun scripts/build-ui-android.mjs x86_64

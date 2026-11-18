@@ -1,8 +1,13 @@
 # Проверка Android-окружения в Linux (P00.06)
 
-CI.03/P04.02: проверки распределены между параллельными `product-native`,
-`prototype-native`, `prototype-ui` и `shell` jobs с отдельными SDK/AVD и лимитом
-10 минут на job. Итоговый `android` успешен только после всех четырёх.
+CI.11: проверки распределены между параллельными `product-native`,
+`product-arm64`, `prototype-native`, `prototype-ui`, `shell`, `pairing` и
+`shell-arm64` jobs с отдельными SDK/AVD и прежним лимитом 15 минут на job.
+Итоговый `android` успешен только после всех семи. `shell-arm64` собирает APK
+без положительного emulator callback, но сохраняет общий negative preflight.
+`shell` выполняет обычный UI; `pairing` устанавливает обычный production APK
+на свежий CI AVD, затем собирает acceptance APK и проверяет полный парный набор
+с восстановлением APK и файлов по SHA-256, включая пустой исходный набор.
 Прежний аргумент dispatcher `native` продолжает выполнять оба нативных набора.
 Матрица/кэши/компромисс суммарного машинного
 времени и цель времени ожидания описаны в [ci-checks.md](ci-checks.md).
@@ -51,6 +56,6 @@ bash scripts/check-android-environment.sh 2>&1 | tee docs/reports/p00-06/linux-c
 
 Workflow запускается при PR и push в `main`, затрагивающем его, скрипты Android/Tauri CI, JSON версий или `prototypes/`. Push feature-ветки отдельно не запускается. После интеграции в основную ветку доступен **Actions → Android environment and prototype → Run workflow**. Журнал запуска сохраняет версии инструментов, SDK и образ runner; результаты исходной приёмки среды — в [EV-009](../agent/verification/EV-009-android-environment-ci.md), оптимизации — в [EV-028](../agent/verification/EV-028-pr-checks.md). Состояние конкретной машины хранится только в `docs/reports/state.json`.
 
-Стандартные hosted runners [бесплатны в публичном репозитории](https://docs.github.com/en/billing/concepts/product-billing/github-actions); приватный репозиторий использует квоту аккаунта. Для публичного `ubuntu-24.04` x64 [заявлены](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) 4 CPU, 16 ГБ RAM и 14 ГБ SSD; доступность и фактическое свободное место зависят от образа. Не используйте larger runners и платные device farms для этой проверки. Тайм-аут каждого набора — 10 минут; итоговый status job имеет отдельную минуту на проверку результата матрицы; новый запуск той же ветки/PR отменяет предыдущий. Runner image и системный пакет `libpulse0` обновляются отдельно от закреплённых Rust/SDK. Загрузка зависит от доступности Google, Ubuntu, Rust, Temurin и Bun. Добавлены раздельные кэши Tauri CLI, Rust и Gradle; политика, очистка и измерения описаны в [проверках CI](ci-checks.md). Выгрузки APK и других артефактов нет; логи хранятся согласно политике Actions. Node.js обслуживает actions; `vue-tsc` требует закреплённый Node LTS в общих проверках P01.03, но Android-сборка запускает Vite под Bun. Node не включается в APK.
+Стандартные hosted runners [бесплатны в публичном репозитории](https://docs.github.com/en/billing/concepts/product-billing/github-actions); приватный репозиторий использует квоту аккаунта. Для публичного `ubuntu-24.04` x64 [заявлены](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) 4 CPU, 16 ГБ RAM и 14 ГБ SSD; доступность и фактическое свободное место зависят от образа. Не используйте larger runners и платные device farms для этой проверки. Тайм-аут каждого набора — 15 минут; итоговый status job имеет отдельную минуту на проверку результата матрицы; новый запуск той же ветки/PR отменяет предыдущий. Runner image и системный пакет `libpulse0` обновляются отдельно от закреплённых Rust/SDK. Загрузка зависит от доступности Google, Ubuntu, Rust, Temurin и Bun. Добавлены раздельные кэши Tauri CLI, Rust и Gradle; политика, очистка и измерения описаны в [проверках CI](ci-checks.md). Выгрузки APK и других артефактов нет; логи хранятся согласно политике Actions. Node.js обслуживает actions; `vue-tsc` требует закреплённый Node LTS в общих проверках P01.03, но Android-сборка запускает Vite под Bun. Node не включается в APK.
 
 Workflow использует только `contents: read`, actions закреплены полными SHA, Git credentials в checkout не сохраняются. Отмена — **Cancel workflow**, отключение — **Disable workflow**, удаление конфигурации — обратный коммит. Одноразовая VM удаляется GitHub. Локально сохраняйте прежние переменные и права KVM перед настройкой, затем восстановите только собственные изменения; отдельный SDK и добавленные toolchains удаляйте после проверки зависимостей других проектов. Подробности полной воспроизводимости окружения относятся к P00.07.

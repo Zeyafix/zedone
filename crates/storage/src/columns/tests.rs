@@ -910,3 +910,5 @@ async fn two_workers_do_not_duplicate_creation_and_stale_mutations_cannot_both_c
         result => panic!("Unexpected concurrent results: {result:?}"),
     }
 }
+
+mod position_conflicts;

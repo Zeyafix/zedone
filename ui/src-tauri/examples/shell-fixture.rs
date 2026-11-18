@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 use std::sync::Arc;
+#[path = "fixtures/column_positions.rs"]
+mod column_position_fixture;
 #[path = "fixtures/placements.rs"]
 mod placement_fixture;
 
@@ -43,6 +45,8 @@ async fn main() {
             || args[0] == "--prepare-placement-conflicts"
             || args[0] == "--serve-placement-conflicts"
             || args[0] == "--serve-same-column-conflicts"
+            || args[0] == "--serve-column-position-conflicts"
+            || args[0] == "--prepare-column-position-conflicts"
     );
     let directory = std::path::Path::new(&args[1]);
     std::fs::create_dir_all(directory).unwrap();
@@ -94,7 +98,13 @@ async fn main() {
         )
         .await;
     }
+    if args[0] == "--prepare-column-position-conflicts"
+        || args[0] == "--serve-column-position-conflicts"
+    {
+        column_position_fixture::seed(&storage, &access).await;
+    }
     if args[0] == "--prepare"
+        || args[0] == "--prepare-column-position-conflicts"
         || args[0] == "--prepare-conflicts"
         || args[0] == "--prepare-text-conflicts"
         || args[0] == "--prepare-field-conflicts"

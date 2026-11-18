@@ -11,6 +11,8 @@ P04.02 предоставляет column.create/read/list/rename/trash/restore �
 | `column.read` | space, column | Read/ReadWrite |
 | `column.list` | space, include_trashed | Read/ReadWrite |
 | `column.move` | space, column, before, expected | ReadWrite |
+| `column.inspect_positions` | space, column | Read/ReadWrite |
+| `column.resolve_position` | space, column, position, expected | ReadWrite, сохранённая позиция из нескольких вариантов |
 | `column.rename` | space, column, name, expected | ReadWrite, активные родитель и колонка |
 | `column.trash` | space, column, expected | ReadWrite, активные родитель и колонка, поддерживаемый состав без конфликтов |
 | `column.restore` | space, column, expected | ReadWrite, активный родитель, колонка в корзине, поддерживаемый состав без конфликтов |
@@ -35,7 +37,9 @@ deletion_groups, empty, contents и version. Список содержит colum
 expected берётся из version целевой колонки, а не пространства.
 stale_state требует перечитать и подготовить новое явное действие;
 автоматическая подстановка новой версии запрещена. conflict требует
-разрешения доменного конфликта; операции разрешения относятся к P06.
+разрешения доменного конфликта; для позиций доступны
+[column.inspect_positions/column.resolve_position](column-positions.md),
+для названия — `column.resolve_name`.
 При неизвестном исходе повторяют точный сохранённый запрос с тем же ID.
 Receipt подтверждает прежнее выполнение, не заменяет актуальный view:
 повтор удаления после восстановления не удаляет повторно, повтор создания

@@ -22,7 +22,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$fixture/scripts" "$fixture/bin"
-cp "$root/scripts/check-android-environment.sh" "$fixture/scripts/"
+grep -Fq '[[ -r /dev/kvm && -w /dev/kvm ]]' "$root/scripts/check-android-environment.sh"
+sed "s@/dev/kvm@\"\$CASE/kvm\"@g" "$root/scripts/check-android-environment.sh" > "$fixture/scripts/check-android-environment.sh"
 cp "$root/scripts/environment-versions.json" "$fixture/scripts/"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$fixture/scripts/check-android-sdk.sh"
 cat > "$fixture/stub" <<'STUB'
@@ -100,9 +101,10 @@ cp "$fixture/bin/clang" "$sdk/ndk/$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin
 export CI=true ANDROID_HOME="$sdk" ANDROID_SDK_ROOT="$sdk"
 export PATH="$fixture/bin:$PATH"
 running() { local state; state=$(ps -o stat= -p "$1" 2>/dev/null || true); [[ -n $state && $state != Z* ]]; }
-for MODE in build-first boot-first failure boot-failure signal runtime-failure; do
+for MODE in build-first boot-first failure boot-failure signal runtime-failure missing-kvm; do
     export MODE CASE="$fixture/$MODE"
     mkdir -p "$CASE"
+    if [[ $MODE != missing-kvm ]]; then touch "$CASE/kvm"; fi
     setsid bash "$fixture/scripts/check-android-environment.sh" --prepare bash "$fixture/prepare" -- bash "$fixture/runtime" > "$fixture/$MODE.log" 2>&1 &
     controller=$!
     if [[ $MODE == signal ]]; then
@@ -122,6 +124,7 @@ for MODE in build-first boot-first failure boot-failure signal runtime-failure; 
         boot-failure) test "$result" -eq 1; test ! -e "$CASE/runtime.called" ;;
         signal) test "$result" -eq 143; test ! -e "$CASE/runtime.called" ;;
         runtime-failure) test "$result" -eq 31; test -e "$CASE/runtime.called" ;;
+        missing-kvm) test "$result" -eq 1; test ! -e "$CASE/preparation.started"; test ! -e "$CASE/runtime.called" ;;
     esac
     for pid_file in "$CASE/"*.pid; do
         [[ -f $pid_file ]] || continue
@@ -136,4 +139,4 @@ for args in '--prepare' '--prepare bash --' '--prepare -- bash'; do
     bash "$fixture/scripts/check-android-environment.sh" "${invalid[@]}" > "$fixture/invalid.log" 2>&1 || result=$?
     test "$result" -eq 1
 done
-echo 'Android preparation: both completion orders, build/boot/runtime failures, signal 143, descendant cleanup and argument rejection passed.'
+echo 'Android preparation: both completion orders, build/boot/runtime failures, signal 143, descendant cleanup, KVM refusal and argument rejection passed.'

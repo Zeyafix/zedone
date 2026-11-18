@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: CI.16
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.16/EV-122: перекрыть prototype APK/host endpoint build загрузкой AVD, сохраняя preflight/runtime/cleanup; CI.15 все 27 SUCCESS, wall 10:01"
-next_action: "Проверить prepare/runtime barrier и process-group cleanup/failures на fixtures, затем CI #109 и cold/hit метрики. Тесты разрешено менять, гарантии сохранять. Цель <=10m, ориентир <=5m; merge/delete не поручены."
+active_work: "CI.16/b82bbcf prototype-native failed: synthetic guard touched real KVM before setup. Fixture-only KVM isolation fix prepared; EV-122/LOG-667"
+next_action: "Опубликовать fixture KVM fix, затем существующий watch/real Linux lifecycle guard/27 outcomes и cold-hit/queues/all executions. Production KVM/preflight/сценарии/лимиты прежние; merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036, GAP-037]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-665
+last_event: LOG-667
 ```
 
 CI.15/EV-121 verified локально: Windows main UI/три isolated concurrent
@@ -6902,3 +6902,14 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - CI-only prepare/runtime argv barrier готов: прежние host release endpoint и x86_64 APK/instrumentation builds последовательно внутри подготовки, одновременно с AVD boot. Все SDK/compiler/device/runtime сценарии/27 checks/budgets сохранены. Owned process groups, exit codes и cleanup синтетически покрываются новым Linux guard в обязательном prototype-native до SDK setup.
 - Routing и прежние tool-cache/SDK refusal fixtures passed локально; ShellCheck трёх Bash scripts, actionlint с ShellCheck (без отсутствующего Pyflakes), Bash syntax, comment policy 390 sources/diff passed. Настоящий Linux process-group guard не исполнен локально: setsid/WSL нет. Это явно pending обязательный CI, успех не заявляется. Новая локальная Device UI проверка не применима к CI-only orchestration, APK/runtime код прежний.
 - 98 criteria rows сверены без изменений. Пять правил соблюдены в scope EV-122: обратимость/default, общий API, docs, прежние обе платформы, единые pins/data. Ориентир 300 строк превышен единым lifecycle изменением с отказными/cleanup fixtures и доказательствами CI.15; продукт не меняется. Далее PR #109/new CI/cold-hit/queues/all executions, затем фактическая цель <=10m/идеальная <=5m. Merge/delete не поручены.
+
+### LOG-666 — 2026-11-18 — агент Codex, CI.16 опубликован
+
+- b82bbcf4bad7069f3b15ba0933e5cbdeca908be7 отправлен в существующий PR #109. Source fingerprints проверены, PR Testing переписан по финальному scope с CI.15 all27/10:01 и CI.16 Linux fixtures pending; head/body/sections/credit прочитаны обратно. Comments/reviews отсутствовали перед публикацией.
+- Новый CI pending, runs 44308565361/44308565330; expected 27 прежний. Существующий watch сохранён без повторной регистрации. SDK cold miss ожидается из-за fingerprint workflow, quota прежняя; далее реальные guard/runtime/outcomes и controlled warm comparison после успеха, все executions/queues/cache footprint/eviction. Цель полного <=10m с запасом/идеальный <=5m ещё не принята. Merge/delete не поручены. Checkpoint локальный без нового push.
+
+### LOG-667 — 2026-11-18 — агент Codex, изоляция синтетического KVM
+
+- b82bbcf prototype-native/job 134816413437 failed за 98s в новом lifecycle guard до SDK/preparation: copied driver обращался к реальному /dev/kvm до настройки прав. Полный failed log/job metadata и snapshots обоих runs/jobs сохранены. Это установленная ошибка изоляции fixture; rerun не запрашивался.
+- Только copied driver использует CASE/kvm, отдельный readable/writable synthetic file. Original real KVM predicate проверяется перед подстановкой и не меняется. Добавлен missing-kvm: отказ до старта preparation/runtime. Production driver/SDK/verifier/27 checks/сценарии/бюджеты прежние.
+- ShellCheck/Bash syntax/точная подстановка и syntax copied driver/Android routing/tool-cache guards/comment policy passed локально. Реальные Linux process groups и новый CI pending; 98 criterion rows прежние, GAP/DEC прежние. Все initial/возможные cancelled executions учитывать после нового head. Далее publish/watch, без повторного CI на том же коде. Merge/delete не поручены.

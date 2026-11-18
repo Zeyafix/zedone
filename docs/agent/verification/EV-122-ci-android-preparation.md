@@ -41,3 +41,29 @@
   policy (390 sources)/diff passed локально. Реальные Linux fixtures и CI pending.
 - Далее: PR #109/new CI, реальный lifecycle guard/runtime/cold и warm timings;
   цель времени не объявлять до результата. Merge/delete не поручены.
+
+## Публикация / LOG-666
+
+b82bbcf в PR #109. Новый полный CI/реальные Linux fixtures pending;
+исходный watch продолжает задачу. Runs 44308565361/44308565330.
+После успеха сравнить cold/hit на том же head, все executions и очереди.
+Merge/delete не поручены, ускорение нового head ещё не измерено.
+
+## Отказ синтетического KVM до SDK / LOG-667
+
+На b82bbcf prototype-native отказал в новом lifecycle guard: копия driver
+проверяла настоящий `/dev/kvm`, а guard запускается до настройки прав KVM.
+SDK install, настоящие preparation/runtime этой suite ещё не начались.
+Это ошибка изоляции fixture; перенос guard за реальную настройку скрывал бы
+его зависимость от оборудования. Полный failed log/job metadata сохранены.
+
+Только в копии driver путь `/dev/kvm` заменяется на `$CASE/kvm`, отдельный
+доступный файл каждого синтетического случая. Исходный driver и обязательная
+реальная проверка KVM не изменяются. Новый случай missing-kvm подтверждает
+отказ до preparation/runtime. Наличие исходного guard проверяется перед
+подстановкой. ShellCheck, Bash syntax, точная подстановка и синтаксис копии,
+Android routing/tool-cache guards и comment policy passed локально.
+Настоящие Linux process groups и все новые CI outcomes ещё pending.
+
+Исходный отказ и незавершённые/возможные отменённые executions учитываются
+в метриках. Это исправление теста в новом head, не повтор прежнего CI.

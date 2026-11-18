@@ -1,10 +1,14 @@
 # Проверка Android-окружения в Linux (P00.06)
 
-CI.11: проверки распределены между параллельными `product-native`,
+CI.12: проверки распределены между параллельными `product-native`,
 `product-arm64`, `prototype-native`, `prototype-ui`, `shell`, `pairing` и
-`shell-arm64` jobs с отдельными SDK/AVD и прежним лимитом 15 минут на job.
-Итоговый `android` успешен только после всех семи. `shell-arm64` собирает APK
-без положительного emulator callback, но сохраняет общий negative preflight.
+`shell-arm64` jobs с отдельными SDK и прежним лимитом 15 минут на job.
+Runtime suites владеют отдельными AVD; product-arm64 и shell-arm64 не готовят
+KVM/runtime и не запускают эмулятор. Итоговый `android` успешен только после
+всех семи. `shell-arm64` собирает APK; product-arm64 выполняет release/unsafe
+guards напрямую через dispatcher. Общие installer/compiler-failure negative
+controls выполняет один обязательный prototype-native job. Проверка реальных
+инструментов и очистка собственных runtime ресурсов остаются в каждом владельце.
 `shell` выполняет обычный UI; `pairing` устанавливает обычный production APK
 на свежий CI AVD, затем собирает acceptance APK и проверяет полный парный набор
 с восстановлением APK и файлов по SHA-256, включая пустой исходный набор.

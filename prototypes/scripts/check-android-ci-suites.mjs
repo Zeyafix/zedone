@@ -67,15 +67,19 @@ for (const [target, owners] of [["x86_64", ["shell", "pairing"]], ["aarch64", ["
 const fixture = jobs.steps.find(step => step.run?.includes("--example shell-fixture"));
 assert.deepEqual(suites.filter(suite => enabled(fixture, suite)), ["shell", "pairing"]);
 const runtime = jobs.steps.find(step => step.name === "Prepare emulator runtime and KVM");
-assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), suites,
-  "Every compiler-failure preflight needs emulator libraries and KVM access");
+const runtimeSuites = suites.filter(suite => !["product-arm64", "shell-arm64"].includes(suite));
+assert.deepEqual(suites.filter(suite => enabled(runtime, suite)), runtimeSuites);
 const hostPreparation = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/actions/prepare-host-check/action.yml`).text());
 const mirrors = hostPreparation.runs.steps.find(step => step.name === "Use Ubuntu HTTPS mirrors for browser dependencies");
 assert.ok(runtime.run.startsWith(mirrors.run), "Android must use the same signed Ubuntu mirror setup as Linux host checks");
 assert.ok(runtime.run.includes("sudo apt-get update\nsudo apt-get install --no-install-recommends -y libpulse0\n"),
   "Mirror selection cannot replace installing emulator dependencies");
 const environment = jobs.steps.find(step => step.name === "Check Android environment");
-assert.deepEqual(suites.filter(suite => enabled(environment, suite)), suites.filter(suite => suite !== "shell-arm64"));
+assert.deepEqual(suites.filter(suite => enabled(environment, suite)), runtimeSuites);
+assert.ok(environment.run.includes("bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'"));
+const arm64 = jobs.steps.find(step => step.name === "Check product arm64 build without emulator");
+assert.deepEqual(suites.filter(suite => enabled(arm64, suite)), ["product-arm64"]);
+assert.equal(arm64.run, "bun prototypes/scripts/check-android-ci.mjs product-arm64");
 const dependencies = jobs.steps.find(step => step.name === "Prepare locked product JavaScript dependencies");
 assert.ok(enabled(dependencies, "shell-arm64"));
 assert.ok(enabled(dependencies, "pairing"));
@@ -83,7 +87,16 @@ assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == shell-arm64"));
 assert.ok(dependencies.run.includes("'${{ matrix.suite }}' == pairing"));
 assert.ok(dependencies.run.includes("--manifest-path ui/src-tauri/Cargo.toml"));
 const negative = jobs.steps.find(step => step.name === "Check rejection and cleanup on compiler failure");
-assert.ok(suites.every(suite => enabled(negative, suite)));
+const installer = jobs.steps.find(step => step.name === "Check Tauri CLI cache fallback and cleanup");
+for (const control of [negative, installer]) {
+  assert.deepEqual(suites.filter(suite => enabled(control, suite)), ["prototype-native"], "One mandatory owner must run shared infrastructure controls");
+}
+assert.ok(installer.run.includes("bash scripts/check-ci-tauri.sh"));
+assert.ok(installer.run.includes("bun prototypes/scripts/check-android-ci-suites.mjs"), "Standalone Android workflow must check its own routing even without host workflow triggers");
+for (const required of ["Unexpected Bun version", 'test "$status" -eq 23', 'cmp "$test_dir/before" "$test_dir/after"', 'existing-avd/sentinel']) {
+  assert.ok(negative.run.includes(required), "Negative controls must retain version rejection, exit code and cleanup evidence");
+}
+assert.ok(!JSON.stringify(workflow).includes("continue-on-error"));
 assert.equal(workflow.jobs.android.needs, "android-checks");
 assert.equal(workflow.jobs.android.if, "always()");
 assert.equal(workflow.jobs.android.steps[0].run, 'test "$RESULT" = success');

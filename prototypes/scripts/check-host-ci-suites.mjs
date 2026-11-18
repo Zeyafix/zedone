@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import { withoutComments } from "../../scripts/source-comments.mjs";
 
@@ -114,6 +114,81 @@ const interrupted = makePair({ spawn() { return { exited: Promise.resolve(0), si
   { execPath: "fixture-bun" }, resolve, productRoot, {}, assert, { log() {} });
 await assert.rejects(interrupted(async () => {}, "signal control"), error =>
   error instanceof AggregateError && /Client tests interrupted/.test(error.errors[0].message));
+
+const contractStart = product.indexOf("async function checkContracts() {");
+const contractEnd = product.indexOf('\nconst generated = mode === "--android-arm64"', contractStart);
+const unsafeStart = product.indexOf("async function checkUnsafe(");
+const unsafeEnd = product.indexOf("\nif (!mode)", unsafeStart);
+assert.ok(unsafeStart > 0 && unsafeEnd > unsafeStart && contractStart > unsafeEnd && contractEnd > contractStart);
+const productDriver = product.slice(0, unsafeStart)
+  + "async function checkUnsafe(targets = []) { probe(targets); }\n"
+  + product.slice(unsafeEnd, contractStart)
+  + "async function checkContracts() { return contract(); }\n"
+  + product.slice(contractEnd);
+const executeProduct = new (Object.getPrototypeOf(async function () {}).constructor)(
+  "Bun", "process", "assert", "resolve", "relative", "probe", "contract", "checkChannelPair", "randomUUID", "console", productDriver
+    .replace(/^import .*;\r?\n/gm, "")
+    .replaceAll("import.meta.dir", JSON.stringify(resolve(root, "../scripts"))));
+async function productDispatch(mode, { failure, mismatch = false, serial = "emulator-5554" } = {}) {
+  const calls = [], probes = [], paired = [];
+  let clients = 0, contracts = 0, error;
+  const generated = Buffer.from("product contract fixture\n");
+  try {
+    await executeProduct({
+      ...Bun, argv: ["fixture-bun", "product", ...(mode ? [mode] : [])],
+      file(path) {
+        return path.endsWith("source.properties") ? { text: async () => versions.android.ndk } : Bun.file(path);
+      },
+      spawn() { clients++; return { exited: Promise.resolve(0) }; },
+      spawnSync(command) {
+        calls.push(command);
+        let stdout = Buffer.alloc(0);
+        if (command.includes("metadata")) stdout = Buffer.from(JSON.stringify({
+          workspace_members: ["core"], packages: [{ id: "core", name: "zedone-core", manifest_path: resolve(productRoot, "crates/core/Cargo.toml"), dependencies: [] }],
+        }));
+        else if (command.includes("--message-format=json")) stdout = Buffer.from(JSON.stringify({ reason: "compiler-artifact", profile: { test: true }, target: { name: "zedone_adapters" }, executable: "/fixture/native-tests" }) + "\n");
+        else if (command.includes("getprop")) stdout = Buffer.from(({ "ro.kernel.qemu": "1", "ro.build.version.sdk": "33", "ro.product.cpu.abi": "x86_64" })[command.at(-1)]);
+        else if (command.includes("shell") && command.at(-1).endsWith("/export-contract")) stdout = mismatch ? Buffer.from("wrong contract") : generated;
+        else if (command.includes("shell") && command.at(-1).includes("/test-")) stdout = Buffer.from("test result: ok. 1 passed");
+        return { exitCode: 0, stdout, ...(command.includes("build") ? failure : {}) };
+      },
+    }, {
+      execPath: "fixture-bun", platform: process.platform,
+      env: { ANDROID_SERIAL: serial, ANDROID_HOME: "/fixture/sdk", NDK_HOME: "/fixture/ndk" },
+    }, assert, resolve, relative,
+    targets => probes.push(targets), () => { contracts++; return generated; },
+    async options => paired.push(options.test || "channel::tests::cross_platform_probe"),
+    () => "00000000-0000-4000-8000-000000000001", { log() {}, error() {} });
+  } catch (caught) { error = caught; }
+  return { calls, probes, paired, clients, contracts, error };
+}
+for (const mode of [undefined, "--check-types", "--android", "--android-native", "--android-arm64"]) {
+  const result = await productDispatch(mode, { serial: mode === "--android-arm64" ? null : "emulator-5554" });
+  assert.equal(result.error, undefined, mode);
+  assert.equal(result.clients, mode === undefined ? 1 : 0, "Android slices must not rerun host client tests");
+  assert.equal(result.contracts, mode === "--android-arm64" ? 0 : 1, "Runtime slice owns standalone Android contract checks");
+  if (mode?.startsWith("--android")) {
+    const targets = mode === "--android-native" ? ["x86_64-linux-android"] : mode === "--android-arm64" ? ["aarch64-linux-android"] : ["x86_64-linux-android", "aarch64-linux-android"];
+    assert.deepEqual(result.probes, targets.map(target => ["--target", target]));
+    assert.deepEqual(result.calls.filter(command => command.includes("build")).map(command => command[command.indexOf("--target") + 1]), targets);
+    if (mode === "--android-arm64") {
+      assert.ok(!result.calls.some(command => command.includes("shell") || command.includes("push") || command.includes("test")));
+      assert.deepEqual(result.paired, []);
+    } else {
+      assert.ok(result.calls.some(command => command.includes("shell") && command.at(-1).includes("/test-")), "Native Android tests must execute");
+      assert.deepEqual(result.paired, ["channel::tests::cross_platform_probe", "pairing::tests::cross_platform_probe"]);
+      assert.ok(result.calls.some(command => command.includes("shell") && command.at(-1).endsWith("/export-contract")));
+      assert.ok((await productDispatch(mode, { mismatch: true })).error, "A different device contract must fail");
+      assert.ok((await productDispatch(mode, { serial: "physical-device" })).error);
+    }
+  }
+}
+for (const mode of [undefined, "--android", "--android-native", "--android-arm64"]) {
+  for (const failure of [{ exitCode: 23 }, { exitCode: 0, signalCode: "SIGTERM" }]) {
+    const failed = await productDispatch(mode, { failure });
+    assert.ok(failed.error, "Product build failure/signal must fail its slice");
+  }
+}
 
 const workflow = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/workflows/prototype-foundation.yml")).text());
 const suites = ["product", "prototype-native", "prototype-ui", "shell"];

@@ -109,7 +109,9 @@ jobs:
       - name: Report disk before Android setup
         run: df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
       - name: Check Tauri CLI cache fallback and cleanup
+        if: matrix.suite == 'prototype-native'
         run: |
+          bun prototypes/scripts/check-android-ci-suites.mjs
           shellcheck scripts/install-ci-tauri.sh scripts/check-ci-tauri.sh
           bash scripts/check-ci-tauri.sh
       - name: Install pinned Android tools in an isolated SDK
@@ -252,8 +254,7 @@ jobs:
         working-directory: prototypes
         run: bun run check:automerge
       - name: Prepare emulator runtime and KVM
-        # The build-only job also runs the shared compiler-failure preflight,
-        # which checks emulator dependencies and KVM before invoking rustc.
+        if: matrix.suite != 'product-arm64' && matrix.suite != 'shell-arm64'
         run: |
           # Keep the runner's signed Ubuntu sources; bypass the stalled Azure mirror.
           test -f /etc/apt/apt-mirrors.txt
@@ -270,11 +271,15 @@ jobs:
           sudo udevadm settle --timeout=10
           test -r /dev/kvm && test -w /dev/kvm
       - name: Check Android environment
-        if: matrix.suite != 'shell-arm64'
+        if: matrix.suite != 'product-arm64' && matrix.suite != 'shell-arm64'
         run: |
           shellcheck scripts/check-android-environment.sh
           bash scripts/check-android-environment.sh bun prototypes/scripts/check-android-ci.mjs '${{ matrix.suite }}'
+      - name: Check product arm64 build without emulator
+        if: matrix.suite == 'product-arm64'
+        run: bun prototypes/scripts/check-android-ci.mjs product-arm64
       - name: Check rejection and cleanup on compiler failure
+        if: matrix.suite == 'prototype-native'
         run: |
           test_dir=$(mktemp -d "$RUNNER_TEMP/android-failure.XXXXXXXX")
           trap 'status=$?; if (( status != 0 )); then cat "$test_dir/"*.log; fi; rm -rf -- "$test_dir"; exit "$status"' EXIT

@@ -85,7 +85,15 @@ instrumentation прототипа, host HTTP endpoint и весь UI/lifecycle-
 `pairing` (production и acceptance x86_64 APK, полный парный TLS/API/CLI-набор),
 `shell-arm64` (production arm64 APK без положительного emulator callback).
 Каждый job владеет отдельным SDK; runtime suites также владеют отдельным AVD.
-Все сохраняют прежний negative-cleanup preflight и лимит 15 минут.
+Все сохраняют лимит 15 минут. Общие installer/compiler-failure negative
+controls выполняются один раз в обязательном `prototype-native`; реальные
+tool checks и очистка своих runtime ресурсов остаются в каждом владельце.
+`product-arm64` выполняет build/guards напрямую без x86_64 AVD; оба build-only
+jobs также не готовят KVM/emulator libraries. Host client tests остаются в
+Windows/Linux product; standalone Android host contract/TS — в product-native.
+Этот же обязательный владелец controls запускает Android routing guard внутри
+Android workflow, включая изменения только его YAML без запуска host workflow.
+Результаты удаления повторов и границы проверки — [EV-118](../agent/verification/EV-118-test-deduplication.md).
 `fail-fast: false` сохраняет диагностику остальных наборов при одном отказе.
 Итоговый стабильный check `android` с `if: always()` требует успеха всей матрицы:
 failure/cancelled/skipped не принимаются как успех. Прежний аргумент `native`
@@ -107,11 +115,14 @@ main-кэша; наличие shell build artifacts в кэше не гаран�
 прототипный набор не успел завершиться. Все пять исходных команд и их порядок
 в полном dispatcher сохранены. Каждый native runner готовит только собственные
 JS/Cargo зависимости, host Automerge проверяется в prototype-native.
-Объём SDK/проверки environment/negative-cleanup и лимиты не сокращаются.
-P04.06 запускает независимые клиентские delivery-тесты параллельно нативной
+Исторически объём SDK/проверки environment/negative-cleanup и лимиты сохранялись.
+В CI.12 повторы общих controls убраны с сохранением одного обязательного владельца.
+P04.06 запускал независимые клиентские delivery-тесты параллельно нативной
 product-сборке в том же job: они не используют эмулятор или Cargo output.
 Драйвер ждёт оба результата и сохраняет все отказы через AggregateError;
 ранняя ошибка одного набора не оставляет другой без ожидания и cleanup.
+С CI.12 эта параллельность нужна только host product: Android jobs не повторяют
+те же host Bun tests, работающие вне Android.
 Это убирает последовательное ожидание клиентских таймаутов из критического
 пути; достижение прежнего лимита подтверждается только новым CI, не предполагается.
 Дополнительный runner может увеличить суммарное машинное время; результат
@@ -465,8 +476,9 @@ callback, устанавливает production APK через CI-only `prepare-
 Свежая установка может иметь пустой список файлов: runner сохраняет пустой
 manifest и проверяет его точное восстановление; неверные строки по-прежнему
 отвергаются. Bootstrap запрещён вне CI/эмулятора; отказ/сигнал установки
-завершает suite ошибкой. Обе suites сохраняют общий compiler/version/cleanup
-negative control. Все прежние команды default dispatcher и их порядок
+завершает suite ошибкой. В CI.11 обе suites сохраняли общий compiler/version/cleanup
+negative control; с CI.12 он имеет одного владельца prototype-native.
+Все прежние команды default dispatcher и их порядок
 сохранены с добавлением production install перед acceptance build.
 
 Матрица содержит семь suites, общий `android` требует успеха каждой;

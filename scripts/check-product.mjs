@@ -99,7 +99,7 @@ async function checkUnsafe(targetArgs = [], extraEnv = {}) {
 }
 
 if (!mode) {
-  run([process.execPath, "test", "tests/source-comments.test.mjs"]);
+  run([process.execPath, "test", resolve(root, "tests/source-comments.test.mjs")]);
   await checkWithClients(async () => {
     for (const args of [
       ["fmt", "--all", "--", "--check"],
@@ -111,68 +111,74 @@ if (!mode) {
   }, "Host product checks failed");
 }
 
-const generated = run(cargo(["run", "--quiet", "--bin", "export-contract", ...locked]), { capture: true }).stdout;
-const artifact = Bun.file(resolve(root, "api/openapi.json"));
-if (mode === "--write-openapi") {
-  await Bun.write(artifact, generated);
-  console.log("Generated api/openapi.json from Rust.");
-} else {
-  assert.ok(await artifact.exists(), "Generate api/openapi.json first");
-  assert.ok(generated.equals(Buffer.from(await artifact.arrayBuffer())), "api/openapi.json is stale; run bun scripts/check-product.mjs --write-openapi");
-  console.log("Product OpenAPI matches Rust.");
+async function checkContracts() {
+  const generated = run(cargo(["run", "--quiet", "--bin", "export-contract", ...locked]), { capture: true }).stdout;
+  const artifact = Bun.file(resolve(root, "api/openapi.json"));
+  if (mode === "--write-openapi") {
+    await Bun.write(artifact, generated);
+    console.log("Generated api/openapi.json from Rust.");
+  } else {
+    assert.ok(await artifact.exists(), "Generate api/openapi.json first");
+    assert.ok(generated.equals(Buffer.from(await artifact.arrayBuffer())), "api/openapi.json is stale; run bun scripts/check-product.mjs --write-openapi");
+    console.log("Product OpenAPI matches Rust.");
+  }
+
+  if (mode !== "--write-openapi") {
+    const { default: openapiTS, astToString } = await import("openapi-typescript");
+    const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true })), "schema.d.ts");
+    const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
+    const { default: Ajv } = await import("ajv/dist/2020.js");
+    const { default: standalone } = await import("ajv/dist/standalone/index.js");
+    const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
+      .replaceAll("#/components/schemas/", "#/$defs/"));
+    const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
+    const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
+      operation: path.slice("/v1/commands/".length),
+      request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
+      response: item.post.responses["200"].content["application/json"].schema.$ref.split("/").at(-1),
+    })).sort((a, b) => a.operation.localeCompare(b.operation));
+    const responses = [...new Set(routes.map(route => route.response))];
+    ajv.addSchema({ $id: "zedone.responses", $defs: schemas });
+    const checks = Object.fromEntries(responses.map(name => [name, `zedone.responses#/$defs/${name}`]));
+    const mapping = routes.map(route => `${JSON.stringify(route.operation)}: ${route.response}`).join(",\n");
+    const validator = standalone(ajv, checks) + `\nconst responseValidators = Object.freeze({\n${mapping}\n});\nexport const operations = Object.freeze(Object.keys(responseValidators));\nexport default function validate(value, operation) {\n  if (operation !== undefined) return Object.hasOwn(responseValidators, operation) && responseValidators[operation](value);\n  return Object.values(responseValidators).some(check => check(value));\n}\n`;
+    assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
+    const validatorTypes = 'import type { components } from "./schema";\n'
+      + `export type Operation = ${routes.map(route => JSON.stringify(route.operation)).join(" | ")};\n`
+      + `export type Parameters = {\n${routes.map(route => `  ${JSON.stringify(route.operation)}: components["schemas"][${JSON.stringify(route.request)}]["parameters"];`).join("\n")}\n};\n`
+      + `export type Response = ${responses.map(name => `components["schemas"][${JSON.stringify(name)}]`).join(" | ")};\n`
+      + 'export const operations: readonly Operation[];\nexport default function validate(value: unknown, operation?: Operation): value is Response;\n';
+    if (mode === "--write-types") {
+      await Bun.write(typesFile, types);
+      await Bun.write(resolve(root, "api/validate-response.js"), validator);
+      await Bun.write(resolve(root, "api/validate-response.d.ts"), validatorTypes);
+      console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
+    } else {
+      assert.ok(await typesFile.exists() && await typesFile.text() === types,
+        "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
+      console.log("Product TypeScript matches Rust/OpenAPI.");
+      assert.equal(await Bun.file(resolve(root, "api/validate-response.js")).text(), validator,
+        "Response validator is stale; run --write-types");
+      assert.equal(await Bun.file(resolve(root, "api/validate-response.d.ts")).text(), validatorTypes,
+        "Response validator types are stale; run --write-types");
+    }
+    run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
+    run([process.execPath, "scripts/check-type-errors.mjs"]);
+  }
+  return generated;
 }
 
-if (mode !== "--write-openapi") {
-  const { default: openapiTS, astToString } = await import("openapi-typescript");
-  const types = withoutComments(astToString(await openapiTS(JSON.parse(generated.toString()), { arrayLength: true })), "schema.d.ts");
-  const typesFile = Bun.file(resolve(root, "api/schema.d.ts"));
-  const { default: Ajv } = await import("ajv/dist/2020.js");
-  const { default: standalone } = await import("ajv/dist/standalone/index.js");
-  const schemas = JSON.parse(JSON.stringify(JSON.parse(generated.toString()).components.schemas)
-    .replaceAll("#/components/schemas/", "#/$defs/"));
-  const ajv = new Ajv({ strict: false, validateFormats: false, code: { source: true, esm: true, lines: true } });
-  const routes = Object.entries(JSON.parse(generated.toString()).paths).map(([path, item]) => ({
-    operation: path.slice("/v1/commands/".length),
-    request: item.post.requestBody.content["application/json"].schema.$ref.split("/").at(-1),
-    response: item.post.responses["200"].content["application/json"].schema.$ref.split("/").at(-1),
-  })).sort((a, b) => a.operation.localeCompare(b.operation));
-  const responses = [...new Set(routes.map(route => route.response))];
-  ajv.addSchema({ $id: "zedone.responses", $defs: schemas });
-  const checks = Object.fromEntries(responses.map(name => [name, `zedone.responses#/$defs/${name}`]));
-  const mapping = routes.map(route => `${JSON.stringify(route.operation)}: ${route.response}`).join(",\n");
-  const validator = standalone(ajv, checks) + `\nconst responseValidators = Object.freeze({\n${mapping}\n});\nexport const operations = Object.freeze(Object.keys(responseValidators));\nexport default function validate(value, operation) {\n  if (operation !== undefined) return Object.hasOwn(responseValidators, operation) && responseValidators[operation](value);\n  return Object.values(responseValidators).some(check => check(value));\n}\n`;
-  assert.ok(!validator.includes("require(") && !validator.includes("import "), "Validator must remain browser standalone");
-  const validatorTypes = 'import type { components } from "./schema";\n'
-    + `export type Operation = ${routes.map(route => JSON.stringify(route.operation)).join(" | ")};\n`
-    + `export type Parameters = {\n${routes.map(route => `  ${JSON.stringify(route.operation)}: components["schemas"][${JSON.stringify(route.request)}]["parameters"];`).join("\n")}\n};\n`
-    + `export type Response = ${responses.map(name => `components["schemas"][${JSON.stringify(name)}]`).join(" | ")};\n`
-    + 'export const operations: readonly Operation[];\nexport default function validate(value: unknown, operation?: Operation): value is Response;\n';
-  if (mode === "--write-types") {
-    await Bun.write(typesFile, types);
-    await Bun.write(resolve(root, "api/validate-response.js"), validator);
-    await Bun.write(resolve(root, "api/validate-response.d.ts"), validatorTypes);
-    console.log("Generated api/schema.d.ts from Rust/OpenAPI.");
-  } else {
-    assert.ok(await typesFile.exists() && await typesFile.text() === types,
-      "api/schema.d.ts is missing or stale; run bun scripts/check-product.mjs --write-types");
-    console.log("Product TypeScript matches Rust/OpenAPI.");
-    assert.equal(await Bun.file(resolve(root, "api/validate-response.js")).text(), validator,
-      "Response validator is stale; run --write-types");
-    assert.equal(await Bun.file(resolve(root, "api/validate-response.d.ts")).text(), validatorTypes,
-      "Response validator types are stale; run --write-types");
-  }
-  run([process.execPath, resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.contract.json"]);
-  run([process.execPath, "scripts/check-type-errors.mjs"]);
-}
+const generated = mode === "--android-arm64" ? undefined : await checkContracts();
 
 async function checkAndroid() {
   const serial = env.ANDROID_SERIAL;
-  assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
+  const runtime = mode !== "--android-arm64";
+  if (runtime) assert.match(serial || "", /^emulator-\d+$/, "Explicit test emulator required");
   assert.ok(env.ANDROID_HOME && env.NDK_HOME, "ANDROID_HOME and NDK_HOME required");
   assert.ok((await Bun.file(resolve(env.NDK_HOME, "source.properties")).text()).includes(versions.android.ndk));
   const adb = resolve(env.ANDROID_HOME, `platform-tools/adb${suffix}`);
   const device = (...args) => run([adb, "-s", serial, ...args], { capture: true }).stdout.toString().replaceAll("\r\n", "\n");
-  for (const [property, expected] of [["ro.kernel.qemu", "1"], ["ro.build.version.sdk", "33"], ["ro.product.cpu.abi", "x86_64"]]) {
+  if (runtime) for (const [property, expected] of [["ro.kernel.qemu", "1"], ["ro.build.version.sdk", "33"], ["ro.product.cpu.abi", "x86_64"]]) {
     assert.equal(device("shell", "getprop", property).trim(), expected);
   }
   const host = process.platform === "win32" ? "windows-x86_64" : process.platform === "darwin" ? "darwin-x86_64" : "linux-x86_64";
@@ -234,5 +240,5 @@ async function checkAndroid() {
 }
 
 if (["--android", "--android-native", "--android-arm64"].includes(mode)) {
-  await checkWithClients(checkAndroid, "Android product checks failed");
+  await checkAndroid();
 }

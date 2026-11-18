@@ -1,5 +1,42 @@
 # Проверки PR и кэши сборки
 
+## Подготовка инструментов CI.14
+
+Матрица CI.13 (27 checks) и все сценарии/лимиты сохранены. Android SDK
+восстанавливается только по ключу OS/arch + fingerprints versions/setup/verifier;
+при miss исполняется прежняя полная установка с проверкой архивных SHA-256.
+Общий `check-android-sdk.sh` на miss и hit проверяет SHA CLI, успешную
+инициализацию, отдельное точное чтение версии и все package revisions.
+Runtime preflight использует тот же verifier; Rust targets, KVM/AVD/probes,
+builds и negative controls выполняются по-прежнему. Corrupt/missing SDK
+означает failure, а не пропуск проверки. Один SDK writer — prototype-native
+после всех его успешных checks. Кэшируется только SDK, без AVD/app data/keys.
+
+Host browser cache раздельный для shell/prototype, OS/arch и фактически
+установленной Playwright version. Writer каждой family один; scopes PR/main
+сохраняют [ограничения GitHub](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache).
+После hit по-прежнему выполняется install --with-deps --only-shell chromium:
+все CI launch используют headless, поэтому full Chromium не загружается.
+OS dependencies не считаются кэшированными. Browser path — собственный каталог
+RUNNER_TEMP; локальные команды без CI env сохраняют обычный путь Playwright.
+Host Cargo fetch ограничен фактической host triple из pinned rustc; --locked,
+all-targets/all-features checks и offline builds прежние. Node setup пропускается
+только в product-build, где Node-команды не исполняются.
+
+Windows matrix начинает с длинного shell slice, затем shell-conflicts;
+это приоритет запуска при очереди, а не изменение обязательного состава.
+
+Playwright [не рекомендует browser cache по умолчанию](https://playwright.dev/docs/ci#caching-browsers),
+поскольку restore может стоить столько же, сколько download. Здесь конкретный
+Windows download занимал около трёх минут; выигрыша заранее не обещаем.
+SDK/browser keys не имеют restore-prefix fallback. Новые tool caches могут
+сохраняться в PR merge-ref scope для измерения повторной подготовки; main
+не читает PR caches, Rust/Tauri/Gradle writer policy не меняется. Размер новых
+entries и eviction требуется измерить: исходно 19 entries/9.025 GiB, включая
+старые ключи. Квота/платные настройки не меняются. При cache miss/corruption
+запуск не выдаётся за warm benchmark. Cold/hit сравниваются на одном head,
+со всеми attempts/очередями/runner work; [EV-120](../agent/verification/EV-120-ci-tool-caches.md).
+
 ## Текущее распределение CI.13
 
 Чтобы уменьшить критический путь jobs >10m, независимые группы запускаются

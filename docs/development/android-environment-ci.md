@@ -58,6 +58,14 @@ bash scripts/check-android-environment.sh 2>&1 | tee docs/reports/p00-06/linux-c
 
 ## Actions, ограничения и отмена
 
+CI.14: один SDK writer prototype-native сохраняет bundle после успешных probes
+и negative controls; AVD/app data/OS keys не входят в cache. Общий SDK verifier
+проверяет SHA CLI, инициализацию, версию и все package revisions на miss/hit,
+включая build-only jobs. Пороги и runtime checks прежние; corrupt SDK означает
+ошибку. Для локального Linux воспроизведения после блока Install pinned
+Android tools выполните также Verify SDK identity and install pinned Rust
+targets из workflow. Размер/эффект caches — [EV-120](../agent/verification/EV-120-ci-tool-caches.md).
+
 Текущее распределение CI.13: двенадцать обязательных suites; product-native
 исполняет runtime, product-x86_64/product-arm64 — отдельные ABI release/unsafe
 builds, prototype-arm64 собирает прежние APK/instrumentation без AVD.

@@ -263,3 +263,4 @@ for (const index of [0, 1]) for (const failure of [{ exitCode: 23 }, { exitCode:
   assert.equal(result.calls.length, index + 1, "A failed suite must prevent a successful aggregate");
 }
 console.log("Android CI routing: full/default/native compatibility, independent UI/paired APK suites, exact ABI job ownership, CI-only production APK bootstrap, empty/valid/invalid file manifests, all runtime/negative checks, 15m budgets, strict aggregate, invalid input, child failures and signals passed.");
+await import('./check-ci-tool-caches.mjs');

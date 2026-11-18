@@ -249,7 +249,8 @@ const expectedSteps = [
 ];
 for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "windows-2025", 20]]) {
   const job = workflow.jobs[`${os}-checks`];
-  assert.deepEqual(job.strategy.matrix.suite, suites);
+  assert.deepEqual(job.strategy.matrix.suite, os === 'windows'
+    ? ['shell', 'shell-conflicts', 'product', 'product-build', 'prototype-ui', 'prototype-native'] : suites);
   assert.equal(job.strategy["fail-fast"], false);
   assert.equal(job["runs-on"], runner);
   assert.equal(job["timeout-minutes"], budget);
@@ -268,7 +269,7 @@ for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "
 assert.ok(!JSON.stringify(workflow).includes("continue-on-error"));
 
 const preparation = Bun.YAML.parse(await Bun.file(resolve(productRoot, ".github/actions/prepare-host-check/action.yml")).text());
-const restores = preparation.runs.steps.filter(step => step.uses?.startsWith("actions/cache/restore@"));
+const restores = preparation.runs.steps.filter(step => step.uses?.startsWith("actions/cache/restore@") && step.id !== 'browser-cache');
 assert.equal(restores.length, 3);
 assert.equal(restores[0].with["lookup-only"], true);
 assert.equal(restores[0].with["restore-keys"], "zedone-rust-v1-prototype-host-${{ inputs.suite }}-${{ steps.versions.outputs.cache-platform }}-x64-");
@@ -296,3 +297,4 @@ const cacheNames = ["all", ...suites].map(suite => runInNewContext(cacheExpressi
 }));
 assert.deepEqual(cacheNames, ["prototype-host", ...suites.map(suite => `prototype-host-${suite}`)]);
 console.log("Host CI routing/pairing/workflow: exact full/slice coverage, both OS matrices/strict gates, cache owners/fallback, legacy modes and failure draining passed.");
+await import('./check-ci-tool-caches.mjs');

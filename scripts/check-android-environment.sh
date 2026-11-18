@@ -14,18 +14,7 @@ export PATH="$android_home/platform-tools:$android_home/emulator:$tools:$PATH"
 image=$(jq -r .android.image "$versions")
 [[ $(bun --version) == "$(jq -r .bun "$versions")" ]] || fail 'Unexpected Bun version.'
 [[ $(javac -version 2>&1) == "javac $(jq -r .android.jdk "$versions")" ]] || fail 'Unexpected JDK version.'
-expected_android_cli=$(jq -r .android.cli "$versions")
-actual_android_cli=$(android --no-metrics --version) || fail 'Unable to read Android CLI version.'
-[[ $actual_android_cli == "$expected_android_cli" ]] || \
-    fail "Unexpected Android CLI version: expected $(printf '%q' "$expected_android_cli"), got $(printf '%q' "$actual_android_cli") (executable: $(command -v android))."
-while IFS=@ read -r package revision; do
-    properties="$android_home/$package/source.properties"
-    [[ -f $properties ]] || fail "Missing SDK package: $package"
-    actual=$(sed -n 's/^Pkg.Revision *= *//p' "$properties" | tr -d '\r')
-    actual=${actual%.0}; actual=${actual%.0}
-    revision=${revision%.0}; revision=${revision%.0}
-    [[ $actual == "$revision" ]] || fail "Unexpected $package revision: $actual"
-done < <(jq -r '.android.packages[]' "$versions")
+bash "$root/scripts/check-android-sdk.sh"
 git --version
 java -version
 android --no-metrics "--sdk=$android_home" sdk list

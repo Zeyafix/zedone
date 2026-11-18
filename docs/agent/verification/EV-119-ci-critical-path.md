@@ -181,3 +181,71 @@ diff check passed. Первый запуск обновлённого guard ос
 остаётся недоказанной, split не выдаётся за доказанную диагностику.
 - Далее commit/push в PR #109 и новый CI (27 expected) на существующем watch;
 оставшиеся >10m и итоговые метрики требуют продолжения. Merge/delete нет.
+
+## Correction опубликована / LOG-651
+
+Head a040174 в [PR #109](https://github.com/Zeyafix/zedone/pull/109); push/
+link/body readback completed. Все 11 source fingerprints и 98 definition/state
+rows прежние. Новые host/Android runs 44285337031/44285337029 созданы
+2026-11-18 10:25:52 UTC и выполняются; expected 27, успех не заявляется.
+Следующий шаг — прежний watch и обработка CI, затем оставшиеся >10m и
+метрики исходного поручения. Checkpoint локальный, merge/delete не поручены.
+
+## a040174: failure до APK acceptance — GAP-036 / LOG-652
+
+Cross job 134736418875/run 44285337029 отказал при acceptance APK build,
+ещё до check-pairing-app. Production APK/install/Android preflight passed.
+Gradle rustBuild повторно вызвал Cargo; shell build-script сохранил fail-closed
+comment guard, но PowerShell/.NET выбросил FileLoadException/invalid assembly
+name при загрузке System.Collections.Concurrent в ParseFile. Это не обнаруженный
+запрещённый комментарий и не доказанный дефект PS1: PS1/scanner не менялись.
+Все 11 fingerprints прежние; причина сбоя инструментария неизвестна.
+Emulator environment cleanup completed; acceptance scenarios/restoration
+не исполнялись и не объявляются passed. Это отдельный GAP-036, не GAP-035.
+
+Raw failure/job/run/jobs сохранены в ignored ci13-pwsh-load-failure. Workflow
+ещё in_progress: один bounded rerun только job 134736418875 запланирован
+после terminal на прежнем head; accepted=0/limit=1, повтор пока не запрошен.
+Первую неуспешную попытку/очереди/rerun cost учитывать в метриках. Успех
+повтора не закроет root cause; повторный отказ диагностировать без цикла
+retry. Source/guards/пороги/бюджеты и все 98 criteria states прежние.
+Далее существующий watch, 27 SUCCESS и оставшееся сокращение >10m/метрики.
+
+## Единственный cross rerun принят / LOG-653
+
+Android attempt 1 terminal failure: только cross 134736418875 и aggregate
+134742576941 failed; остальные Android suites SUCCESS. Final metadata
+run/jobs/steps и complete failed-job log сохранены до повтора. Full logs.zip
+загрузка оборвалась по сети (read tcp/wsarecv); файл помечен .partial.zip,
+не считается валидным архивом. Original job IDs сохранены для отдельной
+догрузки logs; timings metadata полны.
+
+GitHub принял единственный job rerun на прежнем a040174 после terminal
+workflow; accepted=1/limit=1 записан в resume-state. Результат pending,
+следующего повтора при отказе не планируется. PR Testing обновлён/readback
+проверен, 11 source fingerprints и все 98 criteria rows прежние. GAP-036
+не закрывается успешным повтором, источник/guards/таймеры не меняются.
+Далее существующий watch, исходное сокращение >10m/метрики; merge/delete нет.
+
+## Старый aggregate wake / LOG-654
+
+Уведомление job 134742576941 относится к attempt 1: RESULT=failure в
+10:37:22 UTC — штатный итог первого cross build failure, не новый отказ.
+Текущий cross job 134744083731/attempt 2 IN_PROGRESS с 10:40:17 UTC на
+неизменном a040174. Результата повтора нет, нового запроса не сделано,
+accepted=1/limit=1. Новый aggregate ещё ожидается, прежний watch продолжается.
+
+## Все 27 SUCCESS на a040174 / LOG-655
+
+Exact expected набор 27 COMPLETED/SUCCESS подтверждён после единственного
+cross rerun 134744083731 и dependent aggregate. Оба cross сценария,
+APK/app-files SHA-256 restoration и OS cleanup passed. Host attempt 1,
+Android final attempt 2; исходные два failed executions и 25 inherited
+успехов сохранены отдельно, всего 29 executions. GAP-036 root cause open.
+Reviews/comments отсутствуют. Final metadata и success log сохранены.
+
+Windows shell 13:08; Android fields 11:25, shell 11:11, cross 10:41,
+same 10:34, prototype-ui 10:09 остаются >10m. Исходное поручение продолжается
+в CI.14/[EV-120](EV-120-ci-tool-caches.md): повторная подготовка SDK/browser,
+без изменения сценариев/лимитов. Один успешный повтор не доказывает
+стабильность; полные сравнительные метрики включают все attempts/очереди.

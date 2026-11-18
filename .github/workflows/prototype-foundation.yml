@@ -107,7 +107,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product, product-build, prototype-native, prototype-ui, shell, shell-conflicts]
+        suite: [shell, shell-conflicts, product, product-build, prototype-ui, prototype-native]
     runs-on: windows-2025
     # Keep the previous cold-build budget until the split has been measured.
     # The warm workflow target is 10 minutes, not the sum of these job budgets.

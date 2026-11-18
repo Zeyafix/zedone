@@ -7,21 +7,51 @@ updated: 2026-11-18
 development_state: implementation
 current_stage: P06
 current_stage_state: in_progress
-current_step: CI.13
+current_step: CI.14
 last_completed_stage: P03
 last_completed_step: P06.06
-active_work: "CI.13: cross/same fix verified локально, публикация PR #109 и новый CI/27 checks; EV-119"
-next_action: "Завершить новые cross/same APK slices/restore, опубликовать исправление в PR #109 и проверить 27 checks. Старый positions unavailable/host 101 остаётся failure без доказанной причины; затем оставшиеся >10m/метрики. Merge/delete не поручены."
+active_work: "CI.14/EV-120 verified локально: tool-cache guards, main/prototype UI и lint passed; новый CI/метрики pending. GAP-036 open"
+next_action: "Commit/push в PR #109, новый CI/27 и controlled cold/hit measurement. Проверить cache size/eviction и все attempts; квоту/лимиты/сценарии не менять, merge/delete не поручены."
 passed_acceptance: [T03, T05, T06, T07, T13, T14, T15, T16, T17, S10]
 open_bugs: []
-open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035]
+open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-031, GAP-032, GAP-034, GAP-035, GAP-036]
 accepted_gaps: [GAP-006]
 open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, DEC-008, DEC-009]
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-650
+last_event: LOG-657
 ```
+
+CI.13/a040174: все 27 SUCCESS после единственного cross rerun. Both cross
+cases/restoration/cleanup passed, GAP-036 root cause open. Далее CI.14/EV-120:
+SDK/browser tool caches для оставшихся >10m, без сокращения сценариев.
+CI.14 verified локально: guards/оба host UI/lint passed (LOG-657), новый
+CI/cache timings ещё ожидаются. Ниже предыдущая история.
+
+Wake aggregate 134742576941 относится к attempt 1 (RESULT=failure,
+10:37:22 UTC), до принятого повтора. Текущий cross rerun job 134744083731,
+attempt 2, IN_PROGRESS с 10:40:17 UTC; нового отказа нет. Accepted=1/limit=1,
+дополнительный rerun не запускать. LOG-654; далее прежний watch/метрики.
+
+GitHub принял один штатный cross rerun на неизменном a040174 после
+terminal Android workflow; результат pending (LOG-653). Attempt 1 final
+run/jobs/steps и полный failed-job log сохранены, полный logs.zip download
+оборвался по сети и помечен partial. Другие Android suites SUCCESS.
+Source/guards/пороги прежние, GAP-036 не закрыт, следующих rerun не планируется.
+Ниже исходный отказ.
+
+Head a040174: cross job failed ДО pairing: acceptance APK build/comment
+guard остановлен PowerShell/.NET FileLoadException при загрузке
+System.Collections.Concurrent. Это не прежний fixture lifetime, runtime
+сценарии не начаты. Причина сбоя инструментария неизвестна, GAP-036/LOG-652.
+Source/guards/head прежние; после terminal Android — один bounded job rerun,
+исходную попытку сохранить. Далее 27 checks/оставшиеся >10m/метрики.
+
+CI.13 исправление опубликовано: a040174, ожидаются 27 checks в новых
+workflows 44285337031/44285337029, created 10:25:52 UTC. Local cross/same
+APK/restore/cleanup/guards passed, source fingerprints прежние. Новый CI
+ещё не завершён; далее существующий watch, оставшиеся >10m/метрики; LOG-651.
 
 CI.13/head 165c378: positions и aggregate android FAILED, остальные 24
 SUCCESS. На четвёртом position случае unavailable/host fixture 101, APK/app
@@ -1652,6 +1682,7 @@ P01.03 — `done` после Windows/Linux Actions и интеграции PR #1
 
 | ID | Тип | Состояние | Закрыть до | Открытый объём и связанные критерии |
 | --- | --- | --- | --- | --- |
+| GAP-036 | gap | open | CI.13 / T16 revalidation | EV-119/LOG-652: a040174, cross job 134736418875 failed при acceptance APK build: fail-closed source-comment guard не смог загрузить PowerShell/.NET System.Collections.Concurrent (FileLoadException/invalid assembly name). Pairing runtime не начат. PS1/scanner исходники не менялись, 11 fingerprints прежние; причина runtime failure неизвестна. Один bounded job rerun после terminal workflow, без изменения guards/лимитов; успех повтора не доказывает причину/исправление. Все attempts/cost учитывать. |
 | GAP-035 | gap | open | CI.12 CI / T09, T16 revalidation | EV-118/LOG-644/645: PR #109/head 863e64b pairing attempt 1 неожиданно получил access_denied/fixture exit 101; причина и initial host cleanup outcome неизвестны, timeout лишь гипотеза без server stderr. Единственный rerun job 134680023677/run 44266376707 passed: обе suites, два SHA-256 restoration/OS cleanup, 14:56 при прежних 15m. Около 4s запаса не гарантируют будущую устойчивость, успешный повтор не доказывает исправление; GAP остаётся open. Source/assert/240s/15m прежние. |
 | GAP-034 | gap | open | CI.12 CI / T16, T17 revalidation | EV-118/LOG-642/645: Linux product attempt 1 на 863e64b нарушил прежний search <30s guard: корректные 1000 результатов, 30209ms, storage 283 passed/1 failed. Единственный rerun job 134679456275/run 44266376564 passed на том же head; весь expected CI 18 SUCCESS. Причина первого превышения/тождество с историческим BUG-008 не установлены, исправление не заявляется, GAP остаётся open. Исходный отказ и стоимость повторов сохранены в метриках; threshold/бюджеты прежние. |
 | GAP-030 | gap | resolved | P06.02.3; A51/T09 | EV-107/LOG-577: текущий продуктовый APK показывает читаемый SVG, Device подтверждает permission/cancel/Back/Home/20-секундную неготовность и ручной путь, парный QR API/TLS/CLI passed. Доступен только Android 13/AOSP x86_64 без GMS; оптическое чтение и повтор после готовности модели не выполнены. Приоритет high: блокирует итог P06.02. Условие снятия — текущий APK на Android Device с работающей камерой/GMS-моделью, точное чтение QR Windows без автоотправки, явные pending/confirm/отказ/cancel/unlink/повтор/сохранность и cleanup. EV-022 прототипа/независимый jsQR/сборка arm64 не заменяют эту проверку; Tailscale/целевой телефон отмечать отдельно. EV-107/LOG-580: условие локальной оптической приёмки выполнено на текущем APK Galaxy A32/Android 13 arm64 с GMS — четыре точных чтения Windows QR, native запрос/ожидание без доступа, Windows UI read-only confirm, process restart/Keystore, unlink/reject/cancel, отказ старому отменённому коду/сохранность и cleanup passed. Свои OS slots/rules/APK/data очищены, исходное отсутствие установки восстановлено. GAP resolved; холодная модель/настоящий Tailscale и приёмка производительности отдельно. |
@@ -6737,3 +6768,46 @@ limitations: "Непроверенные части и связанные BUG/GA
 - Guard exact union, явные scopes, default compatibility, errors/signals/strict gate и безопасная классификация/непечать synthetic private key passed. Per-case body побайтово прежний. Node syntax/comment policy 385 sources/actionlint с ShellCheck/diff check passed. Первая попытка нового guard имела лишнюю закрывающую скобку; синтаксис исправлен, финальная проверка passed.
 - Старый head 165c378 зафиксирован: 24 success, два failure, никаких rerun. Оба полных log ZIP проверены как ZIP (118/241 entries), final runs/jobs/steps сохранены. Причина host 101 не доказана, GAP-035 дополнен без закрытия/утверждения общей причины с 863e64b.
 - Новый expected 27, бюджеты/пороги/Rust/API/schema прежние; docs обновлены, пять правил в scope и все 98 definitions/states/GAP/DEC сохранены. Далее commit/push в существующий PR #109, новый CI через прежний watch, затем оставшиеся >10m/метрики. Merge/delete не поручены.
+
+### LOG-651 — 2026-11-18 — агент Codex, cross/same correction опубликована
+
+- Commit a0401742925f6fa9908c1b0aa1de0a4cfdd8c707 (ci: keep paired position checks within isolated fixtures) отправлен в PR #109, сразу linked по правилу push. PR body обновлён и прочитан обратно: 27 expected, новые local slices/restore/diagnostics passed, старые 24 success/two failure на 165c378/недоказанная причина и новый pending CI разделены; credit/section order прежние. Все 11 source fingerprints совпали, все 98 definition/state rows побайтово прежние.
+- Host run 44285337031 и Android 44285337029, created 2026-11-18 10:25:52 UTC, queued/in_progress. Новых полных результатов нет; watch прежний и не перезапускается. Resume-state обновлён в ignored ci13-short-jobs и ci13-positions-split, frozen intermediate attempt 165c378 сохранена.
+- Дальше дождаться CI, обработать новые failures при наличии и продолжить исходное сокращение >10m: Windows shell (203s browser install в 165c378), Windows product-build (release 7m29 + guards), Android shell. Не заявлять цель достигнутой по одному исправленному job; runner cost/queues/all attempts учитывать в метриках. Merge/delete не поручены. Publication checkpoint локальный без ещё одного CI-triggering commit.
+
+### LOG-652 — 2026-11-18 — агент Codex, GAP-036: PowerShell/.NET loader failure
+
+- На неизменном a040174 cross job 134736418875/run 44285337029 failed до acceptance runner. Production APK/install/preflight succeeded, acceptance Rust compile succeeded, затем Gradle rustBuild повторно вызвал Cargo: shell build-script source-comment policy отказал из-за PowerShell/.NET FileLoadException (System.Collections.Concurrent/invalid assembly name) при ParseFile скрипта check-windows-environment.ps1. Это не комментарий/синтаксическая диагностика и не прежний fixture timeout: pairing runtime не стартовал.
+- Failed log/job metadata и текущая attempt-1 run/jobs snapshot сохранены в ignored ci13-pwsh-load-failure; environment trap cleanup completed. Реальная причина loader failure неизвестна (GAP-036). PS1/scanner исходники и все 11 source fingerprints прежние; fail-closed guard не ослабляется, автоматических retry в scanner нет.
+- Android workflow ещё in_progress по проверке readiness. После terminal сохранить полный attempt 1 и выполнить ровно один штатный rerun только failed job на том же head, записать original failure/очередь/rerun cost. До terminal запрос не выполнялся (known GitHub constraint); accepted=0/limit=1 в resume-state. Повторный отказ требует диагностики, не ещё одного повтора.
+- Все 98 definitions/states и пять правил прежние; docs/registry/PR Testing отражают инфраструктурный отказ, новых SUCCESS полного CI/ускорения нет. Source/commit/push/merge/delete не меняются. Существующий watch продолжает работу; после CI остаются оптимизация >10m и метрики исходного поручения.
+
+### LOG-653 — 2026-11-18 — агент Codex, единственный cross rerun принят
+
+- Run 44285337029/attempt 1 terminal failure на неизменном a040174; final jobs подтверждают только cross 134736418875 и aggregate 134742576941 failed, все остальные Android suites SUCCESS. Aggregate ожидаемо отражает build failure, отдельного дефекта нет. Final run/jobs/steps и полный failed-job log/job metadata сохранены до повтора. Полный logs.zip оборвался read tcp/wsarecv по сети; файл переименован в .partial.zip и не выдаётся за валидный архив. Успешные logs доступны по сохранённым original job IDs; для job timing metadata полны.
+- После проверки head и бюджета accepted=0/limit=1 GitHub принял ровно один POST jobs/134736418875/rerun (exit 0, ответ {}), accepted=1 сохранён немедленно. Source/head/guards/assertions/бюджеты прежние; новых commit/push нет. Результат ещё не получен, повторный отказ диагностировать без ещё одного rerun.
+- PR Testing обновлён фактами GAP-036/неисполненного runtime/accepted pending repeat/неизвестной причины, head/body прочитаны обратно. Все 98 definition/state rows и 11 source fingerprints прежние; GAP-036 open и успешный rerun сам по себе его не закрывает. Пять правил в scope прежние. Далее существующий watch, 27 checks, исходное сокращение >10m и метрики с original failure/queues/rerun cost; merge/delete не поручены. Checkpoint локальный без CI-triggering push.
+
+### LOG-654 — 2026-11-18 — агент Codex, aggregate wake относится к attempt 1
+
+- Job 134742576941 имеет run_attempt=1, failure: лог 10:37:22 UTC содержит RESULT=failure и штатный test "$RESULT" = success. Это зависимый итог исходного cross acceptance-build/PowerShell loader failure/GAP-036, отдельного дефекта aggregate нет. Raw log/job metadata сохранены.
+- Current Android run 44285337029 — attempt 2/in_progress на прежнем a040174; cross job 134744083731 IN_PROGRESS с 10:40:17 UTC. Исходный aggregate закончился раньше принятого rerun, нового cross failure нет. Accepted reruns остаётся 1/limit=1; дополнительный запрос не делался.
+- Source/guards/пороги/критерии/GAP прежние. Существующий watch ждёт единственный принятый повтор и новый dependent aggregate; затем 27 checks/исходная оптимизация >10m/метрики. Merge/delete не поручены, checkpoint локальный без commit/push.
+
+### LOG-655 — 2026-11-18 — агент Codex, a040174 все 27 SUCCESS
+
+- Exact head a040174 и полный expected набор 27 COMPLETED/SUCCESS проверены. Cross rerun 134744083731 passed: оба порядка cross-column, APK/app-files SHA-256 restoration и OS cleanup. Android final attempt 2, host attempt 1; 25 успехов унаследованы, original cross build/aggregate failure сохранены. GAP-036 root cause open, не закрыт повтором. Reviews/comments отсутствуют.
+- Final run/jobs/steps и cross-success log сохранены в ignored ci13-pwsh-load-failure. Windows shell 13:08; Android fields 11:25, shell 11:11, cross 10:41, same 10:34, prototype-ui 10:09 всё ещё >10m. Одна серия не доказывает стабильность/общее ускорение, source fingerprints прежние. Полные сравнительные метрики — после оставшейся оптимизации.
+
+### LOG-656 — 2026-11-18 — агент Codex, CI.14 tool-cache preparation
+
+- Продолжение исходного поручения в том же PR #109 на a040174: EV-120 задаёт bounded SDK/browser caching, прежние 27 checks и бюджеты. Три dirty docs/checkpoints CI.13 сохранены в ignored ci14-tool-caches. SDK verifier общий для setup/runtime; cold/hit не являются verdict проверки.
+- Перед изменением cache inventory 19 entries/9.025 GiB, есть старые ключи. Квота/платные настройки не меняются; измерить объём новых caches/eviction и холодную/тёплую подготовку. Для SDK один writer, exact fingerprint key, никаких AVD/app/keys; для browser отдельные families/version и прежний --with-deps. Все 98 definition/state rows, GAP/DEC прежние, merge/delete не поручены.
+
+### LOG-657 — 2026-11-18 — агент Codex, CI.14 verified локально
+
+- Exact прежние 27 checks/strict gates/сценарии/лимиты сохранены. SDK verifier исполняется на cold/hit и отказных fixtures: CLI hash/version/первая инициализация, missing/wrong package, rustup exit 23. Настоящий PowerShell проверил browser family/version/path и parser всех host steps; locked host-target Cargo fetch passed.
+- Только headless Chromium установлен в изолированный browser path: main UI и prototype --host-ui passed с pinned Node. Первый prototype запуск штатно отклонён Node guard, guard не менялся; fixture jq CRLF исправлен в test double. Новый guard/ShellCheck/actionlint с ShellCheck/Node syntax/comment policy 387 sources/diff passed, Pyflakes отсутствует и отключён.
+- SDK cache содержит только pinned tools, один успешный writer; runtime/negative controls прежние. Browser install с OS deps выполняется после hit. Windows shell идёт первым при очереди. CI/save/restore/cache size/eviction/ускорение ещё не измерены; старые 27 SUCCESS не являются проверкой нового setup. После cold success один контролируемый warm benchmark на том же head, все executions/очереди/cost сохранять.
+- Пять правил соблюдены в scope EV-120: обратимая подготовка, прежний human/agent API, docs, прежние обе платформы/сценарии, единый versions/verifier без cache verdict. Все 98 definition/state rows и GAP/DEC прежние. >300 строк — неделимая граница SDK/browser setup с verifier/отказными guards/docs; без продукта/новых dependencies.
+- Далее commit/push в существующий PR #109 и штатный watch нового CI. Merge/delete не поручены. Локальная Linux SDK restore/save не заявляется; Device/UI Android не менялись.

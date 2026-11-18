@@ -93,6 +93,7 @@ runs:
         bun-version: ${{ steps.versions.outputs.bun }}
         no-cache: true
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      if: inputs.suite != 'product-build'
       with:
         node-version: ${{ steps.versions.outputs.node }}
         package-manager-cache: false
@@ -111,8 +112,11 @@ runs:
           'shell' { @('ui/src-tauri/Cargo.toml') }
           'shell-conflicts' { @('ui/src-tauri/Cargo.toml') }
         }
+        $hostLine = rustc "+$env:RUST_VERSION" -vV | Where-Object { $_ -like 'host: *' }
+        if ($LASTEXITCODE -ne 0 -or @($hostLine).Count -ne 1) { throw 'Cannot determine Rust host target.' }
+        $hostTarget = $hostLine.Substring(6)
         foreach ($manifest in $manifests) {
-          cargo "+$env:RUST_VERSION" fetch --locked --manifest-path $manifest
+          cargo "+$env:RUST_VERSION" fetch --locked --target $hostTarget --manifest-path $manifest
           if ($LASTEXITCODE -ne 0) { throw "Dependency fetch failed: $manifest" }
         }
     - name: Install locked shared build-policy and product JavaScript dependencies
@@ -137,10 +141,37 @@ runs:
       run: |
         bun install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw 'JavaScript dependency installation failed.' }
+    - name: Read test browser cache identity
+      if: inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell' || inputs.suite == 'shell-conflicts'
+      id: browser
+      shell: pwsh
+      env:
+        SUITE: ${{ inputs.suite }}
+      run: |
+        $family = if ($env:SUITE -like 'shell*') { 'shell' } else { 'prototype' }
+        $package = if ($family -eq 'shell') { 'node_modules/playwright/package.json' } else { 'prototypes/node_modules/playwright/package.json' }
+        $version = (Get-Content -Raw $package | ConvertFrom-Json).version
+        if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected a pinned Playwright version.' }
+        $browserPath = Join-Path $env:RUNNER_TEMP 'zedone-playwright'
+        @("version=$version", "family=$family", "path=$browserPath") >> $env:GITHUB_OUTPUT
+        "PLAYWRIGHT_BROWSERS_PATH=$browserPath" >> $env:GITHUB_ENV
+    - name: Restore pinned test browser
+      if: inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell' || inputs.suite == 'shell-conflicts'
+      id: browser-cache
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ steps.browser.outputs.path }}
+        key: zedone-playwright-shell-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.browser.outputs.family }}-${{ steps.browser.outputs.version }}-complete
     - name: Install test browser and OS dependencies
       if: inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell' || inputs.suite == 'shell-conflicts'
       shell: pwsh
       working-directory: ${{ startsWith(inputs.suite, 'shell') && '.' || 'prototypes' }}
       run: |
-        bun node_modules/playwright/cli.js install --with-deps chromium
+        bun node_modules/playwright/cli.js install --with-deps --only-shell chromium
         if ($LASTEXITCODE -ne 0) { throw 'Test browser installation failed.' }
+    - name: Save installed test browser
+      if: success() && (inputs.suite == 'all' || inputs.suite == 'prototype-ui' || inputs.suite == 'shell') && steps.browser-cache.outputs.cache-hit != 'true' && steps.browser-cache.outputs.cache-primary-key != ''
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ steps.browser.outputs.path }}
+        key: ${{ steps.browser-cache.outputs.cache-primary-key }}

@@ -289,7 +289,7 @@ pub fn rename(
             let before = tx.tag_snapshot(&p.space, &p.tag)?;
             replay::require_current(p.expected, before.version)?;
             active_tag(&before)?;
-            available(tx, &p.space, &p.tag, &p.name)?;
+            available(tx, &p.space, &before.tag, &p.name)?;
             if before.names != [p.name.as_str()] {
                 tx.rename_tag(&p.space, &p.tag, &p.name)?;
             }
@@ -321,7 +321,7 @@ pub fn delete(
             for card in tx
                 .cards(&p.space)?
                 .iter()
-                .filter(|c| c.tags.contains(&p.tag))
+                .filter(|c| c.tags.contains(&before.tag))
             {
                 if card.state == SpaceState::Conflicted {
                     return Err(error(ErrorCode::Conflict));
@@ -369,7 +369,7 @@ pub fn set_card_tag(
             let tag = tx.tag_snapshot(&p.space, &p.tag)?;
             replay::require_current(p.expected_tag, tag.version)?;
             active_tag(&tag)?;
-            if card.tags.contains(&p.tag) != p.present {
+            if card.tags.contains(&tag.tag) != p.present {
                 tx.set_card_tag(p)?;
             }
             tx.card_snapshot(&p.space, &p.card)

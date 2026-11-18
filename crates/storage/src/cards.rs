@@ -152,7 +152,7 @@ fn snapshot(
         column_object(graph, column)?;
     }
     let completed = registers(graph, &object, "completed", |v| v.as_bool())?;
-    let (_, assignments) = crate::tags::assignments(graph, &object)?;
+    let assignments = crate::tags::convergence::merged_assignments(graph, &object, tag_snapshots)?;
     let mut tags = Vec::new();
     let mut tags_conflicted = false;
     let mut tag_projections = BTreeMap::new();
@@ -162,7 +162,8 @@ fn snapshot(
         }
         if values.contains(&true) {
             if tag_snapshots.contains_key(&tag) {
-                tags_conflicted |= crate::tags::blocks_card(graph, &tag)?;
+                tags_conflicted |=
+                    crate::tags::convergence::blocks_card(graph, &tag, tag_snapshots)?;
                 tag_projections.insert(tag.clone(), projections.get(&format!("tag:{tag}")));
             } else {
                 tags_conflicted = true;

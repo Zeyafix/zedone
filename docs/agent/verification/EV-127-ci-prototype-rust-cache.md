@@ -59,3 +59,55 @@
 - Это конфигурационная проверка, не реальный GitHub restore/save и не
   приёмка времени. Далее initial 24-check CI/cold SDK, успешное сохранение
   suite cache и один complete same-head warm benchmark с request-start.
+
+## Публикация / LOG-690
+
+0ba5056 в PR #109, head/body/sections/credit прочитаны обратно,
+reviews/comments отсутствуют. Host44339683483 / Android44339683542 созданы
+15:47:28 UTC. Все24 outcomes/new cache save/runtime/time ещё pending.
+Existing watch сохраняется. После успешного initial нужен один complete
+same-head warm benchmark (requests0/limit1) с request-start и фактическими
+hits/legacy skip/compile/queue/wall/runner/cache bytes/eviction. Начальные
+SDK cold/setup/failures/все costs сохранять. Windows product — следующий
+bottleneck; цели времени не приняты. Merge/delete не поручены.
+
+## Initial принят / полный warm benchmark / LOG-691
+
+0ba5056 initial attempt1: все24 SUCCESS, full12:14/runner167:14.
+Host10:13, Android12:14, shell12:06/SDKcold114s, fields11:03/SDKcold93s,
+placements10:39/cross10:13/prototypeUI10:38. Windows product9:16,
+product-build8:47. Lookup miss/legacy exact seed/own miss/build/save passed;
+новый PR-scoped prototype cache724491383bytes подтверждён API. Новый exact
+SDK f05143d8… saved/verifier passed. Cache17/8.13GiB, две старые SDK entries
+больше не перечислены без ручного удаления. Initial cost не исключается.
+
+GitHub принял один complete warm обоих workflows на неизменном head,
+ожидаемый attempt2. Общий request-start16:02:51.349UTC; Android HTTP201
+16:02:52.823UTC, host HTTP201 16:02:53.854UTC. Requests1/limit1 исчерпан,
+новых automatic warm/recovery не делать. После результата нужны all24,
+actual own exact hit/legacy skipped/SDK hit, fullwall отrequest/runner/queue/
+cache bytes/eviction. Цель<=10m/<=5m не принята; GAP-034…039 open.
+Source/assertions/budgets прежние; PR прочитан обратно, нового push нет.
+
+
+## Warm результат и интеграция / LOG-692–693
+
+0ba5056 warm attempt2: все24 SUCCESS, request16:02:51.349UTC до terminal
+16:15:09UTC, full737.651s/12:18 rounded up, runner166:57. PrototypeUI7:23,
+shell12:06/fields12:04. Own exact hit/legacy skipped и SDK exact hit/verifier
+доказаны; cache17/8.13GiB. Initial12:14/167:14 и исторические failures/cost
+сохранены отдельно. Цель<=10m/идеал<=5m не достигнута; GAP-034…039 open.
+
+По явному поручению разработчика оптимизация остановлена, PR #109 merged
+83c4643 (2026-11-18 16:18:30UTC) после exact head/base/all24 SUCCESS и свежей
+CLEAN/MERGEABLE readiness без reviews/comments/reviewThreads. Merge parents
+693b1fb/0ba5056, tree равен tested head. Main=origin/main83c4643, feature-ветка
+удалена remote/local/tracking. Три dirty checkpoint до итоговых записей
+сохранены и сверены SHA-256; другие worktrees не трогались, index пуст.
+
+CI.12–21 интегрированы в указанном scope. Обратимость/common API/docs/
+Windows-Android suites/авторитетные pins и product data сохранены; все98
+definitions/states прежние. Performance target не принимается слиянием.
+Active_work null, watch отключён. При возобновлении читать LOG-693/current
+head, не повторять исчерпанный benchmark. Новых manual CI/оптимизаций/tests/
+commit/push после merge нет; автоматические main workflows штатны.

@@ -40,6 +40,7 @@ macro_rules! run {
             .await
     }};
 }
+mod convergence;
 mod preservation;
 fn create(id: u8, tag: u8, name: &str) -> CommandRequest<CreateTag> {
     req(

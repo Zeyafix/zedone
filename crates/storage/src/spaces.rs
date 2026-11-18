@@ -141,7 +141,9 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
                 columns: crate::columns::snapshots(graph, space)?,
                 cards: crate::cards::snapshots(graph, space, &projections)?,
                 tags: crate::tags::snapshots(graph, space, &projections)?
-                    .into_values()
+                    .into_iter()
+                    .filter(|(id, tag)| *id == tag.tag)
+                    .map(|(_, tag)| tag)
                     .collect(),
             })
         } else {

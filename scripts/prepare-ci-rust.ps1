@@ -18,6 +18,12 @@ function Read-Toolchains {
 }
 $installed = @(Read-Toolchains)
 if ($pinned -cnotin $installed) { throw 'Pinned Rust toolchain must be installed before cache preparation.' }
+rustup default $pinned
+if ($LASTEXITCODE -ne 0) { throw 'Cannot select the pinned runner default.' }
+$active = @(rustup show active-toolchain)
+if ($LASTEXITCODE -ne 0 -or $active.Count -ne 1 -or $active[0].Split(' ')[0] -cne $pinned) {
+    throw 'Pinned Rust must be active before removing unused toolchains.'
+}
 foreach ($toolchain in $installed) {
     if ($toolchain -ceq $pinned) { continue }
     rustup toolchain uninstall $toolchain

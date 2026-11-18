@@ -14,8 +14,9 @@
   GITHUB_ACTIONS=true/RUNNER_ENVIRONMENT=github-hosted. Проверить compiler
   release/host и установленный pin до изменений, удалить остальные toolchains
   через rustup, затем требовать ровно pinned inventory. На локальных и
-  self-hosted машинах отказ до вызова Rust. Default/targets/components pin
-  не меняются; версия берётся только из environment-versions.json.
+  self-hosted машинах отказ до вызова Rust. На disposable runner default
+  выбирается явно до удаления; targets/components pin не меняются.
+  Версия берётся только из environment-versions.json.
 - Проверки: реальный helper с подставными rustc/rustup для Windows/Linux
   triplets, pinned-only и extra compiler, local/self-hosted refusal,
   compiler/list/uninstall failures, malformed identity/list, missing pin,
@@ -56,3 +57,51 @@
   новый CI ещё pending. Это CI-only изменение; свежая локальная Android UI
   не запускалась. Пять правил соблюдены в указанном инфраструктурном scope;
   паритет нового исполнения на обеих CI-платформах ждёт GitHub результата.
+
+## Публикация / LOG-683
+
+f2b9975 в PR #109. Head/base/body/sections/credit прочитаны обратно,
+reviews/comments отсутствуют. Initial host 44332008036 / Android 44332008034
+созданы 15:07:48 UTC, все 24 outcomes/cache/runtime/time ещё pending.
+Watch продолжает текущий тред; предыдущий тред не изменяется.
+Следующий шаг — фактический pinned inventory/restore, SDK cold cost,
+все executions/queue/wall/cache; при необходимости один complete warm
+benchmark нового head после успешного initial CI. Старые лимиты не сброшены,
+цель времени не принята. Merge/delete не поручены.
+
+## Initial failure / default correction / LOG-684
+
+f2b9975 terminal: 20 SUCCESS, Linux product CANCELLED по прежнему 10m
+во время unsafe controls, shell/оба aggregates FAILED. Обычные Rust tests
+и isolated Linux search 1000 matches/18419ms passed. Full wall 12:12,
+runner work всех 24 executions 182:28; raw logs/steps/annotations сохранены.
+
+Первый helper не устранил cache miss: rustup автоматически переустанавливает
+удалённый default stable после печати списка toolchains. Windows/Linux logs
+подтверждают auto-install и прежние environment hashes. Постусловие по
+возвращённому списку не доказывало фактический pinned-only inventory.
+Теперь до удаления выбирается pinned runner default, проверяется active;
+fixture воспроизводит delayed side effect и независимо сверяет итоговое
+состояние. Отказы default/active и несовпадающий override отклоняются.
+Меняется default только одноразового runner; локальный/self-hosted отказ
+до Rust остаётся. Cache key inputs/owners/SDK workflow fingerprint прежние.
+
+Shell упал отдельно на точном textarea value в Markdown/10000ms;
+диагностика не содержит actual value/focus, причина неизвестна (GAP-039).
+Исходный timeout/assertions/scenarios прежние. Новый CI нужен из-за
+исправления Rust helper; это не скрытый same-head retry shell. Успех не
+закрывает историческую причину. Оба aggregates корректно отвергли неполный
+набор. SDK owner сохранил новый exact key, snapshot 17 entries/9.54 GiB;
+предыдущий SDK и Linux prototype-native Rust entry больше не перечислены.
+
+Свежий Linux runtime/cache hit и весь новый CI pending; до него цель
+<=10m/<=5m не принимается. Пять правил в CI scope и 98 definitions/states
+сохраняются; дополнительной локальной Android UI для helper-only fix нет.
+
+Финальные local guards default fix passed: оба полных host/Android routing,
+expanded Windows/Linux fixtures и comment policy 394 sources. Отдельный
+negative control запускает старый helper f2b9975 на расширенной fixture:
+helper возвращает success, затем независимая проверка final state отвергает
+восстановленный default/inventory. Новый helper проходит тот же контроль.
+Workflow/YAML/SDK fingerprint не меняются; прежний actionlint сохраняет
+применимость. Diff check и все 98 definitions/states passed.

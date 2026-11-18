@@ -578,10 +578,15 @@ DOM click вместо ввода не добавляются. Локальна�
 Перед восстановлением Rust-кэша host и Android CI вызывают
 `scripts/prepare-ci-rust.ps1` после установки закреплённого compiler.
 Helper допускает только одноразовые GitHub-hosted runners: проверяет
-release/host и наличие pin из `environment-versions.json`, удаляет остальные
+release/host и наличие pin из `environment-versions.json`, выбирает pin как
+default этого runner и проверяет active toolchain, затем удаляет остальные
 toolchains через rustup и требует ровно pinned inventory. Это сохраняет
 Rust/environment hash кэша при обновлении предустановленных compiler в образе
 runner; закреплённый rust-cache учитывает все установленные toolchains.
+Явный default нужен до удаления: rustup может автоматически установить
+удалённый active compiler после вывода списка toolchains, возвращая устаревший
+снимок inventory. Regression fixture моделирует этот side effect и проверяет
+итоговое состояние независимо от возвращённого списка.
 Локальный/self-hosted запуск отказывает до вызова Rust, личные toolchains
 не меняются. Цели/компоненты закреплённого compiler и все проверки прежние.
 Проверка отказов и Windows/Linux inventory с заглушками:

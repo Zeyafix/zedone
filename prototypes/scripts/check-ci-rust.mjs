@@ -30,22 +30,32 @@ function rustc {
 function rustup {
     $calls.Add("rustup $args")
     $global:LASTEXITCODE = 0
-    if ($args[1] -eq 'list') {
+    if ($args[0] -eq 'default') {
+        if ($state.mode -eq 'default-failure') { $global:LASTEXITCODE = 23; return }
+        $state.active = $args[1]
+    } elseif ($args[0] -eq 'show') {
+        if ($state.mode -eq 'active-failure') { $global:LASTEXITCODE = 23; return }
+        if ($state.mode -eq 'wrong-active') { 'unexpected-override (environment override)' } else { "$($state.active) (default)" }
+    } elseif ($args[1] -eq 'list') {
         if ($state.mode -eq 'list-failure') { $global:LASTEXITCODE = 23; return }
         foreach ($name in $state.installed) { "$name (default)" }
+        if ($state.active -cnotin $state.installed) { $state.installed += $state.active }
     } else {
         if ($state.mode -eq 'uninstall-failure') { $global:LASTEXITCODE = 23; return }
         $removed = $args[2]
         if ($state.mode -ne 'stale-list') { $state.installed = @($state.installed | Where-Object { $_ -cne $removed }) }
     }
 }
-try { & $env:RUST_PREPARE } finally { ConvertTo-Json -InputObject @($calls) | Set-Content $env:RUST_CALLS }
+try { & $env:RUST_PREPARE } finally {
+    ConvertTo-Json -InputObject @($calls) | Set-Content $env:RUST_CALLS
+    $state | ConvertTo-Json | Set-Content $env:RUST_FIXTURE
+}
 `);
   for (const target of ['x86_64-pc-windows-msvc', 'x86_64-unknown-linux-gnu']) {
-    const pinned = `${version}-${target}`, extra = `1.100.0-${target}`;
-    for (const mode of ['valid', 'already-pinned', 'local', 'self-hosted', 'compiler-failure', 'missing-host', 'wrong-release', 'missing-pin', 'list-failure', 'invalid-list', 'uninstall-failure', 'stale-list']) {
+    const pinned = `${version}-${target}`, extra = `stable-${target}`;
+    for (const mode of ['valid', 'already-pinned', 'local', 'self-hosted', 'compiler-failure', 'missing-host', 'wrong-release', 'missing-pin', 'list-failure', 'invalid-list', 'default-failure', 'active-failure', 'wrong-active', 'uninstall-failure', 'stale-list']) {
       const state = resolve(directory, 'state.json');
-      await writeFile(state, JSON.stringify({mode, host:target, version:mode === 'wrong-release' ? '0.0.0' : version,
+      await writeFile(state, JSON.stringify({mode, host:target, active:mode === 'already-pinned' ? pinned : extra, version:mode === 'wrong-release' ? '0.0.0' : version,
         installed:mode === 'missing-pin' ? [extra] : mode === 'already-pinned' ? [pinned] : [pinned, mode === 'invalid-list' ? '/unexpected/path' : extra]}));
       const result = Bun.spawnSync(['pwsh', '-NoProfile', '-NonInteractive', '-File', wrapper], {
         env:{...process.env, GITHUB_ACTIONS:mode === 'local' ? '' : 'true', RUNNER_ENVIRONMENT:mode === 'self-hosted' ? 'self-hosted' : 'github-hosted',
@@ -58,6 +68,12 @@ try { & $env:RUST_PREPARE } finally { ConvertTo-Json -InputObject @($calls) | Se
       assert.deepEqual(uninstalls, ['valid', 'uninstall-failure', 'stale-list'].includes(mode) ? [`rustup toolchain uninstall ${extra}`] : []);
       if (['local', 'self-hosted'].includes(mode)) assert.deepEqual(calls, []);
       else assert.equal(calls[0], `rustc +${version} -vV`);
+      if (['valid', 'already-pinned'].includes(mode)) {
+        const final = JSON.parse(await readFile(state, 'utf8'));
+        assert.equal(final.active, pinned);
+        assert.deepEqual(final.installed, [pinned], 'Read-only inventory must not silently reinstall the removed active compiler');
+        assert.ok(calls.indexOf(`rustup default ${pinned}`) < calls.lastIndexOf('rustup toolchain list'));
+      }
       if (mode === 'valid') assert.match(result.stdout.toString(), new RegExp(`Rust cache toolchain: ${pinned}`));
     }
   }
@@ -65,4 +81,4 @@ try { & $env:RUST_PREPARE } finally { ConvertTo-Json -InputObject @($calls) | Se
   assert.equal(dirname(directory), resolve(tmpdir())); assert.ok(basename(directory).startsWith('zedone-ci-rust-'));
   await rm(directory, {recursive:true});
 }
-console.log('CI Rust: pinned-only Windows/Linux inventory, local/self-hosted refusal, malformed identity/list and command/postcondition failures passed.');
+console.log('CI Rust: pinned-only Windows/Linux inventory/default, no active compiler reinstallation, local/self-hosted refusal and identity/list/default/active/uninstall/postcondition failures passed.');

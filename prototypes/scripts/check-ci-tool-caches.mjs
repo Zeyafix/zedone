@@ -111,3 +111,4 @@ try {
   await rm(temporary, { recursive: true });
 }
 console.log('CI tool caches: exact keys/single owners, cold/hit validation, CLI hash/version, package missing/mismatch and Rust failure propagation passed.');
+await import('./check-ci-rust.mjs');

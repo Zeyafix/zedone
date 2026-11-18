@@ -190,6 +190,9 @@ jobs:
           rustup toolchain install "$(jq -r .rust "$versions")" --profile minimal \
             --target aarch64-linux-android --target armv7-linux-androideabi \
             --target i686-linux-android --target x86_64-linux-android
+      - name: Keep only pinned Rust in the cache fingerprint
+        shell: pwsh
+        run: ./scripts/prepare-ci-rust.ps1
       - name: Restore Rust dependencies and Android build cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         env:

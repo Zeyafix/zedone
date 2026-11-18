@@ -17,6 +17,7 @@ runs:
         $versions = Get-Content -Raw scripts/environment-versions.json | ConvertFrom-Json
         rustup toolchain install $versions.rust --profile minimal --component rustfmt --component clippy
         if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+        ./scripts/prepare-ci-rust.ps1
         "rust=$($versions.rust)" >> $env:GITHUB_OUTPUT
         "bun=$($versions.bun)" >> $env:GITHUB_OUTPUT
         "node=$($versions.node)" >> $env:GITHUB_OUTPUT

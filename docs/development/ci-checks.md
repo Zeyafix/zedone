@@ -575,6 +575,19 @@ DOM click вместо ввода не добавляются. Локальна�
 
 ## Отмена
 
+Перед восстановлением Rust-кэша host и Android CI вызывают
+`scripts/prepare-ci-rust.ps1` после установки закреплённого compiler.
+Helper допускает только одноразовые GitHub-hosted runners: проверяет
+release/host и наличие pin из `environment-versions.json`, удаляет остальные
+toolchains через rustup и требует ровно pinned inventory. Это сохраняет
+Rust/environment hash кэша при обновлении предустановленных compiler в образе
+runner; закреплённый rust-cache учитывает все установленные toolchains.
+Локальный/self-hosted запуск отказывает до вызова Rust, личные toolchains
+не меняются. Цели/компоненты закреплённого compiler и все проверки прежние.
+Проверка отказов и Windows/Linux inventory с заглушками:
+`bun prototypes/scripts/check-ci-rust.mjs`; реальные restore hits и время
+требуют GitHub CI. Отмена — revert helper/call sites и новый disposable job.
+
 Остановить текущий запуск — **Cancel workflow**, отключить — **Disable workflow**.
 Удалить кэш — **Actions → Caches**, отменить настройки — обратным коммитом.
 Удалённый кэш просто приводит к закреплённой холодной сборке. Личные SDK,

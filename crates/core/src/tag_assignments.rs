@@ -113,7 +113,7 @@ pub fn resolve(
             let tag = tx.tag_snapshot(&p.space, &p.tag)?;
             replay::require_current(p.expected_tag, tag.version)?;
             if tag.state != TagState::Active
-                || !card.deletion_groups.is_empty()
+                || tx.card_in_container_group(&card)?
                 || !tx
                     .card_tag_assignments(&p.space, &p.card)?
                     .iter()

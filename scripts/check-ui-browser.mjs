@@ -20,6 +20,7 @@ import { checkWorkspaceTouchHost } from "./check-ui-workspace-touch.mjs";
 import { checkNameConflicts } from "./check-ui-name-conflicts.mjs";
 import { checkTextConflicts } from "./check-ui-text-conflicts.mjs";
 import { checkFieldConflicts } from "./check-ui-field-conflicts.mjs";
+import { checkCardDeletion } from "./check-ui-card-deletion.mjs";
 import { checkTagConflicts } from "./check-ui-tag-conflicts.mjs";
 import { checkTagCollisions } from "./check-ui-tag-collisions.mjs";
 import { checkPlacementConflicts } from "./check-ui-placement-conflicts.mjs";
@@ -43,6 +44,7 @@ async function checkBrowserSlice(slice) {
     await checkNameConflicts(browser, binary);
     await checkTextConflicts(browser, binary);
     await checkFieldConflicts(browser, binary);
+    await checkCardDeletion(browser, binary);
     await checkTagConflicts(browser, binary);
     await checkTagCollisions(browser, binary);
     await checkPlacementConflicts(browser, binary);

@@ -38,6 +38,8 @@ pub struct CardSnapshot {
     pub tags: Vec<String>,
     pub state: SpaceState,
     pub deletion_groups: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub deletion_conflict: bool,
     pub version: StateVersion,
 }
 
@@ -169,6 +171,19 @@ impl Command for RestoreCard {
     type Output = CardSnapshot;
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolveCardDeletion {
+    pub space: String,
+    pub card: String,
+    pub expected: StateVersion,
+    pub keep: bool,
+}
+impl Command for ResolveCardDeletion {
+    const NAME: &'static str = "card.resolve_deletion";
+    type Output = CardSnapshot;
+}
+
 pub trait CardStore: ColumnStore {
     fn begin_card_editing(
         &mut self,
@@ -207,6 +222,7 @@ pub trait CardStore: ColumnStore {
         command: &str,
     ) -> CommandResult<CardSnapshot>;
     fn card_snapshot(&mut self, space: &str, card: &str) -> CommandResult<CardSnapshot>;
+    fn card_in_container_group(&mut self, card: &CardSnapshot) -> CommandResult<bool>;
     fn cards(&mut self, space: &str) -> CommandResult<Vec<CardSnapshot>>;
     fn card_history(&mut self, space: &str, card: &str) -> CommandResult<CardHistory>;
     fn card_histories(&mut self, space: &str, cards: &[String]) -> CommandResult<Vec<CardHistory>>;
@@ -598,6 +614,45 @@ pub fn restore(
         request,
         (&p.space, &p.card, p.expected),
         Change::Restore(p),
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/card.resolve_deletion", operation_id = "card_resolve_deletion", request_body = CommandRequest<ResolveCardDeletion>, responses((status = 200, body = CommandResponse<CardSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_deletion(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveCardDeletion>,
+) -> CommandResult<Execution<CardSnapshot>> {
+    let p = &request.parameters;
+    validate(request, &p.space, Some(&p.card))?;
+    replay::execute_as(
+        tx,
+        credential,
+        clock,
+        &required(&p.space, SpacePermission::ReadWrite),
+        request.id,
+        p,
+        |tx, _| {
+            let before = tx.card_snapshot(&p.space, &p.card)?;
+            replay::require_current(p.expected, before.version)?;
+            if !before.deletion_conflict {
+                return Err(error(ErrorCode::Conflict));
+            }
+            for column in &before.columns {
+                parents(tx, &p.space, column)?;
+            }
+            let lifecycle = if p.keep {
+                "active"
+            } else {
+                before
+                    .deletion_groups
+                    .first()
+                    .ok_or_else(|| error(ErrorCode::Conflict))?
+            };
+            tx.set_card_lifecycle(&p.space, &p.card, lifecycle)?;
+            tx.card_snapshot(&p.space, &p.card)
+        },
     )
 }
 

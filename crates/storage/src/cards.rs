@@ -13,6 +13,7 @@ use zedone_core::{
     spaces::{SpaceState, SpaceStore},
 };
 
+mod deletion;
 #[cfg(test)]
 mod tests;
 
@@ -176,6 +177,9 @@ fn snapshot(
     if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
         return Err(invalid());
     }
+    let deletion_conflict = (lifecycle.len() > 1
+        || (lifecycle[0] != "active" && deletion::has_independent_edit(graph, &object)?))
+        && !deletion::has_container_group(graph, &lifecycle)?;
     let conflicted = tags_conflicted
         || placements.len() > 1
         || titles.len() != 1
@@ -183,7 +187,8 @@ fn snapshot(
         || columns.len() != 1
         || positions.len() != 1
         || completed.len() != 1
-        || lifecycle.len() != 1;
+        || lifecycle.len() != 1
+        || deletion_conflict;
     let state = if conflicted {
         SpaceState::Conflicted
     } else if lifecycle[0] == "active" {
@@ -224,6 +229,7 @@ fn snapshot(
         tags,
         state,
         deletion_groups,
+        deletion_conflict,
         version,
     })
 }
@@ -335,6 +341,15 @@ pub(super) fn append_version(
     Ok(())
 }
 impl CardStore for WriteContext<'_> {
+    fn card_in_container_group(&mut self, card: &CardSnapshot) -> CommandResult<bool> {
+        if card.deletion_groups.is_empty() {
+            return Ok(false);
+        }
+        Ok(deletion::has_container_group(
+            self.read().document(&card.space)?,
+            &card.deletion_groups,
+        )?)
+    }
     fn begin_card_editing(
         &mut self,
         space: &str,
@@ -522,6 +537,13 @@ impl CardStore for WriteContext<'_> {
         self.checked(deletion)?;
         let object = object(self.read().document(space)?, card)?;
         Ok(self.edit(space, |doc| {
+            if doc
+                .get_all(&object, "lifecycle")?
+                .iter()
+                .all(|(value, _)| value.as_str() == Some(lifecycle))
+            {
+                doc.delete(&object, "lifecycle")?;
+            }
             doc.put(&object, "lifecycle", lifecycle)?;
             Ok(())
         })?)

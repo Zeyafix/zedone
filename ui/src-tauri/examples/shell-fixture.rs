@@ -44,6 +44,8 @@ async fn main() {
             || args[0] == "--serve-text-conflicts"
             || args[0] == "--prepare-field-conflicts"
             || args[0] == "--serve-field-conflicts"
+            || args[0] == "--prepare-card-deletion"
+            || args[0] == "--serve-card-deletion"
             || args[0] == "--prepare-placement-conflicts"
             || args[0] == "--serve-placement-conflicts"
             || args[0] == "--serve-same-column-conflicts"
@@ -86,13 +88,16 @@ async fn main() {
     )
     .unwrap();
     if args[0] == "--prepare-conflicts" || args[0] == "--serve-conflicts" {
-        seed_conflicts(&storage, &access, true, false).await;
+        seed_conflicts(&storage, &access, true, false, false).await;
     }
     if args[0] == "--prepare-text-conflicts" || args[0] == "--serve-text-conflicts" {
-        seed_conflicts(&storage, &access, false, true).await;
+        seed_conflicts(&storage, &access, false, true, false).await;
     }
     if args[0] == "--prepare-field-conflicts" || args[0] == "--serve-field-conflicts" {
-        seed_conflicts(&storage, &access, true, true).await;
+        seed_conflicts(&storage, &access, true, true, false).await;
+    }
+    if args[0] == "--prepare-card-deletion" || args[0] == "--serve-card-deletion" {
+        seed_conflicts(&storage, &access, false, true, true).await;
     }
     if args[0] == "--prepare-placement-conflicts"
         || args[0] == "--serve-placement-conflicts"
@@ -131,6 +136,7 @@ async fn main() {
         || args[0] == "--prepare-conflicts"
         || args[0] == "--prepare-text-conflicts"
         || args[0] == "--prepare-field-conflicts"
+        || args[0] == "--prepare-card-deletion"
         || args[0] == "--prepare-placement-conflicts"
     {
         storage.shutdown().await.unwrap();
@@ -166,19 +172,33 @@ async fn seed_conflicts(
     access: &Arc<zedone_storage::access::PendingAccess>,
     names: bool,
     text: bool,
+    deletion: bool,
 ) {
     use zedone_core::{
         cards::{CardStore, CreateCard},
         columns::ColumnStore,
+        ordering::{CardPlacement, OrderStore, Rank},
         spaces::SpaceStore,
+        tags::{CreateTag, SetCardTag, TagStore},
     };
     const SPACE: &str = "000000000000000000000000000000c9";
     const COLUMN: &str = "000000000000000000000000000000ca";
+    const OTHER_COLUMN: &str = "000000000000000000000000000000d0";
+    const CARD: &str = "000000000000000000000000000000cb";
+    const TAG: &str = "000000000000000000000000000000d1";
     let owner = access.clone();
     let initial = storage
         .transact(move |tx| {
             tx.create_space(SPACE, "Общее имя", owner.subject())?;
             tx.create_column(SPACE, COLUMN, "Общая колонка")?;
+            if deletion {
+                tx.create_column(SPACE, OTHER_COLUMN, "Колонка с телефона")?;
+                tx.create_tag(&CreateTag {
+                    space: SPACE.into(),
+                    tag: TAG.into(),
+                    name: "Спорный тег".into(),
+                })?;
+            }
             tx.create_card(
                 &CreateCard {
                     space: SPACE.into(),
@@ -206,6 +226,26 @@ async fn seed_conflicts(
             let selection = tx.read().sync_selection(SPACE, pairing)?;
             tx.set_sync_selected(SPACE, pairing, true, selection.version)?;
             tx.receive_sync_page(SPACE, pairing, owner.subject(), &initial)?;
+            if deletion {
+                tx.place_card(
+                    SPACE,
+                    CARD,
+                    &CardPlacement {
+                        column: OTHER_COLUMN.into(),
+                        rank: Rank::Legacy(0),
+                    },
+                )?;
+                let card = tx.card_snapshot(SPACE, CARD)?;
+                let tag = tx.tag_snapshot(SPACE, TAG)?;
+                tx.set_card_tag(&SetCardTag {
+                    space: SPACE.into(),
+                    card: CARD.into(),
+                    tag: TAG.into(),
+                    present: true,
+                    expected: card.version,
+                    expected_tag: tag.version,
+                })?;
+            }
             if text {
                 let card = tx.card_snapshot(SPACE, "000000000000000000000000000000cb")?;
                 tx.edit_card(
@@ -237,7 +277,31 @@ async fn seed_conflicts(
     let owner = access.clone();
     storage
         .transact(move |tx| {
-            if text {
+            if deletion {
+                tx.place_card(
+                    SPACE,
+                    CARD,
+                    &CardPlacement {
+                        column: COLUMN.into(),
+                        rank: Rank::Legacy(0),
+                    },
+                )?;
+                let card = tx.card_snapshot(SPACE, CARD)?;
+                let tag = tx.tag_snapshot(SPACE, TAG)?;
+                tx.set_card_tag(&SetCardTag {
+                    space: SPACE.into(),
+                    card: CARD.into(),
+                    tag: TAG.into(),
+                    present: false,
+                    expected: card.version,
+                    expected_tag: tag.version,
+                })?;
+                tx.set_card_lifecycle(
+                    SPACE,
+                    CARD,
+                    &format!("trash:{}:000000000000000000000000000000cf", owner.subject()),
+                )?;
+            } else if text {
                 let card = tx.card_snapshot(SPACE, "000000000000000000000000000000cb")?;
                 tx.edit_card(
                     &zedone_core::cards::EditCard {

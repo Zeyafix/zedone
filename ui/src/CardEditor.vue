@@ -8,7 +8,7 @@ import type { Parameters } from "../../api/validate-response.js";
 import { loadDraft, lockDraft, removeDraft, saveDraft, type EditorDraft } from "./editor-drafts";
 import { createMutation, deliverMutation, errorMessage, forgetMutation, mutationCredential, pendingCommands, read, type Card, type EditorMutation, type Pending, type Tag } from "./workspace-api";
 
-const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: string }>();
+const props = defineProps<{ card: Card; tags: Tag[]; ready: boolean; draftId?: string; canResolveTag: (card: Card) => boolean }>();
 const emit = defineEmits<{ changed: []; close: []; stay: []; cleanup: [card: Card, event: Event] }>();
 const snapshot = ref<Card>(props.card);
 const tags = ref<Tag[]>(props.tags);
@@ -246,7 +246,7 @@ async function refreshTags() {
   });
 }
 async function resolveTag(tag: Tag, present: boolean) {
-  if (editing.value || busy.value || !props.ready || blocked.value || pending.value) return;
+  if (editing.value || busy.value || !props.ready || blocked.value || pending.value || !props.canResolveTag(snapshot.value)) return;
   await task(async () => {
     subject ||= (await mutationCredential()).subject;
     const value = snapshot.value;
@@ -380,8 +380,8 @@ defineExpose({ requestClose });
             <span>{{ tag.names.join(' / ') }}</span>
             <div v-if="tagAssignments.some(a => a.tag === tag.tag && a.values.length > 1)" class="tag-assignment-conflict">
               <p>Тег одновременно назначен и снят на разных устройствах. Выберите итог этой связи.</p>
-              <button class="resolve-card-tag-present" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active'" @click="resolveTag(tag, true)">Оставить тег</button>
-              <button class="resolve-card-tag-absent" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active'" @click="resolveTag(tag, false)">Подтвердить снятие тега</button>
+              <button class="resolve-card-tag-present" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active' || !canResolveTag(snapshot)" @click="resolveTag(tag, true)">Оставить тег</button>
+              <button class="resolve-card-tag-absent" :disabled="busy || !ready || blocked || !!pending || tag.state !== 'active' || !canResolveTag(snapshot)" @click="resolveTag(tag, false)">Подтвердить снятие тега</button>
             </div>
             <button class="set-card-tag" :aria-pressed="snapshot.tags.includes(tag.tag)" :disabled="busy || !ready || !mutable || blocked || !!pending || tag.state !== 'active' || tag.names.length !== 1" @click="setTag(tag)">{{ snapshot.tags.includes(tag.tag) ? 'Снять тег' : 'Назначить тег' }}</button>
             <p v-if="tag.state !== 'active' || tag.names.length !== 1" class="object-note">Конфликт имени. Назначение и снятие недоступны до разрешения.</p>

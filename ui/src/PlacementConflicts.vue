@@ -5,7 +5,7 @@ import CardsList from "./CardsList.vue";
 import { cardTitle, objectTitle } from "./board-order";
 import { createMutation, deliverMutation, errorMessage, mutationCredential, read, type Card, type Column } from "./workspace-api";
 
-const props = defineProps<{ cards: Card[]; allCards: Card[]; columns: Column[]; tags: ReadonlyMap<string, string>; blocked: boolean; refresh: () => Promise<void> }>();
+const props = defineProps<{ cards: Card[]; allCards: Card[]; columns: Column[]; tags: ReadonlyMap<string, string>; blocked: boolean; canResolve: (card: Card) => boolean; refresh: () => Promise<void> }>();
 const emit = defineEmits<{ open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card }, event: Event]; lock: [value: boolean] }>();
 const inspected = ref<Awaited<ReturnType<typeof inspect>>>();
 const dialog = ref(false), working = ref(false), choice = ref("");
@@ -24,12 +24,12 @@ const label = (index: number) => {
 };
 const available = (column: string) => props.columns.some(item => item.column === column && item.state === "active");
 async function open(card: Card, event: Event) {
-  if (props.blocked || locked.value) return;
+  if (props.blocked || locked.value || !props.canResolve(card)) return;
   working.value = true; failure.value = ""; message.value = ""; opener = event.currentTarget as HTMLElement;
   try {
     const credential = await mutationCredential();
     const result = await inspect(card);
-    if (!alive || props.blocked) return;
+    if (!alive || props.blocked || !props.canResolve(result.card)) return;
     inspected.value = result; subject.value = credential.subject; choice.value = ""; dialog.value = true;
   } catch (cause) { failure.value = errorMessage(cause); }
   finally { working.value = false; }
@@ -41,7 +41,9 @@ async function save() {
   try {
     const id = await createMutation("card.resolve_placement", { space: current.card.space, card: current.card.card, expected: current.card.version, placement: variant.placement }, subject.value);
     const result = await deliverMutation(id);
-    if (result.status === "completed") { dialog.value = false; message.value = "Место сохранено. Вернуть прежнее место можно новым перемещением. Другие конфликты остаются до их разрешения."; }
+    if (result.status === "completed") { dialog.value = false; message.value = current.card.deletion_groups.length
+      ? "Место сохранено. Состояние корзины сохранено."
+      : "Место сохранено. Вернуть прежнее место можно новым перемещением. Другие конфликты остаются до их разрешения."; }
     else failure.value = result.response?.status === "error" ? errorMessage(new Error(result.response.error.code))
       : result.reason === "identity_changed" ? errorMessage(new Error("identity_changed")) : "Решение не подтверждено. Проверьте исходное действие в списке незавершённых действий.";
   } catch (cause) {
@@ -62,6 +64,7 @@ function focusCard() {
 async function restoreFocus(event: Event) {
   event.preventDefault(); await nextTick(); if (!working.value) focusCard();
 }
+defineExpose({ open });
 </script>
 
 <template>
@@ -69,7 +72,7 @@ async function restoreFocus(event: Event) {
     <h3 v-if="cards.length">Конфликты</h3>
     <p v-if="cards.length" class="object-note">Место карточки спорное. Выберите сохранённый вариант; до решения обычные изменения карточки недоступны.</p>
     <p v-if="message" role="status">{{ message }}</p><p v-if="failure && !dialog" role="alert">{{ failure }}</p>
-    <CardsList :cards="cards" :tags="tags" :blocked="blocked || locked" readonly resolve-placement @open="(action, event) => emit('open', action, event)" @resolve="open" />
+    <CardsList :cards="cards" :tags="tags" :blocked="blocked || locked" readonly :resolve-placement="canResolve" @open="(action, event) => emit('open', action, event)" @resolve="open" />
   </section>
   <DialogRoot v-model:open="dialog"><DialogPortal><DialogOverlay class="dialog-overlay" />
     <DialogContent class="action-dialog placement-dialog" @close-auto-focus="restoreFocus">

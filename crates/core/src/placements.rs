@@ -152,7 +152,7 @@ pub fn resolve(
             let card = tx.card_snapshot(&p.space, &p.card)?;
             replay::require_current(p.expected, card.version)?;
             let variants = places(&card);
-            if variants.len() < 2 || !card.deletion_groups.is_empty() {
+            if variants.len() < 2 || tx.card_in_container_group(&card)? {
                 return Err(error(ErrorCode::Conflict));
             }
             if !variants.contains(&p.placement) {

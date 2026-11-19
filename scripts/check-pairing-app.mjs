@@ -277,7 +277,7 @@ try {
     if (suite === '--card-restore') {
         checkCardRestoreExchange({host,android,space,call,command,ok,error});
     }
-    if (containerSpace) {
+    if (suite === '--container-deletion') {
         checkCardDeletionExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkCardRestoreExchange({host,android,space,call,command,ok,error});
         checkContainerDeletionExchange({host,android,space:containerSpace,pairing:second.request,call,command,ok,error});

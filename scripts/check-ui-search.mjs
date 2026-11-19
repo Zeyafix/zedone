@@ -59,7 +59,9 @@ export async function checkSearch(page, { tap, fill, back: platformBack = () => 
   await click(".search-clear"); await ready();
   assert.equal(await page.evaluate(() => document.querySelector('input[name="search-scope"][value="all"]').checked), true);
   assert.ok((await ids()).includes(elsewhere)); assert.ok(!(await ids()).includes(trashed));
+  await dismissKeyboard();
   await click('input[name="search-scope"][value="space"]');
+  await page.waitForFunction(() => document.querySelector('input[name="search-scope"][value="space"]').checked);
   await click(".search-clear"); await ready(); assert.deepEqual(await ids(), [one, two, three]);
   assert.deepEqual(await command("card.list", { space: a, include_trashed: true }), preserved);
   assert.deepEqual(await command("card.history", { space: a, card: one, after: null, limit: 100, expected: null }), history);

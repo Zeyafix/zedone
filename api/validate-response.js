@@ -10836,6 +10836,7 @@ const responseValidators = Object.freeze({
 "column.move": CommandResponse_ColumnSnapshot,
 "column.read": CommandResponse_ColumnSnapshot,
 "column.rename": CommandResponse_ColumnSnapshot,
+"column.resolve_deletion": CommandResponse_ColumnSnapshot,
 "column.resolve_name": CommandResponse_ColumnSnapshot,
 "column.resolve_position": CommandResponse_ColumnSnapshot,
 "column.restore": CommandResponse_ColumnSnapshot,
@@ -10856,6 +10857,7 @@ const responseValidators = Object.freeze({
 "space.list": CommandResponse_SpaceList,
 "space.read": CommandResponse_SpaceSnapshot,
 "space.rename": CommandResponse_SpaceSnapshot,
+"space.resolve_deletion": CommandResponse_SpaceSnapshot,
 "space.resolve_name": CommandResponse_SpaceSnapshot,
 "space.restore": CommandResponse_SpaceSnapshot,
 "space.trash": CommandResponse_SpaceSnapshot,
@@ -10873,7 +10875,8 @@ const responseValidators = Object.freeze({
 "tag.resolve_deletion": CommandResponse_TagSnapshot,
 "tag.resolve_names": CommandResponse_TagList,
 "trash.inspect": CommandResponse_TrashPreview,
-"trash.purge": CommandResponse_TrashPreview
+"trash.purge": CommandResponse_TrashPreview,
+"trash.resolve_purge": CommandResponse_TrashPreview
 });
 export const operations = Object.freeze(Object.keys(responseValidators));
 export default function validate(value, operation) {

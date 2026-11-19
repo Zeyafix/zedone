@@ -5,7 +5,7 @@ use crate::{
     state_version,
 };
 use automerge::{Automerge, ObjId, ObjType, ROOT, ReadDoc, transaction::Transactable};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use zedone_core::{
     cards::{CardHistory, CardSnapshot, CardStore, CardTextVersion, CreateCard, EditCard},
     command::CommandResult,
@@ -13,7 +13,7 @@ use zedone_core::{
     spaces::{SpaceState, SpaceStore},
 };
 
-mod deletion;
+pub(crate) mod deletion;
 #[cfg(test)]
 mod tests;
 
@@ -146,11 +146,17 @@ fn snapshot(
     columns.dedup();
     positions.sort_by_key(|r| r.key(card));
     positions.dedup();
+    let mut parents = Vec::new();
     for column in &columns {
         if !valid_id(column) {
             return Err(invalid());
         }
-        column_object(graph, column)?;
+        parents.push(column_object(graph, column).map_err(|error| match error {
+            StorageError::Rejected(CommandError {
+                code: ErrorCode::NotFound,
+            }) => invalid(),
+            other => other,
+        })?);
     }
     let completed = registers(graph, &object, "completed", |v| v.as_bool())?;
     let assignments = crate::tags::convergence::merged_assignments(graph, &object, tag_snapshots)?;
@@ -173,12 +179,37 @@ fn snapshot(
         }
     }
     tags.sort();
-    let lifecycle = strings(graph, &object, "lifecycle")?;
-    if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
+    let mut lifecycle = strings(graph, &object, "lifecycle")?;
+    if lifecycle
+        .iter()
+        .any(|s| s != "active" && s != "purged" && !valid_group(s))
+    {
         return Err(invalid());
     }
-    let deletion_conflict = (lifecycle.len() > 1
-        || (lifecycle[0] != "active" && deletion::has_independent_edit(graph, &object)?))
+    let stored_purge = lifecycle.iter().any(|value| value == "purged");
+    if stored_purge
+        && !lifecycle.iter().any(|value| value == "active")
+        && !deletion::has_independent_edit(graph, &object, Some("purged"))?
+    {
+        return Err(CommandError {
+            code: ErrorCode::NotFound,
+        }
+        .into());
+    }
+    let mut late_arrival = false;
+    if !stored_purge && lifecycle == ["active"] {
+        for ancestor in parents.iter().chain(std::iter::once(&ROOT)) {
+            if deletion::activated_across_purge(graph, &object, ancestor)? {
+                late_arrival = true;
+                lifecycle.push("purged".into());
+                break;
+            }
+        }
+    }
+    let purge_conflict = stored_purge || late_arrival;
+    let deletion_conflict = !purge_conflict
+        && (lifecycle.len() > 1
+            || (lifecycle[0] != "active" && deletion::has_independent_edit(graph, &object, None)?))
         && !deletion::has_container_group(graph, &lifecycle)?;
     let conflicted = tags_conflicted
         || placements.len() > 1
@@ -188,6 +219,7 @@ fn snapshot(
         || positions.len() != 1
         || completed.len() != 1
         || lifecycle.len() != 1
+        || purge_conflict
         || deletion_conflict;
     let state = if conflicted {
         SpaceState::Conflicted
@@ -216,6 +248,11 @@ fn snapshot(
             &(projection, unknown, tag_projections),
         )?
     };
+    let version = if late_arrival {
+        state_version(&("card.purge.v1", space, card), &version)?
+    } else {
+        version
+    };
     map(graph, &object, "history")?;
     Ok(CardSnapshot {
         space: space.into(),
@@ -234,36 +271,11 @@ fn snapshot(
     })
 }
 
-pub(crate) struct Memberships<'a> {
-    pub related: BTreeMap<String, BTreeMap<&'a str, &'a Projection>>,
-    pub occupied: BTreeSet<String>,
-}
-pub(crate) fn memberships<'a>(
-    graph: &Automerge,
-    projections: &'a BTreeMap<String, Projection>,
-) -> StorageResult<Memberships<'a>> {
+pub(crate) type Memberships<'a> = BTreeMap<String, BTreeMap<&'a str, &'a Projection>>;
+pub(crate) fn memberships(
+    projections: &BTreeMap<String, Projection>,
+) -> StorageResult<Memberships<'_>> {
     let mut related: BTreeMap<String, BTreeMap<&str, &Projection>> = BTreeMap::new();
-    let mut occupied = BTreeSet::new();
-    for root in graph.keys(ROOT) {
-        if let Some(card) = root.strip_prefix("card:") {
-            if !valid_id(card) {
-                return Err(invalid());
-            }
-            let object = object(graph, card)?;
-            let places = crate::ordering::placements(graph, &object)?;
-            let columns = if places.is_empty() {
-                strings(graph, &object, "column")?
-            } else {
-                places.into_iter().map(|p| p.column).collect()
-            };
-            for column in columns {
-                if !valid_id(&column) {
-                    return Err(invalid());
-                }
-                occupied.insert(column);
-            }
-        }
-    }
     for (root, projection) in projections {
         if root.strip_prefix("card:").is_some_and(valid_id) {
             for op in projection.values() {
@@ -292,7 +304,7 @@ pub(crate) fn memberships<'a>(
             }
         }
     }
-    Ok(Memberships { related, occupied })
+    Ok(related)
 }
 
 pub(crate) fn snapshots(
@@ -307,7 +319,13 @@ pub(crate) fn snapshots(
             if !valid_id(card) {
                 return Err(invalid());
             }
-            result.push(snapshot(graph, space, card, projections, &tags)?);
+            match snapshot(graph, space, card, projections, &tags) {
+                Ok(card) => result.push(card),
+                Err(StorageError::Rejected(CommandError {
+                    code: ErrorCode::NotFound,
+                })) => {}
+                Err(error) => return Err(error),
+            }
         }
     }
     Ok(result)

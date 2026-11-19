@@ -81,3 +81,46 @@ export function checkCardDeletionExchange({ host, android, space, pairing, call,
   assert.ok(cards.every(({ card }) => read(host, card).state === "active"));
   console.log("Paired card deletion: both choices, mixed placement and tag resolution, atomic rejection of purge, same IDs, delivery and ordinary restore passed.");
 }
+
+export function checkCardRestoreExchange({ host, android, space, call, command, ok, error }) {
+  const [source, destination, moved, remaining] = Array.from({ length: 4 }, () => randomBytes(16).toString("hex"));
+  const readColumn = (target, column) => ok(command(target, "column.read", { space, column }));
+  const readCard = (target, card) => ok(command(target, "card.read", { space, card }));
+  const exchange = () => ok(call(android, "exchange.run", { space }));
+  ok(command(host, "column.create", { space, column: source, name: "Restore source" }));
+  ok(command(host, "column.create", { space, column: destination, name: "Restore destination" }));
+  const original = ok(command(host, "card.create", { space, column: source, card: moved, title: "Move on restore", description: "Original description" }));
+  ok(command(host, "card.create", { space, column: source, card: remaining, title: "Restore with source", description: "" }));
+  const before = readColumn(host, source);
+  const group = ok(command(host, "column.trash", { space, column: source, expected: before.version })).deletion_groups;
+  exchange();
+  const deleted = readCard(android, moved);
+  assert.deepEqual(deleted.deletion_groups, group);
+  assert.deepEqual(readCard(android, remaining).deletion_groups, group);
+  const restore = { space, card: moved, expected: deleted.version, column: destination };
+  error(command(android, "card.restore", { ...restore, expected_column: before.version }), "stale_state");
+  assert.deepEqual(readCard(android, moved), deleted);
+  const restored = ok(command(android, "card.restore", { ...restore, expected_column: readColumn(android, destination).version }));
+  assert.equal(restored.state, "active");
+  assert.equal(restored.card, original.card);
+  assert.deepEqual(restored.titles, original.titles);
+  assert.deepEqual(restored.descriptions, original.descriptions);
+  assert.deepEqual(restored.columns, [destination]);
+  assert.deepEqual(restored.deletion_groups, []);
+  exchange();
+  exchange();
+  const current = readColumn(host, source);
+  assert.deepEqual(current.deletion_groups, group);
+  assert.equal(current.state, "trashed");
+  assert.deepEqual(readCard(host, moved), restored);
+  ok(command(host, "column.restore", { space, column: source, expected: current.version }));
+  exchange();
+  exchange();
+  for (const target of [host, android]) {
+    assert.deepEqual(readColumn(target, source).contents.map(item => item.card), [remaining]);
+    assert.deepEqual(readColumn(target, destination).contents.map(item => item.card), [moved]);
+    assert.deepEqual(readCard(target, moved), restored);
+    assert.equal(readCard(target, remaining).state, "active");
+  }
+  console.log("Paired card restore: stale target rejection, same ID and text, repeated delivery, original group restore without moving or duplicating the card passed.");
+}

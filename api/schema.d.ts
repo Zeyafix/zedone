@@ -511,6 +511,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/column.resolve_deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["column_resolve_deletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/column.resolve_name": {
         parameters: {
             query?: never;
@@ -831,6 +847,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/space.resolve_deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_resolve_deletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.resolve_name": {
         parameters: {
             query?: never;
@@ -1113,6 +1145,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["trash_purge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/trash.resolve_purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trash_resolve_purge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2617,6 +2665,33 @@ export interface components {
                 title: string;
             };
         };
+        CommandRequest_ResolveColumnDeletion: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                column: string;
+                expected: components["schemas"]["StateVersion"];
+                keep: boolean;
+                space: string;
+            };
+        };
         CommandRequest_ResolveColumnName: {
             id: [
                 number,
@@ -2668,6 +2743,59 @@ export interface components {
                 column: string;
                 expected: components["schemas"]["StateVersion"];
                 position: components["schemas"]["Rank"];
+                space: string;
+            };
+        };
+        CommandRequest_ResolvePurge: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                keep: boolean;
+                selection: components["schemas"]["TrashSelection"];
+                space: string;
+            };
+        };
+        CommandRequest_ResolveSpaceDeletion: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                keep: boolean;
                 space: string;
             };
         };
@@ -3677,6 +3805,12 @@ export interface components {
             space: string;
             title: string;
         };
+        ResolveColumnDeletion: {
+            column: string;
+            expected: components["schemas"]["StateVersion"];
+            keep: boolean;
+            space: string;
+        };
         ResolveColumnName: {
             column: string;
             expected: components["schemas"]["StateVersion"];
@@ -3687,6 +3821,17 @@ export interface components {
             column: string;
             expected: components["schemas"]["StateVersion"];
             position: components["schemas"]["Rank"];
+            space: string;
+        };
+        ResolvePurge: {
+            expected: components["schemas"]["StateVersion"];
+            keep: boolean;
+            selection: components["schemas"]["TrashSelection"];
+            space: string;
+        };
+        ResolveSpaceDeletion: {
+            expected: components["schemas"]["StateVersion"];
+            keep: boolean;
             space: string;
         };
         ResolveSpaceName: {
@@ -4635,6 +4780,29 @@ export interface operations {
             };
         };
     };
+    column_resolve_deletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveColumnDeletion"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ColumnSnapshot"];
+                };
+            };
+        };
+    };
     column_resolve_name: {
         parameters: {
             query?: never;
@@ -5095,6 +5263,29 @@ export interface operations {
             };
         };
     };
+    space_resolve_deletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveSpaceDeletion"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
     space_resolve_name: {
         parameters: {
             query?: never;
@@ -5496,6 +5687,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_PurgeTrash"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TrashPreview"];
+                };
+            };
+        };
+    };
+    trash_resolve_purge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolvePurge"];
             };
         };
         responses: {

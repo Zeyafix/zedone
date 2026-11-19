@@ -115,6 +115,17 @@ pub struct RestoreSpace {
     pub space: String,
     pub expected: StateVersion,
 }
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolveSpaceDeletion {
+    pub space: String,
+    pub expected: StateVersion,
+    pub keep: bool,
+}
+impl Command for ResolveSpaceDeletion {
+    const NAME: &'static str = "space.resolve_deletion";
+    type Output = SpaceSnapshot;
+}
 impl Command for RestoreSpace {
     const NAME: &'static str = "space.restore";
     type Output = SpaceSnapshot;
@@ -248,6 +259,7 @@ enum Change<'a> {
     ResolveName(&'a str),
     Trash,
     Restore,
+    ResolveDeletion(bool),
 }
 fn change<C: Command<Output = SpaceSnapshot>>(
     tx: &mut impl crate::cards::CardStore,
@@ -272,11 +284,12 @@ fn change<C: Command<Output = SpaceSnapshot>>(
         |tx, subject| {
             let before = tx.space_snapshot(space)?;
             replay::require_current(expected, before.version)?;
-            if before.state == SpaceState::Conflicted
-                || match action {
-                    Change::ResolveName(_) => before.names.len() < 2,
-                    _ => before.names.len() != 1,
-                }
+            if !matches!(action, Change::ResolveDeletion(_))
+                && (before.state == SpaceState::Conflicted
+                    || match action {
+                        Change::ResolveName(_) => before.names.len() < 2,
+                        _ => before.names.len() != 1,
+                    })
             {
                 return Err(error(ErrorCode::Conflict));
             }
@@ -319,10 +332,72 @@ fn change<C: Command<Output = SpaceSnapshot>>(
                     }
                     tx.set_space_lifecycle(space, "active")?
                 }
+                Change::ResolveDeletion(keep) => {
+                    if before.state != SpaceState::Conflicted {
+                        return Err(error(ErrorCode::Conflict));
+                    }
+                    let group = crate::columns::deletion_choice(&before.deletion_groups, keep)?;
+                    let contents = before
+                        .contents
+                        .as_ref()
+                        .ok_or_else(|| error(ErrorCode::InvalidRequest))?;
+                    for column in &contents.columns {
+                        if let Some(lifecycle) = crate::columns::member_choice(
+                            &before.deletion_groups,
+                            &column.deletion_groups,
+                            group,
+                        )? {
+                            tx.set_column_lifecycle(space, &column.column, lifecycle)?;
+                        }
+                    }
+                    for card in &contents.cards {
+                        let under_independent_deletion = contents
+                            .columns
+                            .iter()
+                            .filter(|column| card.columns.contains(&column.column))
+                            .all(|column| {
+                                column
+                                    .deletion_groups
+                                    .iter()
+                                    .any(|group| !before.deletion_groups.contains(group))
+                            });
+                        let target = if under_independent_deletion {
+                            "active"
+                        } else {
+                            group
+                        };
+                        if let Some(lifecycle) = crate::columns::member_choice(
+                            &before.deletion_groups,
+                            &card.deletion_groups,
+                            target,
+                        )? {
+                            tx.set_card_lifecycle(space, &card.card, lifecycle)?;
+                        }
+                    }
+                    tx.set_space_lifecycle(space, group)?;
+                }
                 _ => return Err(error(ErrorCode::InvalidRequest)),
             }
             tx.space_snapshot(space)
         },
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/space.resolve_deletion", operation_id = "space_resolve_deletion", request_body = CommandRequest<ResolveSpaceDeletion>, responses((status = 200, body = CommandResponse<SpaceSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_deletion(
+    tx: &mut impl crate::cards::CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveSpaceDeletion>,
+) -> CommandResult<Execution<SpaceSnapshot>> {
+    let p = &request.parameters;
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, p.expected),
+        Change::ResolveDeletion(p.keep),
     )
 }
 

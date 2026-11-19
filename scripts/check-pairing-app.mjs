@@ -5,7 +5,8 @@ import { checkTagCollisionsExchange } from "./check-tag-collisions-exchange.mjs"
 import { checkPlacementExchange } from "./check-placement-exchange.mjs";
 import { checkPositionConflictsExchange } from "./check-position-conflicts-exchange.mjs";
 import { checkColumnPositionExchange } from "./check-column-position-exchange.mjs";
-import { checkCardDeletionExchange } from "./check-card-deletion-exchange.mjs";
+import { checkCardDeletionExchange, checkCardRestoreExchange } from "./check-card-deletion-exchange.mjs";
+import { checkContainerDeletionExchange } from "./check-container-deletion-exchange.mjs";
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
 import { resolve } from 'node:path';
@@ -17,7 +18,7 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion', '--card-restore', '--container-deletion'].includes(suite), 'Unknown pairing acceptance suite');
 const positions = suite?.startsWith('--positions');
 const tags = suite?.startsWith('--tags');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
@@ -241,7 +242,13 @@ try {
     assert.equal(ok(call(android, 'session.status', {})).status, 'unconfigured');
     const second = await prepare('Reconnected phone');
     assert.notEqual(second.request, pending.request);
-    ok(command(host, 'pairing.confirm', { request: second.request, expected: second.version, scope: { kind: 'spaces', spaces: { [space]: 'read_write' } }, expires_at_unix_ms: null }));
+    const writableSpaces = { [space]: 'read_write' };
+    const containerSpace = suite === '--container-deletion' ? randomBytes(16).toString('hex') : undefined;
+    if (containerSpace) {
+        ok(command(host, 'space.create', { space: containerSpace, name: 'Container deletion acceptance' }));
+        writableSpaces[containerSpace] = 'read_write';
+    }
+    ok(command(host, 'pairing.confirm', { request: second.request, expected: second.version, scope: { kind: 'spaces', spaces: writableSpaces }, expires_at_unix_ms: null }));
     ok(call(android, 'session.refresh', {}));
     const current = ok(deliver('space.read', { space }));
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
@@ -266,6 +273,14 @@ try {
     }
     if (suite === '--card-deletion') {
         checkCardDeletionExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (suite === '--card-restore') {
+        checkCardRestoreExchange({host,android,space,call,command,ok,error});
+    }
+    if (suite === '--container-deletion') {
+        checkCardDeletionExchange({host,android,space,pairing:second.request,call,command,ok,error});
+        checkCardRestoreExchange({host,android,space,call,command,ok,error});
+        checkContainerDeletionExchange({host,android,space:containerSpace,pairing:second.request,call,command,ok,error});
     }
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
@@ -344,12 +359,12 @@ try {
         const snapshot = invoke(['python','-c','import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); print(a.execute("SELECT subject FROM access_bootstrap").fetchone()[0]); b.close(); a.close()',nativeSeed,seed]);
         let subject = snapshot.stdout.toString().trim(); assert.match(subject,/^[a-f0-9]{32}$/);
         let uiKey = (await Bun.file(android.keyFile).text()).trim(), uiSpace = space;
-        if (suite === '--card-deletion' || process.env.P06_TAG_CONFLICTS_UI === '1' || process.env.P06_POSITION_CONFLICTS_UI === '1' || process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
+        if (containerSpace || suite === '--card-deletion' || process.env.P06_TAG_CONFLICTS_UI === '1' || process.env.P06_POSITION_CONFLICTS_UI === '1' || process.env.P06_NAME_CONFLICTS_UI === '1' || process.env.P06_TEXT_CONFLICTS_UI === '1' || process.env.P06_FIELD_CONFLICTS_UI === '1' || process.env.P06_PLACEMENT_UI === '1' || process.env.P06_COLUMN_POSITION_UI === '1') {
             const namesDirectory = resolve(report, 'name-conflicts-seed');
-            const mode = suite === '--card-deletion' ? '--prepare-card-deletion' : process.env.P06_TAG_CONFLICTS_UI === '1' ? '--prepare-tag-conflicts' : process.env.P06_POSITION_CONFLICTS_UI === '1' ? '--prepare-position-conflicts' : process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
+            const mode = containerSpace ? '--prepare-container-deletion' : suite === '--card-deletion' ? '--prepare-card-deletion' : process.env.P06_TAG_CONFLICTS_UI === '1' ? '--prepare-tag-conflicts' : process.env.P06_POSITION_CONFLICTS_UI === '1' ? '--prepare-position-conflicts' : process.env.P06_COLUMN_POSITION_UI === '1' ? '--prepare-column-position-conflicts' : process.env.P06_PLACEMENT_UI === '1' ? '--prepare-placement-conflicts' : process.env.P06_FIELD_CONFLICTS_UI === '1' ? '--prepare-field-conflicts' : process.env.P06_TEXT_CONFLICTS_UI === '1' ? '--prepare-text-conflicts' : '--prepare-conflicts';
             invoke([resolve(root, `target/debug/examples/shell-fixture${suffix}`), mode, namesDirectory]);
             const session = await Bun.file(resolve(namesDirectory, 'local-session.json')).json();
-            subject = session.subject; uiKey = session.key; uiSpace = '000000000000000000000000000000c9';
+            subject = session.subject; uiKey = session.key; uiSpace = containerSpace ? '00000000000000000000000000000001' : '000000000000000000000000000000c9';
             await Bun.write(seed, await Bun.file(resolve(namesDirectory, 'zedone.sqlite')).arrayBuffer());
         }
         device('shell','run-as',app,'mkdir',uiFolder);
@@ -376,6 +391,8 @@ try {
         : suite === '--fields' ? 'text and field conflicts/preservation/reverse'
         : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
         : suite === '--card-deletion' ? 'card deletion/independent text/both decisions/atomic purge refusal/reverse'
+        : suite === '--card-restore' ? 'card restore/different column/same ID/stale/repeated exchange/source group restore'
+        : suite === '--container-deletion' ? 'card deletion and restore/column and space deletion/late changes after purge/minimal recovery'
         : positions
         ? `combined card/column positions/both orders/${positionScope === undefined ? 'same and cross' : positionScope ? 'same' : 'cross'}-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse`
         : 'text/field/card-placement/column-position conflicts including independent decisions, neighbors, preservation and reverse',

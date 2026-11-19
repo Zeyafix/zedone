@@ -2,9 +2,15 @@
 import type { Card, Column, Space, Tag } from "./workspace-api";
 import { cardTitle, objectTitle } from "./board-order";
 
-defineProps<{ columns: Column[]; cards: Card[]; tags?: Tag[]; lifecycle?: Space | Column }>();
+const props = defineProps<{ columns: Column[]; cards: Card[]; tags?: Tag[]; lifecycle?: Space | Column; deletionChoice?: "keep" | "trash"; resolvingDeletion?: boolean; purgeResolution?: boolean }>();
 function outcome(item: Card | Column, root?: Space | Column) {
+  if (props.purgeResolution) return item.deletion_groups.includes("purged") ? "Доступно восстановление" : "Новое содержимое";
   if (!root) return "Будет очищено";
+  if (props.resolvingDeletion) {
+    if (item.deletion_groups.some(group => !root.deletion_groups.includes(group))) return "Останется в прежней корзине";
+    if ("column" in root && "card" in item && !item.columns.includes(root.column)) return "Останется в выбранной колонке";
+    return props.deletionChoice === "trash" ? "В корзину вместе с содержимым" : props.deletionChoice === "keep" ? "Останется на доске" : "";
+  }
   if (root.state === "active") return item.state === "active" ? "В корзину вместе с контейнером" : "Останется в прежней корзине";
   return root.deletion_groups.length === 1 && item.deletion_groups.length === 1 && item.deletion_groups[0] === root.deletion_groups[0]
     ? "Восстановится вместе с контейнером" : item.state === "trashed" ? "Останется в прежней корзине" : "Состояние сохранится";

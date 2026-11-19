@@ -30,8 +30,10 @@ pub(crate) fn valid_id(id: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 pub(crate) fn known_root(key: &str) -> bool {
-    matches!(key, "format" | "name" | "lifecycle" | "history")
-        || key.strip_prefix("column:").is_some_and(valid_id)
+    matches!(
+        key,
+        "format" | "name" | "lifecycle" | "history" | crate::cards::deletion::PURGE_BOUNDARY
+    ) || key.strip_prefix("column:").is_some_and(valid_id)
         || key.strip_prefix("card:").is_some_and(valid_id)
         || key.strip_prefix("tag:").is_some_and(valid_id)
 }
@@ -54,7 +56,7 @@ fn scope<'a>(
             .map(|(key, value)| (key.as_str(), value))
             .collect(),
         known_content: graph.keys(ROOT).all(|key| known_root(&key)),
-        cards: crate::cards::memberships(graph, projections)?,
+        cards: crate::cards::memberships(projections)?,
         snapshots: crate::cards::snapshots(graph, space, projections)?,
     })
 }
@@ -96,31 +98,75 @@ fn snapshot(
         return Err(invalid());
     }
     let names = strings(graph, &object, "name")?;
-    let lifecycle = strings(graph, &object, "lifecycle")?;
-    if lifecycle.iter().any(|s| s != "active" && !valid_group(s)) {
+    let mut lifecycle = strings(graph, &object, "lifecycle")?;
+    if lifecycle
+        .iter()
+        .any(|s| s != "active" && s != "purged" && !valid_group(s))
+    {
         return Err(invalid());
     }
-    let state = if lifecycle.len() != 1 {
-        SpaceState::Conflicted
-    } else if lifecycle[0] == "active" {
-        SpaceState::Active
-    } else {
-        SpaceState::Trashed
-    };
-    let deletion_groups = lifecycle.into_iter().filter(|s| s != "active").collect();
+    let late_arrival = lifecycle == ["active"]
+        && crate::cards::deletion::activated_across_purge(graph, &object, &ROOT)?;
+    if late_arrival {
+        lifecycle.push("purged".into());
+    }
+    let active = lifecycle == ["active"];
+    let concurrent = lifecycle.len() != 1;
+    let lifecycle_has_active =
+        active || concurrent && lifecycle.iter().any(|value| value == "active");
+    let deletion_groups: Vec<_> = lifecycle.into_iter().filter(|s| s != "active").collect();
     let positions = crate::ordering::ranks(graph, &object)?;
     let supported = scope.known_content
-        && graph
-            .keys(&object)
-            .all(|k| matches!(k.as_str(), "format" | "name" | "lifecycle" | "position"));
-    let empty = supported && !scope.cards.occupied.contains(column);
+        && graph.keys(&object).all(|k| {
+            matches!(
+                k.as_str(),
+                "format"
+                    | "name"
+                    | "lifecycle"
+                    | "position"
+                    | crate::cards::deletion::PURGE_BOUNDARY
+            )
+        });
+    let inherited = graph.get_all(ROOT, "lifecycle")?.iter().any(|(value, _)| {
+        value
+            .as_str()
+            .is_some_and(|group| deletion_groups.iter().any(|own| own == group))
+    });
     let members: Vec<_> = scope
         .snapshots
         .iter()
-        .filter(|c| c.columns.iter().any(|id| id == column))
+        .filter(|c| {
+            c.columns.iter().any(|id| id == column)
+                || !inherited
+                    && c.deletion_groups
+                        .iter()
+                        .any(|group| group != "purged" && deletion_groups.contains(group))
+        })
         .cloned()
         .collect();
-    let version = if let Some(cards) = scope.cards.related.get(column) {
+    let empty = supported
+        && !members
+            .iter()
+            .any(|card| card.columns.iter().any(|id| id == column));
+    let purge_conflict = deletion_groups.iter().any(|value| value == "purged");
+    if purge_conflict && !lifecycle_has_active && members.is_empty() {
+        return Err(CommandError {
+            code: ErrorCode::NotFound,
+        }
+        .into());
+    }
+    let state = if active {
+        SpaceState::Active
+    } else if purge_conflict
+        || concurrent
+        || !inherited
+            && crate::cards::deletion::has_independent_column_change(graph, &object, &members)?
+    {
+        SpaceState::Conflicted
+    } else {
+        SpaceState::Trashed
+    };
+    let version = if let Some(cards) = scope.cards.get(column) {
         state_version(
             &("column.v1", space, column),
             &(
@@ -135,6 +181,14 @@ fn snapshot(
         )?
     } else {
         state_version(&("column.v1", space, column), &(projection, &scope.unknown))?
+    };
+    let version = if state == SpaceState::Conflicted {
+        state_version(
+            &("column.deletion.v1", space, column),
+            &(version, &deletion_groups),
+        )?
+    } else {
+        version
     };
     Ok(ColumnSnapshot {
         space: space.into(),
@@ -158,13 +212,19 @@ pub(crate) fn snapshots(graph: &Automerge, space: &str) -> StorageResult<Vec<Col
             if !valid_id(column) {
                 return Err(invalid());
             }
-            result.push(snapshot(
+            match snapshot(
                 graph,
                 space,
                 column,
                 projections.get(&root).ok_or_else(invalid)?,
                 &scope,
-            )?);
+            ) {
+                Ok(column) => result.push(column),
+                Err(StorageError::Rejected(CommandError {
+                    code: ErrorCode::NotFound,
+                })) => {}
+                Err(error) => return Err(error),
+            }
         }
     }
     Ok(result)
@@ -243,6 +303,13 @@ impl ColumnStore for WriteContext<'_> {
     ) -> CommandResult<()> {
         let object = object(self.read().document(space)?, column)?;
         Ok(self.edit(space, |doc| {
+            if doc
+                .get_all(&object, "lifecycle")?
+                .iter()
+                .any(|(value, _)| value.as_str() == Some(lifecycle))
+            {
+                doc.delete(&object, "lifecycle")?;
+            }
             doc.put(&object, "lifecycle", lifecycle)?;
             Ok(())
         })?)

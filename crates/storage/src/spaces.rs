@@ -99,15 +99,13 @@ fn strings(graph: &Automerge, key: &str) -> StorageResult<Vec<String>> {
     Ok(result)
 }
 
-fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
+pub(crate) fn snapshot(
+    graph: &Automerge,
+    space: &str,
+    include_purged: bool,
+) -> StorageResult<SpaceSnapshot> {
     if strings(graph, "format")? != ["zedone.space.v1"] {
         return Err(invalid());
-    }
-    if strings(graph, "lifecycle")? == ["purged"] {
-        return Err(CommandError {
-            code: ErrorCode::NotFound,
-        }
-        .into());
     }
     let names = strings(graph, "name")?;
     let lifecycle = strings(graph, "lifecycle")?;
@@ -117,7 +115,52 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
     {
         return Err(invalid());
     }
-    let state = if lifecycle.len() != 1 {
+    let independent = lifecycle.len() == 1
+        && valid_group(&lifecycle[0])
+        && crate::cards::deletion::has_independent_change(graph, &ROOT, None, |change| {
+            change.operations.iter().any(|operation| {
+                let Key::Map(field) = &operation.key else { return false; };
+                if operation.obj == ObjectId::Root {
+                    field.as_str() == "name"
+                        || operation.obj_type().is_some() && (
+                            field.as_str().starts_with("column:") || field.as_str().starts_with("card:") || field.as_str().starts_with("tag:"))
+                } else {
+                    matches!(field.as_str(), "title" | "description" | "completed" | "placement" | "column" | "position" | "name" | "deleted")
+                        || crate::columns::valid_id(field.as_str())
+                            && matches!(operation.primitive_value(), Some(automerge::ScalarValue::Boolean(_)))
+                        || field.as_str() == "lifecycle"
+                            && matches!(operation.primitive_value(), Some(automerge::ScalarValue::Str(value)) if value.as_str() == "active")
+                }
+            })
+        })?;
+    let purge_conflict = lifecycle.iter().any(|value| value == "purged");
+    let contents = if graph.keys(ROOT).all(|k| crate::columns::known_root(&k)) {
+        let projections = domain_projections(graph)?;
+        Some(SpaceContents {
+            columns: crate::columns::snapshots(graph, space)?,
+            cards: crate::cards::snapshots(graph, space, &projections)?,
+            tags: crate::tags::snapshots(graph, space, &projections)?
+                .into_iter()
+                .filter(|(id, tag)| *id == tag.tag)
+                .map(|(_, tag)| tag)
+                .collect(),
+        })
+    } else {
+        None
+    };
+    if !include_purged
+        && purge_conflict
+        && lifecycle.len() == 1
+        && contents
+            .as_ref()
+            .is_none_or(|contents| contents.columns.is_empty() && contents.cards.is_empty())
+    {
+        return Err(CommandError {
+            code: ErrorCode::NotFound,
+        }
+        .into());
+    }
+    let state = if lifecycle.len() != 1 || independent || purge_conflict {
         SpaceState::Conflicted
     } else if lifecycle[0] == "active" {
         SpaceState::Active
@@ -125,9 +168,12 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
         SpaceState::Trashed
     };
     let deletion_groups = lifecycle.into_iter().filter(|s| s != "active").collect();
-    let empty = graph
-        .keys(ROOT)
-        .all(|key| matches!(key.as_str(), "format" | "name" | "lifecycle" | "history"));
+    let empty = graph.keys(ROOT).all(|key| {
+        matches!(
+            key.as_str(),
+            "format" | "name" | "lifecycle" | "history" | crate::cards::deletion::PURGE_BOUNDARY
+        )
+    });
     let version = state_version(&("space.v1", space), &projection(graph)?)?;
     Ok(SpaceSnapshot {
         space: space.into(),
@@ -135,20 +181,7 @@ fn snapshot(graph: &Automerge, space: &str) -> StorageResult<SpaceSnapshot> {
         state,
         deletion_groups,
         empty,
-        contents: if graph.keys(ROOT).all(|k| crate::columns::known_root(&k)) {
-            let projections = domain_projections(graph)?;
-            Some(SpaceContents {
-                columns: crate::columns::snapshots(graph, space)?,
-                cards: crate::cards::snapshots(graph, space, &projections)?,
-                tags: crate::tags::snapshots(graph, space, &projections)?
-                    .into_iter()
-                    .filter(|(id, tag)| *id == tag.tag)
-                    .map(|(_, tag)| tag)
-                    .collect(),
-            })
-        } else {
-            None
-        },
+        contents,
         version,
     })
 }
@@ -200,26 +233,11 @@ impl SpaceStore for WriteContext<'_> {
     }
 
     fn space_snapshot(&mut self, space: &str) -> CommandResult<SpaceSnapshot> {
-        Ok(snapshot(self.read().document(space)?, space)?)
+        Ok(snapshot(self.read().document(space)?, space, false)?)
     }
 
     fn spaces_for_subject(&mut self, subject: &str) -> CommandResult<Vec<SpaceSnapshot>> {
-        let spaces = self
-            .connection()
-            .prepare("SELECT space FROM access_spaces WHERE subject = ?1 ORDER BY space")
-            .map_err(StorageError::from)?
-            .query_map([subject], |row| row.get::<_, String>(0))
-            .map_err(StorageError::from)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(StorageError::from)?;
-        let mut result = Vec::new();
-        for space in spaces {
-            if strings(self.read().document(&space)?, "lifecycle")? != ["purged"] {
-                result.push(self.space_snapshot(&space)?);
-            }
-            self.read().release_document(&space);
-        }
-        Ok(result)
+        self.subject_spaces(subject, false)
     }
 
     fn rename_space(&mut self, space: &str, name: &str) -> CommandResult<()> {
@@ -230,8 +248,44 @@ impl SpaceStore for WriteContext<'_> {
     }
     fn set_space_lifecycle(&mut self, space: &str, lifecycle: &str) -> CommandResult<()> {
         Ok(self.edit(space, |doc| {
+            if doc
+                .get_all(ROOT, "lifecycle")?
+                .iter()
+                .any(|(value, _)| value.as_str() == Some(lifecycle))
+            {
+                doc.delete(ROOT, "lifecycle")?;
+            }
             doc.put(ROOT, "lifecycle", lifecycle)?;
             Ok(())
         })?)
+    }
+}
+
+impl WriteContext<'_> {
+    pub(crate) fn subject_spaces(
+        &mut self,
+        subject: &str,
+        include_purged: bool,
+    ) -> CommandResult<Vec<SpaceSnapshot>> {
+        let spaces = self
+            .connection()
+            .prepare("SELECT space FROM access_spaces WHERE subject = ?1 ORDER BY space")
+            .map_err(StorageError::from)?
+            .query_map([subject], |row| row.get::<_, String>(0))
+            .map_err(StorageError::from)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+        let mut result = Vec::new();
+        for space in spaces {
+            match snapshot(self.read().document(&space)?, &space, include_purged) {
+                Ok(space) => result.push(space),
+                Err(StorageError::Rejected(CommandError {
+                    code: ErrorCode::NotFound,
+                })) => {}
+                Err(error) => return Err(error.into()),
+            }
+            self.read().release_document(&space);
+        }
+        Ok(result)
     }
 }

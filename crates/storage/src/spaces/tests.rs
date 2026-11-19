@@ -890,8 +890,8 @@ fn projection_converges_across_delivery_order_and_rejects_unsupported_or_invalid
     right.apply_changes(b.get_changes(&[])).unwrap();
     right.apply_changes(a.get_changes(&[])).unwrap();
     assert_eq!(
-        snapshot(&left, &sid(1)).unwrap(),
-        snapshot(&right, &sid(1)).unwrap()
+        snapshot(&left, &sid(1), false).unwrap(),
+        snapshot(&right, &sid(1), false).unwrap()
     );
     for (key, value) in [
         ("format", "future.space.v2"),
@@ -902,7 +902,7 @@ fn projection_converges_across_delivery_order_and_rejects_unsupported_or_invalid
         tx.put(ROOT, key, value).unwrap();
         tx.commit();
         assert_eq!(
-            snapshot(&graph, &sid(1)),
+            snapshot(&graph, &sid(1), false),
             Err(StorageError::InvalidDatabase)
         );
     }

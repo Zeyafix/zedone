@@ -84,3 +84,13 @@ P04.09.1: `column.read/list` возвращают `contents` — снимки т
 [ADR-0045](../architecture/decisions/0045-relative-placement.md).
 
 Окончательная очистка выбранной колонки включает её прежнюю корзину: [trash.inspect/purge](cleanup.md).
+## Разрешение удаления после обмена
+
+Для колонки со `state: "conflicted"` после независимой правки или создания
+карточки прочитайте `column.read` и покажите весь `contents`. По явному
+решению вызовите `column.resolve_deletion` с `space`, `column`, `expected`
+из прочитанной версии и `keep`. `keep: true` возвращает колонку и её группу,
+`keep: false` оставляет их в корзине с правками. Для пространства используйте
+`space.read` и `space.resolve_deletion` с `space`, `expected`, `keep`.
+Если среди групп присутствует `purged`, используйте
+[разрешение конфликта очистки](cleanup.md).

@@ -54,6 +54,19 @@ impl Command for PurgeTrash {
     type Output = TrashPreview;
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolvePurge {
+    pub space: String,
+    pub selection: TrashSelection,
+    pub expected: StateVersion,
+    pub keep: bool,
+}
+impl Command for ResolvePurge {
+    const NAME: &'static str = "trash.resolve_purge";
+    type Output = TrashPreview;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HistoryEntry {
@@ -231,7 +244,14 @@ fn trash_preview(
         }
     }
     for c in &cards {
-        if c.state != SpaceState::Trashed {
+        let disputed_group = contents.columns.iter().any(|column| {
+            column.state == SpaceState::Conflicted
+                && column
+                    .deletion_groups
+                    .iter()
+                    .any(|group| c.deletion_groups.contains(group))
+        });
+        if c.state != SpaceState::Trashed || disputed_group {
             conflicts.push(format!("card:{}", c.card));
         }
     }
@@ -308,6 +328,76 @@ pub fn purge_trash(
                 return Err(error(ErrorCode::Conflict));
             }
             tx.purge_objects(&preview)?;
+            Ok(preview)
+        },
+    )
+}
+
+#[utoipa::path(post, path = "/v1/commands/trash.resolve_purge", operation_id = "trash_resolve_purge", request_body = CommandRequest<ResolvePurge>, responses((status = 200, body = CommandResponse<TrashPreview>)), security(("access_key" = [])))]
+pub fn resolve_purge(
+    tx: &mut impl CleanupStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    r: &CommandRequest<ResolvePurge>,
+) -> CommandResult<Execution<TrashPreview>> {
+    let p = &r.parameters;
+    validate(r, &p.space, None)?;
+    replay::execute(
+        tx,
+        credential,
+        clock,
+        &required(&p.space, SpacePermission::ReadWrite),
+        r.id,
+        p,
+        |tx| {
+            let space = tx.space_snapshot(&p.space)?;
+            let preview = trash_preview(tx, &p.space, &p.selection)?;
+            replay::require_current(p.expected, preview.version)?;
+            let purged = |groups: &[String]| groups.iter().any(|group| group == "purged");
+            let valid = match &p.selection {
+                TrashSelection::Space => purged(&space.deletion_groups),
+                TrashSelection::Objects { columns, cards } if space.state == SpaceState::Active => {
+                    match (columns.as_slice(), cards.as_slice()) {
+                        ([_], []) => preview
+                            .columns
+                            .iter()
+                            .any(|column| purged(&column.deletion_groups)),
+                        ([], [_]) => preview.cards.iter().any(|card| {
+                            purged(&card.deletion_groups)
+                                && space.contents.as_ref().is_some_and(|contents| {
+                                    card.columns.iter().all(|id| {
+                                        contents.columns.iter().any(|column| {
+                                            &column.column == id
+                                                && column.state == SpaceState::Active
+                                        })
+                                    })
+                                })
+                        }),
+                        _ => false,
+                    }
+                }
+                _ => false,
+            };
+            if !valid {
+                return Err(error(ErrorCode::Conflict));
+            }
+            if p.keep {
+                for card in &preview.cards {
+                    if purged(&card.deletion_groups) {
+                        tx.set_card_lifecycle(&p.space, &card.card, "active")?;
+                    }
+                }
+                for column in &preview.columns {
+                    if purged(&column.deletion_groups) {
+                        tx.set_column_lifecycle(&p.space, &column.column, "active")?;
+                    }
+                }
+                if preview.includes_space {
+                    tx.set_space_lifecycle(&p.space, "active")?;
+                }
+            } else {
+                tx.purge_objects(&preview)?;
+            }
             Ok(preview)
         },
     )

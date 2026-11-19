@@ -9,6 +9,7 @@ Read/ReadWrite на space. Администрирование не заменя�
 | --- | --- | --- | --- |
 | trash.inspect | space, selection | Read | TrashPreview |
 | trash.purge | space, selection, expected | ReadWrite | Подтверждённый удалённый TrashPreview |
+| trash.resolve_purge | space, selection, expected, keep | ReadWrite | Исходный TrashPreview, по которому применён выбор |
 | history.inspect | space, card (null — всё пространство) | Read | HistoryPreview |
 | history.clear | space, card, expected | ReadWrite | Подтверждённый очищаемый HistoryPreview |
 
@@ -27,6 +28,14 @@ version. Покажите состав и явное предупреждени�
 тем же selection и expected=preview.version. Если conflicts непуст, сначала
 разрешить конфликты и получить новый preview. Для выбранной колонки состав
 включает и прежнюю корзину, но не карточки, восстановленные в другую колонку.
+
+Поздние данные после окончательной очистки открываются как конфликт с
+`deletion_groups`, содержащим `purged`. Для такого конфликта получите
+`trash.inspect` выбранного пространства, одной колонки или одной карточки.
+Вызовите `trash.resolve_purge` с той же областью и её версией. `keep: true`
+восстанавливает показанные поздние объекты и необходимых предков,
+`keep: false` подтверждает очистку. Если сам контейнер всё ещё в конфликте
+очистки, выберите его область, чтобы в состав вошли нужные потомки.
 
 HistoryPreview содержит entries (card, version с парой полей, retained),
 text_bytes, removable_bytes и version. Байты относятся только к UTF-8 текстам,

@@ -2,10 +2,11 @@ use crate::{StorageError, StorageResult, WriteContext};
 #[cfg(test)]
 mod tests;
 use automerge::{Automerge, Change, ChangeHash, ReadDoc, sync::State};
+#[cfg(test)]
+use zedone_core::spaces::SpaceStore;
 use zedone_core::{
     command::CommandResult,
     error::{CommandError, ErrorCode},
-    spaces::SpaceStore,
     sync::{Heads, PAGE_BYTES, PROTOCOL, PauseSync, SelectSync, SyncControl, SyncPage, SyncStore},
 };
 
@@ -106,6 +107,12 @@ pub fn page(graph: &Automerge, space: &str, known: &Heads) -> StorageResult<Sync
     })
 }
 impl SyncStore for WriteContext<'_> {
+    fn sync_catalog_spaces(
+        &mut self,
+        subject: &str,
+    ) -> CommandResult<Vec<zedone_core::spaces::SpaceSnapshot>> {
+        self.subject_spaces(subject, true)
+    }
     fn sync_control(&mut self, space: &str, pairing: &str) -> CommandResult<SyncControl> {
         let pause = self.read().space_sync_control(space)?;
         let select = self.read().sync_selection(space, pairing)?;
@@ -243,7 +250,7 @@ impl WriteContext<'_> {
             }
             self.apply_changes(space, changes)?;
         }
-        let snapshot = self.space_snapshot(space)?;
+        let snapshot = crate::spaces::snapshot(self.read().document(space)?, space, true)?;
         if snapshot.contents.is_none() {
             return Err(invalid());
         }
@@ -298,7 +305,10 @@ impl WriteContext<'_> {
             } else {
                 self.accept_sync_changes(space, changes)?;
             }
-            if self.space_snapshot(space)?.contents.is_none() {
+            if crate::spaces::snapshot(self.read().document(space)?, space, true)?
+                .contents
+                .is_none()
+            {
                 return Err(invalid());
             }
             self.set_peer_state(

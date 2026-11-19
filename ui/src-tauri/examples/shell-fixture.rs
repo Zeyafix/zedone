@@ -2,6 +2,8 @@
 use std::sync::Arc;
 #[path = "fixtures/column_positions.rs"]
 mod column_position_fixture;
+#[path = "fixtures/container_deletion.rs"]
+mod container_deletion_fixture;
 #[path = "fixtures/placements.rs"]
 mod placement_fixture;
 #[path = "fixtures/tags.rs"]
@@ -46,6 +48,8 @@ async fn main() {
             || args[0] == "--serve-field-conflicts"
             || args[0] == "--prepare-card-deletion"
             || args[0] == "--serve-card-deletion"
+            || args[0] == "--prepare-container-deletion"
+            || args[0] == "--serve-container-deletion"
             || args[0] == "--prepare-placement-conflicts"
             || args[0] == "--serve-placement-conflicts"
             || args[0] == "--serve-same-column-conflicts"
@@ -99,6 +103,9 @@ async fn main() {
     if args[0] == "--prepare-card-deletion" || args[0] == "--serve-card-deletion" {
         seed_conflicts(&storage, &access, false, true, true).await;
     }
+    if args[0] == "--prepare-container-deletion" || args[0] == "--serve-container-deletion" {
+        container_deletion_fixture::seed(&storage, &access).await;
+    }
     if args[0] == "--prepare-placement-conflicts"
         || args[0] == "--serve-placement-conflicts"
         || args[0] == "--serve-same-column-conflicts"
@@ -137,6 +144,7 @@ async fn main() {
         || args[0] == "--prepare-text-conflicts"
         || args[0] == "--prepare-field-conflicts"
         || args[0] == "--prepare-card-deletion"
+        || args[0] == "--prepare-container-deletion"
         || args[0] == "--prepare-placement-conflicts"
     {
         storage.shutdown().await.unwrap();

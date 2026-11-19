@@ -14,6 +14,20 @@ SQLite-реплики. Тесты `cards::tests::deletion_conflicts` прове�
 Причинная проекция и общий контракт описаны в
 [ADR-0073](../architecture/decisions/0073-card-deletion-conflicts.md).
 
+`bun scripts/check-pairing-app.mjs --card-restore` проверяет восстановление
+карточки на Android в другую колонку после удаления исходной на Windows.
+Повторные обмены и восстановление исходной колонки сохраняют одну карточку
+в выбранной колонке. Нативный тест в `cards::tests::trash_groups` также
+проверяет повторное открытие SQLite и отказ при устаревшей версии назначения.
+[EV-136](../agent/verification/EV-136-card-restore-exchange.md).
+
+`bun scripts/check-pairing-app.mjs --container-deletion` проверяет общий API
+решений колонки, пространства и конфликта окончательной очистки вместе с
+одиночным удалением и восстановлением. Нативные тесты в `trash_groups` и
+`cleanup` покрывают обе ветви решения и независимые повторные доставки.
+Общий браузерный набор `--conflicts` проверяет формы desktop/touch.
+[EV-137](../agent/verification/EV-137-container-deletion-and-purge.md).
+
 Полная проверка продукта (`bun scripts/check-product.mjs`, `--host-tests`
 или native Android runtime) включает отдельный обязательный search probe
 по 1000 карточкам с прежним <30s. Он ignored в обычном cargo test, чтобы

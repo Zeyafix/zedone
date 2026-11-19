@@ -9,14 +9,14 @@ import { createMutation, deliverMutation, errorMessage, mutationCredential, read
 
 const props = defineProps<{ space: Space; columns: Column[]; cards: Card[]; tags: ReadonlyMap<string, string>; blocked: boolean; trash: boolean; cardTrash: boolean; refresh: () => Promise<void> }>();
 const emit = defineEmits<{
-  open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.resolve_name" | "column.trash" | "column.restore"; target: Column }, event: Event];
+  open: [action: { kind: "card.read" | "card.trash" | "card.restore"; target: Card } | { kind: "card.create"; space: string; column: string } | { kind: "column.rename" | "column.resolve_name" | "column.trash" | "column.restore" | "column.resolve_deletion"; target: Column }, event: Event];
   lock: [value: boolean];
 }>();
 const groups = ref<{ conflicts: boolean; items: Column[] }[]>([]);
 const positionDialog = ref<InstanceType<typeof ColumnPositionDialog>>();
 const positionBusy = ref(false);
 function resetColumns() {
-  groups.value = [true, false].map(conflicts => ({ conflicts, items: props.columns.filter(item => (item.positions.length !== 1) === conflicts) }));
+  groups.value = [true, false].map(conflicts => ({ conflicts, items: props.columns.filter(item => (item.state === "conflicted" || item.positions.length !== 1) === conflicts) }));
 }
 const reset = ref(0), working = ref(false), dragging = ref(false), dialog = ref(false);
 const message = ref(""), failure = ref("");
@@ -125,7 +125,8 @@ async function end(event: DraggableEvent) {
     :disabled="!enabled || working || dialog || positionBusy || group.conflicts" @start="start($event, 'column.move')" @end="end">
     <section v-for="item in group.items" :key="item.column" class="column-panel" :class="{ 'move-locked': columnConflict(item) }" :data-column="item.column" :aria-label="objectTitle(item)">
       <div class="column-heading"><button v-if="enabled && !columnConflict(item)" class="column-handle drag-handle" :aria-label="`Переместить: ${objectTitle(item)}`" title="Удерживайте для перетаскивания или нажмите, чтобы выбрать место" @click="open({ kind: 'column.move', target: item }, $event)">⠿</button><h3 tabindex="-1">{{ objectTitle(item) }}</h3></div>
-      <p v-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения самой колонки недоступны до разрешения; при споре названия или позиции работа с карточками продолжается.</p>
+      <p v-if="item.state === 'conflicted'" class="object-note">{{ item.deletion_groups.includes('purged') ? 'После очистки пришли новые данные.' : 'Удаление колонки конфликтует с изменениями.' }} Карточки доступны для просмотра.</p>
+      <p v-else-if="columnConflict(item) && item.state !== 'trashed'" class="object-note">Есть конфликт. Варианты названия: {{ item.names.map(value => value || 'Без названия').join(' / ') }}. Изменения самой колонки недоступны до разрешения; при споре названия или позиции работа с карточками продолжается.</p>
       <p class="object-note">{{ item.state === 'trashed' ? 'В корзине' : item.empty ? 'Пока без карточек' : 'Есть содержимое' }}</p>
       <template v-if="!trash">
         <CardsList :cards="columnCards(item.column)" :tags="tags" :blocked="blocked || working || dialog || positionBusy" :readonly="!writable(space) || !writable(item)" :movable="!cardTrash" :column="item.column" :group="`cards-${space.space}`" :reset="reset"
@@ -134,6 +135,7 @@ async function end(event: DraggableEvent) {
         <button v-if="!cardTrash" class="create-card" :disabled="blocked || locked || !writable(space) || !writable(item)" @click="emit('open', { kind: 'card.create', space: space.space, column: item.column }, $event)">Создать карточку</button>
       </template>
       <div class="column-actions">
+        <button v-if="item.state === 'conflicted' && !item.deletion_groups.includes('purged')" class="resolve-column-deletion" :disabled="blocked || locked || !writable(space)" @click="emit('open', { kind: 'column.resolve_deletion', target: item }, $event)">Разрешить удаление</button>
         <button v-if="item.state === 'active' && item.positions.length > 1 && !cardTrash" class="resolve-column-position" :disabled="blocked || locked || space.state !== 'active'" @click="positionDialog?.open(item, $event)">Разрешить позицию</button>
         <button v-if="item.state === 'active' && item.names.length > 1" class="resolve-column-name" :disabled="blocked || locked || space.state !== 'active'" @click="emit('open', { kind: 'column.resolve_name', target: item }, $event)">Разрешить название</button>
         <button v-if="!trash && !cardTrash" class="move-column" :disabled="!enabled || locked || columnConflict(item)" @click="open({ kind: 'column.move', target: item }, $event)">Переместить колонку</button>

@@ -1,8 +1,9 @@
+use super::text_conflicts::{copy, exchange};
 use super::*;
 use zedone_core::{
     cleanup::{
-        self, ClearHistory, HistoryPreview, InspectHistory, InspectTrash, PurgeTrash, TrashPreview,
-        TrashSelection,
+        self, ClearHistory, HistoryPreview, InspectHistory, InspectTrash, PurgeTrash, ResolvePurge,
+        TrashPreview, TrashSelection,
     },
     columns::{ColumnSnapshot, RestoreColumn},
     replay::StateVersion,
@@ -126,6 +127,221 @@ fn remove_space(id: u8, expected: StateVersion) -> CommandRequest<TrashSpace> {
             expected,
         },
     )
+}
+
+#[tokio::test]
+async fn purge_conflict_recovers_only_late_cards_and_required_ancestors_or_confirms_purge() {
+    for scope in 0..3 {
+        for keep in [false, true] {
+            let (dir, left, a) = setup().await;
+            let original = run!(&left, a, create, creation(1, 9)).unwrap().result;
+            run!(&left, a, create, creation(2, 8)).unwrap();
+            let right = copy(&left, dir.path().join("purge-peer.db"), &a).await;
+            let selection = match scope {
+                0 => {
+                    run!(
+                        &left,
+                        a,
+                        trash,
+                        req(
+                            3,
+                            TrashCard {
+                                space: sid(1),
+                                card: sid(9),
+                                expected: original.version
+                            }
+                        )
+                    )
+                    .unwrap();
+                    TrashSelection::Objects {
+                        columns: vec![],
+                        cards: vec![sid(9)],
+                    }
+                }
+                1 => {
+                    trash_column(&left, &a, 2, 3).await;
+                    TrashSelection::Objects {
+                        columns: vec![sid(2)],
+                        cards: vec![],
+                    }
+                }
+                _ => {
+                    let expected = space(&left).await.version;
+                    space_run!(&left, a, trash, remove_space(3, expected)).unwrap();
+                    TrashSelection::Space
+                }
+            };
+            let before = basket(&left, &a, 4, selection.clone()).await;
+            cleanup_run!(&left, a, purge_trash, purge(5, &before)).unwrap();
+            run!(
+                &right,
+                a,
+                edit,
+                edit_req(
+                    6,
+                    9,
+                    "Late title",
+                    &original.descriptions[0],
+                    original.version
+                )
+            )
+            .unwrap();
+            if scope != 0 {
+                run!(&right, a, create, creation(7, 7)).unwrap();
+            }
+            exchange(&left, &right).await;
+            let preview = basket(&left, &a, 8, selection.clone()).await;
+            assert_eq!(
+                preview
+                    .cards
+                    .iter()
+                    .map(|card| card.card.clone())
+                    .collect::<Vec<_>>(),
+                if scope == 0 {
+                    vec![sid(9)]
+                } else {
+                    vec![sid(7), sid(9)]
+                }
+            );
+            assert_eq!(preview, basket(&right, &a, 8, selection.clone()).await);
+            assert_eq!(fresh(&left, &a, 9, 9).await.titles, ["Late title"]);
+            rejected(
+                cleanup_run!(&left, a, purge_trash, purge(10, &preview)),
+                ErrorCode::Conflict,
+            );
+            let decision = |expected| {
+                req(
+                    11,
+                    ResolvePurge {
+                        space: sid(1),
+                        selection: selection.clone(),
+                        expected,
+                        keep,
+                    },
+                )
+            };
+            rejected(
+                cleanup_run!(&left, a, resolve_purge, decision(before.version)),
+                ErrorCode::StaleState,
+            );
+            cleanup_run!(&left, a, resolve_purge, decision(preview.version)).unwrap();
+            assert!(
+                cleanup_run!(&left, a, resolve_purge, decision(preview.version))
+                    .unwrap()
+                    .replayed
+            );
+            exchange(&left, &right).await;
+            for db in [&left, &right] {
+                for id in [7, 8, 9] {
+                    let result = run!(
+                        db,
+                        a,
+                        read,
+                        req(
+                            21 + id,
+                            ReadCard {
+                                space: sid(1),
+                                card: sid(id)
+                            }
+                        )
+                    );
+                    if id == 8 && scope == 0 || keep && (id == 9 || id == 7 && scope != 0) {
+                        let found = result.unwrap().result;
+                        assert_eq!(found.card, sid(id));
+                        assert_eq!(found.state, SpaceState::Active);
+                        if id == 9 {
+                            assert_eq!(found.titles, ["Late title"]);
+                        }
+                    } else {
+                        rejected(result, ErrorCode::NotFound);
+                    }
+                }
+                if scope == 2 && keep {
+                    let recovered = space(db).await;
+                    let columns = recovered.contents.unwrap().columns;
+                    assert_eq!(
+                        columns
+                            .iter()
+                            .map(|column| column.column.clone())
+                            .collect::<Vec<_>>(),
+                        [sid(2)]
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn partial_purge_recovery_keeps_the_boundary_for_older_replicas() {
+    let (dir, left, a) = setup().await;
+    let original = run!(&left, a, create, creation(1, 9)).unwrap().result;
+    let first = copy(&left, dir.path().join("first-purge-peer.db"), &a).await;
+    let old = copy(&left, dir.path().join("old-purge-peer.db"), &a).await;
+    let selection = TrashSelection::Space;
+    let expected = space(&left).await.version;
+    space_run!(&left, a, trash, remove_space(2, expected)).unwrap();
+    let preview = basket(&left, &a, 3, selection.clone()).await;
+    cleanup_run!(&left, a, purge_trash, purge(4, &preview)).unwrap();
+    run!(
+        &first,
+        a,
+        edit,
+        edit_req(
+            5,
+            9,
+            "First late edit",
+            &original.descriptions[0],
+            original.version
+        )
+    )
+    .unwrap();
+    exchange(&left, &first).await;
+    let preview = basket(&left, &a, 6, selection.clone()).await;
+    cleanup_run!(
+        &left,
+        a,
+        resolve_purge,
+        req(
+            7,
+            ResolvePurge {
+                space: sid(1),
+                selection,
+                expected: preview.version,
+                keep: true,
+            }
+        )
+    )
+    .unwrap();
+    assert_eq!(fresh(&left, &a, 8, 9).await.state, SpaceState::Active);
+    run!(&old, a, create, creation(9, 8)).unwrap();
+    exchange(&left, &old).await;
+    let late = fresh(&left, &a, 10, 8).await;
+    assert_eq!(late.state, SpaceState::Conflicted);
+    assert_eq!(late.deletion_groups, ["purged"]);
+    let selection = TrashSelection::Objects {
+        columns: vec![],
+        cards: vec![sid(8)],
+    };
+    let preview = basket(&left, &a, 11, selection.clone()).await;
+    cleanup_run!(
+        &left,
+        a,
+        resolve_purge,
+        req(
+            12,
+            ResolvePurge {
+                space: sid(1),
+                selection,
+                expected: preview.version,
+                keep: true,
+            }
+        )
+    )
+    .unwrap();
+    exchange(&left, &old).await;
+    assert_eq!(fresh(&old, &a, 13, 8).await.state, SpaceState::Active);
+    assert_eq!(fresh(&old, &a, 14, 9).await.titles, ["First late edit"]);
 }
 
 #[tokio::test]

@@ -1098,6 +1098,40 @@
         ]
       }
     },
+    "/v1/commands/column.resolve_deletion": {
+      "post": {
+        "tags": [
+          "columns"
+        ],
+        "operationId": "column_resolve_deletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveColumnDeletion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ColumnSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/column.resolve_name": {
       "post": {
         "tags": [
@@ -1778,6 +1812,40 @@
         ]
       }
     },
+    "/v1/commands/space.resolve_deletion": {
+      "post": {
+        "tags": [
+          "spaces"
+        ],
+        "operationId": "space_resolve_deletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolveSpaceDeletion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceSnapshot"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.resolve_name": {
       "post": {
         "tags": [
@@ -2367,6 +2435,40 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CommandRequest_PurgeTrash"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_TrashPreview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/trash.resolve_purge": {
+      "post": {
+        "tags": [
+          "cleanup"
+        ],
+        "operationId": "trash_resolve_purge",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ResolvePurge"
               }
             }
           },
@@ -5405,6 +5507,55 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ResolveColumnDeletion": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "column",
+              "expected",
+              "keep"
+            ],
+            "properties": {
+              "column": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "keep": {
+                "type": "boolean"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ResolveColumnName": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -5493,6 +5644,100 @@
               },
               "position": {
                 "$ref": "#/components/schemas/Rank"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ResolvePurge": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "selection",
+              "expected",
+              "keep"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "keep": {
+                "type": "boolean"
+              },
+              "selection": {
+                "$ref": "#/components/schemas/TrashSelection"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ResolveSpaceDeletion": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "expected",
+              "keep"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "keep": {
+                "type": "boolean"
               },
               "space": {
                 "type": "string"
@@ -9067,6 +9312,30 @@
         },
         "additionalProperties": false
       },
+      "ResolveColumnDeletion": {
+        "type": "object",
+        "required": [
+          "space",
+          "column",
+          "expected",
+          "keep"
+        ],
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "keep": {
+            "type": "boolean"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ResolveColumnName": {
         "type": "object",
         "required": [
@@ -9108,6 +9377,50 @@
           },
           "position": {
             "$ref": "#/components/schemas/Rank"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolvePurge": {
+        "type": "object",
+        "required": [
+          "space",
+          "selection",
+          "expected",
+          "keep"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "keep": {
+            "type": "boolean"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/TrashSelection"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveSpaceDeletion": {
+        "type": "object",
+        "required": [
+          "space",
+          "expected",
+          "keep"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "keep": {
+            "type": "boolean"
           },
           "space": {
             "type": "string"

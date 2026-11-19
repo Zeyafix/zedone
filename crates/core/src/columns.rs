@@ -105,6 +105,18 @@ pub struct RestoreColumn {
     pub column: String,
     pub expected: StateVersion,
 }
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolveColumnDeletion {
+    pub space: String,
+    pub column: String,
+    pub expected: StateVersion,
+    pub keep: bool,
+}
+impl Command for ResolveColumnDeletion {
+    const NAME: &'static str = "column.resolve_deletion";
+    type Output = ColumnSnapshot;
+}
 impl Command for RestoreColumn {
     const NAME: &'static str = "column.restore";
     type Output = ColumnSnapshot;
@@ -234,6 +246,7 @@ enum Change<'a> {
     ResolveName(&'a str),
     Trash,
     Restore,
+    ResolveDeletion(bool),
 }
 fn change<C: Command<Output = ColumnSnapshot>>(
     tx: &mut impl CardStore,
@@ -256,11 +269,12 @@ fn change<C: Command<Output = ColumnSnapshot>>(
             active(tx, space)?;
             let before = tx.column_snapshot(space, column)?;
             replay::require_current(expected, before.version)?;
-            if before.state == SpaceState::Conflicted
-                || match action {
-                    Change::ResolveName(_) => before.names.len() < 2,
-                    _ => before.names.len() != 1 || before.positions.len() != 1,
-                }
+            if !matches!(action, Change::ResolveDeletion(_))
+                && (before.state == SpaceState::Conflicted
+                    || match action {
+                        Change::ResolveName(_) => before.names.len() < 2,
+                        _ => before.names.len() != 1 || before.positions.len() != 1,
+                    })
             {
                 return Err(error(ErrorCode::Conflict));
             }
@@ -289,10 +303,80 @@ fn change<C: Command<Output = ColumnSnapshot>>(
                     }
                     tx.set_column_lifecycle(space, column, "active")?
                 }
+                Change::ResolveDeletion(keep) => {
+                    if before.state != SpaceState::Conflicted {
+                        return Err(error(ErrorCode::Conflict));
+                    }
+                    let group = deletion_choice(&before.deletion_groups, keep)?;
+                    let contents = before
+                        .contents
+                        .as_ref()
+                        .ok_or_else(|| error(ErrorCode::InvalidRequest))?;
+                    for card in contents {
+                        let destination = if card.columns.iter().any(|id| id == column) {
+                            group
+                        } else {
+                            "active"
+                        };
+                        if let Some(lifecycle) = member_choice(
+                            &before.deletion_groups,
+                            &card.deletion_groups,
+                            destination,
+                        )? {
+                            tx.set_card_lifecycle(space, &card.card, lifecycle)?;
+                        }
+                    }
+                    tx.set_column_lifecycle(space, column, group)?;
+                }
                 _ => return Err(error(ErrorCode::InvalidRequest)),
             }
             tx.column_snapshot(space, column)
         },
+    )
+}
+
+pub(crate) fn deletion_choice(groups: &[String], keep: bool) -> CommandResult<&str> {
+    if groups.iter().any(|group| group == "purged") {
+        return Err(error(ErrorCode::Conflict));
+    }
+    let group = groups.first().ok_or_else(|| error(ErrorCode::Conflict))?;
+    Ok(if keep { "active" } else { group })
+}
+
+pub(crate) fn member_choice<'a>(
+    groups: &[String],
+    current: &'a [String],
+    target: &'a str,
+) -> CommandResult<Option<&'a str>> {
+    if current.is_empty() {
+        return Ok((target != "active").then_some(target));
+    }
+    if current.iter().all(|group| !groups.contains(group)) {
+        return Ok(None);
+    }
+    let mut other = current.iter().filter(|group| !groups.contains(group));
+    let choice = other.next().map_or(target, String::as_str);
+    if other.next().is_some() {
+        return Err(error(ErrorCode::Conflict));
+    }
+    Ok(Some(choice))
+}
+
+#[utoipa::path(post, path = "/v1/commands/column.resolve_deletion", operation_id = "column_resolve_deletion", request_body = CommandRequest<ResolveColumnDeletion>, responses((status = 200, body = CommandResponse<ColumnSnapshot>)), security(("access_key" = [])))]
+pub fn resolve_deletion(
+    tx: &mut impl CardStore,
+    credential: &Credential<'_>,
+    clock: &impl Clock,
+    request: &CommandRequest<ResolveColumnDeletion>,
+) -> CommandResult<Execution<ColumnSnapshot>> {
+    let p = &request.parameters;
+    change(
+        tx,
+        credential,
+        clock,
+        request,
+        (&p.space, &p.column, p.expected),
+        Change::ResolveDeletion(p.keep),
     )
 }
 

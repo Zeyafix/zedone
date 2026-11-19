@@ -122,6 +122,10 @@ command!(PullSync, "sync.pull", SyncPage);
 command!(PushSync, "sync.push", SyncPage);
 
 pub trait SyncStore: SpaceStore + PairingStore {
+    fn sync_catalog_spaces(
+        &mut self,
+        subject: &str,
+    ) -> CommandResult<Vec<crate::spaces::SpaceSnapshot>>;
     fn sync_control(&mut self, space: &str, pairing: &str) -> CommandResult<SyncControl>;
     fn select_sync(&mut self, p: &SelectSync) -> CommandResult<SyncControl>;
     fn pause_sync(&mut self, p: &PauseSync) -> CommandResult<SyncControl>;
@@ -251,11 +255,11 @@ pub fn catalog(
         |tx, subject| {
             paired(tx, subject)?;
             let mut spaces = Vec::new();
-            for s in tx.spaces_for_subject(subject)? {
-                if s.state != SpaceState::Active {
+            for s in tx.sync_catalog_spaces(subject)? {
+                let control = tx.sync_control(&s.space, subject)?;
+                if s.state != SpaceState::Active && !control.selected {
                     continue;
                 }
-                let control = tx.sync_control(&s.space, subject)?;
                 let writable = access.grant.scope.spaces().and_then(|m| m.get(&s.space))
                     == Some(&SpacePermission::ReadWrite);
                 spaces.push(SyncEntry {

@@ -1,3 +1,4 @@
+use super::text_conflicts::{copy, exchange};
 use super::*;
 use zedone_core::tags::{CreateTag, TagStore};
 use zedone_core::{
@@ -44,6 +45,370 @@ async fn column(s: &Storage, id: u8) -> ColumnSnapshot {
     s.transact(move |ctx| Ok(ctx.column_snapshot(&sid(1), &sid(id))?))
         .await
         .unwrap()
+}
+
+#[tokio::test]
+async fn independent_opposite_container_choices_reopen_the_conflict() {
+    use zedone_core::columns::ResolveColumnDeletion;
+    let (dir, left, admin) = setup().await;
+    let card = run!(&left, admin, create, creation(1, 9)).unwrap().result;
+    let right = copy(&left, dir.path().join("opposite-peer.db"), &admin).await;
+    let version = column(&left, 2).await.version;
+    let removed = column_run!(&left, admin, trash, trash(2, version))
+        .unwrap()
+        .result;
+    run!(
+        &right,
+        admin,
+        edit,
+        edit_req(
+            3,
+            9,
+            "Survives both decisions",
+            &card.descriptions[0],
+            card.version
+        )
+    )
+    .unwrap();
+    exchange(&left, &right).await;
+    let before = column(&left, 2).await;
+    for (db, keep) in [(&left, true), (&right, false)] {
+        column_run!(
+            db,
+            admin,
+            resolve_deletion,
+            req(
+                4 + u8::from(keep),
+                ResolveColumnDeletion {
+                    space: sid(1),
+                    column: sid(2),
+                    expected: before.version,
+                    keep,
+                }
+            )
+        )
+        .unwrap();
+    }
+    exchange(&left, &right).await;
+    let again = column(&left, 2).await;
+    assert_eq!(again, column(&right, 2).await);
+    assert_eq!(again.state, SpaceState::Conflicted);
+    assert_eq!(again.deletion_groups, removed.deletion_groups);
+    rejected(
+        column_run!(
+            &left,
+            admin,
+            resolve_deletion,
+            req(
+                6,
+                ResolveColumnDeletion {
+                    space: sid(1),
+                    column: sid(2),
+                    expected: before.version,
+                    keep: true,
+                }
+            )
+        ),
+        ErrorCode::StaleState,
+    );
+    column_run!(
+        &right,
+        admin,
+        resolve_deletion,
+        req(
+            7,
+            ResolveColumnDeletion {
+                space: sid(1),
+                column: sid(2),
+                expected: again.version,
+                keep: true,
+            }
+        )
+    )
+    .unwrap();
+    exchange(&left, &right).await;
+    let card = fresh(&left, &admin, 8, 9).await;
+    assert_eq!(card.state, SpaceState::Active);
+    assert_eq!(card.titles, ["Survives both decisions"]);
+}
+
+#[tokio::test]
+async fn container_decisions_keep_independent_edits_new_members_and_old_trash() {
+    use zedone_core::{
+        columns::{self, ResolveColumnDeletion},
+        spaces::{ResolveSpaceDeletion, RestoreSpace, TrashSpace},
+    };
+    for (whole_space, keep) in [(false, false), (false, true), (true, false), (true, true)] {
+        let (dir, left, admin) = setup().await;
+        let original = run!(&left, admin, create, creation(1, 9)).unwrap().result;
+        let old = run!(&left, admin, create, creation(2, 8)).unwrap().result;
+        let old = run!(
+            &left,
+            admin,
+            trash,
+            req(
+                3,
+                TrashCard {
+                    space: sid(1),
+                    card: sid(8),
+                    expected: old.version
+                }
+            )
+        )
+        .unwrap()
+        .result;
+        let right = copy(&left, dir.path().join("container-peer.db"), &admin).await;
+        let owner = admin.clone();
+        let groups = left
+            .transact(move |tx| {
+                let result = if whole_space {
+                    let before = tx.space_snapshot(&sid(1))?;
+                    spaces::trash(
+                        tx,
+                        &owner.credential(),
+                        &Now,
+                        &req(
+                            4,
+                            TrashSpace {
+                                space: sid(1),
+                                expected: before.version,
+                            },
+                        ),
+                    )?
+                    .result
+                    .deletion_groups
+                } else {
+                    let before = tx.column_snapshot(&sid(1), &sid(2))?;
+                    columns::trash(tx, &owner.credential(), &Now, &trash(4, before.version))?
+                        .result
+                        .deletion_groups
+                };
+                Ok(result)
+            })
+            .await
+            .unwrap();
+        run!(
+            &right,
+            admin,
+            edit,
+            edit_req(
+                5,
+                9,
+                "Independent edit",
+                &original.descriptions[0],
+                original.version
+            )
+        )
+        .unwrap();
+        let new_column = if whole_space { 12 } else { 2 };
+        if whole_space {
+            let owner = admin.clone();
+            right
+                .transact(move |tx| {
+                    Ok(columns::create(
+                        tx,
+                        &owner.credential(),
+                        &Now,
+                        &req(
+                            6,
+                            CreateColumn {
+                                space: sid(1),
+                                column: sid(new_column),
+                                name: "New column".into(),
+                            },
+                        ),
+                    )?)
+                })
+                .await
+                .unwrap();
+        }
+        let mut creation = creation(7, 7);
+        creation.parameters.column = sid(new_column);
+        run!(&right, admin, create, creation).unwrap();
+        exchange(&left, &right).await;
+        let owner = admin.clone();
+        left.transact(move |tx| {
+            if whole_space {
+                let before = tx.space_snapshot(&sid(1))?;
+                assert_eq!(before.state, SpaceState::Conflicted);
+                assert_eq!(before.contents.as_ref().unwrap().cards.len(), 3);
+                spaces::resolve_deletion(
+                    tx,
+                    &owner.credential(),
+                    &Now,
+                    &req(
+                        8,
+                        ResolveSpaceDeletion {
+                            space: sid(1),
+                            expected: before.version,
+                            keep,
+                        },
+                    ),
+                )?;
+            } else {
+                let before = tx.column_snapshot(&sid(1), &sid(2))?;
+                assert_eq!(before.state, SpaceState::Conflicted);
+                assert_eq!(before.contents.as_ref().unwrap().len(), 3);
+                columns::resolve_deletion(
+                    tx,
+                    &owner.credential(),
+                    &Now,
+                    &req(
+                        8,
+                        ResolveColumnDeletion {
+                            space: sid(1),
+                            column: sid(2),
+                            expected: before.version,
+                            keep,
+                        },
+                    ),
+                )?;
+            }
+            Ok(())
+        })
+        .await
+        .unwrap();
+        exchange(&left, &right).await;
+        for db in [&left, &right] {
+            for id in [7, 9] {
+                let card = fresh(db, &admin, 10 + id, id).await;
+                assert_eq!(
+                    card.state,
+                    if keep {
+                        SpaceState::Active
+                    } else {
+                        SpaceState::Trashed
+                    }
+                );
+                assert_eq!(
+                    card.deletion_groups,
+                    if keep { vec![] } else { groups.clone() }
+                );
+                if id == 9 {
+                    assert_eq!(card.titles, ["Independent edit"]);
+                }
+            }
+            assert_eq!(fresh(db, &admin, 20, 8).await, old);
+        }
+        if !keep {
+            let owner = admin.clone();
+            right
+                .transact(move |tx| {
+                    if whole_space {
+                        let after = tx.space_snapshot(&sid(1))?;
+                        assert_eq!(after.state, SpaceState::Trashed);
+                        spaces::restore(
+                            tx,
+                            &owner.credential(),
+                            &Now,
+                            &req(
+                                21,
+                                RestoreSpace {
+                                    space: sid(1),
+                                    expected: after.version,
+                                },
+                            ),
+                        )?;
+                    } else {
+                        let after = tx.column_snapshot(&sid(1), &sid(2))?;
+                        assert_eq!(after.state, SpaceState::Trashed);
+                        columns::restore(
+                            tx,
+                            &owner.credential(),
+                            &Now,
+                            &restore(21, after.version),
+                        )?;
+                    }
+                    Ok(())
+                })
+                .await
+                .unwrap();
+            exchange(&left, &right).await;
+            assert_eq!(fresh(&left, &admin, 22, 7).await.state, SpaceState::Active);
+            assert_eq!(fresh(&left, &admin, 23, 8).await, old);
+        }
+    }
+}
+
+#[tokio::test]
+async fn card_restored_to_another_column_stays_there_after_repeated_exchange_and_group_restore() {
+    let (dir, left, admin) = setup().await;
+    let kept = run!(&left, admin, create, creation(1, 9)).unwrap().result;
+    run!(&left, admin, create, creation(2, 8)).unwrap();
+    let path = dir.path().join("restore-peer.db");
+    let right = copy(&left, path.clone(), &admin).await;
+    let source = column(&left, 2).await;
+    let trashed = column_run!(&left, admin, trash, trash(3, source.version))
+        .unwrap()
+        .result;
+    exchange(&left, &right).await;
+
+    let deleted = fresh(&right, &admin, 4, 9).await;
+    assert_eq!(deleted.deletion_groups, trashed.deletion_groups);
+    let destination = column(&right, 3).await;
+    let restore_to_destination = |id, expected_column| {
+        req(
+            id,
+            RestoreCard {
+                space: sid(1),
+                card: sid(9),
+                expected: deleted.version,
+                column: Some(sid(3)),
+                expected_column: Some(expected_column),
+            },
+        )
+    };
+    rejected(
+        run!(
+            &right,
+            admin,
+            restore,
+            restore_to_destination(5, source.version)
+        ),
+        ErrorCode::StaleState,
+    );
+    assert_eq!(fresh(&right, &admin, 6, 9).await, deleted);
+    let restored = run!(
+        &right,
+        admin,
+        restore,
+        restore_to_destination(7, destination.version)
+    )
+    .unwrap()
+    .result;
+    assert_eq!(restored.card, kept.card);
+    assert_eq!(restored.titles, kept.titles);
+    assert_eq!(restored.descriptions, kept.descriptions);
+    assert_eq!(restored.columns, [sid(3)]);
+    assert!(restored.deletion_groups.is_empty());
+
+    right.shutdown().await.unwrap();
+    let right = Storage::open(path).await.unwrap();
+    exchange(&right, &left).await;
+    let source = column(&left, 2).await;
+    assert_eq!(source.state, SpaceState::Trashed);
+    assert_eq!(source.deletion_groups, trashed.deletion_groups);
+    assert_eq!(fresh(&left, &admin, 8, 9).await, restored);
+    column_run!(&left, admin, restore, restore(9, source.version)).unwrap();
+    exchange(&left, &right).await;
+
+    for replica in [&left, &right] {
+        let extract_ids = |snapshot: ColumnSnapshot| {
+            snapshot
+                .contents
+                .unwrap()
+                .into_iter()
+                .map(|card| card.card)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(extract_ids(column(replica, 2).await), [sid(8)]);
+        assert_eq!(extract_ids(column(replica, 3).await), [sid(9)]);
+        assert_eq!(fresh(replica, &admin, 10, 9).await, restored);
+        assert_eq!(
+            fresh(replica, &admin, 11, 8).await.state,
+            SpaceState::Active
+        );
+    }
 }
 
 #[tokio::test]

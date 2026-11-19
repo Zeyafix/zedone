@@ -472,6 +472,15 @@ fn change<C: Command<Output = CardSnapshot>>(
                     tx.set_card_lifecycle(space, card, &format!("trash:{subject}:{command}"))?
                 }
                 Change::Restore(p) if before.state == SpaceState::Trashed => {
+                    let source = tx.column_snapshot(space, &before.columns[0])?;
+                    if source.state == SpaceState::Conflicted
+                        && source
+                            .deletion_groups
+                            .iter()
+                            .any(|group| before.deletion_groups.contains(group))
+                    {
+                        return Err(error(ErrorCode::Conflict));
+                    }
                     let column = p.column.as_deref().unwrap_or(&before.columns[0]);
                     if !valid_id(column) || p.column.is_some() != p.expected_column.is_some() {
                         return Err(error(ErrorCode::InvalidRequest));

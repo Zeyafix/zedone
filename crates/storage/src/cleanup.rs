@@ -1,5 +1,5 @@
-use crate::{StorageError, WriteContext};
-use automerge::{ROOT, transaction::Transactable};
+use crate::{StorageError, WriteContext, cards::deletion::PURGE_BOUNDARY};
+use automerge::{ROOT, ReadDoc, transaction::Transactable};
 use serde::Serialize;
 use zedone_core::{
     cleanup::{CleanupStore, HistoryEntry, TrashPreview},
@@ -19,15 +19,38 @@ impl CleanupStore for WriteContext<'_> {
                     (&preview.space, &card.card),
                 )?;
             }
+            let graph = self.read().document(&preview.space)?;
+            let cards = preview
+                .cards
+                .iter()
+                .map(|card| crate::cards::object(graph, &card.card))
+                .collect::<Result<Vec<_>, _>>()?;
+            let columns = preview
+                .columns
+                .iter()
+                .map(|column| crate::columns::object(graph, &column.column))
+                .collect::<Result<Vec<_>, _>>()?;
             self.edit(&preview.space, |doc| {
-                for card in &preview.cards {
-                    doc.delete(ROOT, format!("card:{}", card.card))?;
+                for object in cards
+                    .iter()
+                    .chain(&columns)
+                    .chain(preview.includes_space.then_some(&ROOT))
+                {
+                    if doc
+                        .get_all(object, "lifecycle")?
+                        .iter()
+                        .any(|(value, _)| value.as_str() == Some("purged"))
+                    {
+                        doc.delete(object, "lifecycle")?;
+                    }
+                    doc.put(object, "lifecycle", "purged")?;
                 }
-                for column in &preview.columns {
-                    doc.delete(ROOT, format!("column:{}", column.column))?;
-                }
-                if preview.includes_space {
-                    doc.put(ROOT, "lifecycle", "purged")?;
+                for container in columns
+                    .iter()
+                    .chain(preview.includes_space.then_some(&ROOT))
+                {
+                    doc.delete(container, PURGE_BOUNDARY)?;
+                    doc.put(container, PURGE_BOUNDARY, true)?;
                 }
                 Ok(())
             })

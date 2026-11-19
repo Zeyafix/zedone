@@ -75,6 +75,7 @@ macro_rules! run {
 }
 mod cleanup;
 mod completion;
+mod deletion_conflicts;
 mod history;
 mod ordering;
 mod placement_conflicts;

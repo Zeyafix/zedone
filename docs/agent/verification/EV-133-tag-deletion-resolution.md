@@ -11,8 +11,8 @@ dependencies_evidence: [EV-131, EV-132]
 scope: [core, storage, adapters, ui, scripts, docs]
 checks: [Windows, native Android, HTTP/IPC/CLI, shared UI, paired APK/Device]
 reverse_and_failure: "После сохранения назначение/снятие/новое удаление; удаление — согласованное исключение без restore. Старые и новые связи, права/replay/stale/конкуренция/commit checkpoints."
-result: "verified локально; LOG-711, без commit/push/PR/CI"
-next: "Review diff и интеграция по поручению разработчика; полный T09 отдельно."
+result: "done: PR #112/headc06431e mergeda5501e1 после25 SUCCESS/fresh CLEAN readiness; LOG-714"
+next: "P06.08 интегрирован; далее готов P06.09 по новому поручению. Полный T09 отдельно."
 ```
 
 Добавлены `deletion_conflict` и `tag.resolve_deletion` с bool `keep` и свежим
@@ -34,3 +34,27 @@ commit failures passed. Отдельный paired deletion child прошёл с
 после restart обычные действия доступны, имена/связи не потеряны. Удаление
 остаётся согласованным исключением без restore; первое снятие/назначение через
 Device прошло в исходной попытке, её общий timeout не скрыт. Подробности EV-134.
+
+
+## Публикация / LOG-713
+
+[PR #112](https://github.com/Zeyafix/zedone/pull/112), headc06431e/base66f389e,
+опубликован с проверенной реальной парой Before/After. Все32 исходных fingerprints
+сохранились, hosted PNG сверены по SHA-256/размерам. GitHub CI начат и ещё не
+принят; прежние результаты выше сохраняют свой scope. Watch не включён по
+поручению разработчика, merge/удаление ветки не выполнялись. Review/интеграция
+по отдельному поручению; полный T09 отдельно. Итоги — локальный checkpoint
+без дополнительного commit/push.
+
+
+## Интеграция / LOG-714
+
+[PR #112](https://github.com/Zeyafix/zedone/pull/112), headc06431e, mergeda5501e1
+после всех25 expected SUCCESS Windows/Linux/Android attempt1 и свежей
+CLEAN/MERGEABLE readiness без reviews/comments/threads. Raw CI подтвердил
+все36 матриц тегов трёх платформ, обе host UI и полный pairing-tags из трёх
+изолированных стендов. Дерево merge равно tested head; main обновлена, пять
+dirty документов сохранены SHA-256, ветка удалена remote/local/tracking, watch off.
+P06.08/.1/.2/.3 done в этом scope, определения/состояния98 критериев прежние.
+Пределы локальных проверок и прежние отказы выше сохраняются; полный T09 отдельно.
+Итоговые записи локальные без дополнительного commit/push.

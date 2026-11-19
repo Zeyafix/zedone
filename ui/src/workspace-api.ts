@@ -17,7 +17,7 @@ export type CardHistory = Schemas["CardHistory"];
 export type CardTextVersion = Schemas["CardTextVersion"];
 export type TagMutation = "tag.create" | "tag.rename" | "tag.delete" | "card.set_tag" | "card.resolve_tag" | "tag.resolve_names" | "tag.resolve_deletion";
 export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.finish_editing" | "card.set_completed";
-export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "resolve_name" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "card.restore_text" | "card.resolve_text" | "card.resolve_placement" | "column.resolve_position" | "history.clear";
+export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "resolve_name" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "card.restore_text" | "card.resolve_text" | "card.resolve_placement" | "card.resolve_deletion" | "column.resolve_position" | "history.clear";
 export const pendingChanged = "zedone:pending";
 type Reads = {
   "card.inspect_tags": Schemas["CardTags"];

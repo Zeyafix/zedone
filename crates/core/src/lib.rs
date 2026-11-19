@@ -42,7 +42,7 @@ use utoipa::OpenApi;
         placements::inspect, placements::resolve,
         column_positions::inspect, column_positions::resolve,
         cards::create, cards::read, cards::history, cards::list, cards::edit, cards::resolve_text,
-        cards::set_completed, cards::trash, cards::restore,
+        cards::set_completed, cards::trash, cards::restore, cards::resolve_deletion,
         cards::begin_editing, cards::autosave, cards::finish_editing, cards::restore_text,
         tags::create, tags::read, tags::list, tags::rename, tags::delete, tags::set_card_tag,
         tag_assignments::inspect, tag_assignments::resolve,

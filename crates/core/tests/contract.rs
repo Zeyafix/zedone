@@ -60,7 +60,7 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 69);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 70);
     for operation in [
         "sync.inspect",
         "sync.select",
@@ -116,6 +116,7 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
         "column.move",
         "card.trash",
         "card.restore",
+        "card.resolve_deletion",
         "tag.create",
         "tag.read",
         "tag.list",
@@ -394,7 +395,7 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         schemas["InvitationList"]["properties"]["entries"]["maxItems"],
         50
     );
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 69);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 70);
     fn check_refs(value: &Value, schemas: &Value) {
         match value {
             Value::Object(fields) => {

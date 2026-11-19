@@ -255,6 +255,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/card.resolve_deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["card_resolve_deletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.resolve_placement": {
         parameters: {
             query?: never;
@@ -1174,6 +1190,7 @@ export interface components {
             card: string;
             columns: string[];
             completed: boolean[];
+            deletion_conflict?: boolean;
             deletion_groups: string[];
             descriptions: string[];
             placements?: components["schemas"]["CardPlacement"][];
@@ -2489,6 +2506,33 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_ResolveCardDeletion: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                card: string;
+                expected: components["schemas"]["StateVersion"];
+                keep: boolean;
+                space: string;
+            };
+        };
         CommandRequest_ResolveCardPlacement: {
             id: [
                 number,
@@ -3145,6 +3189,7 @@ export interface components {
                 card: string;
                 columns: string[];
                 completed: boolean[];
+                deletion_conflict?: boolean;
                 deletion_groups: string[];
                 descriptions: string[];
                 placements?: components["schemas"]["CardPlacement"][];
@@ -3604,6 +3649,12 @@ export interface components {
             invitation: string;
             label: string;
             request: string;
+        };
+        ResolveCardDeletion: {
+            card: string;
+            expected: components["schemas"]["StateVersion"];
+            keep: boolean;
+            space: string;
         };
         ResolveCardPlacement: {
             card: string;
@@ -4203,6 +4254,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_ReadCard"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_CardSnapshot"];
+                };
+            };
+        };
+    };
+    card_resolve_deletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveCardDeletion"];
             };
         };
         responses: {

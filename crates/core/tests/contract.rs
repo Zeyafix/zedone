@@ -22,6 +22,18 @@ const ERRORS: [(ErrorCode, &str); 9] = [
 ];
 
 #[test]
+fn legacy_tag_receipt_result_does_not_gain_a_deletion_flag_on_replay() {
+    let original = json!({
+        "space":"1".repeat(32), "tag":"2".repeat(32), "names":["Work"],
+        "state":"active", "version":vec![7;32],
+    });
+    let snapshot: zedone_core::tags::TagSnapshot =
+        serde_json::from_value(original.clone()).unwrap();
+    assert!(!snapshot.deletion_conflict);
+    assert_eq!(serde_json::to_value(snapshot).unwrap(), original);
+}
+
+#[test]
 fn errors_have_distinct_strict_machine_readable_codes() {
     for (error, code) in ERRORS {
         let error = CommandError { code: error };
@@ -48,7 +60,7 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 68);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 69);
     for operation in [
         "sync.inspect",
         "sync.select",
@@ -113,6 +125,7 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
         "card.inspect_tags",
         "card.resolve_tag",
         "tag.resolve_names",
+        "tag.resolve_deletion",
     ] {
         assert!(document["paths"][format!("/v1/commands/{operation}")]["post"].is_object());
     }
@@ -381,7 +394,7 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         schemas["InvitationList"]["properties"]["entries"]["maxItems"],
         50
     );
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 68);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 69);
     fn check_refs(value: &Value, schemas: &Value) {
         match value {
             Value::Object(fields) => {

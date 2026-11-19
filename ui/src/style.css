@@ -70,8 +70,8 @@ h2 { margin: 0; font-weight: 600; font-size: 18px; line-height: 1.4; }
 .devices-panel h3, .access-panel h3 { margin: 28px 0 16px; }
 .devices-panel p, .access-panel p, .access-panel h4 { overflow-wrap: anywhere; }
 .access-panel h4 { margin: 0; font-size: 16px; }
-.access-choice { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; overflow-wrap: anywhere; cursor: pointer; }
-.access-choice input { flex: 0 0 20px; width: 20px; height: 20px; accent-color: var(--accent); }
+.access-choice, .tag-deletion-choice { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; overflow-wrap: anywhere; cursor: pointer; }
+.access-choice input, .tag-deletion-choice input { flex: 0 0 20px; width: 20px; height: 20px; accent-color: var(--accent); }
 .access-scope { margin: 24px 0; }
 .access-scope > p { font-size: 14px; }
 .invitation-code { max-width: 640px; border-left: 2px solid var(--accent); padding-left: 18px; margin-top: 20px; }

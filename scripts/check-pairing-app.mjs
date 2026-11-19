@@ -1,6 +1,7 @@
 import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import { checkFieldConflictsExchange } from "./check-field-conflicts-exchange.mjs";
 import { checkTagConflictsExchange } from "./check-tag-conflicts-exchange.mjs";
+import { checkTagCollisionsExchange } from "./check-tag-collisions-exchange.mjs";
 import { checkPlacementExchange } from "./check-placement-exchange.mjs";
 import { checkPositionConflictsExchange } from "./check-position-conflicts-exchange.mjs";
 import { checkColumnPositionExchange } from "./check-column-position-exchange.mjs";
@@ -15,13 +16,14 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion'].includes(suite), 'Unknown pairing acceptance suite');
 const positions = suite?.startsWith('--positions');
+const tags = suite?.startsWith('--tags');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
-if (!suite) {
-    for (const current of ['--standard', '--positions', '--tags']) {
+if (!suite || suite === '--tags') {
+    for (const current of suite === '--tags' ? ['--tags-convergence', '--tags-names', '--tags-deletion'] : ['--standard', '--positions', '--tags']) {
         const env = { ...process.env };
-        const uiSuite = env.P06_TAG_CONFLICTS_UI === '1' ? '--tags' : env.P06_POSITION_CONFLICTS_UI === '1' ? '--positions' : '--standard';
+        const uiSuite = env.P06_TAG_CONFLICTS_UI === '1' ? suite === '--tags' ? '--tags-deletion' : '--tags' : env.P06_POSITION_CONFLICTS_UI === '1' ? '--positions' : '--standard';
         if (current !== uiSuite) {
             if (env.P06_EXCHANGE_UI !== undefined) env.P06_EXCHANGE_UI = '0';
         }
@@ -255,8 +257,11 @@ try {
     if (positions) {
         checkPositionConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error,sameColumn:positionScope});
     }
-    if (suite === '--tags') {
+    if (suite === '--tags-convergence') {
         checkTagConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (suite === '--tags-names' || suite === '--tags-deletion') {
+        checkTagCollisionsExchange({host,android,space,pairing:second.request,call,command,ok,error,scope:suite === '--tags-names' ? 'names' : 'deletion'});
     }
     for (const [operation, parameters] of [
         ['sync.pull', { protocol:999, space, known:[] }],
@@ -320,7 +325,7 @@ try {
     }
     assert.equal(ok(command(host, 'invitation.inspect', { invitation: bad.invitation })).status, 'locked');
     assert.deepEqual(ok(command(host, 'space.read', { space })).names, ['Pairing acceptance preserved']);
-    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_TAG_CONFLICTS_UI === '1' ? suite === '--tags' : process.env.P06_POSITION_CONFLICTS_UI === '1' ? positions : !positions && suite !== '--tags')) {
+    if (process.env.P06_EXCHANGE_UI === '1' && (process.env.P06_TAG_CONFLICTS_UI === '1' ? tags : process.env.P06_POSITION_CONFLICTS_UI === '1' ? positions : !positions && !tags)) {
         const incomingOffer=ok(call(android,'offer.create',{}));
         ok(call(host,'session.prepare',{address:android.address,offer:incomingOffer.offer,label:'Windows UI exchange'}));
         const uiRequest=ok(call(host,'session.submit',{}));
@@ -360,7 +365,7 @@ try {
         await cleanupUiFixture();
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
-    passedChecks = [suite === '--tags' ? 'tag convergence/aliases/spelling/S05/independent decisions/late bridge/whole names/preservation/reverse'
+    passedChecks = [tags ? suite === '--tags-convergence' ? 'tag convergence/aliases/spelling/S05/independent decisions/late bridge/whole names/preservation/reverse' : suite === '--tags-names' ? 'tag name collisions/A52/A53/IDs/Unicode/independent decisions/preservation/reverse' : 'tag deletion/A40/both choices/all decision pairs/old and new assignments/preservation/reverse'
         : suite === '--fields' ? 'text and field conflicts/preservation/reverse'
         : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
         : positions

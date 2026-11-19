@@ -21,6 +21,7 @@ import { checkNameConflicts } from "./check-ui-name-conflicts.mjs";
 import { checkTextConflicts } from "./check-ui-text-conflicts.mjs";
 import { checkFieldConflicts } from "./check-ui-field-conflicts.mjs";
 import { checkTagConflicts } from "./check-ui-tag-conflicts.mjs";
+import { checkTagCollisions } from "./check-ui-tag-collisions.mjs";
 import { checkPlacementConflicts } from "./check-ui-placement-conflicts.mjs";
 import { checkPositionConflicts } from "./check-ui-position-conflicts.mjs";
 import { checkColumnPositions } from "./check-ui-column-positions.mjs";
@@ -43,6 +44,7 @@ async function checkBrowserSlice(slice) {
     await checkTextConflicts(browser, binary);
     await checkFieldConflicts(browser, binary);
     await checkTagConflicts(browser, binary);
+    await checkTagCollisions(browser, binary);
     await checkPlacementConflicts(browser, binary);
     await checkColumnPositions(browser, binary);
     await checkPositionConflicts(browser, binary);

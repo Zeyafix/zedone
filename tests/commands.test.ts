@@ -140,6 +140,8 @@ test("tag intentions retain spelling, identities, explicit removal and both orig
     ["tag.create",{space,tag,name:" Café Все Всё 😀 "}],
     ["tag.rename",{space,tag,name:"Новое",expected:Array(32).fill(7)}],
     ["tag.delete",{space,tag,expected:Array(32).fill(7)}],
+    ["tag.resolve_deletion",{space,tag,keep:false,expected:Array(32).fill(7)}],
+    ["tag.resolve_deletion",{space,tag,keep:true,expected:Array(32).fill(7)}],
     ["card.set_tag",{space,tag,card,present:false,expected:Array(32).fill(7),expected_tag:Array(32).fill(8)}],
   ] as const;
   for(const [operation,params] of actions) {

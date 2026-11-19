@@ -15,6 +15,7 @@ use zedone_core::{
 };
 
 pub(crate) mod convergence;
+mod name_groups;
 #[cfg(test)]
 mod tests;
 
@@ -106,19 +107,16 @@ pub(crate) fn snapshots(
     if groups.is_empty() {
         return Ok(BTreeMap::new());
     }
+    let name_groups = name_groups::groups(graph, &groups, projections)?;
     let mut links = BTreeMap::<String, BTreeMap<String, Projection>>::new();
-    let mut live = std::collections::BTreeSet::new();
     for root in graph.keys(ROOT) {
         if let Some(card) = root.strip_prefix("card:") {
             let object = crate::cards::object(graph, card)?;
             let (map, assignments) = assignments(graph, &object)?;
             let assignment_map = map.to_string();
-            for (tag, values) in assignments {
+            for (tag, _) in assignments {
                 if !groups.iter().any(|g| g.ids.contains(&tag)) {
                     continue;
-                }
-                if values.contains(&true) {
-                    live.insert(tag.clone());
                 }
                 let projection = projections.get(&root).ok_or_else(invalid)?;
                 let related = projection
@@ -153,15 +151,10 @@ pub(crate) fn snapshots(
                         .iter()
                         .any(|n| other.names.iter().any(|m| name_key(n) == name_key(m)))
             });
-        let state = if raw.names.len() != 1
-            || raw.deleted.len() != 1
-            || collision
-            || raw.ambiguous
-            || (raw.deleted == [true] && raw.ids.iter().any(|id| live.contains(id)))
-        {
-            TagState::Conflicted
-        } else if raw.deleted == [true] {
+        let state = if raw.deleted == [true] {
             TagState::Deleted
+        } else if raw.names.len() != 1 || raw.deleted.len() != 1 || collision || raw.ambiguous {
+            TagState::Conflicted
         } else {
             TagState::Active
         };
@@ -180,7 +173,12 @@ pub(crate) fn snapshots(
             tag: tag.clone(),
             names: raw.names.clone(),
             state,
-            name_group: raw.bridge.clone(),
+            deletion_conflict: raw.deleted == [false, true],
+            name_group: name_groups
+                .get(tag)
+                .filter(|ids| ids.len() > 1 || raw.names.len() > 1)
+                .cloned()
+                .unwrap_or_default(),
             version,
         };
         for id in &raw.ids {
@@ -201,14 +199,28 @@ pub(crate) fn snapshots(
 }
 
 impl TagStore for WriteContext<'_> {
+    fn resolve_tag_deletion(&mut self, space: &str, tag: &str, keep: bool) -> CommandResult<()> {
+        let graph = self.read().document(space)?;
+        let objects = convergence::aliases(graph, tag)?
+            .iter()
+            .map(|id| object(graph, id))
+            .collect::<StorageResult<Vec<_>>>()?;
+        Ok(self.edit(space, |doc| {
+            for object in objects {
+                doc.delete(&object, "deleted")?;
+                doc.put(&object, "deleted", !keep)?;
+            }
+            Ok(())
+        })?)
+    }
     fn tag_name_group(&mut self, space: &str, tag: &str) -> CommandResult<Vec<TagSnapshot>> {
         let snapshot = self.tag_snapshot(space, tag)?;
         let graph = self.read().document(space)?;
         let groups = convergence::groups(graph)?;
         if snapshot.name_group.is_empty()
-            || groups.iter().any(|g| {
-                g.ids.iter().any(|id| snapshot.name_group.contains(id)) && g.deleted != [false]
-            })
+            || groups
+                .iter()
+                .any(|g| snapshot.name_group.contains(&g.ids[0]) && g.deleted != [false])
         {
             return Err(CommandError {
                 code: ErrorCode::Conflict,
@@ -229,12 +241,19 @@ impl TagStore for WriteContext<'_> {
         let graph = self.read().document(space)?;
         let objects = names
             .iter()
-            .map(|n| object(graph, &n.tag))
+            .map(|n| {
+                convergence::aliases(graph, &n.tag)?
+                    .iter()
+                    .map(|id| object(graph, id))
+                    .collect::<StorageResult<Vec<_>>>()
+            })
             .collect::<StorageResult<Vec<_>>>()?;
         Ok(self.edit(space, |doc| {
-            for (choice, object) in names.iter().zip(objects) {
-                doc.delete(&object, "name")?;
-                doc.put(&object, "name", choice.name.as_str())?;
+            for (choice, aliases) in names.iter().zip(objects) {
+                for object in aliases {
+                    doc.delete(&object, "name")?;
+                    doc.put(&object, "name", choice.name.as_str())?;
+                }
             }
             Ok(())
         })?)

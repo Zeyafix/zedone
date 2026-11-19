@@ -1,5 +1,12 @@
 [
   {
+    "description": "True when deletion competes with independent assignment or a different deletion decision. Resolve with tag.resolve_deletion and a fresh version; ordinary writes remain blocked.",
+    "paths": [
+      "/components/schemas/TagSnapshot/properties/deletion_conflict",
+      "/components/schemas/CommandSuccess_TagSnapshot/properties/result/properties/deletion_conflict"
+    ]
+  },
+  {
     "description": "Whole variants after a move; legacy documents and receipts omit these.",
     "paths": [
       "/components/schemas/CardSnapshot/properties/placements",

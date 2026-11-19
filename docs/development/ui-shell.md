@@ -536,7 +536,7 @@ strict stale, неизменность текущих полей и чужой p
 в desktop/touch host и native CI; локальный Android ввод выполняется через Device.
 Фактическая приёмка и ограничения — [EV-091](../agent/verification/EV-091-history-cleanup-ui.md).
 
-### Решения тегов P06.07
+### Решения тегов P06.07 и P06.08
 
 `CardEditor` читает варианты через `card.inspect_tags` и отправляет
 `card.resolve_tag` с исходными версиями карточки и тега. `TagNameResolution`
@@ -561,3 +561,22 @@ fields/placements/positions; лимиты не увеличены. Полный 
 добавьте `P06_EXCHANGE_UI=1`, `P06_TAG_CONFLICTS_UI=1` и полученную от
 Device `AGENT_DEVICE_COMMAND`; ввод/снимки выполняются через Device.
 Матрица и ограничения — [EV-131](../agent/verification/EV-131-tag-conflicts-acceptance.md).
+
+P06.08 расширяет `TagNameResolution` на группы коллизий переименований/создания
+и явное решение `tag.resolve_deletion`. В последнем режиме нет выбранного по
+умолчанию варианта: подтверждение доступно только после явного выбора.
+Сохраняются исходный субъект, версия, отказ без потери выбора и обновление
+перед новым submit. Та же блокировка формы действует при навигации.
+
+`check-ui-tag-collisions.mjs` включён в общий browser runner: desktop/touch,
+оба решения удаления, оба случая имён, отмена, stale и reload. Tag fixture
+содержит отдельное пространство «Коллизии тегов», сохраняя прежние сценарии.
+`check-tag-collisions-exchange.mjs` расширяет обязательный `--tags` на A52/A53/A40
+и четыре пары независимых решений с прежними лимитами. `--tags` последовательно
+запускает `--tags-convergence`, `--tags-names`, `--tags-deletion` в собственных
+стендах; в CI у каждого прежние 240s, у job прежние 15m. Ошибка или signal
+останавливает общий прогон. Локальная tag Device-пауза относится к последнему
+child; сохраняются прежние правила присутствия переменной UI и 300s её ожидания.
+Device-пауза использует
+тот же подготовленный стенд и штатное восстановление APK/данных.
+[ADR-0072](../architecture/decisions/0072-tag-name-and-deletion-collisions.md).

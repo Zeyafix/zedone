@@ -228,24 +228,37 @@ for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_
     for (let i = 0; i < 3; i++) if (i !== ui) assert.equal(result.calls[i].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--tags", "--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--tags-convergence", "--tags-names", "--tags-deletion", "--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const env of [{}, {CI:"true"}, {P06_EXCHANGE_UI:"0"}, {P06_EXCHANGE_UI:"1",P06_TAG_CONFLICTS_UI:"1"}]) {
+  const result = await pairingSuites(env, ["--tags"]);
+  assert.equal(result.error,undefined); assert.equal(result.exit,0);
+  assert.deepEqual(result.calls.map(call=>call.command),["--tags-convergence","--tags-names","--tags-deletion"].map(suite=>["fixture-bun","/fixture/check-pairing-app.mjs",suite]));
+  for(const call of result.calls)assert.equal(Object.hasOwn(call.env,"P06_EXCHANGE_UI"),Object.hasOwn(env,"P06_EXCHANGE_UI"));
+  if(env.P06_EXCHANGE_UI === "1")assert.deepEqual(result.calls.map(call=>call.env.P06_EXCHANGE_UI),["0","0","1"]);
+  for(const failure of [{exitCode:1},{signalCode:"SIGTERM"}])for(let at=0;at<3;at++) {
+    const failed=await pairingSuites(env,["--tags"],failure,at);
+    assert.ok(failed.error);assert.equal(failed.calls.length,at+1);assert.equal(failed.exit,undefined);
+  }
+}
 const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
 assert.ok(exchangeStart > 0);
 const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
 function exchanges(suite) {
   const calls = [];
-  const names = ['checkTagConflictsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
+  const names = ['checkTagConflictsExchange', 'checkTagCollisionsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange'];
   runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
     ...Object.fromEntries(names.map(name => [name, options => {
       calls.push(name);
       if (name === 'checkPositionConflictsExchange') assert.equal(options.sameColumn,
         suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined);
+      if (name === 'checkTagCollisionsExchange') assert.equal(options.scope,suite === '--tags-names' ? 'names' : 'deletion');
     }])) });
   return calls;
 }
 assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
 assert.equal(exchanges('--standard').length, 4);
-assert.deepEqual(exchanges('--tags'), ['checkTagConflictsExchange']);
+assert.deepEqual(exchanges('--tags-convergence'), ['checkTagConflictsExchange']);
+for(const scope of ['--tags-names','--tags-deletion'])assert.deepEqual(exchanges(scope), ['checkTagCollisionsExchange']);
 assert.deepEqual(exchanges('--positions'), ['checkPositionConflictsExchange']);
 for (const scope of ['--positions-cross', '--positions-same']) assert.deepEqual(exchanges(scope), ['checkPositionConflictsExchange']);
 assert.deepEqual(positionConflictCases(), [

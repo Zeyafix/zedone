@@ -43,6 +43,7 @@ const labels: Record<Mutation | "card.read" | "forget" | "forget-draft", string>
   "tag.create": "Создать тег", "tag.rename": "Переименовать тег", "tag.delete": "Удалить тег", "card.set_tag": "Изменить тег карточки",
   "card.resolve_tag": "Разрешить назначение тега",
   "tag.resolve_names": "Разрешить имена группы тегов",
+  "tag.resolve_deletion": "Разрешить удаление тега",
   "trash.purge": "Очистить окончательно",
   "card.restore_text": "Восстановить версию карточки",
   "column.resolve_position": "Разрешить позицию колонки",
@@ -466,7 +467,8 @@ function pendingName(item: Pending) {
               <div class="view-actions">
                 <button class="rename-tag" :disabled="blocked || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.rename', target: tag }, $event)">Переименовать</button>
                 <button class="delete-tag" :disabled="blocked || space.state !== 'active' || tag.state !== 'active' || tag.names.length !== 1" @click="open({ kind: 'tag.delete', target: tag }, $event)">Удалить тег</button>
-                <button v-if="tag.state === 'conflicted' && tag.name_group?.length" class="resolve-tag-names" :disabled="blocked || space.state !== 'active'" @click="tagNameResolution?.open(tag, $event)">Разрешить имена группы</button>
+                <button v-if="tag.state === 'conflicted' && tag.name_group?.length && !tag.deletion_conflict" class="resolve-tag-names" :disabled="blocked || space.state !== 'active'" @click="tagNameResolution?.open(tag, $event)">Разрешить имена группы</button>
+                <button v-if="tag.deletion_conflict" class="resolve-tag-deletion" :disabled="blocked || space.state !== 'active'" @click="tagNameResolution?.open(tag, $event)">Разрешить удаление тега</button>
               </div>
             </li>
           </ul>

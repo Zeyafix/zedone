@@ -5,6 +5,8 @@ use zedone_core::{
     tags::{CreateTag, SetCardTag, TagStore},
 };
 use zedone_storage::{Storage, access::PendingAccess};
+#[path = "tag_collisions.rs"]
+mod collisions;
 
 fn id(n: u8) -> String {
     format!("{n:032x}")
@@ -139,4 +141,5 @@ pub async fn seed(storage: &Storage, access: &Arc<PendingAccess>) {
         .await
         .unwrap();
     remote.shutdown().await.unwrap();
+    collisions::seed(storage, access).await;
 }

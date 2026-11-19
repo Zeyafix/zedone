@@ -11,9 +11,9 @@ dependencies_evidence: [EV-128, EV-129, EV-130]
 scope: [scripts, ui/src-tauri/examples/fixtures/tags.rs, docs]
 checks: ["Windows workspace/клиент/контракт/UI desktop+touch", "native Android/обе ABI", "настоящий парный APK/TLS/Keystore", "Device UI/restart/restoration", "CI routing/источники/diff"]
 reverse_and_failure: "Оба решения S05, обратные назначения/переименования, stale/replay/конкуренция/перезапуск/атомарный отказ."
-result: "verified локально: полный scope P06.07, без commit/push/PR/нового GitHub CI/интеграции"
+result: "done: PR #111/head83cbe32, merge66f389e после25 SUCCESS/fresh CLEAN readiness; LOG-705"
 evidence: [EV-129, EV-130]
-next: "Рассмотреть diff и интеграцию ветки; P06.08 после принятия P06.07."
+next: "P06.08 готов по зависимостям; новая реализация — по новому поручению."
 ```
 
 Новый обязательный CI-срез `pairing-tags` проверяет парный обмен тегов в
@@ -71,7 +71,7 @@ APK и каждый app file совпадают с исходными SHA-256, �
 - Единый источник: Automerge-граф пространства, атомарные штатные транзакции
   и receipts; UI и SQL не хранят собственные группы/истину о решениях.
 
-P06.07 и .2–.4 verified локально. Commit/push/PR/GitHub CI/merge не выполнялись.
+P06.07 и .2–.4 done в интегрированном scope PR #111/66f389e; подробности ниже.
 T09 и все критерии остаются в прежних состояниях до нужной полной приёмки и
 интеграции; остальные коллизии тегов P06.08, удаления P06.09 и история P06.10
 не входят в этот результат. Прежние GAP/DEC сохранены. CI-оптимизация остаётся
@@ -80,3 +80,15 @@ T09 и все критерии остаются в прежних состоян
 ## Публикация поручена / LOG-703
 
 Разработчик поручил PR и при успехе merge/удаление ветки. После fetch база остаётся7776b67, все19 source fingerprints прежние. Пара Before/After снята из реальных base/final сборок на одном raw графе,1440×1400/light; API/сохранность/идентичные изменения и просмотр обоих PNG подтверждены. Media остаются вне репозитория. Нового GitHub CI пока нет; до интеграции нужны все25 expected SUCCESS и fresh exact head/base/feedback readiness. Прежние benchmark лимиты/пауза CI и ограничения приёмки сохраняются.
+
+## PR #111 / LOG-704
+
+83cbe32 опубликован в PR #111/base7776b67. Все42 файла/индекс/noreply/98 definitions-states проверены;19 source fingerprints прежние. Title/body/credit/refs и оба hosted PNG прочитаны обратно, hashes/размер совпадают. Первоначальные22 suites ожидаются/выполняются, три strict aggregates ещё впереди: expected25. Readiness MERGEABLE/UNSTABLE, feedback отсутствует. До всех SUCCESS и свежей exact head/base проверки merge/delete не выполняются; поручение на условную интеграцию активно. Новый CI пока не принят. Этот checkpoint локальный без дополнительного commit/push, прежние ограничения/пауза CI сохраняются.
+
+## Интеграция / LOG-705
+
+[PR #111](https://github.com/Zeyafix/zedone/pull/111), head83cbe32, merged66f389e 2026-11-18 18:44:00UTC после всех25 expected COMPLETED/SUCCESS Windows/Linux/Android attempt1. Проверены точные имена/head/jobs/оба workflows, все14 матриц тегов в raw product logs трёх платформ, по четыре новых shared UI случая обоих host и новый Android pairing-tags. Первоначальная загрузка raw логов остановлена CLI escape guard; рекомендованный --allow-escape-sequences сохранил вывод только в ignored файлы. CI не повторялся.
+
+PR Testing обновлён и прочитан обратно, hosted media/credit прежние. Непосредственно перед merge: head83cbe32/base7776b67, CLEAN/MERGEABLE, reviews/comments/reviewThreads=0. Merge parents ровно7776b67/83cbe32, tree равен tested head. Watch отключён с wasWatching=true/watching=false.
+
+Три dirty checkpoint сохранены и сверены по SHA-256 до/после fast-forward main и switch. Feature-ветка удалена remote с exact-head lease и локально branch-d; tracking ref отсутствует. Main=origin/main=66f389e, index пуст; прочие worktrees не менялись. Все98 definitions/states и прежние GAP/DEC сохранены. P06.07/.2/.3/.4 done; пять правил в указанном scope подтверждены. Далее готов P06.08 по новому поручению, новая реализация не начата. Итоги интеграции — локальный checkpoint без дополнительного commit/push/manual CI; штатные main workflows могут следовать merge. CI-оптимизация остаётся на паузе.

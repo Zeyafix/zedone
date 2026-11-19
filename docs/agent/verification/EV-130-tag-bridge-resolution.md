@@ -11,9 +11,9 @@ dependencies_evidence: ["P06.07.1 done/EV-128/7776b67"]
 scope: [crates/core, crates/storage, crates/adapters, api, ui, scripts, docs]
 checks: ["матрицы причинной доставки/конкуренции/rollback", "общий API/UI", "Windows/native Android/обе ABI", "совместная приёмка EV-131"]
 reverse_and_failure: "Обычные переименования и назначения после решения; неполные/неуникальные/занятые/устаревшие решения без частичного изменения."
-result: "verified локально: причинная матрица/Rust и shared UI; полная парная приёмка и интеграция отдельно в EV-131"
+result: "done: PR #111/head83cbe32, merge66f389e после всех25 SUCCESS/fresh CLEAN readiness; EV-131/LOG-705"
 evidence: [LOG-699, ADR-0071]
-next: "Совместная приёмка P06.07.4 в той же ветке."
+next: "P06.07 завершён в интегрированном scope; далее P06.08 по новому поручению."
 ```
 
 Одна неделимая операция включает весь набор имён, транзакцию и receipt,
@@ -42,3 +42,7 @@ next: "Совместная приёмка P06.07.4 в той же ветке."
 приёмка — EV-131. Пять правил соблюдены в этом срезе: обратное переименование/
 назначение, общий API, docs/ADR-0071, Windows/Android и авторитетный граф.
 Интеграция/новый GitHub CI не выполнялись.
+
+## Интеграция / LOG-705
+
+Шаг done в составе PR #111/head83cbe32, merge66f389e после всех25 expected SUCCESS Windows/Linux/Android attempt1 и fresh exact head/base CLEAN/MERGEABLE readiness без feedback. Raw CI logs подтверждают все14 матриц тегов трёх платформ, обе host UI и новый pairing-tags. Дерево merge равно tested head; main обновлена, feature-ветка удалена remote/local/tracking, watch off. Полный результат/локальная Device-приёмка/ограничения сохранены в EV-131; определения/состояния критериев и прежние GAP/DEC не менялись. Итоговые записи локальные без дополнительного commit/push.

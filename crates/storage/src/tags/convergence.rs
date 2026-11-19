@@ -1,10 +1,10 @@
 use super::*;
 use automerge::{ChangeHash, Value};
 use std::collections::BTreeSet;
+mod lifecycle;
 
 struct Candidate<T> {
     object: ObjId,
-    field: String,
     operation: ObjId,
     value: T,
 }
@@ -25,19 +25,24 @@ fn frontier<T>(
     if candidates.len() < 2 {
         return Ok(candidates);
     }
-    let contexts = candidates
+    let unseen = candidates
         .iter()
-        .map(|c| context(graph, &c.operation))
+        .map(|c| {
+            Ok(graph
+                .get_changes_meta(&context(graph, &c.operation)?)
+                .into_iter()
+                .map(|change| change.hash)
+                .collect::<BTreeSet<_>>())
+        })
         .collect::<StorageResult<Vec<_>>>()?;
     let mut result = Vec::new();
     for candidate in candidates {
         let mut superseded = false;
-        for context in &contexts {
-            if graph
-                .get_all_at(&candidate.object, candidate.field.as_str(), context)?
-                .iter()
-                .any(|(_, op)| *op == candidate.operation)
-            {
+        let hash = graph
+            .hash_for_opid(&candidate.operation)
+            .ok_or_else(invalid)?;
+        for unseen in &unseen {
+            if !unseen.contains(&hash) {
                 superseded = true;
                 break;
             }
@@ -61,7 +66,6 @@ fn candidates<T>(
         for (value, operation) in graph.get_all(object, field)? {
             result.push(Candidate {
                 object: object.clone(),
-                field: field.into(),
                 operation,
                 value: decode(value).ok_or_else(invalid)?,
             });
@@ -183,9 +187,12 @@ pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
             });
         }
     }
+    for group in &mut result {
+        group.deleted = lifecycle::values(graph, &group.ids)?;
+    }
     let blocked: BTreeSet<_> = result
         .iter()
-        .filter(|g| g.ambiguous || g.names.len() != 1)
+        .filter(|g| g.deleted != [true] && (g.ambiguous || g.names.len() != 1))
         .flat_map(|g| g.bridge.iter().cloned())
         .collect();
     for group in &mut result {
@@ -212,14 +219,15 @@ pub(crate) fn merged_assignments(
     let mut by_tag = BTreeMap::<String, Vec<Candidate<bool>>>::new();
     for alias in assignments.keys() {
         let tag = tags.get(alias).map_or(alias, |t| &t.tag);
-        for (value, operation) in graph.get_all(&map, alias.as_str())? {
-            by_tag.entry(tag.clone()).or_default().push(Candidate {
-                object: map.clone(),
-                field: alias.clone(),
-                operation,
-                value: value.as_bool().ok_or_else(invalid)?,
-            });
-        }
+        let ids: Vec<_> = tags
+            .iter()
+            .filter(|(_, t)| t.tag == *tag)
+            .map(|(id, _)| id.clone())
+            .collect();
+        by_tag
+            .entry(tag.clone())
+            .or_default()
+            .extend(lifecycle::links(graph, &map, alias, &ids, None)?);
     }
     by_tag
         .into_iter()
@@ -230,6 +238,9 @@ pub(crate) fn merged_assignments(
                 .collect();
             values.sort();
             values.dedup();
+            if tags.get(&tag).is_some_and(|t| t.state == TagState::Deleted) {
+                values = vec![false];
+            }
             Ok((tag, values))
         })
         .collect()
@@ -240,12 +251,10 @@ pub(crate) fn blocks_card(
     tag: &str,
     tags: &BTreeMap<String, TagSnapshot>,
 ) -> StorageResult<bool> {
-    let objects = tags
+    let ids = tags
         .iter()
         .filter(|(_, snapshot)| snapshot.tag == tag)
-        .map(|(id, _)| object(graph, id))
-        .collect::<StorageResult<Vec<_>>>()?;
-    Ok(candidates(graph, &objects, "deleted", |v| v.as_bool())?
-        .iter()
-        .any(|c| c.value))
+        .map(|(id, _)| id.clone())
+        .collect::<Vec<_>>();
+    Ok(lifecycle::values(graph, &ids)? == [false, true])
 }

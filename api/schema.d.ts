@@ -1039,6 +1039,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/tag.resolve_deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tag_resolve_deletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/tag.resolve_names": {
         parameters: {
             query?: never;
@@ -2637,6 +2653,33 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_ResolveTagDeletion: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                keep: boolean;
+                space: string;
+                tag: string;
+            };
+        };
         CommandRequest_ResolveTagNames: {
             id: [
                 number,
@@ -3275,6 +3318,7 @@ export interface components {
         CommandSuccess_TagSnapshot: {
             replayed: boolean;
             result: {
+                deletion_conflict?: boolean;
                 name_group?: string[];
                 names: string[];
                 space: string;
@@ -3599,6 +3643,12 @@ export interface components {
             name: string;
             space: string;
         };
+        ResolveTagDeletion: {
+            expected: components["schemas"]["StateVersion"];
+            keep: boolean;
+            space: string;
+            tag: string;
+        };
         ResolveTagNames: {
             names: components["schemas"]["TagNameChoice"][];
             space: string;
@@ -3744,6 +3794,7 @@ export interface components {
             tag: string;
         };
         TagSnapshot: {
+            deletion_conflict?: boolean;
             name_group?: string[];
             names: string[];
             space: string;
@@ -5279,6 +5330,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CommandRequest_RenameTag"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_TagSnapshot"];
+                };
+            };
+        };
+    };
+    tag_resolve_deletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ResolveTagDeletion"];
             };
         };
         responses: {

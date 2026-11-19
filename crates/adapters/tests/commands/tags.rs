@@ -196,6 +196,21 @@ async fn tag_commands_reject_malformed_fields_and_stale_conditions_on_every_adap
             json!({"space":sid(1),"tag":sid(4),"names":[{"tag":sid(4),"name":"New","expected":t["result"]["version"]}]}),
             "conflict",
         ),
+        (
+            "tag.resolve_deletion",
+            json!({"space":sid(1),"tag":sid(4),"keep":true,"expected":vec![0;32]}),
+            "stale_state",
+        ),
+        (
+            "tag.resolve_deletion",
+            json!({"space":sid(1),"tag":sid(4),"keep":"true","expected":t["result"]["version"]}),
+            "invalid_request",
+        ),
+        (
+            "tag.resolve_deletion",
+            json!({"space":sid(1),"tag":sid(4),"keep":false,"expected":t["result"]["version"]}),
+            "conflict",
+        ),
     ] {
         let body = request(3, op, params);
         let expected = json!({"status":"error","error":{"code":code}});
@@ -207,4 +222,135 @@ async fn tag_commands_reject_malformed_fields_and_stale_conditions_on_every_adap
             expected
         );
     }
+}
+
+#[tokio::test]
+async fn tag_collision_decisions_share_successful_http_ipc_cli_and_original_receipts() {
+    use zedone_core::{
+        cards::CardStore,
+        tags::{CreateTag, SetCardTag, TagStore},
+    };
+    let (dir, db, service, admin) = setup_cards().await;
+    let secret = key(&admin);
+    post(&service, "card.create", &creation(), &secret).await;
+    let initial = db
+        .transact(|tx| {
+            for (tag, name) in [(4, "Work"), (5, "Home"), (6, "Deleted")] {
+                tx.create_tag(&CreateTag {
+                    space: sid(1),
+                    tag: sid(tag),
+                    name: name.into(),
+                })?;
+            }
+            let c = tx.card_snapshot(&sid(1), &sid(3))?;
+            let t = tx.tag_snapshot(&sid(1), &sid(6))?;
+            tx.set_card_tag(&SetCardTag {
+                space: sid(1),
+                card: sid(3),
+                tag: sid(6),
+                present: true,
+                expected: c.version,
+                expected_tag: t.version,
+            })?;
+            zedone_storage::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![])
+        })
+        .await
+        .unwrap();
+    let remote = Storage::open(dir.path().join("remote.db")).await.unwrap();
+    let owner = admin.clone();
+    let page = remote
+        .transact(move |tx| {
+            tx.bootstrap_access(&owner)?;
+            let selected = tx.read().sync_selection(&sid(1), &sid(9))?;
+            tx.set_sync_selected(&sid(1), &sid(9), true, selected.version)?;
+            tx.receive_sync_page(&sid(1), &sid(9), owner.subject(), &initial)?;
+            tx.rename_tag(&sid(1), &sid(5), " Important ")?;
+            let c = tx.card_snapshot(&sid(1), &sid(3))?;
+            let t = tx.tag_snapshot(&sid(1), &sid(6))?;
+            tx.set_card_tag(&SetCardTag {
+                space: sid(1),
+                card: sid(3),
+                tag: sid(6),
+                present: true,
+                expected: c.version,
+                expected_tag: t.version,
+            })?;
+            zedone_storage::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![])
+        })
+        .await
+        .unwrap();
+    db.transact(move |tx| {
+        tx.rename_tag(&sid(1), &sid(4), "Important")?;
+        tx.delete_tag(&sid(1), &sid(6))?;
+        tx.apply_changes(
+            &sid(1),
+            zedone_storage::sync_engine::decode_changes(&page.changes)?,
+        )
+    })
+    .await
+    .unwrap();
+    let mut names = Vec::new();
+    for (tag, name) in [(4, "Все"), (5, "Всё")] {
+        let t = same(
+            &service,
+            &dir,
+            &secret,
+            "tag.read",
+            &request(40 + tag, "tag.read", json!({"space":sid(1),"tag":sid(tag)})),
+        )
+        .await;
+        names.push(json!({"tag":sid(tag),"name":name,"expected":t["version"]}));
+    }
+    let result = same(
+        &service,
+        &dir,
+        &secret,
+        "tag.resolve_names",
+        &request(
+            50,
+            "tag.resolve_names",
+            json!({"space":sid(1),"tag":sid(4),"names":names}),
+        ),
+    )
+    .await;
+    assert!(
+        result["tags"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|t| t["state"] == "active")
+    );
+    let t = same(
+        &service,
+        &dir,
+        &secret,
+        "tag.read",
+        &request(51, "tag.read", json!({"space":sid(1),"tag":sid(6)})),
+    )
+    .await;
+    assert_eq!(t["deletion_conflict"], true);
+    let chosen = same(
+        &service,
+        &dir,
+        &secret,
+        "tag.resolve_deletion",
+        &request(
+            52,
+            "tag.resolve_deletion",
+            json!({"space":sid(1),"tag":sid(6),"keep":true,"expected":t["version"]}),
+        ),
+    )
+    .await;
+    assert_eq!(chosen["state"], "active");
+    assert!(chosen.get("deletion_conflict").is_none());
+    let c = same(
+        &service,
+        &dir,
+        &secret,
+        "card.read",
+        &request(53, "card.read", json!({"space":sid(1),"card":sid(3)})),
+    )
+    .await;
+    assert_eq!(c["state"], "active");
+    assert_eq!(c["tags"], json!([sid(6)]));
 }

@@ -1,5 +1,7 @@
 use super::*;
 use zedone_core::{spaces::SpaceState, sync::SyncStore};
+mod collisions;
+mod deletion;
 mod names;
 mod resolution;
 

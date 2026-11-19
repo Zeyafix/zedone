@@ -51,6 +51,10 @@ pub enum TagState {
     Conflicted,
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TagSnapshot {
@@ -58,6 +62,8 @@ pub struct TagSnapshot {
     pub tag: String,
     pub names: Vec<String>,
     pub state: TagState,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub deletion_conflict: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub name_group: Vec<String>,
     pub version: StateVersion,
@@ -139,6 +145,7 @@ impl Command for SetCardTag {
 }
 
 pub trait TagStore: CardStore {
+    fn resolve_tag_deletion(&mut self, space: &str, tag: &str, keep: bool) -> CommandResult<()>;
     fn tag_name_group(&mut self, space: &str, tag: &str) -> CommandResult<Vec<TagSnapshot>>;
     fn resolve_tag_names(
         &mut self,

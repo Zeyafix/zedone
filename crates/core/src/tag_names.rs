@@ -100,7 +100,11 @@ pub fn resolve(
             }
             tx.resolve_tag_names(&p.space, &p.names)?;
             Ok(TagList {
-                tags: tx.tag_name_group(&p.space, &p.tag)?,
+                tags: p
+                    .names
+                    .iter()
+                    .map(|n| tx.tag_snapshot(&p.space, &n.tag))
+                    .collect::<CommandResult<_>>()?,
             })
         },
     )

@@ -25,6 +25,8 @@ macro_rules! space_run {
             .await
     }};
 }
+mod history_exchange;
+
 async fn space(s: &Storage) -> SpaceSnapshot {
     s.transact(|ctx| Ok(ctx.space_snapshot(&sid(1))?))
         .await

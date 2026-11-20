@@ -245,8 +245,8 @@ assert.ok(exchangeStart > 0);
 const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
 function exchanges(suite) {
   const calls = [];
-  const names = ['checkTagConflictsExchange', 'checkTagCollisionsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange', 'checkCardDeletionExchange', 'checkCardRestoreExchange', 'checkContainerDeletionExchange'];
-  runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, ok: {}, error: {},
+  const names = ['checkTagConflictsExchange', 'checkTagCollisionsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkHistoryExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange', 'checkCardDeletionExchange', 'checkCardRestoreExchange', 'checkContainerDeletionExchange'];
+  runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, deliver: {}, ok: {}, error: {},
     ...(suite === '--container-deletion' ? { containerSpace: 'fixture-container-space' } : {}),
     ...Object.fromEntries(names.map(name => [name, options => {
       calls.push(name);
@@ -258,7 +258,8 @@ function exchanges(suite) {
   return calls;
 }
 assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
-assert.equal(exchanges('--standard').length, 4);
+assert.equal(exchanges('--standard').length, 5);
+assert.deepEqual(exchanges('--history'), ['checkHistoryExchange']);
 assert.deepEqual(exchanges('--card-deletion'), ['checkCardDeletionExchange']);
 assert.deepEqual(exchanges('--card-restore'), ['checkCardRestoreExchange']);
 assert.deepEqual(exchanges('--container-deletion'), ['checkCardDeletionExchange', 'checkCardRestoreExchange', 'checkContainerDeletionExchange']);

@@ -35,3 +35,19 @@ fixture не позволяет linker заменить этот exe. Повто
 Точные результаты и непроверенные сочетания — [EV-110](../agent/verification/EV-110-sync-recovery.md).
 Несовместимый test peer не заменяет проверку отдельного старого выпуска;
 настоящий Tailscale и вся матрица конфликтов проверяются отдельно.
+
+## Пользовательская история
+
+`cards::tests::cleanup::history_exchange` проверяет две SQLite-реплики:
+обе стороны и области очистки, независимые версии/карточки, старую доставку,
+retained, завершение серии при restart, права, stale и отказ записи.
+Очистка удаляет известные ключи Automerge history Map; технические changes
+сохраняются, новая версия получает sequence после известных, включая очищенные.
+Нового хранилища или механизма сборки мусора нет.
+
+`bun scripts/check-pairing-app.mjs --history` выполняет ту же основную
+матрицу через настоящий Windows Credential Manager ↔ Android APK/Keystore,
+общий Service, TLS и CLI. Она также входит в существующий `--fields` CI-набор
+и `--standard`; число jobs и прежние бюджеты не меняются.
+Локально для lifecycle требуется `AGENT_DEVICE_COMMAND` из `device_open`.
+Точные результаты и границы — [EV-138](../agent/verification/EV-138-history-exchange.md).

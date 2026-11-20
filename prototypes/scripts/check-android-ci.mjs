@@ -15,7 +15,7 @@ const productSlices = new Map([
   ["product-x86_64", ["../../scripts/check-product.mjs", "--android-x86_64"]],
   ["product-arm64", ["../../scripts/check-product.mjs", "--android-arm64"]],
 ]);
-const pairingSlices = new Map([['pairing-tags', '--tags'], ['pairing-fields', '--fields'], ['pairing-placements', '--placements'], ['pairing-positions', '--positions'], ['pairing-positions-cross', '--positions-cross'], ['pairing-positions-same', '--positions-same']]);
+const pairingSlices = new Map([['pairing-agent', '--agent'], ['pairing-tags', '--tags'], ['pairing-fields', '--fields'], ['pairing-placements', '--placements'], ['pairing-positions', '--positions'], ['pairing-positions-cross', '--positions-cross'], ['pairing-positions-same', '--positions-same']]);
 const suite = Bun.argv[2];
 assert.ok(Bun.argv.length <= 3 && (suite === undefined || suite === "native" || productSlices.has(suite) || pairingSlices.has(suite) || checks.some(([name]) => name === suite)), "Unknown Android suite");
 const selected = productSlices.has(suite) ? [[suite, productSlices.get(suite)]]

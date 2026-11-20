@@ -7,7 +7,43 @@ use zedone_adapters::{
     secrets::{Secret, SecretStore, Slot},
 };
 struct Fixture(#[allow(dead_code)] zedone_adapters::network::SecureListener);
+fn agent_run(base: &std::path::Path) -> Option<String> {
+    let run = std::fs::read_to_string(base.join("pairing-agent-run")).ok()?;
+    (run.len() == 32 && run.bytes().all(|c| c.is_ascii_hexdigit())).then_some(run)
+}
+pub async fn prepare_agent(base: &std::path::Path) -> Result<(), ()> {
+    let Some(run) = agent_run(base) else {
+        return Ok(());
+    };
+    let directory = base.join(format!("pairing-acceptance-{run}"));
+    std::fs::create_dir_all(&directory).map_err(|_| ())?;
+    if directory.join("zedone.sqlite").exists() {
+        return Ok(());
+    }
+    let db = zedone_storage::Storage::open(directory.join("zedone.sqlite"))
+        .await
+        .map_err(|_| ())?;
+    let admin = Arc::new(zedone_storage::access::PendingAccess::generate().map_err(|_| ())?);
+    let a = admin.clone();
+    db.transact(move |tx| tx.bootstrap_access(&a))
+        .await
+        .map_err(|_| ())?;
+    let key = Secret::new(
+        admin
+            .credential()
+            .0
+            .iter()
+            .flat_map(|b| format!("{b:02x}").into_bytes())
+            .collect(),
+    );
+    std::fs::write(directory.join("admin.key"), &key).map_err(|_| ())?;
+    std::fs::write(directory.join("local-session.json"), serde_json::to_vec(&serde_json::json!({"subject":admin.subject(),"key":std::str::from_utf8(&key).map_err(|_| ())?})).map_err(|_| ())?).map_err(|_| ())?;
+    db.shutdown().await.map_err(|_| ())
+}
 pub fn ui_directory(base: &std::path::Path) -> Option<std::path::PathBuf> {
+    if let Some(run) = agent_run(base) {
+        return Some(base.join(format!("pairing-acceptance-{run}")));
+    }
     let run = std::fs::read_to_string(base.join("pairing-ui-run")).ok()?;
     if run.len() != 32 || !run.bytes().all(|c| c.is_ascii_hexdigit()) {
         return None;
@@ -19,7 +55,7 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
         let Ok(base) = app.path().app_local_data_dir() else {
             return;
         };
-        if let Some(directory) = ui_directory(&base) {
+        if let Some(directory) = ui_directory(&base).filter(|_| agent_run(&base).is_none()) {
             if std::fs::read_to_string(base.join("pairing-ui-cleanup"))
                 .ok()
                 .as_deref()
@@ -86,15 +122,24 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
                     .map_err(|_| ())?;
                 return Ok(());
             }
-            let existed = directory.join("data.sqlite").exists();
-            let db = zedone_storage::Storage::open(directory.join("data.sqlite"))
-                .await
-                .map_err(|_| ())?;
+            let agent = agent_run(&base).is_some();
+            let existed = agent || directory.join("data.sqlite").exists();
+            let db = if agent {
+                None
+            } else {
+                Some(
+                    zedone_storage::Storage::open(directory.join("data.sqlite"))
+                        .await
+                        .map_err(|_| ())?,
+                )
+            };
             if !existed {
                 let admin =
                     Arc::new(zedone_storage::access::PendingAccess::generate().map_err(|_| ())?);
                 let a = admin.clone();
-                db.transact(move |tx| tx.bootstrap_access(&a))
+                db.as_ref()
+                    .ok_or(())?
+                    .transact(move |tx| tx.bootstrap_access(&a))
                     .await
                     .map_err(|_| ())?;
                 let key = Secret::new(
@@ -113,7 +158,11 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
                     .map_err(|_| ())?,
             );
             let host = Arc::new(DeviceHost::new(
-                zedone_adapters::Service::new(db),
+                if agent {
+                    app.state::<crate::Shell>().service.clone().ok_or(())?
+                } else {
+                    zedone_adapters::Service::new(db.ok_or(())?)
+                },
                 store.clone(),
             ));
             let (listener, pin) = host

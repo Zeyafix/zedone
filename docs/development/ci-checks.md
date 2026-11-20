@@ -115,6 +115,15 @@ entries и eviction требуется измерить: исходно 19 entri
 
 ## Текущее распределение CI.13
 
+P06.12 добавляет самостоятельный `pairing-agent`: прямой CLI/HTTP-доступ
+с ПК к Service открытого APK собственным ограниченным ключом, без обмена.
+Команда — `bun scripts/check-pairing-app.mjs --agent`; общая подготовка,
+production install и acceptance build прежние, Android budget 15m,
+fixture 240s и strict aggregate сохранены. Локальная Device UI-проверка
+включается отдельно и имеет прежний checkpoint 300s. Новый ожидаемый набор —
+26 checks: 11 host и 15 Android с агрегатами. Это состав будущего CI,
+не утверждение об успешном запуске. [EV-140](../agent/verification/EV-140-direct-apk-agent-access.md).
+
 Чтобы уменьшить критический путь jobs >10m, независимые группы запускаются
 на отдельных runners. Тела сценариев, assertions, профили, API и временные
 пороги сохранены. Полный локальный запуск остаётся доступен без аргументов.

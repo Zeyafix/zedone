@@ -1,3 +1,4 @@
+import { checkAgentApkAccess } from "./check-agent-apk-access.mjs";
 import { checkSpaceExchange, checkTextExchange } from "./check-space-exchange.mjs";
 import { checkFieldConflictsExchange } from "./check-field-conflicts-exchange.mjs";
 import { checkTagConflictsExchange } from "./check-tag-conflicts-exchange.mjs";
@@ -19,12 +20,12 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--standard', '--fields', '--history', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion', '--card-restore', '--container-deletion'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--agent', '--standard', '--fields', '--history', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion', '--card-restore', '--container-deletion'].includes(suite), 'Unknown pairing acceptance suite');
 const positions = suite?.startsWith('--positions');
 const tags = suite?.startsWith('--tags');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
 if (!suite || suite === '--tags') {
-    for (const current of suite === '--tags' ? ['--tags-convergence', '--tags-names', '--tags-deletion'] : ['--standard', '--positions', '--tags']) {
+    for (const current of suite === '--tags' ? ['--tags-convergence', '--tags-names', '--tags-deletion'] : ['--standard', '--positions', '--tags', '--agent']) {
         const env = { ...process.env };
         const uiSuite = env.P06_TAG_CONFLICTS_UI === '1' ? suite === '--tags' ? '--tags-deletion' : '--tags' : env.P06_POSITION_CONFLICTS_UI === '1' ? '--positions' : '--standard';
         if (current !== uiSuite) {
@@ -203,8 +204,25 @@ try {
     device('install', '-r', resolve(root, 'ui/src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/app-x86_64-debug.apk'));
     installed = true;
     write(marker, run);
+    if (suite === '--agent') write('pairing-agent-run', run);
     launch();
     const initialAndroid = await forwardAndroid();
+    if (suite === '--agent') {
+        const phoneNow = () => { const value = device('shell', 'date', '+%s%3N').toString().trim(); assert.match(value, /^\d{13}$/); return Number(value); };
+        await checkAgentApkAccess({ host, android, command, call, request, ok, error, report,
+            close: () => { close(); device('forward', '--remove', `tcp:${forward}`); forward = undefined; },
+            phoneNow, waitForExpiry: expires => until(() => phoneNow() >= expires, 'Android grant expiry', 15000),
+            restart: async () => { device('exec-out', 'run-as', app, 'rm', '--', `${fixture}/public.json`); launch(); const fresh = await forwardAndroid(); assert.deepEqual(fresh.pin, initialAndroid.pin, 'Keystore identity changed'); return android; },
+            checkpoint: async (stage, details) => {
+                if (process.env.P06_AGENT_UI !== '1') return;
+                await Bun.write(resolve(report, 'agent-checkpoint.json'), JSON.stringify({ stage, ...details }));
+                console.log(`Device agent checkpoint ${stage}: ${report}`);
+                const outcome = await until(async () => { const marker = Bun.file(resolve(report, `agent-${stage}-continue`)); return await marker.exists() && (await marker.text()).trim(); }, 'Device agent UI verification', 300000);
+                assert.equal(outcome, 'passed', 'Device agent UI verification failed');
+            },
+        });
+        passedChecks = ['direct PC to APK agent/own scoped key/unsynchronized phone data/read/write/rights/reverse/expiry/revoke/regrant/replay/restart/unavailable'];
+    } else {
     space = randomBytes(16).toString('hex');
     ok(command(host, 'space.create', { space, name: 'Pairing acceptance preserved' }));
     const pending = await prepare('Acceptance phone');
@@ -409,7 +427,8 @@ try {
         ? `combined card/column positions/both orders/${positionScope === undefined ? 'same and cross' : positionScope ? 'same' : 'cross'}-column/independent different and identical decisions/stale/blocks/children/neighbors/preservation/reverse`
         : 'text/field/card-placement/column-position conflicts including independent decisions, neighbors, preservation and reverse',
         'space exchange/read-only/write/columns/cards/tags/history/pause/reverse/preservation', 'QR exact input/no implicit prepare/no consumption', 'request/replay/no-access', 'confirm/read-only', 'Keystore process restart/pin/session', 'stale unlink/replay/cleanup', 'used-code rejection', 'reconnect/explicit-write/reverse', 'revoke', 'cancel/reject', 'timed-grant/replay denial/no-auto-unlink', 'five-attempt lock', 'data preservation'];
-    console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
+    }
+    if (suite !== '--agent') console.log(`${process.platform === 'win32' ? 'Windows Credential Manager' : 'CI host memory fixture'} ↔ Android APK: TLS/API/CLI, Keystore process restart, rights, repeat/reconnect, cancel/reject/unlink/revoke and five-attempt lock passed.`);
 }
 catch (error) {
     console.error('Pairing scenario failed:', error.message);

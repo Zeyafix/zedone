@@ -1,6 +1,6 @@
 # EV-139: поиск и списки после обмена
 
-Дата: 2026-11-20. Шаг: P06.11. Состояние: verified локально.
+Дата: 2026-11-20. Шаг: P06.11. Состояние: done; PR #116, merge `97b5d10`.
 
 ## Карточка работы
 
@@ -105,10 +105,10 @@ Device выключен. Финальная Windows-матрица прошла 
   зависимости и UI не менялись; новый индекс не вводился.
 
 Сохранены все 98 определений/состояний критериев и прежние GAP/DEC.
-T09 остаётся открытой; P06.12/P06.13, новый GitHub CI/Linux, отдельная
-локальная Opera, физический arm64 и итоговые измерения не входят в приёмку
-этого изменения. Оптимизация CI остаётся на паузе. Следующее действие —
-ревью diff и интеграция P06.11 по поручению, затем готов P06.12.
+T09 остаётся открытой; P06.12/P06.13, отдельная локальная Opera, физический
+arm64 и итоговые измерения не входят в приёмку этого изменения. GitHub CI
+Windows/Linux/Android принят при интеграции ниже. Оптимизация CI остаётся
+на паузе. Следующий шаг — P06.12.
 
 Коммита, PR и нового GitHub CI нет. Точные локальные команды, исходные
 документы и артефакты — ignored reports.
@@ -121,3 +121,83 @@ T09 остаётся открытой; P06.12/P06.13, новый GitHub CI/Linux
 записи интеграции P06.10. Продуктовый UI не меняется, медиа Before/After
 не требуются. Новый GitHub CI ещё не выполнен; определения и состояния
 98 критериев сохраняются, общая T09 остаётся открытой.
+
+## Публикация
+
+[PR #116](https://github.com/Zeyafix/zedone/pull/116) открыт коммитом
+`68cfb8c` от `29e8148` и привязан к треду. Проверены все 13 текстовых файлов,
+noreply author/committer и сохранность проверенных источников/требований.
+Title/body/разделы/credit прочитаны обратно; UI Changes и медиа не нужны,
+так как продуктовый UI прежний. При чтении 20 проверок IN_PROGRESS, две
+QUEUED, три агрегата ещё впереди; ожидается 25. MERGEABLE/UNSTABLE,
+reviews/comments/review threads отсутствуют. Новый CI ещё не принят;
+merge/delete поручены после успеха и свежей проверки тех же head/base.
+Текущая запись локальная, без нового commit/push.
+
+## Исходный отказ GitHub CI
+
+На `68cfb8c` Linux product/job 136165688326 отменён по прежнему лимиту
+10 минут, что прямо подтверждено annotations. Exact Rust cache восстановлен.
+Все 324 storage tests, новая матрица, изолированный поиск 1000/1000
+(15748ms) и release --all-targets build (4m07s) прошли. Остановка произошла
+на восстановительном source-comment control; остальные unsafe/contract
+проверки не завершены, полный Linux suite не принят. GAP-042 открыт: причина
+превышения общего бюджета не установлена, успех повтора её не закроет.
+
+Исходные metadata/steps/annotations/raw log сохранены в ignored reports.
+После terminal host workflow допускается один failed-job rerun прежнего
+head (accepted=0/limit=1) с зависимым aggregate, без смены source/assertions,
+таймаутов и сценариев. Пока host workflow in_progress, recovery не запрошен.
+Merge отложен до всех 25 SUCCESS и свежей проверки готовности.
+
+## Единственный recovery host CI
+
+Linux aggregate штатно отклонил RESULT=cancelled; host workflow attempt 1
+завершился cancelled. В Windows product/job 136165688487 отдельный отказ:
+`concurrent_assignment_and_deletion_have_one_serializable_winner` получил
+Unavailable вместо StaleState, остальные 323 storage tests прошли. GAP-043
+открыт; причина Unavailable неизвестна. Локальный целевой тест без правок
+прошёл за 0.21s, что не доказывает устранение причины. Исходные job/steps/
+annotations/raw logs и оба failed aggregates сохранены в ignored reports.
+
+После terminal и проверки прежних head/base/source fingerprints GitHub
+принял один штатный failed-jobs recovery неуспешных Linux/Windows product
+и агрегатов. Request accepted=1/limit=1; при первом чтении queued, новые
+job IDs ещё не появились. Source/assertions/пороги/таймауты прежние,
+дополнительных same-head запросов не планируется. GAP-042/043 остаются
+open независимо от успешного повтора; все 25 checks и merge readiness pending.
+
+Recovery подтверждён в attempt 2: Linux product 136173010061 и Windows product
+136173010588 in_progress. Повторное уведомление о Windows jobs
+136165688487/136171953041 относится к исходной attempt 1. Успешные initial
+результаты унаследованы: новые slot IDs сохраняют старые timestamps,
+это не повтор исполнения успешных наборов. Accepted=1/limit=1; результатов
+новых product jobs ещё нет, дополнительных запросов нет.
+
+## Интеграция
+
+Все 25 checks на `68cfb8c` от `29e8148` завершились SUCCESS. Host workflow
+прошёл на attempt 2 после одного bounded recovery двух product jobs и
+агрегатов; семь успешных host suites унаследованы. Android — attempt 1.
+Исходные Linux timeout и Windows Unavailable, raw logs и annotations
+сохранены. GAP-042/043 остаются open, причины не объявляются устранёнными.
+
+Raw Windows/Linux/native Android logs подтвердили новую матрицу. Все шесть
+новых search UI-сценариев прошли в обоих host runners; три paired APK-среза
+fields/cross/same прошли, включая исходные restoration/cleanup. Обязательные
+isolated search probes прошли в CI на всех трёх платформах.
+
+Testing обновлён с итогами и прочитан обратно вместе с title/credit.
+Непосредственно перед merge подтверждены прежние head/base, все25 SUCCESS,
+MERGEABLE/CLEAN и отсутствие comments/reviews/review threads.
+[PR #116](https://github.com/Zeyafix/zedone/pull/116) интегрирован коммитом
+`97b5d107a54439701a8a446b65d2b85e44a446a7`; родители ровно tested base/head,
+дерево совпадает с head. Main=origin/main, две dirty записи сохранены
+по SHA-256. Ветка удалена на GitHub с exact-head lease, локально и из
+tracking refs; чужие worktrees не менялись.
+
+P06.11 done в указанном объёме. Пять правил и все98 определения/состояния
+критериев сохранены, общая T09 открыта. Далее P06.12, новая реализация
+не начата. Итоговый checkpoint локальный, без нового commit/push.
+
+Отслеживание PR выключено после интеграции.

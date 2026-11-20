@@ -423,11 +423,15 @@ async fn acceptance_server() {
     )
     .unwrap();
     let stopped = tokio::time::timeout(
-        std::time::Duration::from_secs(if std::env::var_os("P06_EXCHANGE_UI").is_some() {
-            600
-        } else {
-            240
-        }),
+        std::time::Duration::from_secs(
+            if std::env::var_os("P06_EXCHANGE_UI").is_some()
+                || std::env::var_os("P06_AGENT_UI").is_some()
+            {
+                600
+            } else {
+                240
+            },
+        ),
         async {
             while !directory.join("stop").exists() {
                 tokio::time::sleep(std::time::Duration::from_millis(200)).await;

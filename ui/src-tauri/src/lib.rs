@@ -164,6 +164,9 @@ mod entry_point {
             )
             .setup(|app| {
                 let base = app.path().app_local_data_dir()?;
+                #[cfg(feature = "pairing-acceptance")]
+                tauri::async_runtime::block_on(super::pairing_acceptance::prepare_agent(&base))
+                    .map_err(|_| "agent acceptance preparation failed")?;
                 let directory = base.join("product");
                 #[cfg(feature = "pairing-acceptance")]
                 let directory = super::pairing_acceptance::ui_directory(&base).unwrap_or(directory);

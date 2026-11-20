@@ -429,6 +429,7 @@ fn history_preview(
         states.push((c.card.clone(), c.version, h.version));
         let retained = c.state == SpaceState::Conflicted
             || parent.state == SpaceState::Conflicted
+            || parent.names.len() != 1
             || parent.contents.as_ref().is_some_and(|contents| {
                 contents.columns.iter().any(|column| {
                     c.columns.contains(&column.column)

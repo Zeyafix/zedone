@@ -4,6 +4,8 @@ use zedone_core::{
     search::{self, SearchCards, SearchResults, SearchScope},
 };
 
+mod exchange;
+
 async fn find(
     s: &Storage,
     a: &PendingAccess,

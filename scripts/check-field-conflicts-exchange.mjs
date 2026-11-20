@@ -15,6 +15,27 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     const read = (target, kind) => ok(command(target, `${kind}.read`, parameters(kind)));
     const own = snapshot => Object.fromEntries(Object.entries(snapshot).filter(([key]) => !["version", "contents"].includes(key)));
     const history = target => ok(command(target, "card.history", { space, card, after: null, limit: 100, expected: null })).versions;
+    const search = () => {
+      const current = read(host, "card");
+      for (const query of ["", ...current.titles, ...current.descriptions]) {
+        const results = [host, android].map(target => ok(command(target, "card.search", { query, scope: { kind: "space", space } })));
+        assert.deepEqual(results[0], results[1]);
+        const hits = results[0].spaces.flatMap(item => item.hits);
+        assert.equal(new Set(hits.map(hit => hit.card.card)).size, hits.length);
+        const hit = hits.find(item => item.card.card === card);
+        assert.ok(hit, "Saved conflicting variant missing from search");
+        assert.deepEqual(hit.card, current);
+        assert.equal(hit.placement_conflict, false);
+        assert.deepEqual(results[0].spaces[0].space.names, read(host, "space").names);
+      }
+      for (const target of [host, android]) {
+        const found = ok(command(target, "card.search", { query: current.titles[0], scope: { kind: "all" } }));
+        const spaces = ok(command(target, "space.list", { include_trashed: false })).spaces;
+        const ids = found.spaces.map(item => item.space.space);
+        assert.deepEqual(ids, spaces.filter(item => ids.includes(item.space)).map(item => item.space));
+        assert.equal(ids.filter(id => id === space).length, 1);
+      }
+    };
     const resolve = (target, kind, choice) => ok(command(target, kind === "card" ? "card.resolve_text" : `${kind}.resolve_name`, {
       ...parameters(kind), expected: read(target, kind).version,
       ...(kind === "card" ? { title: choice, description: `Body ${choice}` } : { name: choice }),
@@ -39,6 +60,7 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     assert.deepEqual(conflicted.space.names, ["space Android", "space PC"]);
     assert.deepEqual(conflicted.column.names, ["column Android", "column PC"]);
     assert.deepEqual(conflicted.card.titles, ["Text Android", "Text PC"]);
+    search();
     for (const kind of ["space", "column"]) error(command(android, `${kind}.rename`, { ...parameters(kind), name: "Overwrite", expected: read(android, kind).version }), "conflict");
     error(command(android, "card.edit", { space, card, title: "Overwrite", description: "", expected: read(android, "card").version }), "conflict");
     const healthy = ok(command(android, "card.read", { space, card: sibling }));
@@ -63,6 +85,7 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
       }
     }
     pause(false); exchange(); exchange();
+    search();
     for (const kind of ["space", "column", "card"]) {
       const current = read(host, kind);
       assert.equal(current.state, kind === "card" ? "conflicted" : "active");
@@ -90,6 +113,7 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     assert.deepEqual(history(host), history(android)); assert.equal(history(host).length, 7);
     assert.deepEqual(ok(command(host, "card.read", { space, card: sibling })).completed, [true]);
     assert.deepEqual(ok(command(host, "card.read", { space, card: added })).titles, ["Created inside conflicted names"]);
+    search();
     console.log(`Actual APK combined field conflicts ${order.join(" → ")}: isolation/blocking/content/independent decisions/repeated delivery/history/reverse passed.`);
   }
 }

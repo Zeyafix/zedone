@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-tags, pairing-fields, pairing-placements, pairing-positions-cross, pairing-positions-same, shell-arm64]
+        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-agent, pairing-tags, pairing-fields, pairing-placements, pairing-positions-cross, pairing-positions-same, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -145,8 +145,16 @@ jobs:
           # Initialization must succeed before the separate exact version check.
           "$tools/bin/android" --no-metrics --version
           test "$("$tools/bin/android" --no-metrics --version)" = "$cli"
+          platform_tools_archive=$(jq -r .android.linux_platform_tools_archive "$versions")
+          curl --fail --location --retry 3 "https://dl.google.com/android/repository/$platform_tools_archive" -o "$RUNNER_TEMP/android-platform-tools.zip"
+          echo "$(jq -r .android.linux_platform_tools_sha256 "$versions")  $RUNNER_TEMP/android-platform-tools.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/android-platform-tools.zip" -d "$sdk"
+          platform_tools_revision=$(jq -r '.android.packages[]' "$versions" | sed -n 's/^platform-tools@//p')
+          actual=$(sed -n 's/^Pkg.Revision *= *//p' "$sdk/platform-tools/source.properties" | tr -d '\r')
+          test "$actual" = "$platform_tools_revision"
           printf 'y\n%.0s' {1..200} > "$RUNNER_TEMP/android-license-answers"
           while IFS= read -r package; do
+            if [[ $package == platform-tools@* ]]; then continue; fi
             "$tools/bin/android" --no-metrics "--sdk=$sdk" sdk install "$package" < "$RUNNER_TEMP/android-license-answers"
           done < <(jq -r '.android.packages[]' "$versions")
           # CLI installation can silently pick the newest emulator even with @version.
@@ -174,7 +182,7 @@ jobs:
           mv "$sdk/emulator" "$RUNNER_TEMP/zedone-unpinned-emulator"
           mv "$pinned_emulator" "$sdk/emulator"
           # These downloads/unpacked copies belong to this one-off setup only.
-          rm -- "$RUNNER_TEMP/android-tools.zip" "$RUNNER_TEMP/android-emulator.zip"
+          rm -- "$RUNNER_TEMP/android-tools.zip" "$RUNNER_TEMP/android-platform-tools.zip" "$RUNNER_TEMP/android-emulator.zip"
           rm -r -- "$RUNNER_TEMP/zedone-unpinned-emulator"
       - name: Verify SDK identity and install pinned Rust targets
         run: |

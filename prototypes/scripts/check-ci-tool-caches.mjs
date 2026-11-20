@@ -48,7 +48,8 @@ assert.equal(sdkRestore.with.path, '${{ runner.temp }}/zedone-android-sdk');
 assert.equal(sdkSave.with.path, sdkRestore.with.path);
 assert.equal(sdkSave.with.key, '${{ steps.sdk-cache.outputs.cache-primary-key }}');
 assert.equal(sdkRestore.with['restore-keys'], undefined);
-for (const pin of ['.android.linux_sha256', '.android.linux_cli_sha256', '.android.linux_emulator_sha256', '.android.packages[]']) assert.ok(sdkInstall.run.includes(pin));
+for (const pin of ['.android.linux_sha256', '.android.linux_cli_sha256', '.android.linux_platform_tools_archive', '.android.linux_platform_tools_sha256', '.android.linux_emulator_sha256', '.android.packages[]']) assert.ok(sdkInstall.run.includes(pin));
+assert.ok(sdkInstall.run.includes('if [[ $package == platform-tools@* ]]; then continue; fi'));
 for (const part of ['runner.os', 'runner.arch', 'scripts/environment-versions.json', '.github/workflows/android-environment.yml', 'scripts/check-android-sdk.sh']) assert.ok(sdkRestore.with.key.includes(part));
 assert.equal(sdkVerify.if, undefined, 'SDK validation and Rust installation run on both cold and hit paths');
 assert.ok(android.steps.indexOf(sdkVerify) > android.steps.indexOf(sdkInstall));
@@ -86,6 +87,34 @@ const bash = process.platform === 'win32' ? resolve(process.env.ProgramFiles || 
 const posix = value => value.replaceAll('\\', '/').replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`);
 const temporary = await mkdtemp(resolve(tmpdir(), 'zedone-ci-tool-cache-'));
 try {
+  const archiveStart = sdkInstall.run.indexOf('platform_tools_archive=');
+  const archiveEnd = sdkInstall.run.indexOf("printf 'y", archiveStart);
+  assert.ok(archiveStart > 0 && archiveEnd > archiveStart);
+  const archiveInstall = sdkInstall.run.slice(archiveStart, archiveEnd);
+  for (const mode of ['valid', 'download-failure', 'corrupt-archive', 'wrong-revision', 'missing-properties']) {
+    const directory = resolve(temporary, `platform-tools-${mode}`), bin = resolve(directory, 'bin');
+    const sdk = resolve(directory, 'sdk'), runner = resolve(directory, 'runner');
+    await mkdir(bin, { recursive: true }); await mkdir(sdk); await mkdir(runner);
+    const archive = resolve(directory, 'platform-tools.zip');
+    const python = process.platform === 'win32' ? 'python' : 'python3';
+    const zip = Bun.spawnSync([python, '-c', 'import sys,zipfile\nwith zipfile.ZipFile(sys.argv[1],"w") as z:\n z.writestr("platform-tools/adb","fixture")\n if sys.argv[2]!="missing-properties": z.writestr("platform-tools/source.properties","Pkg.Revision="+("0.0.0" if sys.argv[2]=="wrong-revision" else "37.0.1")+"\\n")', archive, mode], { stdout:'pipe', stderr:'pipe', timeout:30000 });
+    assert.equal(zip.exitCode, 0, zip.stderr.toString());
+    const bytes = await readFile(archive);
+    const versions = resolve(directory, 'versions.json');
+    await writeFile(versions, JSON.stringify({android:{linux_platform_tools_archive:'pinned-platform-tools.zip',linux_platform_tools_sha256:mode === 'corrupt-archive' ? '0'.repeat(64) : createHash('sha256').update(bytes).digest('hex'),packages:['platform-tools@37.0.1']}}));
+    await writeFile(resolve(directory, 'jq.mjs'), 'const q=Bun.argv.at(-2);const data=await Bun.file(Bun.argv.at(-1)).json();if(q===".android.packages[]")for(const p of data.android.packages)console.log(p);else console.log(q.slice(1).split(".").reduce((v,k)=>v[k],data));\n');
+    await writeFile(resolve(bin, 'jq'), '#!/usr/bin/env bash\nexec "$TEST_BUN" "$FAKE_JQ" "$@"\n'); await chmod(resolve(bin, 'jq'), 0o755);
+    await writeFile(resolve(bin, 'curl'), '#!/usr/bin/env bash\nset -euo pipefail\n[[ $# == 7 && $1 == --fail && $2 == --location && $3 == --retry && $4 == 3 && $5 == https://dl.google.com/android/repository/pinned-platform-tools.zip && $6 == -o ]]\nif [[ $DOWNLOAD_STATUS != 0 ]]; then exit "$DOWNLOAD_STATUS"; fi\ncp "$FIXTURE_ARCHIVE" "$7"\n'); await chmod(resolve(bin, 'curl'), 0o755);
+    const script = resolve(directory, 'install.sh'); await writeFile(script, 'set -euo pipefail\n' + archiveInstall);
+    const result = Bun.spawnSync([bash, '-c', 'export PATH="$1:$2:/usr/bin:$PATH"; exec /usr/bin/bash "$3"', '_', posix(bin), posix(resolve(root, 'temp/ci-tools')), posix(script)], {
+      cwd:directory, env:{...process.env, versions:posix(versions), sdk:posix(sdk), RUNNER_TEMP:posix(runner), TEST_BUN:posix(process.execPath), FAKE_JQ:posix(resolve(directory,'jq.mjs')), FIXTURE_ARCHIVE:posix(archive), DOWNLOAD_STATUS:mode === 'download-failure' ? '23' : '0'}, stdin:'ignore', stdout:'pipe', stderr:'pipe', timeout:30000,
+    });
+    assert.ok(!result.signalCode, `${mode}: platform-tools installation interrupted`);
+    assert.equal(result.exitCode === 0, mode === 'valid', `${mode}: ${result.stderr}`);
+    if (mode === 'download-failure') assert.equal(result.exitCode, 23);
+    if (mode === 'corrupt-archive') assert.equal(await Bun.file(resolve(sdk, 'platform-tools/adb')).exists(), false, 'Checksum failure must prevent extraction');
+    if (mode === 'valid') assert.equal(await Bun.file(resolve(sdk, 'platform-tools/source.properties')).text(), 'Pkg.Revision=37.0.1\n');
+  }
   const sdkSource = await Bun.file(resolve(root, 'scripts/check-android-sdk.sh')).text();
   for (const mode of ['valid', 'needs-initialization', 'corrupt-cli', 'wrong-cli-version', 'missing-package', 'wrong-package-version', 'rustup-failure']) {
     const directory = resolve(temporary, mode), bin = resolve(directory, 'bin');
@@ -142,5 +171,5 @@ try {
   assert.equal(dirname(temporary), resolve(tmpdir())); assert.ok(basename(temporary).startsWith('zedone-ci-tool-cache-'));
   await rm(temporary, { recursive: true });
 }
-console.log('CI tool caches: exact keys/single owners, cold/hit validation, CLI hash/version, package missing/mismatch and Rust failure propagation passed.');
+console.log('CI tool caches: pinned platform-tools archive/download/hash/revision failures, exact keys/single owners, cold/hit validation, CLI hash/version, package missing/mismatch and Rust failure propagation passed.');
 await import('./check-ci-rust.mjs');

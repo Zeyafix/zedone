@@ -21,6 +21,21 @@ export function checkPositionConflictsExchange({ host, android, space, pairing, 
     const history = target => ok(command(target, "card.history", { space, card, after: null, limit: 100, expected: null })).versions;
     const columns = target => ok(command(target, "column.list", { space, include_trashed: false })).columns;
     const cards = target => ok(command(target, "card.list", { space, include_trashed: false })).cards;
+    const search = () => {
+      for (const query of ["", `Combined ${card}`]) {
+        const results = [host, android].map(target => ok(command(target, "card.search", { query, scope: { kind: "space", space } })));
+        assert.deepEqual(results[0], results[1]);
+        const hits = results[0].spaces.flatMap(item => item.hits);
+        assert.equal(new Set(hits.map(hit => hit.card.card)).size, hits.length);
+        const hit = hits.find(item => item.card.card === card);
+        assert.ok(hit, "Exchanged card missing from search");
+        const current = read(host), parents = columns(host).filter(item => current.columns.includes(item.column));
+        assert.equal(hit.placement_conflict, current.placements.length > 1 || parents.some(item => item.positions.length > 1));
+        if (query) assert.deepEqual(hits.map(item => item.card.card), [card]);
+        const firstOrdinary = hits.findIndex(item => !item.placement_conflict);
+        if (firstOrdinary >= 0) assert.ok(hits.slice(firstOrdinary).every(item => !item.placement_conflict));
+      }
+    };
     const moveColumn = (target, current, before) => ok(command(target, "column.move", { space, column: current, before, expected: ok(command(target, "column.read", { space, column: current })).version }));
     const moveCard = (target, current, destination, before) => ok(command(target, "card.move", { space, card: current, column: destination, before, expected: read(target, current).version }));
     const inspect = (target, kind) => ok(command(target, kind === "column" ? "column.inspect_positions" : "card.inspect_placements", kind === "column" ? { space, column } : { space, card }));
@@ -54,6 +69,7 @@ export function checkPositionConflictsExchange({ host, android, space, pairing, 
     assert.equal(parent(host).positions.length, 2); assert.equal(read(host).placements.length, 2);
     assert.deepEqual(parent(host), parent(android)); assert.deepEqual(read(host), read(android));
     assert.deepEqual(columns(host), columns(android)); assert.deepEqual(cards(host), cards(android));
+    search();
     const neighbors = () => {
       const columnOrder = columns(host).filter(item => item.positions.length === 1).map(item => item.column);
       const cardOrder = cards(host).filter(item => item.columns.length === 1 && item.columns[0] === column && item.positions.length === 1).map(item => item.card);
@@ -87,6 +103,7 @@ export function checkPositionConflictsExchange({ host, android, space, pairing, 
           exchange();
         }
       }
+      search();
     }
     assert.equal(parent(host).positions.length, 1); assert.equal(read(host).placements.length, 1);
     for (const key of ["card", "titles", "descriptions", "tags", "completed", "deletion_groups"]) assert.deepEqual(read(host)[key], original[key]);
@@ -99,6 +116,7 @@ export function checkPositionConflictsExchange({ host, android, space, pairing, 
     assert.deepEqual(cards(host), cards(android)); assert.deepEqual(columns(host), columns(android));
     assert.deepEqual(neighbors(), order); assert.deepEqual(history(host), versions);
     assert.deepEqual(read(host, child).titles, saved.titles);
+    search();
     console.log(`Combined positions ${same ? "same" : "cross"}-column/${first} first: independent decisions, stale, blocks, children, neighbors, preservation and reverse passed.`);
   }
 }

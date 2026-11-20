@@ -11,6 +11,7 @@ import { checkNativeControls, withoutVisibilityApi, checkShellFailureDiagnostics
 import { checkBoardMoves } from "./check-ui-moves.mjs";
 import { checkTags } from "./check-ui-tags.mjs";
 import { checkSearch } from "./check-ui-search.mjs";
+import { checkSearchConflicts } from "./check-ui-search-conflicts.mjs";
 import { checkTrash } from "./check-ui-trash.mjs";
 import { checkHistory } from "./check-ui-history.mjs";
 import { checkHistoryCleanup } from "./check-ui-history-cleanup.mjs";
@@ -43,6 +44,7 @@ async function checkBrowserSlice(slice) {
     const binary = resolve(target, `debug/examples/shell-fixture${suffix}`);
     await checkWorkspaceTouchHost(browser, binary);
     await checkNameConflicts(browser, binary);
+    await checkSearchConflicts(browser, binary);
     await checkTextConflicts(browser, binary);
     await checkFieldConflicts(browser, binary);
     await checkCardDeletion(browser, binary);

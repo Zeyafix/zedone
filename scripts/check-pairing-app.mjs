@@ -249,6 +249,11 @@ try {
         ok(command(host, 'space.create', { space: containerSpace, name: 'Container deletion acceptance' }));
         writableSpaces[containerSpace] = 'read_write';
     }
+    const historySpace = ['--standard', '--fields', '--history'].includes(suite) ? randomBytes(16).toString('hex') : undefined;
+    if (historySpace) {
+        ok(command(host, 'space.create', { space: historySpace, name: 'History exchange acceptance' }));
+        writableSpaces[historySpace] = 'read_write';
+    }
     ok(command(host, 'pairing.confirm', { request: second.request, expected: second.version, scope: { kind: 'spaces', spaces: writableSpaces }, expires_at_unix_ms: null }));
     ok(call(android, 'session.refresh', {}));
     const current = ok(deliver('space.read', { space }));
@@ -260,7 +265,9 @@ try {
         checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
     }
     if (suite === '--standard' || suite === '--fields' || suite === '--history') {
-        checkHistoryExchange({host,android,space,call,command,deliver,ok,error});
+        const preservedHistory = ok(command(host, 'history.inspect', {space,card:null}));
+        checkHistoryExchange({host,android,space:historySpace,pairing:second.request,call,command,deliver,ok,error});
+        assert.deepEqual(ok(command(host, 'history.inspect', {space,card:null})), preservedHistory, 'History matrix changed another space');
     }
     if (suite === '--standard' || suite === '--placements') {
         checkPlacementExchange({host,android,space,pairing:second.request,call,command,ok,error});

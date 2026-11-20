@@ -246,7 +246,7 @@ const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf(
 function exchanges(suite) {
   const calls = [];
   const names = ['checkTagConflictsExchange', 'checkTagCollisionsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkHistoryExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange', 'checkCardDeletionExchange', 'checkCardRestoreExchange', 'checkContainerDeletionExchange'];
-  runInNewContext(splitExchanges, { suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, second: {}, call: {}, command: {}, deliver: {}, ok: {}, error: {},
+  runInNewContext(splitExchanges, { assert, suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, historySpace: 'fixture-history-space', second: {}, call: {}, command: () => ({}), deliver: {}, ok: value => value, error: {},
     ...(suite === '--container-deletion' ? { containerSpace: 'fixture-container-space' } : {}),
     ...Object.fromEntries(names.map(name => [name, options => {
       calls.push(name);
@@ -254,6 +254,7 @@ function exchanges(suite) {
         suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined);
       if (name === 'checkTagCollisionsExchange') assert.equal(options.scope,suite === '--tags-names' ? 'names' : 'deletion');
       if (name === 'checkContainerDeletionExchange') assert.equal(options.space, 'fixture-container-space');
+      if (name === 'checkHistoryExchange') assert.equal(options.space, 'fixture-history-space');
     }])) });
   return calls;
 }

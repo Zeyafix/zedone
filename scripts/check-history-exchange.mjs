@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 
-export function checkHistoryExchange({ host, android, space, call, command, deliver, ok, error }) {
+export function checkHistoryExchange({ host, android, space, pairing, call, command, deliver, ok, error }) {
   const id = () => randomBytes(16).toString("hex");
   const run = (device, action, args = {}) => ok(command(device, action, { space, ...args }));
   const exchange = () => ok(call(android, "exchange.run", { space }));
+  for (const device of [host, android]) {
+    const selection = run(device, "sync.inspect", { pairing });
+    run(device, "sync.select", { pairing, selected: true, expected: selection.selection_version });
+  }
   const column = id();
   run(host, "column.create", { column, name: "History exchange" });
   for (const wholeSpace of [false, true]) {
@@ -38,7 +42,11 @@ export function checkHistoryExchange({ host, android, space, call, command, deli
         assert.equal(history(device, trashed).length, wholeSpace ? 0 : 1);
         assert.deepEqual(read(device, card), changed);
       }
-      ok(deliver("sync.push", { space, protocol: 1, base: [], changes: oldPage.changes }));
+      const replay = { id: [...randomBytes(16)], operation: "sync.push", parameters: { space, protocol: 1, base: [], changes: oldPage.changes } };
+      const forwardedBytes = Buffer.byteLength(JSON.stringify({ operation: "sync.push", request: JSON.stringify(replay) }));
+      assert.ok(forwardedBytes <= 64 * 1024, "History replay exceeds the fixture command envelope");
+      console.log(`History replay: ${oldPage.changes.length} changes, ${forwardedBytes} bytes within the 65536-byte fixture envelope.`);
+      ok(deliver("sync.push", replay.parameters, replay));
       exchange();
       assert.deepEqual(history(host, card), [independent], "Old data resurrected cleared history");
       assert.deepEqual(history(android, card), [independent]);

@@ -242,6 +242,9 @@ impl SpaceStore for WriteContext<'_> {
 
     fn rename_space(&mut self, space: &str, name: &str) -> CommandResult<()> {
         Ok(self.edit(space, |doc| {
+            if doc.get_all(ROOT, "name")?.len() > 1 {
+                doc.delete(ROOT, "name")?;
+            }
             doc.put(ROOT, "name", name)?;
             Ok(())
         })?)

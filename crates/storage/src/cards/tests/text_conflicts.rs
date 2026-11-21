@@ -60,6 +60,13 @@ pub(super) async fn exchange(a: &Storage, b: &Storage) {
     }
 }
 async fn conflicted() -> (TempDir, Storage, Storage, Arc<PendingAccess>) {
+    conflicted_fields(true, true).await
+}
+
+async fn conflicted_fields(
+    titles: bool,
+    descriptions: bool,
+) -> (TempDir, Storage, Storage, Arc<PendingAccess>) {
     let (dir, left, admin) = setup().await;
     let base = run!(&left, admin, create, creation(1, 9)).unwrap().result;
     let right = copy(&left, dir.path().join("right.db"), &admin).await;
@@ -67,14 +74,42 @@ async fn conflicted() -> (TempDir, Storage, Storage, Arc<PendingAccess>) {
         &left,
         admin,
         edit,
-        edit_req(2, 9, "Left title", "Left description", base.version)
+        edit_req(
+            2,
+            9,
+            if titles {
+                "Left title"
+            } else {
+                &base.titles[0]
+            },
+            if descriptions {
+                "Left description"
+            } else {
+                &base.descriptions[0]
+            },
+            base.version,
+        )
     )
     .unwrap();
     run!(
         &right,
         admin,
         edit,
-        edit_req(3, 9, "Right title", "Right description", base.version)
+        edit_req(
+            3,
+            9,
+            if titles {
+                "Right title"
+            } else {
+                &base.titles[0]
+            },
+            if descriptions {
+                "Right description"
+            } else {
+                &base.descriptions[0]
+            },
+            base.version,
+        )
     )
     .unwrap();
     exchange(&left, &right).await;
@@ -343,6 +378,60 @@ async fn independent_solutions_and_unseen_late_edits_reconflict_then_converge_wi
     assert_eq!(versions(&left, 9).await, versions(&right, 9).await);
     assert_eq!(versions(&left, 9).await, versions(&late, 9).await);
     assert_eq!(versions(&left, 9).await.len(), 7);
+}
+
+#[tokio::test]
+async fn independent_saved_text_choices_survive_both_delivery_orders_and_repeats() {
+    for (titles, descriptions) in [(true, true), (true, false), (false, true)] {
+        for reverse in [false, true] {
+            for (one, two) in [(0, 1), (1, 0), (0, 0), (1, 1)] {
+                let (_dir, left, right, admin) = conflicted_fields(titles, descriptions).await;
+                let before = fresh(&left, &admin, 4, 9).await;
+                let original_history = versions(&left, 9).await;
+                for (db, choice, id) in [(&left, one, 5), (&right, two, 6)] {
+                    run!(
+                        db,
+                        admin,
+                        resolve_text,
+                        resolution(
+                            id,
+                            &before.titles[if titles { choice } else { 0 }],
+                            &before.descriptions[if descriptions { choice } else { 0 }],
+                            before.version,
+                        )
+                    )
+                    .unwrap();
+                }
+                if reverse {
+                    exchange(&right, &left).await;
+                } else {
+                    exchange(&left, &right).await;
+                }
+                let actual = fresh(&left, &admin, 7, 9).await;
+                assert_eq!(actual, fresh(&right, &admin, 7, 9).await);
+                for (values, choices, conflicted) in [
+                    (&actual.titles, &before.titles, titles),
+                    (&actual.descriptions, &before.descriptions, descriptions),
+                ] {
+                    let mut expected = vec![
+                        choices[if conflicted { one } else { 0 }].clone(),
+                        choices[if conflicted { two } else { 0 }].clone(),
+                    ];
+                    expected.sort();
+                    expected.dedup();
+                    assert_eq!(*values, expected, "choices={one}/{two}, reverse={reverse}");
+                }
+                let history = versions(&left, 9).await;
+                assert_eq!(history, versions(&right, 9).await);
+                assert_eq!(history.len(), original_history.len() + 2);
+                for version in original_history {
+                    assert!(history.contains(&version));
+                }
+                left.shutdown().await.unwrap();
+                right.shutdown().await.unwrap();
+            }
+        }
+    }
 }
 
 #[tokio::test]

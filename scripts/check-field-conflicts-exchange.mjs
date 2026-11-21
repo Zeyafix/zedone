@@ -9,7 +9,13 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     ok(command(android, "sync.pause", { space, pairing, paused, expected: current.pause_version }));
   };
   const original = ok(command(host, "space.read", { space })).names[0];
-  for (const order of [["card", "column", "space"], ["space", "card", "column"], ["column", "space", "card"]]) {
+  const cases = [
+    { order: ["card", "column", "space"], choices: null },
+    { order: ["space", "card", "column"], choices: [0, 1] },
+    { order: ["column", "space", "card"], choices: [1, 0] },
+  ];
+  for (const { order, choices } of cases) {
+    const saved = choices !== null;
     const column = id(), card = id(), sibling = id();
     const parameters = kind => kind === "space" ? { space } : { space, [kind]: kind === "card" ? card : column };
     const read = (target, kind) => ok(command(target, `${kind}.read`, parameters(kind)));
@@ -36,9 +42,9 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
         assert.equal(ids.filter(id => id === space).length, 1);
       }
     };
-    const resolve = (target, kind, choice) => ok(command(target, kind === "card" ? "card.resolve_text" : `${kind}.resolve_name`, {
+    const resolve = (target, kind, choice, description = `Body ${choice}`) => ok(command(target, kind === "card" ? "card.resolve_text" : `${kind}.resolve_name`, {
       ...parameters(kind), expected: read(target, kind).version,
-      ...(kind === "card" ? { title: choice, description: `Body ${choice}` } : { name: choice }),
+      ...(kind === "card" ? { title: choice, description } : { name: choice }),
     }));
     ok(command(host, "column.create", { space, column, name: "Field column" }));
     for (const current of [card, sibling]) ok(command(host, "card.create", { space, column, card: current, title: "Field base", description: "Field body" }));
@@ -68,10 +74,12 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     const added = id();
     ok(command(android, "card.create", { space, column, card: added, title: "Created inside conflicted names", description: "" }));
     exchange(); pause(true);
-    for (const [target, label] of [[host, "PC choice"], [android, "Android choice"]]) {
+    for (const [side, target, label] of [[0, host, "PC choice"], [1, android, "Android choice"]]) {
+      const choice = choices?.[side];
       for (const kind of order) {
         const others = Object.fromEntries(["space", "column", "card"].filter(other => other !== kind).map(other => [other, read(target, other)]));
-        resolve(target, kind, `${kind} ${label}`);
+        const variants = kind === "card" ? conflicted.card.titles : conflicted[kind].names;
+        resolve(target, kind, saved ? variants[choice] : `${kind} ${label}`, saved && kind === "card" ? conflicted.card.descriptions[choice] : undefined);
         for (const [other, value] of Object.entries(others)) assert.deepEqual(own(read(target, other)), own(value), "Resolution changed another object's own fields");
         if (kind === "card") {
           assert.equal(read(target, kind).state, "active");
@@ -90,7 +98,8 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
       const current = read(host, kind);
       assert.equal(current.state, kind === "card" ? "conflicted" : "active");
       assert.deepEqual(read(android, kind), current);
-      assert.deepEqual(kind === "card" ? current.titles : current.names, [`${kind} Android choice`, `${kind} PC choice`]);
+      assert.deepEqual(kind === "card" ? current.titles : current.names, saved ? kind === "card" ? conflicted.card.titles : conflicted[kind].names : [`${kind} Android choice`, `${kind} PC choice`]);
+      if (kind === "card" && saved) assert.deepEqual(current.descriptions, conflicted.card.descriptions);
     }
     assert.equal(history(host).length, 5);
     for (const kind of order) resolve(android, kind, `Final ${kind}`);
@@ -114,6 +123,6 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     assert.deepEqual(ok(command(host, "card.read", { space, card: sibling })).completed, [true]);
     assert.deepEqual(ok(command(host, "card.read", { space, card: added })).titles, ["Created inside conflicted names"]);
     search();
-    console.log(`Actual APK combined field conflicts ${order.join(" → ")}: isolation/blocking/content/independent decisions/repeated delivery/history/reverse passed.`);
+    console.log(`Actual APK combined field conflicts ${order.join(" → ")} (${saved ? `saved choices ${choices.join("/")}` : "new choices"}): isolation/blocking/content/independent decisions/repeated delivery/history/reverse passed.`);
   }
 }

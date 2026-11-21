@@ -338,6 +338,105 @@ async fn independent_name_resolutions_reconflict_after_exchange_in_both_orders_a
 }
 
 #[tokio::test]
+async fn independent_saved_name_choices_survive_both_delivery_orders_and_repeats() {
+    for reverse in [false, true] {
+        for (one, two) in [
+            ("First", "Second"),
+            ("Second", "First"),
+            ("First", "First"),
+            ("Second", "Second"),
+        ] {
+            let (dir, left, admin) = setup().await;
+            seed(&left, &admin).await;
+            let page = left
+                .transact(|tx| {
+                    crate::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![])
+                })
+                .await
+                .unwrap();
+            let right = Storage::open(dir.path().join("right.db")).await.unwrap();
+            let owner = admin.clone();
+            right
+                .transact(move |tx| {
+                    tx.bootstrap_access(&owner)?;
+                    let selection = tx.read().sync_selection(&sid(1), &sid(9))?;
+                    tx.set_sync_selected(&sid(1), &sid(9), true, selection.version)?;
+                    tx.receive_sync_page(&sid(1), &sid(9), owner.subject(), &page)
+                })
+                .await
+                .unwrap();
+            let before = fresh(&left, &admin, 1, 1).await;
+            for (db, name, id) in [(&left, one, 2), (&right, two, 3)] {
+                run!(
+                    db,
+                    admin,
+                    resolve_name,
+                    resolution(id, name, before.version)
+                )
+                .unwrap();
+                let column = db
+                    .transact(|tx| Ok(tx.column_snapshot(&sid(1), &sid(2))?))
+                    .await
+                    .unwrap();
+                let key = admin.credential().0.to_vec();
+                db.transact(move |tx| {
+                    Ok(columns::resolve_name(
+                        tx,
+                        &Credential(&key),
+                        &Now,
+                        &req(
+                            id + 2,
+                            ResolveColumnName {
+                                space: sid(1),
+                                column: sid(2),
+                                name: name.into(),
+                                expected: column.version,
+                            },
+                        ),
+                    )?)
+                })
+                .await
+                .unwrap();
+            }
+            let mut deliveries = Vec::new();
+            for (source, destination) in [(&left, &right), (&right, &left)] {
+                let page = source
+                    .transact(|tx| {
+                        crate::sync_engine::page(tx.read().document(&sid(1))?, &sid(1), &vec![])
+                    })
+                    .await
+                    .unwrap();
+                deliveries.push((destination, page));
+            }
+            if reverse {
+                deliveries.reverse();
+            }
+            for (db, page) in deliveries {
+                db.transact(move |tx| {
+                    tx.push_sync(&sid(1), "exchange", &vec![], &page.changes)?;
+                    tx.push_sync(&sid(1), "exchange", &vec![], &page.changes)?;
+                    Ok(())
+                })
+                .await
+                .unwrap();
+            }
+            let actual = fresh(&left, &admin, 8, 1).await;
+            assert_eq!(actual, fresh(&right, &admin, 8, 1).await);
+            let mut expected = vec![one.to_owned(), two.to_owned()];
+            expected.sort();
+            expected.dedup();
+            assert_eq!(
+                actual.names, expected,
+                "choices={one}/{two}, reverse={reverse}"
+            );
+            assert_eq!(actual.contents.as_ref().unwrap().columns[0].names, expected);
+            left.shutdown().await.unwrap();
+            right.shutdown().await.unwrap();
+        }
+    }
+}
+
+#[tokio::test]
 async fn resolution_failures_roll_back_graph_and_receipt_at_commit_boundaries() {
     for stage in [
         Stage::AfterWork,

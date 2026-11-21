@@ -291,6 +291,9 @@ impl ColumnStore for WriteContext<'_> {
     fn rename_column(&mut self, space: &str, column: &str, name: &str) -> CommandResult<()> {
         let object = object(self.read().document(space)?, column)?;
         Ok(self.edit(space, |doc| {
+            if doc.get_all(&object, "name")?.len() > 1 {
+                doc.delete(&object, "name")?;
+            }
             doc.put(&object, "name", name)?;
             Ok(())
         })?)

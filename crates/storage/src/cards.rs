@@ -512,6 +512,12 @@ impl CardStore for WriteContext<'_> {
             let sequence = next_sequence(graph, &p.card)?;
             let history = map(graph, &object, "history")?;
             self.edit(&p.space, |doc| {
+                if before.titles.len() > 1 {
+                    doc.delete(&object, "title")?;
+                }
+                if before.descriptions.len() > 1 {
+                    doc.delete(&object, "description")?;
+                }
                 doc.put(&object, "title", p.title.as_str())?;
                 doc.put(&object, "description", p.description.as_str())?;
                 append_version(

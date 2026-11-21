@@ -14,6 +14,7 @@ use zedone_core::{
     replay::Execution,
     wire::{CommandRequest, decode_request},
 };
+mod long_offline;
 struct TestClock(u64);
 impl Clock for TestClock {
     fn now(&self) -> CommandResult<SystemTime> {

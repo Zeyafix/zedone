@@ -11,6 +11,8 @@ import { checkQrInput } from "./check-ui-qr-input.mjs";
 
 const root=resolve(import.meta.dir,"..");
 const binary=resolve(root,`target/debug/examples/shell-fixture${process.platform==="win32"?".exe":""}`);
+assert.ok(Bun.argv.length<=3,"Optional argument: browser executable path");
+const executablePath=Bun.argv[2];
 const directories=[], processes=[];
 let browser;
 let diagnostic;
@@ -58,7 +60,8 @@ try {
   const readOnlySpace="c".repeat(32);
   assert.equal((await api(a,"space.create",{space,name:"Личное"})).status,"ok");
   assert.equal((await api(a,"space.create",{space:readOnlySpace,name:"Только чтение"})).status,"ok");
-  browser=await chromium.launch({headless:true,args:["--disable-frame-rate-limit"]});
+  browser=await chromium.launch({executablePath,headless:true,args:["--disable-frame-rate-limit"]});
+  console.log(`Pairing UI browser: ${browser.version()}`);
   const context=await browser.newContext({viewport:{width:1280,height:900}});
   const first=await context.newPage(),second=await context.newPage();
   diagnostic=first;

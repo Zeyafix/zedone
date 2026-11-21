@@ -48,7 +48,7 @@ for (const [args, expected] of [
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
-  ...['agent', 'tags', 'fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
+  ...['agent', 'tags', 'fields', 'placements', 'container-deletion', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -57,8 +57,8 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
-const pairedSuites = ["pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-positions-cross", "pairing-positions-same"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
+const pairedSuites = ["pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
@@ -133,7 +133,7 @@ assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
 for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
-  ...['agent', 'tags', 'fields', 'placements', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
+  ...['agent', 'tags', 'fields', 'placements', 'container-deletion', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -220,7 +220,7 @@ async function pairingSuites(env = {}, args = [], failure = {}, failureAt = 0) {
 for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_POSITION_CONFLICTS_UI: "1" }, { P06_EXCHANGE_UI: "1", P06_TAG_CONFLICTS_UI: "1" }]) {
   const result = await pairingSuites(env);
   assert.equal(result.error, undefined); assert.equal(result.exit, 0);
-  assert.deepEqual(result.calls.map(call => call.command), ["--standard", "--positions", "--tags", "--agent"].map(suite => ["fixture-bun", "/fixture/check-pairing-app.mjs", suite]));
+  assert.deepEqual(result.calls.map(call => call.command), ["--standard", "--positions", "--tags", "--container-deletion", "--agent"].map(suite => ["fixture-bun", "/fixture/check-pairing-app.mjs", suite]));
   for (const call of result.calls) assert.equal(Object.hasOwn(call.env, "P06_EXCHANGE_UI"), Object.hasOwn(env, "P06_EXCHANGE_UI"), "Fixture timeout presence must not change");
   if (env.P06_EXCHANGE_UI === "1") {
     const ui = env.P06_TAG_CONFLICTS_UI === "1" ? 2 : env.P06_POSITION_CONFLICTS_UI === "1" ? 1 : 0;
@@ -292,7 +292,7 @@ for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixtur
 }
 
 assert.ok((await pairingSuites({}, ["invalid"])).error);
-for (const index of [0, 1, 2, 3]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
+for (const index of [0, 1, 2, 3, 4]) for (const failure of [{ exitCode: 23 }, { exitCode: null }, { exitCode: 0, signalCode: "SIGTERM" }]) {
   const result = await pairingSuites({}, [], failure, index);
   assert.ok(result.error); assert.equal(result.exit, undefined);
   assert.equal(result.calls.length, index + 1, "A failed suite must prevent a successful aggregate");

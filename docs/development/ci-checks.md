@@ -1,5 +1,24 @@
 # Проверки PR и кэши сборки
 
+## Обязательная парная матрица удаления
+
+Android job `pairing-container-deletion` выполняет прежний production APK
+bootstrap, acceptance build и `check-pairing-app.mjs --container-deletion`.
+Он включает одиночное удаление карточки, восстановление в другую колонку,
+удаление колонки/пространства, отказ очистке при конфликте и минимальное
+восстановление поздних правок. Default pairing runner тоже запускает этот
+селектор отдельным стендом с собственным восстановлением APK/данных/ключей.
+
+Прежние проверки сохранены, ожидается 27 checks: 15 Android, 3 Linux,
+6 Windows и три strict aggregates. Fixture без UI-паузы по-прежнему 240 секунд,
+Android job — 15 минут. Routing guard проверяет точный маршрут и отказ
+bootstrap/build/runtime, signals и всех пяти верхних default children;
+shell preparation guard проверяет прежние сборки для нового suite.
+Новый CI ещё не принят; локальные результаты и ограничения —
+[EV-144](../agent/verification/EV-144-current-exchange-acceptance.md).
+Это восполнение отсутствовавшего охвата GAP-051, оптимизация CI остаётся
+на паузе. Прежние 26 SUCCESS PR #119 не включают этот новый job.
+
 ## Отдельный search probe CI.18
 
 Поиск по 1000 карточкам остаётся обязательным с прежним реальным временем

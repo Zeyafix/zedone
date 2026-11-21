@@ -4,7 +4,7 @@ set -euo pipefail
 [[ ${CI:-} == true ]] || { echo 'This preparation is CI-only.' >&2; exit 1; }
 (( $# == 1 )) || { echo 'Expected one Android shell suite.' >&2; exit 1; }
 case $1 in
-    shell|pairing-agent|pairing-tags|pairing-fields|pairing-placements|pairing-positions-cross|pairing-positions-same) ;;
+    shell|pairing-agent|pairing-tags|pairing-fields|pairing-placements|pairing-container-deletion|pairing-positions-cross|pairing-positions-same) ;;
     *) echo 'Unknown Android shell suite.' >&2; exit 1 ;;
 esac
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)

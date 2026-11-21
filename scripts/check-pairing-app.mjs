@@ -25,7 +25,7 @@ const positions = suite?.startsWith('--positions');
 const tags = suite?.startsWith('--tags');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
 if (!suite || suite === '--tags') {
-    for (const current of suite === '--tags' ? ['--tags-convergence', '--tags-names', '--tags-deletion'] : ['--standard', '--positions', '--tags', '--agent']) {
+    for (const current of suite === '--tags' ? ['--tags-convergence', '--tags-names', '--tags-deletion'] : ['--standard', '--positions', '--tags', '--container-deletion', '--agent']) {
         const env = { ...process.env };
         const uiSuite = env.P06_TAG_CONFLICTS_UI === '1' ? suite === '--tags' ? '--tags-deletion' : '--tags' : env.P06_POSITION_CONFLICTS_UI === '1' ? '--positions' : '--standard';
         if (current !== uiSuite) {

@@ -14,9 +14,10 @@ bootstrap, acceptance build и `check-pairing-app.mjs --container-deletion`.
 Android job — 15 минут. Routing guard проверяет точный маршрут и отказ
 bootstrap/build/runtime, signals и всех пяти верхних default children;
 shell preparation guard проверяет прежние сборки для нового suite.
-Новый CI ещё не принят; локальные результаты и ограничения —
+CI PR #120/d25f673 принят после всех27 SUCCESS;
+локальные результаты и ограничения —
 [EV-144](../agent/verification/EV-144-current-exchange-acceptance.md).
-Это восполнение отсутствовавшего охвата GAP-051, оптимизация CI остаётся
+GAP-051 закрыт после проверки нового job и интеграции; оптимизация CI остаётся
 на паузе. Прежние 26 SUCCESS PR #119 не включают этот новый job.
 
 ## Отдельный search probe CI.18

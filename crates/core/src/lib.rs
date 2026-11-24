@@ -15,6 +15,7 @@ pub mod qr;
 pub mod replay;
 mod schema_descriptions;
 pub mod search;
+pub mod snapshots;
 pub mod spaces;
 pub mod sync;
 pub mod tag_assignments;
@@ -35,7 +36,7 @@ use utoipa::OpenApi;
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
         pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,
         sync::inspect, sync::select, sync::pause, sync::catalog, sync::pull, sync::push,
-        spaces::create, spaces::read, spaces::list, spaces::rename,
+        spaces::create, spaces::read, spaces::list, spaces::rename, snapshots::export, snapshots::import,
         spaces::trash, spaces::restore, spaces::resolve_name, spaces::resolve_deletion,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, columns::resolve_deletion, ordering::move_column, ordering::move_card,

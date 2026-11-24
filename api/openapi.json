@@ -1710,6 +1710,74 @@
         ]
       }
     },
+    "/v1/commands/space.export": {
+      "post": {
+        "tags": [
+          "snapshots"
+        ],
+        "operationId": "space_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ExportSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceArchive"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.import": {
+      "post": {
+        "tags": [
+          "snapshots"
+        ],
+        "operationId": "space_import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ImportSpace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_ImportedSpace"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.list": {
       "post": {
         "tags": [
@@ -3724,6 +3792,43 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ExportSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space"
+            ],
+            "properties": {
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_FinishCardEditing": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -3766,6 +3871,44 @@
               },
               "space": {
                 "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ImportSpace": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "archive"
+            ],
+            "properties": {
+              "archive": {
+                "type": "string",
+                "pattern": "^([0-9a-f]{2}){1,1048576}(?![\\s\\S])"
               }
             },
             "additionalProperties": false
@@ -6644,6 +6787,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_ImportedSpace": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_ImportedSpace"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_InvitationList": {
         "oneOf": [
           {
@@ -6692,6 +6846,17 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_SearchResults"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_SpaceArchive": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_SpaceArchive"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -7347,6 +7512,35 @@
         },
         "additionalProperties": false
       },
+      "CommandSuccess_ImportedSpace": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space"
+            ],
+            "properties": {
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandSuccess_InvitationList": {
         "type": "object",
         "required": [
@@ -7558,6 +7752,36 @@
                   "$ref": "#/components/schemas/SearchSpace"
                 },
                 "description": "Only spaces containing matches, in the same order as space.list."
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_SpaceArchive": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "archive"
+            ],
+            "properties": {
+              "archive": {
+                "type": "string",
+                "pattern": "^([0-9a-f]{2}){1,1048576}(?![\\s\\S])"
               }
             },
             "additionalProperties": false
@@ -8211,6 +8435,18 @@
           "error"
         ]
       },
+      "ExportSpace": {
+        "type": "object",
+        "required": [
+          "space"
+        ],
+        "properties": {
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "FinishCardEditing": {
         "type": "object",
         "required": [
@@ -8295,6 +8531,31 @@
           },
           "version": {
             "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportSpace": {
+        "type": "object",
+        "required": [
+          "archive"
+        ],
+        "properties": {
+          "archive": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{2}){1,1048576}(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportedSpace": {
+        "type": "object",
+        "required": [
+          "space"
+        ],
+        "properties": {
+          "space": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -9804,6 +10065,19 @@
           },
           "tag": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpaceArchive": {
+        "type": "object",
+        "required": [
+          "archive"
+        ],
+        "properties": {
+          "archive": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{2}){1,1048576}(?![\\s\\S])"
           }
         },
         "additionalProperties": false

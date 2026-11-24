@@ -249,5 +249,6 @@ pub(crate) fn capture(
     Ok(SpaceSnapshot { metadata, changes })
 }
 
+mod commands;
 #[cfg(test)]
 mod tests;

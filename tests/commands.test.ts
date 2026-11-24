@@ -16,6 +16,30 @@ function fixture() {
 }
 const parameters = { subject: "1".repeat(32) };
 
+test("space transfer retains large import intentions and validates operation-specific replies", async () => {
+  const {store,storage}=fixture();
+  const archive="00".repeat(40_000), subject="2".repeat(32), space=newSpaceId();
+  const id=await prepare(subject,"space.import",{archive},store);
+  const original=(await store.load(id))!.body;
+  expect(original.length).toBeGreaterThan(65536);
+  const sent:string[]=[];
+  const transport=ipcTransport(async(_,args)=>{
+    sent.push((args.invocation as {request:string}).request);
+    if(sent.length===1)throw new Error("lost reply");
+    return JSON.stringify({status:"ok",replayed:true,result:{space}});
+  },async()=>({subject,key:"approved"}));
+  expect((await new CommandClient(webIntentionStore(storage,"test"),transport).deliver(id)).status).toBe("completed");
+  expect(sent).toEqual([original,original]);
+  expect(validateResponse({status:"ok",replayed:false,result:{archive}},"space.export")).toBe(true);
+  for(const invalid of ["", "a", "abc", "GG", "00\n", "00".repeat(1024*1024+1)]) {
+    expect(validateResponse({status:"ok",replayed:false,result:{archive:invalid}},"space.export")).toBe(false);
+  }
+  expect(validateResponse({status:"ok",replayed:false,result:{archive}},"space.import")).toBe(false);
+  expect(validateResponse({status:"ok",replayed:false,result:{space}},"space.export")).toBe(false);
+  await expect(prepare(subject,"space.import",{archive:"00".repeat(2*1024*1024)},store)).rejects.toThrow("invalid_request");
+  await expect(prepare(subject,"space.create",{space,name:archive},store)).rejects.toThrow("invalid_request");
+});
+
 test("invitation codes stay outside intentions and snapshots with operation-specific validation", async () => {
   expect(Array.from(createHash("sha256").update("zedone/invitation-code/v1\0").update(Buffer.alloc(32,0x11)).digest())).toEqual([160,43,110,0,83,115,85,137,83,155,78,186,49,97,211,197,156,4,80,67,192,21,58,56,239,144,188,212,105,92,114,175]);
   const {invitation, code, verifier}=await newInvitation();

@@ -1,5 +1,4 @@
 use crate::{
-    MAX_REQUEST_BYTES,
     channel::{self, Fingerprint, Identity},
     secrets::Secret,
 };
@@ -28,12 +27,7 @@ pub async fn command(
     key: &[u8],
     body: &[u8],
 ) -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
-    if body.len()
-        > if path == "/v1/commands/sync.push" {
-            crate::MAX_EXCHANGE_BYTES
-        } else {
-            MAX_REQUEST_BYTES
-        }
+    if body.len() > crate::request_limit(path.strip_prefix("/v1/commands/").unwrap_or(""))
         || !path.starts_with("/v1/")
         || path.contains(['\r', '\n', '?', '#'])
     {

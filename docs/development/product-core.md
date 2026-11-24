@@ -1,5 +1,30 @@
 # Разработка продуктового Rust-ядра
 
+P07.02.3: `core::snapshots::{ExportSpace, ImportSpace, SnapshotStore}` задаёт
+общую авторизацию/replay. `storage::snapshot::commands` реализует порт в
+WriteContext, используя общий `capture_export` на той же Connection и прежний
+`import_snapshot`. Публикация графа, access_spaces и command_results атомарна.
+Использовать через Service::dispatch/timed_transact; доверенные методы storage
+не являются альтернативным внешним API. Экспорт сначала flush_document внутри той же транзакции, затем читает
+SQL-журнал: при внутренней композиции не теряются pending-правки контекста.
+Сам публичный экспорт не создаёт правок исходника или сессий.
+
+Публичные бюджеты берутся из core::snapshots; request_limit задаёт общий
+адаптерный предел JSON для Service/CLI/network. HTTP имеет прежний общий потолок,
+Service проверяет лимит конкретной операции до JSON decode. Общий TS-клиент
+сохраняет большие import-намерения перед отправкой, прежние ID/bytes и retry
+не меняются. Архив — lowercase hex, не серверный путь. Лимиты и права —
+[ADR-0076](../architecture/decisions/0076-authorized-space-transfer.md).
+
+Проверки `snapshot::commands::tests` входят в обычный workspace/native Android:
+границы commit/unknown+replay, SQL-отказ прав/receipt с caught-error poisoning,
+истечение во время захвата/публикации и экспортный бюджет. Адаптерные
+`commands::snapshots` проверяют HTTP/IPC/local CLI, настоящий TLS/network,
+архив больше 64 KiB, restart, два независимых импорта, корзину/возврат,
+строгий JSON/mismatch, Read/смену ключа/сужение прав/отзыв. Клиентский тест
+проверяет сохранение большого намерения, потерю ответа и runtime validation.
+Результаты и ограничения — [EV-149](../agent/verification/EV-149-authorized-space-transfer.md).
+
 P07.02.2 реализует доверенный `WriteContext::import_snapshot`: строгая схема
 всех исторических операций, новые согласованные ID/actors, сохранение порядка
 позиций/групп и пересчёт причинного графа до атомарной записи в обычной транзакции.
@@ -11,7 +36,7 @@ P07.02.2 реализует доверенный `WriteContext::import_snapshot`
 Android прогоны: два независимых импорта, полный граф/история/конфликты/aliases/
 purge boundary, продолжение через прежние операции/перезапуск, отсутствие
 доступа, семь классов недопустимого входа, бюджеты преобразования, реальные
-SQL-отказы и границы commit/unknown outcome. Публичный replay пока не реализован.
+SQL-отказы и границы commit/unknown outcome. Публичный replay добавлен в .3 ниже.
 Договор — [ADR-0075](../architecture/decisions/0075-independent-space-import.md),
 доказательства — [EV-148](../agent/verification/EV-148-independent-space-import.md).
 
@@ -20,8 +45,8 @@ P07.02.1 добавляет внутренний `Storage::export_snapshot` по
 в истории архивной копии, без изменений исходника и локальной сессии.
 Четыре проверки `cards::tests::history::export` включены в обычные Windows/native
 Android product tests; они проверяют продолжение сессии/restart, теги/корзину/
-конфликты/orphans и отказы модели/бюджетов. Публичных команд и файлового UI нет;
-авторизация будущего захвата обязана находиться в той же транзакции.
+конфликты/orphans и отказы модели/бюджетов. В .3 тот же захват вызывается
+в транзакции авторизации; файловый UI остаётся .4.
 Доказательства и ограничения —
 [EV-147](../agent/verification/EV-147-product-export-snapshot.md).
 

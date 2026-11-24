@@ -1,5 +1,31 @@
 # Разработка продуктового Rust-ядра
 
+P07.02.4: `ui/src/SpaceTransfer.vue` использует прежнюю очередь намерений
+`shell` и общий CommandClient. Результат export хранится только в памяти
+интерфейса до сохранения; потерянный ответ проверяется исходным намерением.
+Windows File/Blob не дают серверу файловых путей. Android `files.rs` передаёт
+MAX_ARCHIVE_BYTES из ядра в SnapshotFilesPlugin; выбранный SAF content URI
+не покидает Kotlin. ACTION_OPEN_DOCUMENT читает до limit+1 вне UI-потока,
+ACTION_CREATE_DOCUMENT создаёт новый документ без замены прежнего. Широкие
+storage permissions и постоянные URI grants не нужны. При ошибке записи мост
+пытается удалить только вновь созданный документ; гарантии атомарности
+произвольного провайдера или power-loss нет. Основание —
+[Android SAF](https://developer.android.com/training/data-storage/shared/documents-files).
+UI fileLimit — защитная ранняя проверка; тест сверяет её с производной схемой
+ImportSpace. Авторитетные бюджеты и валидация содержимого остаются в Rust.
+При visibilitychange перепроверка доступа временно скрывает перенос через
+v-show: компонент, выбранный файл, подготовленный архив и ожидающий SAF-вызов
+сохраняются. Удаление компонента в этот момент теряет ответ выбора и busy-сигнал.
+
+Проверки файлов: `bun test ./tests/snapshot-files.test.ts` и
+`bun scripts/check-ui-space-transfer.mjs` (после сборки shell-fixture; отдельно
+задавать UI_BROWSER_PATHS при необходимости). Сценарий включён в обычный
+`bun scripts/check-ui.mjs --main`; проверяет desktop/touch, повреждение,
+бюджет, lost-reply/reload/replay обеих команд, два импорта и обратные действия.
+Локальный Android UI проверяется через Device, не через browser/CDP;
+сборка APK — прежний `scripts/build-ui-android.mjs`. Приёмка и ограничения —
+[EV-150](../agent/verification/EV-150-space-transfer-files.md).
+
 P07.02.3: `core::snapshots::{ExportSpace, ImportSpace, SnapshotStore}` задаёт
 общую авторизацию/replay. `storage::snapshot::commands` реализует порт в
 WriteContext, используя общий `capture_export` на той же Connection и прежний

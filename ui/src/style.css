@@ -143,8 +143,8 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
 .column-panel { flex: 0 0 min(280px, 90%); min-width: 0; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 5px; padding: 18px; background: var(--surface); scroll-snap-align: start; }
 .column-panel h3 { margin: 0; overflow-wrap: anywhere; font-size: 18px; }
 .column-actions { display: grid; gap: 8px; margin-top: 28px; }
-.pending-panel { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 20px; margin: 24px 0; }
-.pending-panel p { font-size: 14px; color: var(--muted); }
+.pending-panel, .space-transfer { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 20px; margin: 24px 0; }
+.pending-panel p, .space-transfer p { font-size: 14px; color: var(--muted); }
 .pending-list li { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
 .action-error { color: var(--error); }
 .action-dialog { position: fixed; z-index: 11; inset: max(16px, env(safe-area-inset-top)) 16px auto; width: auto; max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; margin: auto; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); }

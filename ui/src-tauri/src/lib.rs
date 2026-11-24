@@ -9,6 +9,8 @@ use zedone_adapters::Service;
 
 #[cfg(target_os = "android")]
 pub mod devices;
+#[cfg(target_os = "android")]
+mod files;
 #[cfg(all(target_os = "android", feature = "pairing-acceptance"))]
 mod pairing_acceptance;
 #[cfg(target_os = "android")]
@@ -157,6 +159,7 @@ mod entry_point {
         tauri::Builder::default()
             .plugin(tauri_plugin_barcode_scanner::init())
             .plugin(super::secrets::plugin())
+            .plugin(super::files::plugin())
             .plugin(
                 tauri_plugin_opener::Builder::new()
                     .open_js_links_on_click(false)
@@ -186,6 +189,8 @@ mod entry_point {
             .invoke_handler(tauri::generate_handler![
                 super::shell_session,
                 super::zedone_command,
+                super::files::snapshot_file_open,
+                super::files::snapshot_file_save,
                 super::devices::device_host_start,
                 super::devices::device_host_stop,
                 super::devices::device_session

@@ -1,5 +1,81 @@
 # Разработка продуктового Rust-ядра
 
+P07.02.4: `ui/src/SpaceTransfer.vue` использует прежнюю очередь намерений
+`shell` и общий CommandClient. Результат export хранится только в памяти
+интерфейса до сохранения; потерянный ответ проверяется исходным намерением.
+Windows File/Blob не дают серверу файловых путей. Android `files.rs` передаёт
+MAX_ARCHIVE_BYTES из ядра в SnapshotFilesPlugin; выбранный SAF content URI
+не покидает Kotlin. ACTION_OPEN_DOCUMENT читает до limit+1 вне UI-потока,
+ACTION_CREATE_DOCUMENT создаёт новый документ без замены прежнего. Широкие
+storage permissions и постоянные URI grants не нужны. При ошибке записи мост
+пытается удалить только вновь созданный документ; гарантии атомарности
+произвольного провайдера или power-loss нет. Основание —
+[Android SAF](https://developer.android.com/training/data-storage/shared/documents-files).
+UI fileLimit — защитная ранняя проверка; тест сверяет её с производной схемой
+ImportSpace. Авторитетные бюджеты и валидация содержимого остаются в Rust.
+При visibilitychange перепроверка доступа временно скрывает перенос через
+v-show: компонент, выбранный файл, подготовленный архив и ожидающий SAF-вызов
+сохраняются. Удаление компонента в этот момент теряет ответ выбора и busy-сигнал.
+
+Проверки файлов: `bun test ./tests/snapshot-files.test.ts` и
+`bun scripts/check-ui-space-transfer.mjs` (после сборки shell-fixture; отдельно
+задавать UI_BROWSER_PATHS при необходимости). Сценарий включён в обычный
+`bun scripts/check-ui.mjs --main`; проверяет desktop/touch, повреждение,
+бюджет, lost-reply/reload/replay обеих команд, два импорта и обратные действия.
+Локальный Android UI проверяется через Device, не через browser/CDP;
+сборка APK — прежний `scripts/build-ui-android.mjs`. Приёмка и ограничения —
+[EV-150](../agent/verification/EV-150-space-transfer-files.md).
+
+P07.02.3: `core::snapshots::{ExportSpace, ImportSpace, SnapshotStore}` задаёт
+общую авторизацию/replay. `storage::snapshot::commands` реализует порт в
+WriteContext, используя общий `capture_export` на той же Connection и прежний
+`import_snapshot`. Публикация графа, access_spaces и command_results атомарна.
+Использовать через Service::dispatch/timed_transact; доверенные методы storage
+не являются альтернативным внешним API. Экспорт сначала flush_document внутри той же транзакции, затем читает
+SQL-журнал: при внутренней композиции не теряются pending-правки контекста.
+Сам публичный экспорт не создаёт правок исходника или сессий.
+
+Публичные бюджеты берутся из core::snapshots; request_limit задаёт общий
+адаптерный предел JSON для Service/CLI/network. HTTP имеет прежний общий потолок,
+Service проверяет лимит конкретной операции до JSON decode. Общий TS-клиент
+сохраняет большие import-намерения перед отправкой, прежние ID/bytes и retry
+не меняются. Архив — lowercase hex, не серверный путь. Лимиты и права —
+[ADR-0076](../architecture/decisions/0076-authorized-space-transfer.md).
+
+Проверки `snapshot::commands::tests` входят в обычный workspace/native Android:
+границы commit/unknown+replay, SQL-отказ прав/receipt с caught-error poisoning,
+истечение во время захвата/публикации и экспортный бюджет. Адаптерные
+`commands::snapshots` проверяют HTTP/IPC/local CLI, настоящий TLS/network,
+архив больше 64 KiB, restart, два независимых импорта, корзину/возврат,
+строгий JSON/mismatch, Read/смену ключа/сужение прав/отзыв. Клиентский тест
+проверяет сохранение большого намерения, потерю ответа и runtime validation.
+Результаты и ограничения — [EV-149](../agent/verification/EV-149-authorized-space-transfer.md).
+
+P07.02.2 реализует доверенный `WriteContext::import_snapshot`: строгая схема
+всех исторических операций, новые согласованные ID/actors, сохранение порядка
+позиций/групп и пересчёт причинного графа до атомарной записи в обычной транзакции.
+Тексты и исторические авторы не заменяются ID-подстановкой. `Schema::visit`
+используется и для проверки/сбора ссылок, и для преобразования; новое поле модели
+нужно явно поддержать здесь, иначе архив безопасно отклоняется. Числа проверяются
+по типу без допуска float/counter/timestamp через приведение `as_u64`.
+Шесть тестов `cards::tests::history::import` входят в штатные Windows/native
+Android прогоны: два независимых импорта, полный граф/история/конфликты/aliases/
+purge boundary, продолжение через прежние операции/перезапуск, отсутствие
+доступа, семь классов недопустимого входа, бюджеты преобразования, реальные
+SQL-отказы и границы commit/unknown outcome. Публичный replay добавлен в .3 ниже.
+Договор — [ADR-0075](../architecture/decisions/0075-independent-space-import.md),
+доказательства — [EV-148](../agent/verification/EV-148-independent-space-import.md).
+
+P07.02.1 добавляет внутренний `Storage::export_snapshot` поверх контейнера v1:
+согласованный продуктовый граф плюс последняя сохранённая pending-пара текста
+в истории архивной копии, без изменений исходника и локальной сессии.
+Четыре проверки `cards::tests::history::export` включены в обычные Windows/native
+Android product tests; они проверяют продолжение сессии/restart, теги/корзину/
+конфликты/orphans и отказы модели/бюджетов. В .3 тот же захват вызывается
+в транзакции авторизации; файловый UI остаётся .4.
+Доказательства и ограничения —
+[EV-147](../agent/verification/EV-147-product-export-snapshot.md).
+
 P06.09.1 проверяет конфликт удаления одиночной карточки через две продуктовые
 SQLite-реплики. Тесты `cards::tests::deletion_conflicts` проверяют независимые
 поля и решения, доставку, права и откат. Браузерный набор `--conflicts` открывает

@@ -89,7 +89,7 @@ export async function mutationCredential() {
 }
 
 export type AdministrationMutation = "access.issue" | "access.replace" | "access.revoke" | "invitation.cancel" | "pairing.confirm" | "pairing.reject" | "pairing.unlink";
-export async function createMutation<O extends Mutation | AdministrationMutation | "sync.select" | "sync.pause">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
+export async function createMutation<O extends Mutation | AdministrationMutation | "sync.select" | "sync.pause" | "space.export" | "space.import">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
   const credential = await mutationCredential();
   if (subject !== undefined && credential.subject !== subject) throw new Error("identity_changed");
   const saved = store();

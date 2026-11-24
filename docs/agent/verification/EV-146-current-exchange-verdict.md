@@ -3,6 +3,10 @@
 Дата: 2026-11-23. P06.13.2.1, LOG-793/794. База документов `55b2da7`,
 ветка `test/p06-13-2-1-current-verdict`; продукт интегрирован в `d25f673`.
 
+Сводный вердикт интегрирован [PR #121](https://github.com/Zeyafix/zedone/pull/121)
+в `c1c2d09` по LOG-797; исходная ветка удалена. Ниже сохранены исходная
+карточка и проверки локального среза; окончательные сведения — в конце отчёта.
+
 ## Карточка
 
 - Цель: вынести общий вердикт по всем 36 критериям P06 на основании полного
@@ -155,3 +159,30 @@ passed согласован с реестром, включая ранее passe
 исключают docs своими path filters; новый продуктовый CI не заявляется.
 Перед merge проверить actual checks, правила ветки, exact head/base и
 отсутствие блокирующего feedback. Публикация пока ожидается.
+
+## Публикация и интеграция — LOG-796/797
+
+[PR #121](https://github.com/Zeyafix/zedone/pull/121), head `8bf06f3`,
+base main/`d25f673`: девять документов,737 additions/90 deletions.
+Title/body/Testing/credit и полный staged diff проверены; noreply и privacy
+подтверждены, код/UI прежние. Локальная валидация полного PR прошла:
+316 fingerprints,98 определений/34 повышения/64 остальных состояния,
+72 строки проблем,188 узлов очереди без циклов и693 относительные ссылки.
+
+На новом PR checks отсутствуют по path filters всех трёх workflow; правила
+ветки main и required checks пусты, legacy protection disabled. Прежние
+26/27 SUCCESS принадлежат PR #119/#120, нового product CI нет. Перед merge
+свежие summary/checks/conversation подтвердили exact head/base, non-draft,
+MERGEABLE/behindBy0 и отсутствие замечаний без truncation; Testing уточнён
+и прочитан обратно. Это принятые применимые проверки документационного среза.
+
+Штатный merge с expected head создал `c1c2d0962c4e488b7cb17a4c4135efa1a786a66c`,
+parents d25f673/8bf06f3; merge tree равен reviewed head. Main=origin/main,
+рабочая ветка удалена remote с lease точного head и local branch-d;
+local/remote/tracking refs отсутствуют, local state сохранён SHA-256.
+Повторное чтение PR подтвердило merged и отсутствие checks/feedback.
+
+Текущий P06/T09/A51 принят, A47 partial/GAP-050 open остаются POST.01;
+все98 определения/состояния и прочие проблемы сохранены. Пять правил/границы
+прежние, следующий P07.02 не начат. Этот интеграционный checkpoint локальный
+без нового commit/push; runtime/Device не повторяются для неизменённого продукта.

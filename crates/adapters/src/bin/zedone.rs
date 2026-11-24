@@ -2,7 +2,7 @@ use std::{
     io::{Read, Write},
     path::Path,
 };
-use zedone_adapters::{MAX_REQUEST_BYTES, Service};
+use zedone_adapters::Service;
 use zedone_core::{
     error::{CommandError, ErrorCode},
     wire::CommandResponse,
@@ -58,13 +58,7 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
         .map_err(|_| ErrorCode::AccessDenied)?;
     let mut body = Vec::new();
     std::io::stdin()
-        .take(
-            (if args[5] == "sync.push" {
-                zedone_adapters::MAX_EXCHANGE_BYTES
-            } else {
-                MAX_REQUEST_BYTES
-            } + 1) as u64,
-        )
+        .take((zedone_adapters::request_limit(&args[5]) + 1) as u64)
         .read_to_end(&mut body)
         .map_err(|_| ErrorCode::InvalidRequest)?;
     let storage = zedone_storage::Storage::open(&args[1])
@@ -120,13 +114,7 @@ async fn remote(args: &[String]) -> Result<CommandResponse<serde_json::Value>, E
     }
     let mut body = zedone_adapters::secrets::Secret::new(Vec::new());
     std::io::stdin()
-        .take(
-            (if operation == "sync.push" {
-                zedone_adapters::MAX_EXCHANGE_BYTES
-            } else {
-                MAX_REQUEST_BYTES
-            } + 1) as u64,
-        )
+        .take((zedone_adapters::request_limit(operation) + 1) as u64)
         .read_to_end(&mut body)
         .map_err(|_| ErrorCode::InvalidRequest)?;
     let kind = if operation.starts_with("session.")

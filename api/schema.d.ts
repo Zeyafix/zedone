@@ -799,6 +799,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/space.export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_export"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.list": {
         parameters: {
             query?: never;
@@ -1659,6 +1691,30 @@ export interface components {
                 title: string;
             };
         };
+        CommandRequest_ExportSpace: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                space: string;
+            };
+        };
         CommandRequest_FinishCardEditing: {
             id: [
                 number,
@@ -1684,6 +1740,30 @@ export interface components {
                 expected: components["schemas"]["StateVersion"];
                 session: string;
                 space: string;
+            };
+        };
+        CommandRequest_ImportSpace: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                archive: string;
             };
         };
         CommandRequest_InspectAccess: {
@@ -3252,11 +3332,13 @@ export interface components {
         CommandResponse_ColumnPositions: components["schemas"]["CommandSuccess_ColumnPositions"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_HistoryPreview: components["schemas"]["CommandSuccess_HistoryPreview"] | components["schemas"]["CommandFailure"];
+        CommandResponse_ImportedSpace: components["schemas"]["CommandSuccess_ImportedSpace"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationSnapshot: components["schemas"]["CommandSuccess_InvitationSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingList: components["schemas"]["CommandSuccess_PairingList"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingSnapshot: components["schemas"]["CommandSuccess_PairingSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
+        CommandResponse_SpaceArchive: components["schemas"]["CommandSuccess_SpaceArchive"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceSnapshot: components["schemas"]["CommandSuccess_SpaceSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_SyncCatalog: components["schemas"]["CommandSuccess_SyncCatalog"] | components["schemas"]["CommandFailure"];
@@ -3380,6 +3462,13 @@ export interface components {
             };
             status: components["schemas"]["SuccessStatus"];
         };
+        CommandSuccess_ImportedSpace: {
+            replayed: boolean;
+            result: {
+                space: string;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
         CommandSuccess_InvitationList: {
             replayed: boolean;
             result: {
@@ -3424,6 +3513,13 @@ export interface components {
             replayed: boolean;
             result: {
                 spaces: components["schemas"]["SearchSpace"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_SpaceArchive: {
+            replayed: boolean;
+            result: {
+                archive: string;
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3564,6 +3660,9 @@ export interface components {
         };
         ErrorCode: "invalid_request" | "incompatible_sync" | "access_denied" | "not_found" | "stale_state" | "conflict" | "command_mismatch" | "unavailable" | "outcome_unknown";
         ErrorStatus: "error";
+        ExportSpace: {
+            space: string;
+        };
         FinishCardEditing: {
             card: string;
             expected: components["schemas"]["StateVersion"];
@@ -3582,6 +3681,12 @@ export interface components {
             space: string;
             text_bytes: number;
             version: components["schemas"]["StateVersion"];
+        };
+        ImportSpace: {
+            archive: string;
+        };
+        ImportedSpace: {
+            space: string;
         };
         InspectAccess: {
             subject: string;
@@ -3920,6 +4025,9 @@ export interface components {
             present: boolean;
             space: string;
             tag: string;
+        };
+        SpaceArchive: {
+            archive: string;
         };
         SpaceContents: {
             cards: components["schemas"]["CardSnapshot"][];
@@ -5190,6 +5298,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
+    space_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ExportSpace"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceArchive"];
+                };
+            };
+        };
+    };
+    space_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ImportSpace"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_ImportedSpace"];
                 };
             };
         };

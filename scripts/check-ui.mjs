@@ -20,6 +20,7 @@ assert.equal(node.stdout.toString().trim(), `v${nodeVersion}`, "vue-tsc Node run
 console.log(`vue-tsc runtime Node ${nodeVersion}; repository baseline ${versions.node}`);
 if (mode !== "--conflicts") {
   run([process.execPath, "test", resolve(root, "tests/qr-scanner.test.ts")]);
+  run([process.execPath, "test", resolve(root, "tests/snapshot-files.test.ts")]);
   run([nodePath, "node_modules/vue-tsc/bin/vue-tsc.js", "-p", "ui/tsconfig.json"]);
 }
 run([process.execPath, "run", "ui:build"]);

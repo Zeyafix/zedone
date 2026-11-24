@@ -33,6 +33,7 @@ use zedone_core::{
     placements::{self, InspectCardPlacements, ResolveCardPlacement},
     replay::Execution,
     search::{self, SearchCards},
+    snapshots::{self, ExportSpace, ImportSpace},
     spaces::{
         self, CreateSpace, ListSpaces, ReadSpace, RenameSpace, ResolveSpaceDeletion,
         ResolveSpaceName, RestoreSpace, TrashSpace,
@@ -47,6 +48,14 @@ use zedone_storage::Storage;
 
 pub const MAX_REQUEST_BYTES: usize = 64 * 1024;
 pub const MAX_EXCHANGE_BYTES: usize = 3 * 1024 * 1024;
+
+pub fn request_limit(operation: &str) -> usize {
+    if matches!(operation, "sync.push" | "space.import") {
+        MAX_EXCHANGE_BYTES
+    } else {
+        MAX_REQUEST_BYTES
+    }
+}
 
 #[derive(Clone)]
 pub struct Service {
@@ -69,7 +78,7 @@ impl Service {
         };
         let result = async {
             let secret = decode_key(key)?;
-            if body.len() > if operation == "sync.push" { MAX_EXCHANGE_BYTES } else { MAX_REQUEST_BYTES } {
+            if body.len() > request_limit(operation) {
                 return Err(invalid());
             }
             macro_rules! run {
@@ -119,6 +128,8 @@ impl Service {
                 ConfirmPairing::NAME => run!(ConfirmPairing, pending::confirm),
                 RejectPairing::NAME => run!(RejectPairing, pending::reject),
                 UnlinkPairing::NAME => run!(UnlinkPairing, pending::unlink),
+                ExportSpace::NAME => run!(ExportSpace, snapshots::export),
+                ImportSpace::NAME => run!(ImportSpace, snapshots::import),
                 CreateSpace::NAME => run!(CreateSpace, spaces::create),
                 ReadSpace::NAME => run!(ReadSpace, spaces::read),
                 ListSpaces::NAME => run!(ListSpaces, spaces::list),

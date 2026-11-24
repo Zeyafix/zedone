@@ -16,6 +16,7 @@ import HistoryScope from "./HistoryScope.vue";
 import type { HistoryPreview } from "./workspace-api";
 import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./editor-drafts";
 import { pendingChanged } from "./workspace-api";
+import SpaceTransfer from "./SpaceTransfer.vue";
 
 const props = defineProps<{ ready: boolean }>();
 type Action =
@@ -85,6 +86,7 @@ const moving = ref(false), placementBusy = ref(false);
 const error = ref("");
 const notice = ref("");
 const pending = ref<Pending[]>([]);
+const transferPanel = ref<InstanceType<typeof SpaceTransfer>>();
 const drafts = ref<EditorDraft[]>([]);
 const recovering = ref<string>();
 const editor = ref<InstanceType<typeof CardEditor>>();
@@ -333,6 +335,8 @@ async function retry(id: string) {
     if (lifecycle && result.response?.status === "error" && !["unavailable", "outcome_unknown"].includes(result.response.error.code)) actionRefused.value = true;
     if (result.status === "completed") {
       notice.value = "Действие подтверждено.";
+      if (original?.intention.operation === "space.export" && result.response.status === "ok" && "archive" in result.response.result) transferPanel.value?.acceptExport(result.response.result.archive);
+      if (original?.intention.operation === "space.import") notice.value = "Независимое пространство импортировано. Проверьте список пространств и корзину.";
       dialogOpen.value = false;
       if (original?.intention.operation === "trash.purge" || original?.intention.operation === "trash.resolve_purge") {
         const parameters = JSON.parse(original.intention.body).parameters;
@@ -425,6 +429,8 @@ async function submit() {
   await retry(id);
 }
 function pendingLabel(item: Pending) {
+  if (item.intention.operation === "space.export") return "Экспорт пространства";
+  if (item.intention.operation === "space.import") return "Импорт пространства";
   return labels[item.intention.operation as Mutation] ?? "Незавершённое действие";
 }
 function pendingName(item: Pending) {
@@ -447,6 +453,7 @@ function pendingName(item: Pending) {
         <button class="search-toggle" :aria-expanded="searchOpen" :disabled="busy || moving" @click="searchOpen = !searchOpen">{{ searchOpen ? 'Закрыть поиск' : 'Поиск карточек' }}</button>
       </div>
     </div>
+    <SpaceTransfer v-show="ready" ref="transferPanel" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     <p v-if="storageError" role="alert" class="action-error">Не удалось прочитать очередь действий на устройстве. Изменения недоступны, пока хранилище не заработает. <button @click="loadPending">Проверить хранилище</button></p>

@@ -65,7 +65,9 @@ export async function checkSpaceTransfer(browser, executable) {
       assert.deepEqual((await current()).tags, []);
       const original = await command("space.read", { space });
       async function choose(buffer = bytes) {
-        await panel.locator('input[type="file"]').setInputFiles({ name: "space.zedspace", mimeType: "application/octet-stream", buffer });
+        const chooser = page.waitForEvent("filechooser");
+        await button("Выбрать файл для импорта").click();
+        await (await chooser).setFiles({ name: "space.zedspace", mimeType: "application/octet-stream", buffer });
       }
       const chooser = page.waitForEvent("filechooser");
       await button("Выбрать файл для импорта").click();

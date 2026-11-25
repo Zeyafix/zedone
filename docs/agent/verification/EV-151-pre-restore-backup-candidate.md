@@ -92,3 +92,14 @@ A47/GAP-050 в POST.01. Новых commit/push/PR/CI/merge нет.
 | crates/storage/src/snapshot/export.rs | aef31961a8908bc870ad2d19bbae483a538f823361058427446afc89c9713635 |
 | crates/storage/src/restore_backup.rs | 3732ff351d65f79777673de886fd404f3ea21f3bffb8cf44c232db672cfa488b |
 | crates/storage/src/restore_backup/tests.rs | b7167687650e379c6b3fe484bdb866decefc7e9ccd88dbb16527df336dd17f7a |
+
+## Интеграция — 2026-11-25
+
+[PR #123](https://github.com/Zeyafix/zedone/pull/123), head `ce0a415`,
+merged в `0e42c68` после всех27 SUCCESS Windows/Linux/Android.
+Дерево merge равно проверенному head; comments/unresolved threads/pending/failed
+отсутствуют. Полный P07.03 и .1/.2/.3/.4 done в проверенном охвате.
+Main/origin/main обновлены, feature-ветка удалена локально и на GitHub; LOG-817.
+Исходные локальные результаты/ограничения и все98 состояния/72 проблемы
+сохранены; T10/A09/A44 partial, полный P07 не принимается автоматически.
+Интеграционная запись локальная, без отдельного коммита и повторного runtime/CI.

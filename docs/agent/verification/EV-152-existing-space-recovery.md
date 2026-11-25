@@ -151,3 +151,38 @@ SHA-256 окончательных исходников и производны�
 | ui/src/SpaceRecovery.vue | ad9e1f886b1703a5b73186ccf75728f16ad1ad26e0fb1a56edf1ea952c8b829b |
 | ui/src/SpacesView.vue | db6eedd9a9f80bae707259d9e99de40bf5e7d78930ada44dfdb59bf76a166cad |
 | ui/src/workspace-api.ts | e7cb4fdc33ba5e76180360f0321aecea9fb1b3a356588fe1b7df264aef68f24e |
+
+## Интеграция — 2026-11-25
+
+[PR #123](https://github.com/Zeyafix/zedone/pull/123), head `ce0a415`,
+merged в `0e42c68` после всех27 SUCCESS Windows/Linux/Android.
+Дерево merge равно проверенному head; comments/unresolved threads/pending/failed
+отсутствуют. Полный P07.03 и .1/.2/.3/.4 done в проверенном охвате.
+Main/origin/main обновлены, feature-ветка удалена локально и на GitHub; LOG-817.
+Исходные локальные результаты/ограничения и все98 состояния/72 проблемы
+сохранены; T10/A09/A44 partial, полный P07 не принимается автоматически.
+Интеграционная запись локальная, без отдельного коммита и повторного runtime/CI.
+
+## Post-merge CI — диагностика 2026-11-25, LOG-818
+
+Все27 SUCCESS выше относятся к PR head `ce0a415`. Отдельный push-run
+[Android 45621118870](https://github.com/Zeyafix/zedone/actions/runs/45621118870)
+на merge `0e42c68` failed, хотя Git tree равен проверенному head:
+
+- [prototype-ui](https://github.com/Zeyafix/zedone/actions/runs/45621118870/job/139229219197):
+  Maven Central HTTP429 для POM junit:junit:4.13.2 при сборке AndroidTest,
+  до instrumentation. Внешний dependency resolution отказ, GAP-037 open;
+  configuration-cache serialization сообщение вторично.
+- [shell](https://github.com/Zeyafix/zedone/actions/runs/45621118870/job/139229219052):
+  check-ui-search.mjs:58, all→search(marker), ready timeout10000ms.
+  UI configured, без alerts/pageErrors, результаты сброшены, статус предлагает
+  нажать «Найти». События ввода/submit/IPC не сохранены, artifacts отсутствуют;
+  причина не доказана (GAP-053), потерянный touch/поздний invalidate — гипотезы.
+- Aggregate android отклонил failure остальных suites; ещё13 Android suites
+  и отдельный [host run](https://github.com/Zeyafix/zedone/actions/runs/45621118386)
+  SUCCESS. Это не полный успешный post-merge CI.
+
+Источники — свежие GitHub jobs/logs/artifacts и исходники; полный результат
+сравнения с прежним merge #122 и дефект пути server stderr — LOG-818.
+Продукт и CI не менялись, runtime/Device/rerun не запускались; приёмка EV-152
+не расширяется, P07.03 интегрирован, GAP-037/047/053 требуют отдельной проверки.

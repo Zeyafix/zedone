@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        google()
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        gradlePluginPortal()
+    }
+}
+
 def sourceRoot = rootDir.toPath().resolve("../../../..").normalize().toFile()
 def commentCheck = providers.exec {
     workingDir(sourceRoot)

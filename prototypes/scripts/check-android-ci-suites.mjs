@@ -276,17 +276,33 @@ for (const invalid of ['same', null, 0, 1]) assert.throws(() => positionConflict
 const failureStart = pairingSource.indexOf('    const serverCode = await server.exited;');
 const failureReport = pairingSource.slice(failureStart, pairingSource.indexOf('    if (cleanupError)', failureStart));
 assert.ok(failureStart > 0 && failureReport.includes('assert.equal(serverCode, 0'));
-for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixture timeout','fixture_timeout'], [101,'private-key-secret other panic','unclassified']]) {
-  const messages = [];
-  let error, reads = 0;
+const serverStart = pairingSource.indexOf("const serverDirectory = resolve(report, 'server');");
+const serverSetup = pairingSource.slice(serverStart, pairingSource.indexOf('let installed =', serverStart));
+assert.ok(serverStart > 0 && serverSetup.includes('Bun.spawn'));
+for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixture timeout','fixture_timeout'], [101,'private-key-secret other panic','unclassified'], [101,'','unclassified'], [101,null,'unclassified']]) {
+  const messages = [], reads = [], files = new Map();
+  let error, stderrPath, now = 0;
   try {
-    await runInNewContext('(async () => {' + failureReport + '})()', {
-      server: {exited:Promise.resolve(code)}, serverStarted:100, serverDirectory:'/fixture', Date:{now:()=>200}, resolve,
-      Bun:{file:()=>({text:async()=>{reads++;return stderr;}})}, assert, console:{error:value=>messages.push(value)},
+    await runInNewContext('(async () => {' + serverSetup + failureReport + '})()', {
+      root:'/fixture', report:'/fixture/reports/pairing run', testBinary:'fixture-test', process:{env:{}},
+      mkdir:async()=>{}, Date:{now:()=>now+=100}, resolve,
+      Bun:{
+        file:path=>({path, text:async()=>{
+          reads.push(path);
+          if (!files.has(path)) throw new Error('Unreadable fixture log');
+          return files.get(path);
+        }}),
+        spawn(command, options) {
+          stderrPath = options.stderr.path;
+          if (stderr !== null) files.set(stderrPath, stderr);
+          return {exited:Promise.resolve(code)};
+        },
+      }, assert, console:{error:value=>messages.push(value)},
     });
   } catch (cause) { error = cause; }
   assert.equal(Boolean(error),code!==0,'Fixture failure must still fail acceptance');
-  assert.equal(reads,code===0?0:1);
+  assert.equal(error?.code,code===0?undefined:'ERR_ASSERTION');
+  assert.deepEqual(reads,code===0?[]:[stderrPath], 'Diagnostics must read the file used by the server stderr sink');
   assert.deepEqual(messages,code===0?[]:[`Host fixture failure: exit=${code} reason=${reason} elapsed_ms=100`]);
   assert.ok(!messages.join('').includes('private-key-secret'));
 }

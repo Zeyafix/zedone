@@ -107,9 +107,10 @@ invoke(['cargo', `+${versions.rust}`, 'build', '-p', 'zedone-adapters', '--bin',
 const cli = resolve(root, `target/debug/zedone${suffix}`);
 const serverDirectory = resolve(report, 'server');
 await mkdir(serverDirectory);
+const serverErrorLog = resolve(report, 'server-errors.log');
 const serverStarted = Date.now();
 const server = Bun.spawn([testBinary, '--ignored', '--exact', 'device_host::tests::acceptance_server'], {
-    cwd: root, env: { ...process.env, ZEDONE_PAIRING_FIXTURE: serverDirectory }, stdin: 'ignore', stdout: Bun.file(resolve(report, 'server.log')), stderr: Bun.file(resolve(report, 'server-errors.log')),
+    cwd: root, env: { ...process.env, ZEDONE_PAIRING_FIXTURE: serverDirectory }, stdin: 'ignore', stdout: Bun.file(resolve(report, 'server.log')), stderr: Bun.file(serverErrorLog),
 });
 let installed = false, reverse, forward, android, passedChecks, uiFixture;
 async function cleanupUiFixture() {
@@ -474,7 +475,7 @@ finally {
     }
     const serverCode = await server.exited;
     if (serverCode !== 0) {
-        const stderr = await Bun.file(resolve(serverDirectory, 'server-errors.log')).text().catch(() => '');
+        const stderr = await Bun.file(serverErrorLog).text().catch(() => '');
         const reason = stderr.includes('fixture timeout') ? 'fixture_timeout' : 'unclassified';
         console.error(`Host fixture failure: exit=${serverCode} reason=${reason} elapsed_ms=${Date.now() - serverStarted}`);
     }

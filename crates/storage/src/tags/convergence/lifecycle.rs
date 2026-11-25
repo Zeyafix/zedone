@@ -48,6 +48,12 @@ pub(super) fn values(graph: &Automerge, ids: &[String]) -> StorageResult<Vec<boo
         .iter()
         .map(|id| object(graph, id))
         .collect::<StorageResult<Vec<_>>>()?;
+    for object in &objects {
+        if crate::recovery_flags::active(graph, object, crate::recovery_flags::CONFLICT, "deleted")?
+        {
+            return Ok(vec![false, true]);
+        }
+    }
     let mut values = candidates(graph, &objects, "deleted", |v| v.as_bool())?;
     if values.iter().all(|value| !value.value) {
         return Ok(vec![false]);

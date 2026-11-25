@@ -12,6 +12,7 @@ pub mod ordering;
 pub mod pairing;
 pub mod placements;
 pub mod qr;
+pub mod recovery;
 pub mod replay;
 mod schema_descriptions;
 pub mod search;
@@ -37,6 +38,7 @@ use utoipa::OpenApi;
         pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,
         sync::inspect, sync::select, sync::pause, sync::catalog, sync::pull, sync::push,
         spaces::create, spaces::read, spaces::list, spaces::rename, snapshots::export, snapshots::import,
+        recovery::inspect, recovery::restore, recovery::read_backup, recovery::pause,
         spaces::trash, spaces::restore, spaces::resolve_name, spaces::resolve_deletion,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, columns::resolve_deletion, ordering::move_column, ordering::move_card,

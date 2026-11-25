@@ -84,6 +84,7 @@ pub(super) struct Group {
 
 pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
     let mut births = BTreeMap::<String, Vec<(String, ObjId, Vec<ChangeHash>)>>::new();
+    let mut retired = Vec::new();
     for root in graph.keys(ROOT) {
         if let Some(id) = root.strip_prefix("tag:") {
             if !valid_id(id) {
@@ -91,6 +92,22 @@ pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
             }
             raw(graph, id)?;
             let object = object(graph, id)?;
+            if crate::recovery_flags::active(
+                graph,
+                &object,
+                crate::recovery_flags::RETIRED_TAG,
+                "deleted",
+            )? && lifecycle::values(graph, &[id.into()])? == [true]
+            {
+                retired.push(Group {
+                    ids: vec![id.into()],
+                    names: strings(graph, &object, "name")?,
+                    deleted: vec![true],
+                    ambiguous: false,
+                    bridge: Vec::new(),
+                });
+                continue;
+            }
             let hash = graph.hash_for_opid(&object).ok_or_else(invalid)?;
             let initial = graph.get_all_at(&object, "name", &[hash])?;
             if initial.len() != 1 {
@@ -104,7 +121,7 @@ pub(super) fn groups(graph: &Automerge) -> StorageResult<Vec<Group>> {
             ));
         }
     }
-    let mut result = Vec::new();
+    let mut result = retired;
     for mut cohort in births.into_values() {
         cohort.sort_by(|a, b| a.0.cmp(&b.0));
         let mut membership: Vec<usize> = (0..cohort.len()).collect();

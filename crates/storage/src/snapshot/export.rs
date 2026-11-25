@@ -16,7 +16,7 @@ impl Storage {
     }
 }
 
-pub(super) fn capture_export(
+pub(crate) fn capture_export(
     connection: &Connection,
     space: String,
     created_at_unix_ms: u64,

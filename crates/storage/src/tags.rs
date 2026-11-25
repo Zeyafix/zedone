@@ -84,9 +84,16 @@ fn deleted(graph: &Automerge, object: &ObjId) -> StorageResult<Vec<bool>> {
 fn raw(graph: &Automerge, tag: &str) -> StorageResult<()> {
     let object = object(graph, tag)?;
     if strings(graph, &object, "format")? != ["zedone.tag.v1"]
-        || graph
-            .keys(&object)
-            .any(|k| !matches!(k.as_str(), "format" | "name" | "deleted"))
+        || graph.keys(&object).any(|k| {
+            !matches!(
+                k.as_str(),
+                "format"
+                    | "name"
+                    | "deleted"
+                    | crate::recovery_flags::CONFLICT
+                    | crate::recovery_flags::RETIRED_TAG
+            )
+        })
     {
         return Err(invalid());
     }

@@ -160,7 +160,9 @@ pub(crate) fn snapshot(
         }
         .into());
     }
-    let state = if lifecycle.len() != 1 || independent || purge_conflict {
+    let restored_conflict =
+        crate::recovery_flags::active(graph, &ROOT, crate::recovery_flags::CONFLICT, "lifecycle")?;
+    let state = if lifecycle.len() != 1 || independent || purge_conflict || restored_conflict {
         SpaceState::Conflicted
     } else if lifecycle[0] == "active" {
         SpaceState::Active
@@ -171,7 +173,12 @@ pub(crate) fn snapshot(
     let empty = graph.keys(ROOT).all(|key| {
         matches!(
             key.as_str(),
-            "format" | "name" | "lifecycle" | "history" | crate::cards::deletion::PURGE_BOUNDARY
+            "format"
+                | "name"
+                | "lifecycle"
+                | "history"
+                | crate::cards::deletion::PURGE_BOUNDARY
+                | crate::recovery_flags::CONFLICT
         )
     });
     let version = state_version(&("space.v1", space), &projection(graph)?)?;

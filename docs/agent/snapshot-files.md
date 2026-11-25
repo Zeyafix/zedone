@@ -7,6 +7,14 @@ storage callbacks вместо команд. Восстановление исх
 отдельный будущий сценарий P07.03. Файловый UI P07.02.4 использует те же команды;
 порядок выбора/сохранения — [перенос пространства](../user/space-transfer.md).
 
+Восстановление существующего пространства подключено отдельными
+[командами восстановления](space-recovery.md). Внутренний страховочный кандидат
+P07.03.1 не заменяет их; не вызывать storage callbacks и не писать SQLite/файлы
+вместо общего API. `space.import` создаёт независимую копию, а `space.restore`
+возвращает пространство из корзины. Технические границы —
+[ADR-0077](../architecture/decisions/0077-pre-restore-backup-candidate.md) и
+[ADR-0078](../architecture/decisions/0078-existing-space-recovery.md).
+
 | Команда | Параметры | Результат и права |
 | --- | --- | --- |
 | `space.export` | `space` | `{archive}`: lowercase hex полного ZEDSPACE v1; Read исходника |

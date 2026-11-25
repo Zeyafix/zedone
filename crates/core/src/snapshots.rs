@@ -12,7 +12,7 @@ use crate::{
 pub const MAX_ARCHIVE_BYTES: usize = 1024 * 1024;
 pub const MAX_ARCHIVE_CHANGES: usize = 10_000;
 
-fn archive_schema() -> utoipa::openapi::schema::Object {
+pub(crate) fn archive_schema() -> utoipa::openapi::schema::Object {
     use utoipa::openapi::schema::{ObjectBuilder, Type};
     ObjectBuilder::new()
         .schema_type(Type::String)

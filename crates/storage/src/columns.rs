@@ -32,7 +32,12 @@ pub(crate) fn valid_id(id: &str) -> bool {
 pub(crate) fn known_root(key: &str) -> bool {
     matches!(
         key,
-        "format" | "name" | "lifecycle" | "history" | crate::cards::deletion::PURGE_BOUNDARY
+        "format"
+            | "name"
+            | "lifecycle"
+            | "history"
+            | crate::cards::deletion::PURGE_BOUNDARY
+            | crate::recovery_flags::CONFLICT
     ) || key.strip_prefix("column:").is_some_and(valid_id)
         || key.strip_prefix("card:").is_some_and(valid_id)
         || key.strip_prefix("tag:").is_some_and(valid_id)
@@ -125,6 +130,7 @@ fn snapshot(
                     | "lifecycle"
                     | "position"
                     | crate::cards::deletion::PURGE_BOUNDARY
+                    | crate::recovery_flags::CONFLICT
             )
         });
     let inherited = graph.get_all(ROOT, "lifecycle")?.iter().any(|(value, _)| {
@@ -155,7 +161,15 @@ fn snapshot(
         }
         .into());
     }
-    let state = if active {
+    let restored_conflict = crate::recovery_flags::active(
+        graph,
+        &object,
+        crate::recovery_flags::CONFLICT,
+        "lifecycle",
+    )?;
+    let state = if restored_conflict {
+        SpaceState::Conflicted
+    } else if active {
         SpaceState::Active
     } else if purge_conflict
         || concurrent

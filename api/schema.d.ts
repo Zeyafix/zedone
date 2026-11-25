@@ -863,6 +863,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/space.recovery.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_recovery_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.recovery.pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_recovery_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.recovery.read_backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_recovery_read_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.recovery.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_recovery_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.rename": {
         parameters: {
             query?: never;
@@ -1938,6 +2002,30 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_InspectRecovery: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                space: string;
+            };
+        };
         CommandRequest_InspectSync: {
             id: [
                 number,
@@ -2425,6 +2513,31 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_ReadSafetyBackup: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                safety: string;
+                space: string;
+            };
+        };
         CommandRequest_ReadSpace: {
             id: [
                 number,
@@ -2472,6 +2585,32 @@ export interface components {
             parameters: {
                 space: string;
                 tag: string;
+            };
+        };
+        CommandRequest_RecoveryPause: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                paused: boolean;
+                space: string;
             };
         };
         CommandRequest_RejectPairing: {
@@ -3039,6 +3178,32 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_RestoreSnapshot: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                archive: string;
+                expected: components["schemas"]["StateVersion"];
+                space: string;
+            };
+        };
         CommandRequest_RestoreSpace: {
             id: [
                 number,
@@ -3337,6 +3502,8 @@ export interface components {
         CommandResponse_InvitationSnapshot: components["schemas"]["CommandSuccess_InvitationSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingList: components["schemas"]["CommandSuccess_PairingList"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingSnapshot: components["schemas"]["CommandSuccess_PairingSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_RecoveryState: components["schemas"]["CommandSuccess_RecoveryState"] | components["schemas"]["CommandFailure"];
+        CommandResponse_RestoredSnapshot: components["schemas"]["CommandSuccess_RestoredSnapshot"] | components["schemas"]["CommandFailure"];
         CommandResponse_SearchResults: components["schemas"]["CommandSuccess_SearchResults"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceArchive: components["schemas"]["CommandSuccess_SpaceArchive"] | components["schemas"]["CommandFailure"];
         CommandResponse_SpaceList: components["schemas"]["CommandSuccess_SpaceList"] | components["schemas"]["CommandFailure"];
@@ -3506,6 +3673,26 @@ export interface components {
                 status: components["schemas"]["PairingStatus"];
                 subject?: string | null;
                 version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_RecoveryState: {
+            replayed: boolean;
+            result: {
+                backup?: components["schemas"]["SafetyBackup"] | null;
+                cleanup_pending: boolean;
+                pause_version: components["schemas"]["StateVersion"];
+                paused: boolean;
+                space: string;
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_RestoredSnapshot: {
+            replayed: boolean;
+            result: {
+                safety: string;
+                space: string;
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3713,6 +3900,9 @@ export interface components {
         InspectPairing: {
             request: string;
         };
+        InspectRecovery: {
+            space: string;
+        };
         InspectSync: {
             pairing: string;
             space: string;
@@ -3842,12 +4032,29 @@ export interface components {
             column: string;
             space: string;
         };
+        ReadSafetyBackup: {
+            safety: string;
+            space: string;
+        };
         ReadSpace: {
             space: string;
         };
         ReadTag: {
             space: string;
             tag: string;
+        };
+        RecoveryPause: {
+            expected: components["schemas"]["StateVersion"];
+            paused: boolean;
+            space: string;
+        };
+        RecoveryState: {
+            backup?: components["schemas"]["SafetyBackup"] | null;
+            cleanup_pending: boolean;
+            pause_version: components["schemas"]["StateVersion"];
+            paused: boolean;
+            space: string;
+            version: components["schemas"]["StateVersion"];
         };
         RejectPairing: {
             expected: components["schemas"]["StateVersion"];
@@ -3973,13 +4180,26 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             space: string;
         };
+        RestoreSnapshot: {
+            archive: string;
+            expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
         RestoreSpace: {
             expected: components["schemas"]["StateVersion"];
+            space: string;
+        };
+        RestoredSnapshot: {
+            safety: string;
             space: string;
         };
         RevokeAccess: {
             expected: components["schemas"]["StateVersion"];
             subject: string;
+        };
+        SafetyBackup: {
+            created_at_unix_ms: number;
+            id: string;
         };
         SearchAllKind: "all";
         SearchAllScope: {
@@ -5390,6 +5610,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_SpaceSnapshot"];
+                };
+            };
+        };
+    };
+    space_recovery_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectRecovery"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_RecoveryState"];
+                };
+            };
+        };
+    };
+    space_recovery_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RecoveryPause"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_RecoveryState"];
+                };
+            };
+        };
+    };
+    space_recovery_read_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadSafetyBackup"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceArchive"];
+                };
+            };
+        };
+    };
+    space_recovery_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RestoreSnapshot"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_RestoredSnapshot"];
                 };
             };
         };

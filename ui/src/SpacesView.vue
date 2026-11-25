@@ -17,6 +17,7 @@ import type { HistoryPreview } from "./workspace-api";
 import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./editor-drafts";
 import { pendingChanged } from "./workspace-api";
 import SpaceTransfer from "./SpaceTransfer.vue";
+import SpaceRecovery from "./SpaceRecovery.vue";
 
 const props = defineProps<{ ready: boolean }>();
 type Action =
@@ -337,6 +338,7 @@ async function retry(id: string) {
       notice.value = "Действие подтверждено.";
       if (original?.intention.operation === "space.export" && result.response.status === "ok" && "archive" in result.response.result) transferPanel.value?.acceptExport(result.response.result.archive);
       if (original?.intention.operation === "space.import") notice.value = "Независимое пространство импортировано. Проверьте список пространств и корзину.";
+      if (original?.intention.operation === "space.recovery.restore") notice.value = "Восстановление подтверждено. Обмен на паузе; проверьте пространство перед явным возобновлением.";
       dialogOpen.value = false;
       if (original?.intention.operation === "trash.purge" || original?.intention.operation === "trash.resolve_purge") {
         const parameters = JSON.parse(original.intention.body).parameters;
@@ -431,6 +433,8 @@ async function submit() {
 function pendingLabel(item: Pending) {
   if (item.intention.operation === "space.export") return "Экспорт пространства";
   if (item.intention.operation === "space.import") return "Импорт пространства";
+  if (item.intention.operation === "space.recovery.restore") return "Восстановление пространства из снимка";
+  if (item.intention.operation === "space.recovery.pause") return "Пауза обмена пространства";
   return labels[item.intention.operation as Mutation] ?? "Незавершённое действие";
 }
 function pendingName(item: Pending) {
@@ -454,6 +458,7 @@ function pendingName(item: Pending) {
       </div>
     </div>
     <SpaceTransfer v-show="ready" ref="transferPanel" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
+    <SpaceRecovery v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     <p v-if="storageError" role="alert" class="action-error">Не удалось прочитать очередь действий на устройстве. Изменения недоступны, пока хранилище не заработает. <button @click="loadPending">Проверить хранилище</button></p>

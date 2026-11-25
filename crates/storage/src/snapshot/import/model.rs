@@ -19,7 +19,7 @@ enum Kind {
 }
 
 #[derive(Default)]
-pub(super) struct Schema {
+pub(crate) struct Schema {
     objects: HashMap<ObjectId, Kind>,
     definitions: BTreeSet<(Kind, String)>,
     references: BTreeSet<(Kind, String)>,
@@ -83,14 +83,14 @@ fn unsigned(value: &ScalarValue) -> Option<u64> {
 }
 
 impl Schema {
-    pub(super) fn check_references(&self) -> StorageResult<()> {
+    pub(crate) fn check_references(&self) -> StorageResult<()> {
         if !self.references.is_subset(&self.definitions) {
             return Err(invalid());
         }
         Ok(())
     }
 
-    pub(super) fn visit(
+    pub(crate) fn visit(
         &mut self,
         change: &mut Change,
         map: &mut impl FnMut(&str) -> StorageResult<String>,
@@ -250,10 +250,13 @@ impl Schema {
 
 fn known(parent: Kind, field: &str) -> bool {
     match parent {
-        Kind::Root => matches!(field, "format" | "name" | "lifecycle" | "purge_boundary"),
+        Kind::Root => matches!(
+            field,
+            "format" | "name" | "lifecycle" | "purge_boundary" | "restored_conflict"
+        ),
         Kind::Column => matches!(
             field,
-            "format" | "name" | "lifecycle" | "position" | "purge_boundary"
+            "format" | "name" | "lifecycle" | "position" | "purge_boundary" | "restored_conflict"
         ),
         Kind::Card => matches!(
             field,
@@ -265,15 +268,19 @@ fn known(parent: Kind, field: &str) -> bool {
                 | "column"
                 | "position"
                 | "placement"
+                | "restored_conflict"
         ),
-        Kind::Tag => matches!(field, "format" | "name" | "deleted"),
+        Kind::Tag => matches!(
+            field,
+            "format" | "name" | "deleted" | "restored_conflict" | "retired_by_restore"
+        ),
         Kind::Assignments => crate::columns::valid_id(field),
         Kind::Version => matches!(field, "sequence" | "title" | "description"),
         Kind::History => false,
     }
 }
 
-pub(super) fn validate(graph: &Automerge, space: &str) -> StorageResult<()> {
+pub(crate) fn validate(graph: &Automerge, space: &str) -> StorageResult<()> {
     if !crate::columns::valid_id(space) {
         return Err(invalid());
     }

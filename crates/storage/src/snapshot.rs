@@ -5,8 +5,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{Storage, StorageError, StorageResult};
 
-mod export;
-mod import;
+pub(crate) mod export;
+pub(crate) mod import;
 
 const MAGIC: &[u8; 8] = b"ZEDSPACE";
 const VERSION: u32 = 1;

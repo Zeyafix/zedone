@@ -50,7 +50,10 @@ pub const MAX_REQUEST_BYTES: usize = 64 * 1024;
 pub const MAX_EXCHANGE_BYTES: usize = 3 * 1024 * 1024;
 
 pub fn request_limit(operation: &str) -> usize {
-    if matches!(operation, "sync.push" | "space.import") {
+    if matches!(
+        operation,
+        "sync.push" | "space.import" | "space.recovery.restore"
+    ) {
         MAX_EXCHANGE_BYTES
     } else {
         MAX_REQUEST_BYTES
@@ -107,6 +110,10 @@ impl Service {
                 }};
             }
             match operation {
+                "space.recovery.pause" => run!(zedone_core::recovery::RecoveryPause, zedone_core::recovery::pause),
+                "space.recovery.inspect" => run!(zedone_core::recovery::InspectRecovery, zedone_core::recovery::inspect),
+                "space.recovery.restore" => run!(zedone_core::recovery::RestoreSnapshot, zedone_core::recovery::restore),
+                "space.recovery.read_backup" => run!(zedone_core::recovery::ReadSafetyBackup, zedone_core::recovery::read_backup),
                 "sync.inspect" => run!(zedone_core::sync::InspectSync, zedone_core::sync::inspect),
                 "sync.select" => run!(zedone_core::sync::SelectSync, zedone_core::sync::select),
                 "sync.pause" => run!(zedone_core::sync::PauseSync, zedone_core::sync::pause),
@@ -186,6 +193,13 @@ impl Service {
             }
         }
         .await;
+        if operation.starts_with("space.recovery.")
+            && result.is_ok()
+            && let Ok(request) = serde_json::from_slice::<Value>(body)
+            && let Some(space) = request["parameters"]["space"].as_str()
+        {
+            let _ = self.storage.cleanup_restore_backup(space.into()).await;
+        }
         result.into()
     }
 }

@@ -8,7 +8,7 @@ use zedone_core::{
 use super::{SnapshotLimits, SpaceSnapshot};
 use crate::{StorageError, StorageResult, WriteContext};
 
-mod model;
+pub(crate) mod model;
 
 fn invalid() -> StorageError {
     CommandError {

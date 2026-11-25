@@ -4,6 +4,7 @@ use std::sync::Arc;
 const SPACE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const PEER: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 mod recovery;
+mod snapshot_recovery;
 
 #[tokio::test]
 async fn incoming_changes_only_finish_pending_series_of_affected_cards() {

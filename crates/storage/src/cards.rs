@@ -120,6 +120,7 @@ fn snapshot(
                     | "tags"
                     | "lifecycle"
                     | "history"
+                    | crate::recovery_flags::CONFLICT
             )
         })
     {
@@ -207,10 +208,18 @@ fn snapshot(
         }
     }
     let purge_conflict = stored_purge || late_arrival;
-    let deletion_conflict = !purge_conflict
-        && (lifecycle.len() > 1
-            || (lifecycle[0] != "active" && deletion::has_independent_edit(graph, &object, None)?))
-        && !deletion::has_container_group(graph, &lifecycle)?;
+    let restored_conflict = crate::recovery_flags::active(
+        graph,
+        &object,
+        crate::recovery_flags::CONFLICT,
+        "lifecycle",
+    )?;
+    let deletion_conflict = restored_conflict
+        || !purge_conflict
+            && (lifecycle.len() > 1
+                || (lifecycle[0] != "active"
+                    && deletion::has_independent_edit(graph, &object, None)?))
+            && !deletion::has_container_group(graph, &lifecycle)?;
     let conflicted = tags_conflicted
         || placements.len() > 1
         || titles.len() != 1

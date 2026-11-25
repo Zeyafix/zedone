@@ -536,7 +536,18 @@ Android Gradle-проекты прототипа и общего UI исполь
 резервом для компонентов, отсутствующих на зеркале. Это общий порядок
 репозиториев, без особой подмены JUnit или изменения версий/тестов.
 Сетевая ошибка разрешения остаётся ошибкой сборки; дополнительных retry,
-отключения TLS или проверок нет. Gradle Plugin Portal не перенастраивается.
+отключения TLS или проверок нет.
+
+Плагины разрешаются отдельно от обычных зависимостей. `pluginManagement`
+в корневом settings.gradle и отдельном buildSrc/settings.gradle.kts каждого
+Android-проекта задаёт google → Google Cloud Central mirror → Gradle Plugin
+Portal. Portal остаётся для plugin markers/Gradle-only artifacts, а библиотеки
+плагинов из Central сначала ищутся на зеркале. Без отдельного buildSrc settings
+кеш-промах kotlin-dsl может снова попасть в Central через redirect Portal,
+даже если repositories в buildSrc/build.gradle.kts уже исправлен.
+[Gradle рекомендует предоставить оба источника в pluginManagement](https://plugins.gradle.org/docs/mirroring).
+Новые settings покрываются штатной политикой комментариев; Gradle cache key
+учитывает их через существующий glob prototypes/src-tauri/gen/android/**/*.gradle*.
 
 GAP-037 вызван HTTP429 при загрузке JUnit POM. Sonatype описывает
 [ограничение общего трафика и shared egress CI](https://central.sonatype.org/faq/429-shared-egress/);

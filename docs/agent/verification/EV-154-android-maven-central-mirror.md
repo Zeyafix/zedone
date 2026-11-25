@@ -1,7 +1,7 @@
 # EV-154: Maven Central mirror для Android-сборок
 
-Дата: 2026-11-25. Шаг FIX.04, verified локально. GAP-037 in_progress;
-новый GitHub CI/интеграция ожидаются. LOG-821/822.
+Дата: 2026-11-25. Дополнение FIX.04/plugin path verified локально;
+GAP-037 in_progress до нового CI, интеграции нет. LOG-821–826.
 
 ## Карточка
 
@@ -18,10 +18,13 @@
   [Gradle: repositories](https://docs.gradle.org/current/userguide/declaring_repositories_basics.html).
   Точный источник совокупного трафика исходного runner не известен.
 - Решение: Google Cloud mirror перед mavenCentral в buildscript,
-  project repositories и buildSrc прототипа и общего UI.
+  project repositories и buildSrc прототипа и общего UI; после отказа CI
+  pluginManagement корня и отдельного buildSrc также получает mirror
+  перед Gradle Plugin Portal.
   google() остаётся источником Google Android artifacts;
   Central сохраняется для отсутствующих на зеркале компонентов.
-- Охват: четыре Gradle build-файла, developer/agent docs.
+- Охват: четыре Gradle build-файла, четыре settings-файла, comment policy
+  для новых settings, developer/agent docs.
   Прежний ключ Gradle cache учитывает изменяемые prototype Gradle-файлы;
   новый hash возникает штатно, вручную cache/fingerprint не правятся.
 - Проверки: холодное разрешение JUnit через mirror, артефакты/контрольные
@@ -33,7 +36,7 @@
 - Вне scope: GAP-047/053, продукт/API/данные, обновление зависимостей,
   PR/commit/push/CI/merge, Device runtime и гарантия доступности внешнего сервиса.
 
-## Результат
+## Результат первичной версии d238028
 
 В четырёх Gradle-файлах добавлены шесть строк с приоритетным mirror.
 Все шесть фактических repository blocks имеют одинаковый порядок:
@@ -116,3 +119,78 @@ LOG-823: разработчик поручил продолжить и дове�
 коммитами. Все source fingerprints прежние; новый CI/интеграция ещё
 ожидаются, GAP-037 пока in_progress. При успешной свежей проверке
 выполняется интеграция с сохранением ветки для остальных исправлений.
+
+Опубликован [PR #124](https://github.com/Zeyafix/zedone/pull/124),
+head d2380285400b2ca29c37c23a49c85a656d6a24ae, base main/0e42c68.
+LOG-824:24 initial suites pending, ожидается27 с aggregates; host45655004210,
+Android45655004336 queued. Новый CI успех пока не заявляется; после полного
+успеха/свежей проверки предусмотрены интеграция и проверка post-merge Android.
+Ветка сохраняется, GAP-047/053 не закрываются этим PR.
+
+## Отказ CI и дополнительный plugin path — LOG-825
+
+PR124/d238028: [prototype-ui](https://github.com/Zeyafix/zedone/actions/runs/45655004336/job/139349198337)
+и [pairing-agent](https://github.com/Zeyafix/zedone/actions/runs/45655004336/job/139349198031)
+упали при конфигурации :buildSrc/classpath. Kotlin2.3.21
+(kotlin-gradle-plugin-api и BOM) запрашивался через plugins.gradle.org/m2,
+который перенаправил в repo.maven.apache.org и получил HTTP429.
+Это один непокрытый маршрут GAP-037, а не отказ runtime парного сценария;
+до него выполнение не дошло. Первичные failed tails сохранены отдельно.
+
+Repositories в buildSrc/build.gradle.kts не управляет разрешением
+plugins/kotlin-dsl: для него нужен pluginManagement самостоятельной buildSrc
+сборки. Тёплая локальная AndroidTest сборка и холодный JUnit probe были
+недостаточны для подтверждения plugin bootstrap. [Gradle описывает отдельные
+plugin repositories](https://docs.gradle.org/current/userguide/plugins_intermediate.html#sec:custom_plugin_repositories)
+и [рекомендует Central mirror рядом с Portal](https://plugins.gradle.org/docs/mirroring).
+
+В оба корневых settings.gradle и оба новых buildSrc/settings.gradle.kts
+добавлен порядок google → Central mirror → Gradle Plugin Portal.
+Плагины/версии прежние; Portal остаётся источником plugin markers и
+Gradle-only artifacts. Два новых settings включены в source comment policy.
+Первичный failure не скрывается и не заменяется rerun старого head.
+
+## Проверка дополнения pluginManagement — LOG-826
+
+- Настоящий Gradle9.6.1/JDK25.0.3 выполнил kotlin-dsl plugin bootstrap
+  корня и вложенного buildSrc с отдельным пустым Gradle User Home.
+  Оба проекта fixture используют те же plugin blocks и четыре проверенных
+  settings-конфигурации; различие CRLF/LF нормализуется только в сравнении.
+- Контролируемый Portal proxy отдаёт настоящие plugin markers/Gradle-only
+  artifacts из HTTPS Portal, а остальные запросы, соответствующие обходу
+  Central, получает HTTP429. Без plugin mirror настоящий bootstrap даёт
+  exit1/12 отказавших Central requests; с новым pluginManagement exit0,
+  ноль таких запросов и5 Portal-only requests. Холодный final SUCCESS1m9s,
+  3 tasks executed, configuration cache stored; лог подтверждает Kotlin
+  gradle-plugin-api2.3.21 и другие зависимости через настоящее зеркало.
+  Proxy остановлен finally; HTTP допускается только для loopback fixture.
+- Повтор того же plugin fixture без сети: help --offline, SUCCESS5s,
+  3 tasks (1 executed/2 up-to-date), configuration cache stored.
+- Оба настоящих AndroidTest проекта после новых settings прошли прежнюю
+  команду assembleX86_64DebugAndroidTest с исключением штатного Rust task:
+  prototype SUCCESS23s/115 up-to-date, UI SUCCESS29s/2 executed/113 up-to-date.
+  Это проверка конфигурации/зависимостей с тёплыми выходами, не cold APK.
+- Source comment policy453 passed; её28 tests/62 assertions passed.
+  Штатный routing/cache/CI Rust guard включая FIX.03 passed; diff/сохранность
+  критериев и исходного FIX.03 проверяются перед новым commit/push.
+- Первые helper setup failures (CRLF сравнение, Groovy property для
+  loopback HTTP и forwarding gzip headers) сохранены в ignored reports;
+  не считаются причиной CI или passed. Окончательная положительная проверка
+  выполнена с новым пустым plugin-home-after-final; исходные CI failures
+  d238028 сохранены и не заменены rerun.
+
+Плагины/версии, матрица/tests/таймауты/TLS и продуктовый API/данные прежние;
+обратимость — откат settings, общий API/граф и Windows/Android поведение
+не меняются. Developer/agent docs обновлены, Device runtime не запускался.
+Далее новый commit/head в том же PR124 и полный CI; GAP-037 не закрывается
+локальным успехом, GAP-047/053 остаются открытыми.
+
+## SHA-256 дополнения pluginManagement
+
+| Файл | SHA-256 |
+| --- | --- |
+| prototypes/src-tauri/gen/android/settings.gradle | 89fd357386f6d1de3e43670e80c18a54e19633bffac8b5ff34734658dca815fb |
+| prototypes/src-tauri/gen/android/buildSrc/settings.gradle.kts | afc23f4064dd2b958d483bba53a2c49cca56d41d324660e14b0d876fb7d6c6e0 |
+| ui/src-tauri/gen/android/settings.gradle | 89fd357386f6d1de3e43670e80c18a54e19633bffac8b5ff34734658dca815fb |
+| ui/src-tauri/gen/android/buildSrc/settings.gradle.kts | afc23f4064dd2b958d483bba53a2c49cca56d41d324660e14b0d876fb7d6c6e0 |
+| scripts/comment-policy.json | a5ba137d91f58366ae50850a39ded3593daada5e33e2ab1c5f73e9a705466055 |

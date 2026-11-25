@@ -528,6 +528,27 @@ fingerprints, пропуска compilation/tests или PR-записи кэше
 | Gradle | Зависимости и wrapper из Gradle User Home; ключ по environment-versions.json, Cargo.lock и файлам вложенного Gradle-проекта | Уже используемый actions/setup-java, `cache: gradle` |
 
 Версии берутся только из [environment-versions.json](../../scripts/environment-versions.json).
+Android Gradle-проекты прототипа и общего UI используют
+[официальное Google Cloud зеркало Maven Central](https://docs.cloud.google.com/docs/buildpacks/java#hosted_maven_central_mirror)
+`https://maven-central.storage-download.googleapis.com/maven2/` перед
+прямым `mavenCentral()` в buildscript, project repositories и buildSrc.
+`google()` по-прежнему обслуживает Google Android artifacts; Central остаётся
+резервом для компонентов, отсутствующих на зеркале. Это общий порядок
+репозиториев, без особой подмены JUnit или изменения версий/тестов.
+Сетевая ошибка разрешения остаётся ошибкой сборки; дополнительных retry,
+отключения TLS или проверок нет. Gradle Plugin Portal не перенастраивается.
+
+GAP-037 вызван HTTP429 при загрузке JUnit POM. Sonatype описывает
+[ограничение общего трафика и shared egress CI](https://central.sonatype.org/faq/429-shared-egress/);
+точный источник нагрузки исходного runner не установлен. Наличие cache hit
+не гарантирует полностью автономную сборку. [Метаданные Gradle привязаны
+к репозиторию](https://docs.gradle.org/current/userguide/dependency_caching.html),
+поэтому переход на зеркало может потребовать повторного разрешения.
+Ключ CI меняется штатно по изменённым prototype Gradle-файлам; зависимости
+и wrapper остаются в прежнем кеше, глобальный Gradle config не меняется.
+Холодная загрузка/сохранность артефактов и границы локальной проверки —
+[EV-154](../agent/verification/EV-154-android-maven-central-mirror.md).
+
 Для Rust cache выбран pinned toolchain через `RUSTUP_TOOLCHAIN` в окружении
 этого action; глобальный default разработчика не меняется. Cargo bin не
 кэшируется Rust action, workspace crates не сохраняются как готовый результат.
@@ -719,5 +740,13 @@ Rust cache сохраняет единственного main writer. Допол
 повторяет SDK/build setup; фактическое время требует нового CI, не предполагается.
 Routing guard проверяет полноту, бюджет 15m, exact ABI owners, default/native,
 bootstrap, пустой/валидный/неверный manifest, отказы/сигналы и строгий aggregate.
+При ненулевом exit парного host fixture диагностика читает тот же
+`server-errors.log` в каталоге отчёта, который передан как stderr в `Bun.spawn`.
+Общий `serverErrorLog` задаёт путь записи и чтения. В вывод попадают только
+exit, `fixture_timeout` либо `unclassified` и elapsed_ms; сырой stderr остаётся
+в ignored отчёте. Пустой/недоступный лог не отменяет failure, успешный exit
+не читает лог. Guard выполняет исходные блоки запуска и диагностики с
+path-aware файловым стендом, проверяя связь writer/reader, оба класса отказа,
+нечитаемый лог и отсутствие тестового секрета в выводе; [EV-153](../agent/verification/EV-153-pairing-server-diagnostics.md).
 Исходный localStorage residue attempt 1 остаётся GAP-032 с неизвестной причиной;
 его строгая проверка не ослабляется и прошла в attempt 2.

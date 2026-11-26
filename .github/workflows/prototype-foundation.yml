@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        suite: [product, shell, prototype-ui]
+        suite: [product, product-build, shell, prototype-ui]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -70,9 +70,12 @@ jobs:
       - uses: ./.github/actions/prepare-host-check
         with:
           suite: ${{ matrix.suite }}
-      - name: Check all product Rust, contracts, release and unsafe rejection
+      - name: Check product boundaries, contract and unsafe rejection
         if: matrix.suite == 'product'
-        run: bun scripts/check-product.mjs
+        run: bun scripts/check-product.mjs --host-tests
+      - name: Check product release and unsafe rejection
+        if: matrix.suite == 'product-build'
+        run: bun scripts/check-product.mjs --host-build
       - name: Check all prototype Rust, contracts, release and browser scenarios
         if: matrix.suite == 'prototype-ui'
         working-directory: prototypes

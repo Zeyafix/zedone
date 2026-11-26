@@ -177,3 +177,45 @@ policy/атомарные файлы/worker/API/UI с их тестами, по�
 Статическая пара настоящего baseline3659596 и final UI сохраняется только
 в OS temp и загружается вложениями GitHub; local reports/media не входят в Git.
 CI/review/интеграция ожидаются, полная приёмка P07/T10 не расширяется.
+
+
+### PR #126: первая CI-попытка — LOG-844
+
+Коммит `639434d27c3652caf70d9b34adacf9189117848c` опубликован в
+[PR #126](https://github.com/Zeyafix/zedone/pull/126); static Before/After
+реальных baseline/final загружены и сверены по байтам/размеру1280×1100.
+CI ещё выполняется. Linux product job139892311433 CANCELLED по annotation
+10m0s после успешных tests/search/release/8 guards/контракта. Первопричина
+длительности неизвестна, GAP-042 open. Исходный отказ/metadata/annotations
+сохранены; после terminal parent45814996138 допускается один targeted recovery
+на прежнем head с dependent aggregate, accepted0/limit1. Нет изменения кода
+или бюджета; cancel не выдаётся за PASS. Merge/удаление ждут полного успеха.
+
+LOG-845: Linux aggregate139898581418 ожидаемо failed при RESULT=cancelled;
+это следствие product10m, не отдельная ошибка теста. Parent ещё in_progress
+(Windows product-build), targeted recovery ещё не запущен: accepted0/limit1.
+
+
+LOG-846: Android pairing-fields139892313384 failed после text/combined/history/
+exchange recovery PASS на access_denied и host exit101/unclassified258133ms.
+APK/files восстановлены SHA-256, outer cleanup подтверждён; host/OS-slot cleanup
+PASS не доказан. GAP-047 open; workflow artifacts отсутствуют, точная операция
+и причина неизвестны. Один targeted fields recovery с aggregate после terminal
+Android parent45814996166, accepted0/limit1; код/лимиты не меняются.
+
+LOG-847: после terminal host workflow единственный Linux product recovery принят
+GitHub (rerun=true, accepted1/limit1), head639434d/10m прежние. Результат и
+зависимый aggregate ожидаются; Android parent ещё running, fields accepted0/limit1.
+
+LOG-848: после terminal Android parent единственный fields recovery принят
+(rerun=true/attempt2, accepted1/limit1); aggregate failed был следствием fields.
+Остальные14 Android suites passed, их исходные результаты сохранены. Linux
+recovery также running/accepted1/limit1. Дополнительных повторов нет; оба полных
+итога/aggregates ещё ожидаются, начальные отказы/GAP-042/047 не закрыты.
+
+
+LOG-849: единственный Linux recovery снова CANCELLED10m после release4m33s
+на unsafe guard storage; aggregate корректно failed. Повторы639434d исчерпаны.
+Необходимый CI companion FIX.05/EV-158 разделяет Linux tests/build существующими
+режимами, сохраняя команды/10m/assertions. Guard red→green passed; продуктовые
+исходники/контракт/UI прежние, новый head/CI28 checks впереди. GAP-042 open.

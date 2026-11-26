@@ -1,5 +1,22 @@
 # Проверки PR и кэши сборки
 
+## Linux product: отдельные тесты и release — FIX.05
+
+После двух отмен объединённого Linux product по 10m на PR #126 тесты/контракт
+и release/guards выполняются разными jobs: `product` вызывает
+`bun scripts/check-product.mjs --host-tests`, `product-build` — `--host-build`.
+Используется прежняя схема Windows, без изменения самих команд, assertions,
+профилей или тайм-аутов. Общий локальный запуск без аргумента сохранён.
+
+Linux matrix: product/product-build/shell/prototype-ui, max-parallel 2,
+fail-fast false, каждый job 10m. Aggregate требует `success` всей матрицы.
+Разделённый build использует существующий isolated namespace и read-only seed
+из product cache; новые правила сохранения кэшей не вводятся. Guard сверяет
+объединение двух режимов с полным запуском, включая search/client/contract,
+unsafe/comment probes, остановку при ошибке и сигнале. Реальный CI нового head
+пока ожидается; причины прежних длительностей и GAP-042 остаются открыты.
+[EV-158](../agent/verification/EV-158-linux-product-slices.md).
+
 ## Обязательная парная матрица удаления
 
 Android job `pairing-container-deletion` выполняет прежний production APK
@@ -163,15 +180,16 @@ fixture 240s и strict aggregate сохранены. Локальная Device U
 | --- | --- | --- |
 | Windows/Linux | product | `bun scripts/check-product.mjs --host-tests`: fmt/Clippy/Rust/client/contract/types |
 | Windows/Linux | product-build | `bun scripts/check-product.mjs --host-build`: release all-targets/all-features, unsafe/comment rejection и recovery |
-| Windows/Linux | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
-| Windows/Linux | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Windows | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
+| Windows | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Linux | shell | `bun run ui:check`: оба прежних UI-среза, все conflicts/positions и pairing browser сценарии |
 | Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
 | Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
 | Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
 | Android | pairing-fields / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, card/column placements, combined positions suites |
 
 Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
-shell/shell-arm64 сохраняются. Всего 27 checks: 6 Windows + 6 Linux + 12 Android
+shell/shell-arm64 сохраняются. Всего 28 checks: 6 Windows + 4 Linux + 15 Android
 и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
 `fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
 Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая

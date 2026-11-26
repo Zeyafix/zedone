@@ -219,3 +219,10 @@ LOG-849: единственный Linux recovery снова CANCELLED10m пос�
 Необходимый CI companion FIX.05/EV-158 разделяет Linux tests/build существующими
 режимами, сохраняя команды/10m/assertions. Guard red→green passed; продуктовые
 исходники/контракт/UI прежние, новый head/CI28 checks впереди. GAP-042 open.
+
+
+LOG-851: FIX.05 Linux tests/build/оба прочих suites и aggregate SUCCESS наfde70ef.
+Pairing-fields снова failed у240097ms (unavailable/exit101). Настоящий Windows
+fixture timeout240811ms и скрытый stdout panic воспроизведены; FIX.06/EV-159
+отделяет history и исправляет безопасную диагностику без ослабления budgets.
+Runtime/UI/контракт прежние; новая полная29-check матрица pending, GAP-047 open.

@@ -56,3 +56,15 @@ Actionlint1.7.12 с установленным ShellCheck прошёл для и
 (локальный Pyflakes отключён как отсутствующий; Python-код не менялся).
 Comment policy464 sources и diff-check passed. Все338 product fingerprints
 EV-157 совпали; локальная обратимость/права/паритет/единый источник прежние.
+
+## Публикация — LOG-850
+
+CI commit `fde70eff88d8ff07afbf6bd3e93e7ca501eb38a6` опубликован в
+[PR #126](https://github.com/Zeyafix/zedone/pull/126). Staged scope: workflow,
+guard, CI docs и исходные сохранённые checkpoints; продукт/UI/338 fingerprints
+прежние. Новый полный CI28 checks pending; старые cancel/recovery сохранены.
+Предыдущий Android recovery был running до push и не принимается как PASS.
+
+LOG-851: на fde70ef Linux product139910675373/product-build139910675338,
+shell/prototype-ui и aggregate139918234611 SUCCESS. Охват и прежние10m
+подтверждены новым CI; полный PR ещё ждёт Android, интеграция впереди.

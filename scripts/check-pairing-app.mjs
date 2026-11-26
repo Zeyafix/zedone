@@ -109,7 +109,7 @@ const serverDirectory = resolve(report, 'server');
 await mkdir(serverDirectory);
 const serverErrorLog = resolve(report, 'server-errors.log');
 const serverStarted = Date.now();
-const server = Bun.spawn([testBinary, '--ignored', '--exact', 'device_host::tests::acceptance_server'], {
+const server = Bun.spawn([testBinary, '--ignored', '--exact', 'device_host::tests::acceptance_server', '--nocapture'], {
     cwd: root, env: { ...process.env, ZEDONE_PAIRING_FIXTURE: serverDirectory }, stdin: 'ignore', stdout: Bun.file(resolve(report, 'server.log')), stderr: Bun.file(serverErrorLog),
 });
 let installed = false, reverse, forward, android, passedChecks, uiFixture;
@@ -155,16 +155,22 @@ async function forwardAndroid() {
     android = { address: `127.0.0.1:${forward}`, pinFile, keyFile };
     return metadata;
 }
+const commandContexts = new WeakMap();
 function call(target, operation, parameters) {
     const input = JSON.stringify(parameters);
     const result = invoke([cli, '--endpoint', target.address, '--pin-file', target.pinFile, '--key-file', target.keyFile, '--operation', operation], { input: Buffer.from(input), allowFailure: true });
     assert.ok([0, 1].includes(result.exitCode), 'CLI terminated unexpectedly');
     const response = JSON.parse(result.stdout);
+    commandContexts.set(response, { operation: operation === 'fixture.peer_command' ? `${operation}/${parameters.operation}` : operation, target: target === host ? 'host' : target === android ? 'android' : 'unknown' });
     assert.equal(response.status === 'ok', result.exitCode === 0, 'CLI exit/envelope mismatch');
     return response;
 }
 const request = (operation, parameters) => ({ id: [...randomBytes(16)], operation, parameters });
-const ok = response => { assert.equal(response.status, 'ok', `Unexpected command failure: ${response.error?.code}`); return response.result; };
+const ok = response => {
+    const context = commandContexts.get(response);
+    assert.equal(response.status, 'ok', `Unexpected command failure: ${response.error?.code}; operation=${context?.operation || 'unknown'}; target=${context?.target || 'unknown'}; host_exit=${server.exitCode ?? 'running'}; elapsed_ms=${Date.now() - serverStarted}`);
+    return response.result;
+};
 const error = (response, code) => assert.equal(response.error?.code, code);
 let host, space, lastOffer, exchangeIds;
 function command(target, operation, parameters) { return call(target, operation, request(operation, parameters)); }
@@ -268,7 +274,7 @@ try {
         ok(command(host, 'space.create', { space: containerSpace, name: 'Container deletion acceptance' }));
         writableSpaces[containerSpace] = 'read_write';
     }
-    const historySpace = ['--standard', '--fields', '--history'].includes(suite) ? randomBytes(16).toString('hex') : undefined;
+    const historySpace = ['--standard', '--history'].includes(suite) ? randomBytes(16).toString('hex') : undefined;
     if (historySpace) {
         ok(command(host, 'space.create', { space: historySpace, name: 'History exchange acceptance' }));
         writableSpaces[historySpace] = 'read_write';
@@ -283,7 +289,7 @@ try {
         checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
         checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
     }
-    if (suite === '--standard' || suite === '--fields' || suite === '--history') {
+    if (suite === '--standard' || suite === '--history') {
         const preservedHistory = ok(command(host, 'history.inspect', {space,card:null}));
         checkHistoryExchange({host,android,space:historySpace,pairing:second.request,call,command,deliver,ok,error});
         assert.deepEqual(ok(command(host, 'history.inspect', {space,card:null})), preservedHistory, 'History matrix changed another space');
@@ -418,7 +424,7 @@ try {
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
     passedChecks = [tags ? suite === '--tags-convergence' ? 'tag convergence/aliases/spelling/S05/independent decisions/late bridge/whole names/preservation/reverse' : suite === '--tags-names' ? 'tag name collisions/A52/A53/IDs/Unicode/independent decisions/preservation/reverse' : 'tag deletion/A40/both choices/all decision pairs/old and new assignments/preservation/reverse'
-        : suite === '--fields' ? 'text and field conflicts/history cleanup/preservation/reverse'
+        : suite === '--fields' ? 'text and field conflicts/preservation/reverse'
         : suite === '--history' ? 'history cleanup/both scopes and directions/independent versions and cards/old delivery/restore/conflicts'
         : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
         : suite === '--card-deletion' ? 'card deletion/independent text/both decisions/atomic purge refusal/reverse'

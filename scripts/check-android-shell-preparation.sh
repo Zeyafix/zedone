@@ -31,7 +31,7 @@ done
 export CALLS="$fixture/calls.log" TEST_ROOT="$root" TEST_RUST=fixture-rust
 export PATH="$fixture/bin:$PATH"
 helper="$root/scripts/prepare-android-shell-ci.sh"
-for suite in shell pairing-agent pairing-tags pairing-fields pairing-history pairing-placements pairing-container-deletion pairing-positions-cross pairing-positions-same; do
+for suite in shell pairing-agent pairing-tags pairing-fields pairing-fields-space pairing-fields-column pairing-history pairing-placements pairing-container-deletion pairing-positions-cross pairing-positions-same; do
     : > "$CALLS"
     CI=true bash "$helper" "$suite"
     printf '%s\n' 'chmod <+x> <ui/src-tauri/gen/android/gradlew>' 'bun <scripts/build-ui-android.mjs> <x86_64>' > "$fixture/expected.log"

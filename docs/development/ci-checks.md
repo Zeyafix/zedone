@@ -2,13 +2,21 @@
 
 ## Парные fields/history: отдельные fixtures — FIX.06
 
+FIX.07 уточняет fields после подтверждённого timeout на `session.unlink`:
+`pairing-fields` вызывает `--fields-card` (текст + порядок card→column→space),
+`pairing-fields-space` — `--fields-space`, `pairing-fields-column` — `--fields-column`.
+Каждый имеет полный общий lifecycle/cleanup и прежние240s/15m. Тело каждого
+case/assertions прежнее; helper/guard доказывает все три порядка и choice vectors
+ровно по одному разу. Режимы `--fields`/`--standard` сохраняют полный локальный
+охват. Текущая матрица31 checks; [EV-160](../agent/verification/EV-160-pairing-field-case-slices.md).
+
 Android `pairing-fields` проверяет текстовые/комбинированные конфликты,
 `pairing-history` — прежнюю независимую матрицу истории. У каждого собственные
 APK/host fixture и прежний лимит 240s (UI-режимы сохраняют 600s), job 15m.
 `--standard` по-прежнему содержит все пять exchange-групп; routing guard
 доказывает точное объединение fields/history/placements без пропуска сценариев.
 Общие права, transport recovery, отмена/отзыв/истечение/cleanup остаются
-обязательными в каждом выбранном runner. Матрица теперь содержит 29 checks.
+обязательными в каждом выбранном runner. До FIX.07 матрица содержала29 checks.
 
 При отказе диагностируются только operation/host-or-Android/exit/elapsed,
 без параметров, адресов, ключей и содержимого ответа. Rust host test запускается
@@ -208,7 +216,7 @@ fixture 240s и strict aggregate сохранены. Локальная Device U
 | Android | pairing-fields / pairing-history / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, history, card/column placements, combined positions suites |
 
 Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
-shell/shell-arm64 сохраняются. Всего 29 checks: 6 Windows + 4 Linux + 16 Android
+shell/shell-arm64 сохраняются. Всего 31 checks: 6 Windows + 4 Linux + 18 Android
 и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
 `fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
 Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая

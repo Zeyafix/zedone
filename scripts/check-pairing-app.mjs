@@ -20,7 +20,9 @@ assert.ok(process.platform === 'win32' || process.env.CI === 'true', 'Non-Window
 if (process.env.CI !== 'true')
     assert.ok(process.env.AGENT_DEVICE_COMMAND, 'Device-open command required for local app lifecycle');
 const suite = Bun.argv[2];
-assert.ok(Bun.argv.length <= 3 && [undefined, '--agent', '--standard', '--fields', '--history', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion', '--card-restore', '--container-deletion'].includes(suite), 'Unknown pairing acceptance suite');
+assert.ok(Bun.argv.length <= 3 && [undefined, '--agent', '--standard', '--fields', '--fields-card', '--fields-space', '--fields-column', '--history', '--placements', '--positions', '--positions-cross', '--positions-same', '--tags', '--tags-convergence', '--tags-names', '--tags-deletion', '--card-deletion', '--card-restore', '--container-deletion'].includes(suite), 'Unknown pairing acceptance suite');
+const fields = suite?.startsWith('--fields');
+const fieldScope = ['--fields-card', '--fields-space', '--fields-column'].includes(suite) ? suite.slice('--fields-'.length) : undefined;
 const positions = suite?.startsWith('--positions');
 const tags = suite?.startsWith('--tags');
 const positionScope = suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined;
@@ -285,9 +287,11 @@ try {
     const changed = ok(deliver('space.rename', { space, name: 'Explicit permitted write', expected: current.version }));
     ok(deliver('space.rename', { space, name: 'Pairing acceptance preserved', expected: changed.version }));
     checkSpaceExchange({host,android,space,pairing:second.request,writable:true,call,command,ok,error,previous:exchangeIds});
-    if (suite === '--standard' || suite === '--fields') {
+    if (suite === '--standard' || suite === '--fields' || fieldScope === 'card') {
         checkTextExchange({host,android,space,pairing:second.request,call,command,ok,error});
-        checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error});
+    }
+    if (suite === '--standard' || fields) {
+        checkFieldConflictsExchange({host,android,space,pairing:second.request,call,command,ok,error,first:fieldScope});
     }
     if (suite === '--standard' || suite === '--history') {
         const preservedHistory = ok(command(host, 'history.inspect', {space,card:null}));
@@ -424,7 +428,7 @@ try {
         assert.equal(outcome,'passed','Device UI exchange verification did not pass');
     }
     passedChecks = [tags ? suite === '--tags-convergence' ? 'tag convergence/aliases/spelling/S05/independent decisions/late bridge/whole names/preservation/reverse' : suite === '--tags-names' ? 'tag name collisions/A52/A53/IDs/Unicode/independent decisions/preservation/reverse' : 'tag deletion/A40/both choices/all decision pairs/old and new assignments/preservation/reverse'
-        : suite === '--fields' ? 'text and field conflicts/preservation/reverse'
+        : fields ? `field conflicts/${fieldScope || 'all'}/preservation/reverse`
         : suite === '--history' ? 'history cleanup/both scopes and directions/independent versions and cards/old delivery/restore/conflicts'
         : suite === '--placements' ? 'card-placement and column-position conflicts/neighbors/preservation/reverse'
         : suite === '--card-deletion' ? 'card deletion/independent text/both decisions/atomic purge refusal/reverse'

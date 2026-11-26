@@ -76,3 +76,17 @@ stderr; сами log-файлы не становятся публичным std
 все98 определения/состояния и74 ID/состояния проблем сохраняются.
 Начальные access_denied/cleanup GAP-047 остаются неизвестными без stacktrace;
 повтор без изменения кода на fde70ef не используется вместо исправления.
+
+
+LOG-852: FIX.06 опубликован в PR126/head22ad15567d200c7fee17fcf55e3b545e7d55de76,
+новый полный CI29 pending. Дополнительно диагностирован старый fde70ef native
+job139910750416 CANCELLED15m до завершения storage/search/probes, без assertion
+failure. Исходный log/metadata/annotations сохранены; GAP-055 open, прежние74
+проблемы сохранены, всего75. Новая ревизия не заменяет этот исход на PASS.
+
+
+LOG-853: новая диагностика22ad155 дала session.unlink/access_denied240068ms и
+host reason=fixture_timeout; job cancelled15m. History и native того же head
+SUCCESS. FIX.07/EV-160 отделяет три field orders с прежним body/assertions/
+240s/15m, точный union/guards passed. Runtime/UI прежние; новый CI31 pending,
+исторические GAP-047/054/055 сохраняются.

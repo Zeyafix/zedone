@@ -1,5 +1,49 @@
 # Проверки PR и кэши сборки
 
+## Парные fields/history: отдельные fixtures — FIX.06
+
+FIX.07 уточняет fields после подтверждённого timeout на `session.unlink`:
+`pairing-fields` вызывает `--fields-card` (текст + порядок card→column→space),
+`pairing-fields-space` — `--fields-space`, `pairing-fields-column` — `--fields-column`.
+Каждый имеет полный общий lifecycle/cleanup и прежние240s/15m. Тело каждого
+case/assertions прежнее; helper/guard доказывает все три порядка и choice vectors
+ровно по одному разу. Режимы `--fields`/`--standard` сохраняют полный локальный
+охват. Текущая матрица31 checks; [EV-160](../agent/verification/EV-160-pairing-field-case-slices.md).
+
+Android `pairing-fields` проверяет текстовые/комбинированные конфликты,
+`pairing-history` — прежнюю независимую матрицу истории. У каждого собственные
+APK/host fixture и прежний лимит 240s (UI-режимы сохраняют 600s), job 15m.
+`--standard` по-прежнему содержит все пять exchange-групп; routing guard
+доказывает точное объединение fields/history/placements без пропуска сценариев.
+Общие права, transport recovery, отмена/отзыв/истечение/cleanup остаются
+обязательными в каждом выбранном runner. До FIX.07 матрица содержала29 checks.
+
+При отказе диагностируются только operation/host-or-Android/exit/elapsed,
+без параметров, адресов, ключей и содержимого ответа. Rust host test запускается
+с `--nocapture`, но stdout/stderr сохраняются в private reports; в публичный log
+попадает только безопасная классификация. Иначе Rust test harness прячет panic
+в stdout, и чтение stderr ошибочно даёт `unclassified`. Этот механизм и настоящий
+timeout240s воспроизведены локально; причина исходного старого access_denied
+GAP-047 этим не устанавливается. [EV-159](../agent/verification/EV-159-pairing-fields-history-slices.md).
+Полный Android CI нового head обязателен до вердикта.
+
+## Linux product: отдельные тесты и release — FIX.05
+
+После двух отмен объединённого Linux product по 10m на PR #126 тесты/контракт
+и release/guards выполняются разными jobs: `product` вызывает
+`bun scripts/check-product.mjs --host-tests`, `product-build` — `--host-build`.
+Используется прежняя схема Windows, без изменения самих команд, assertions,
+профилей или тайм-аутов. Общий локальный запуск без аргумента сохранён.
+
+Linux matrix: product/product-build/shell/prototype-ui, max-parallel 2,
+fail-fast false, каждый job 10m. Aggregate требует `success` всей матрицы.
+Разделённый build использует существующий isolated namespace и read-only seed
+из product cache; новые правила сохранения кэшей не вводятся. Guard сверяет
+объединение двух режимов с полным запуском, включая search/client/contract,
+unsafe/comment probes, остановку при ошибке и сигнале. Реальный CI нового head
+пока ожидается; причины прежних длительностей и GAP-042 остаются открыты.
+[EV-158](../agent/verification/EV-158-linux-product-slices.md).
+
 ## Обязательная парная матрица удаления
 
 Android job `pairing-container-deletion` выполняет прежний production APK
@@ -163,15 +207,16 @@ fixture 240s и strict aggregate сохранены. Локальная Device U
 | --- | --- | --- |
 | Windows/Linux | product | `bun scripts/check-product.mjs --host-tests`: fmt/Clippy/Rust/client/contract/types |
 | Windows/Linux | product-build | `bun scripts/check-product.mjs --host-build`: release all-targets/all-features, unsafe/comment rejection и recovery |
-| Windows/Linux | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
-| Windows/Linux | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Windows | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
+| Windows | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
+| Linux | shell | `bun run ui:check`: оба прежних UI-среза, все conflicts/positions и pairing browser сценарии |
 | Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
 | Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
 | Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
-| Android | pairing-fields / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, card/column placements, combined positions suites |
+| Android | pairing-fields / pairing-history / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, history, card/column placements, combined positions suites |
 
 Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
-shell/shell-arm64 сохраняются. Всего 27 checks: 6 Windows + 6 Linux + 12 Android
+shell/shell-arm64 сохраняются. Всего 31 checks: 6 Windows + 4 Linux + 18 Android
 и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
 `fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
 Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая

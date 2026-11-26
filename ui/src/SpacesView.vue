@@ -18,6 +18,9 @@ import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./edi
 import { pendingChanged } from "./workspace-api";
 import SpaceTransfer from "./SpaceTransfer.vue";
 import SpaceRecovery from "./SpaceRecovery.vue";
+import SpaceBackups from "./SpaceBackups.vue";
+const recoveryPanel = ref<InstanceType<typeof SpaceRecovery>>();
+async function selectDailyArchive(archive: string) { await nextTick(); await recoveryPanel.value?.selectArchive(archive); }
 
 const props = defineProps<{ ready: boolean }>();
 type Action =
@@ -431,6 +434,8 @@ async function submit() {
   await retry(id);
 }
 function pendingLabel(item: Pending) {
+  if (item.intention.operation === "space.backups.retry") return "Повтор ежедневной копии";
+  if (item.intention.operation === "space.backups.delete") return "Удаление ежедневной копии";
   if (item.intention.operation === "space.export") return "Экспорт пространства";
   if (item.intention.operation === "space.import") return "Импорт пространства";
   if (item.intention.operation === "space.recovery.restore") return "Восстановление пространства из снимка";
@@ -458,7 +463,8 @@ function pendingName(item: Pending) {
       </div>
     </div>
     <SpaceTransfer v-show="ready" ref="transferPanel" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
-    <SpaceRecovery v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
+    <SpaceBackups v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @selected="selectDailyArchive" />
+    <SpaceRecovery ref="recoveryPanel" v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>
     <p v-if="storageError" role="alert" class="action-error">Не удалось прочитать очередь действий на устройстве. Изменения недоступны, пока хранилище не заработает. <button @click="loadPending">Проверить хранилище</button></p>

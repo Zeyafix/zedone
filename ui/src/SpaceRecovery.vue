@@ -8,6 +8,10 @@ const emit = defineEmits<{ busy: [value: boolean]; changed: [] }>();
 const input = ref<HTMLInputElement>(), state = ref<components["schemas"]["RecoveryState"]>();
 const incoming = ref(""), outgoing = ref(""), error = ref(""), message = ref("");
 const confirmed = ref(false), working = ref(false);
+const details = ref<HTMLDetailsElement>();
+defineExpose({ selectArchive: async (archive: string) => {
+  await work(async space => { incoming.value = archive; await inspect(space); if (details.value) details.value.open = true; message.value = "Ежедневная копия выбрана. Подтвердите восстановление ниже."; });
+} });
 let generation = 0;
 watch(() => props.space, () => { generation++; state.value = undefined; incoming.value = ""; outgoing.value = ""; confirmed.value = false; error.value = ""; message.value = ""; });
 async function work(action: (space: string) => Promise<void>) {
@@ -82,7 +86,7 @@ async function saveSafety() {
 
 <template>
   <section class="space-transfer space-recovery" aria-label="Восстановление пространства" :aria-busy="working">
-    <details>
+    <details ref="details">
       <summary>Восстановление пространства из снимка</summary>
       <p>Возвращает это пространство к выбранному состоянию. Перед изменением приложение сохранит проверенный страховочный снимок в своей папке копий. При ошибке папки восстановление не начнётся. Другие пространства и права доступа сохраняются.</p>
       <p>Входящий и исходящий обмен остановится до явного возобновления. Независимые правки второго устройства сохранятся при последующем обмене.</p>

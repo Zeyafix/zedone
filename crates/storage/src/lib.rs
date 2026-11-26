@@ -4,6 +4,7 @@ mod cards;
 mod cleanup;
 mod clock;
 mod columns;
+pub mod daily_backup;
 mod document;
 mod invitations;
 pub mod migration_backup;

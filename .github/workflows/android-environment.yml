@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-agent, pairing-tags, pairing-fields, pairing-placements, pairing-container-deletion, pairing-positions-cross, pairing-positions-same, shell-arm64]
+        suite: [product-native, product-x86_64, product-arm64, prototype-native, prototype-ui, prototype-arm64, shell, pairing-agent, pairing-tags, pairing-fields, pairing-fields-space, pairing-fields-column, pairing-history, pairing-placements, pairing-container-deletion, pairing-positions-cross, pairing-positions-same, shell-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:

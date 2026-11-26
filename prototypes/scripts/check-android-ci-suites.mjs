@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import { positionConflictCases } from "../../scripts/check-position-conflicts-exchange.mjs";
+import { fieldConflictCases } from "../../scripts/check-field-conflicts-exchange.mjs";
 
 const source = (await Bun.file(`${import.meta.dir}/check-android-ci.mjs`).text())
   .replace('import assert from "node:assert/strict";', "")
@@ -38,6 +39,7 @@ const full = [
   ["../../scripts/build-ui-android.mjs", "x86_64", "--pairing-acceptance"],
   ["../../scripts/check-pairing-app.mjs"],
 ];
+const pairedSelectors = [['agent','--agent'], ['tags','--tags'], ['fields','--fields-card'], ['fields-space','--fields-space'], ['fields-column','--fields-column'], ['history','--history'], ['placements','--placements'], ['container-deletion','--container-deletion'], ['positions','--positions'], ['positions-cross','--positions-cross'], ['positions-same','--positions-same']];
 for (const [args, expected] of [
   [[], full],
   [["native"], [full[0], full[2]]],
@@ -48,7 +50,7 @@ for (const [args, expected] of [
   [["prototype-ui"], [full[1], full[3]]],
   [["shell"], [full[4]]],
   [["pairing"], full.slice(5)],
-  ...['agent', 'tags', 'fields', 'placements', 'container-deletion', 'positions', 'positions-cross', 'positions-same'].map(part => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], `--${part}`]]]),
+  ...pairedSelectors.map(([part,flag]) => [[`pairing-${part}`], [...full.slice(5, 7), [...full[7], flag]]]),
 ]) {
   assert.deepEqual(dispatch(args), { calls: expected, exit: undefined });
 }
@@ -57,8 +59,8 @@ for (const args of [["unknown"], ["product-native", "extra"], ["product-arm64", 
 }
 const workflow = Bun.YAML.parse(await Bun.file(`${import.meta.dir}/../../.github/workflows/android-environment.yml`).text());
 const jobs = workflow.jobs["android-checks"];
-const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
-const pairedSuites = ["pairing-agent", "pairing-tags", "pairing-fields", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same"];
+const suites = ["product-native", "product-x86_64", "product-arm64", "prototype-native", "prototype-ui", "prototype-arm64", "shell", "pairing-agent", "pairing-tags", "pairing-fields", "pairing-fields-space", "pairing-fields-column", "pairing-history", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same", "shell-arm64"];
+const pairedSuites = ["pairing-agent", "pairing-tags", "pairing-fields", "pairing-fields-space", "pairing-fields-column", "pairing-history", "pairing-placements", "pairing-container-deletion", "pairing-positions-cross", "pairing-positions-same"];
 assert.deepEqual(jobs.strategy.matrix.suite, suites);
 assert.equal(jobs.strategy["fail-fast"], false);
 assert.equal(jobs["timeout-minutes"], 15);
@@ -133,7 +135,7 @@ assert.deepEqual(dispatch(["product-arm64"], { signalCode: "SIGTERM" }), {
   calls: [[product, "--android-arm64"]], exit: 1,
 });
 for (const [suite, commands] of [["shell", [full[4]]], ["pairing", full.slice(5)],
-  ...['agent', 'tags', 'fields', 'placements', 'container-deletion', 'positions', 'positions-cross', 'positions-same'].map(part => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], `--${part}`]]])]) {
+  ...pairedSelectors.map(([part,flag]) => [`pairing-${part}`, [...full.slice(5, 7), [...full[7], flag]]])]) {
   for (let index = 0; index < commands.length; index++) {
     assert.deepEqual(dispatch([suite], { exitCode: 23 }, index), {
       calls: commands.slice(0, index + 1), exit: 23,
@@ -228,7 +230,7 @@ for (const env of [{ CI: "true" }, {}, { P06_EXCHANGE_UI: "0" }, { P06_EXCHANGE_
     for (let i = 0; i < result.calls.length; i++) if (i !== ui) assert.equal(result.calls[i].env.P06_EXCHANGE_UI, "0");
   }
 }
-for (const suite of ["--agent", "--tags-convergence", "--tags-names", "--tags-deletion", "--standard", "--fields", "--placements", "--positions", "--positions-cross", "--positions-same", "--card-deletion", "--card-restore", "--container-deletion"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
+for (const suite of ["--agent", "--tags-convergence", "--tags-names", "--tags-deletion", "--standard", "--fields", "--fields-card", "--fields-space", "--fields-column", "--history", "--placements", "--positions", "--positions-cross", "--positions-same", "--card-deletion", "--card-restore", "--container-deletion"]) assert.equal((await pairingSuites({}, [suite])).calls.length, 0);
 for (const env of [{}, {CI:"true"}, {P06_EXCHANGE_UI:"0"}, {P06_EXCHANGE_UI:"1",P06_TAG_CONFLICTS_UI:"1"}]) {
   const result = await pairingSuites(env, ["--tags"]);
   assert.equal(result.error,undefined); assert.equal(result.exit,0);
@@ -240,16 +242,20 @@ for (const env of [{}, {CI:"true"}, {P06_EXCHANGE_UI:"0"}, {P06_EXCHANGE_UI:"1",
     assert.ok(failed.error);assert.equal(failed.calls.length,at+1);assert.equal(failed.exit,undefined);
   }
 }
-const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields')");
+const exchangeStart = pairingSource.indexOf("    if (suite === '--standard' || suite === '--fields' || fieldScope === 'card')");
 assert.ok(exchangeStart > 0);
 const splitExchanges = pairingSource.slice(exchangeStart, pairingSource.indexOf('    for (const [operation, parameters]', exchangeStart));
 function exchanges(suite) {
   const calls = [];
   const names = ['checkTagConflictsExchange', 'checkTagCollisionsExchange', 'checkTextExchange', 'checkFieldConflictsExchange', 'checkHistoryExchange', 'checkPlacementExchange', 'checkColumnPositionExchange', 'checkPositionConflictsExchange', 'checkCardDeletionExchange', 'checkCardRestoreExchange', 'checkContainerDeletionExchange'];
-  runInNewContext(splitExchanges, { assert, suite, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, historySpace: 'fixture-history-space', second: {}, call: {}, command: () => ({}), deliver: {}, ok: value => value, error: {},
+  const first = ['--fields-card','--fields-space','--fields-column'].includes(suite) ? suite.slice('--fields-'.length) : undefined;
+  runInNewContext(splitExchanges, { assert, suite, fields:suite.startsWith('--fields'),fieldScope:first, positions: suite.startsWith('--positions'), positionScope: suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined, host: {}, android: {}, space: {}, historySpace: 'fixture-history-space', second: {}, call: {}, command: () => ({}), deliver: {}, ok: value => value, error: {},
     ...(suite === '--container-deletion' ? { containerSpace: 'fixture-container-space' } : {}),
     ...Object.fromEntries(names.map(name => [name, options => {
-      calls.push(name);
+      if (name === 'checkFieldConflictsExchange') {
+        assert.equal(options.first,first);
+        for (const current of fieldConflictCases(options.first)) calls.push(`${name}:${current.order[0]}`);
+      } else calls.push(name);
       if (name === 'checkPositionConflictsExchange') assert.equal(options.sameColumn,
         suite === '--positions-cross' ? false : suite === '--positions-same' ? true : undefined);
       if (name === 'checkTagCollisionsExchange') assert.equal(options.scope,suite === '--tags-names' ? 'names' : 'deletion');
@@ -258,8 +264,17 @@ function exchanges(suite) {
     }])) });
   return calls;
 }
-assert.deepEqual([...exchanges('--fields'), ...exchanges('--placements')], exchanges('--standard'));
-assert.equal(exchanges('--standard').length, 5);
+assert.deepEqual([...exchanges('--fields'), ...exchanges('--history'), ...exchanges('--placements')], exchanges('--standard'));
+assert.deepEqual(exchanges('--fields'), ['checkTextExchange', 'checkFieldConflictsExchange:card','checkFieldConflictsExchange:space','checkFieldConflictsExchange:column']);
+assert.deepEqual([...exchanges('--fields-card'),...exchanges('--fields-space'),...exchanges('--fields-column')],exchanges('--fields'));
+assert.deepEqual(['card','space','column'].flatMap(first=>fieldConflictCases(first)),fieldConflictCases());
+assert.deepEqual(fieldConflictCases(),[
+  {order:['card','column','space'],choices:null},
+  {order:['space','card','column'],choices:[0,1]},
+  {order:['column','space','card'],choices:[1,0]},
+]);
+for (const invalid of [null,0,true,'unknown']) assert.throws(()=>fieldConflictCases(invalid));
+assert.equal(exchanges('--standard').length, 7);
 assert.deepEqual(exchanges('--history'), ['checkHistoryExchange']);
 assert.deepEqual(exchanges('--card-deletion'), ['checkCardDeletionExchange']);
 assert.deepEqual(exchanges('--card-restore'), ['checkCardRestoreExchange']);
@@ -293,6 +308,7 @@ for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixtur
           return files.get(path);
         }}),
         spawn(command, options) {
+          assert.ok(command.includes('--nocapture'), 'Rust fixture panics must reach the private stderr sink');
           stderrPath = options.stderr.path;
           if (stderr !== null) files.set(stderrPath, stderr);
           return {exited:Promise.resolve(code)};
@@ -305,6 +321,29 @@ for (const [code, stderr, reason] of [[0,'',''], [101,'private-key-secret fixtur
   assert.deepEqual(reads,code===0?[]:[stderrPath], 'Diagnostics must read the file used by the server stderr sink');
   assert.deepEqual(messages,code===0?[]:[`Host fixture failure: exit=${code} reason=${reason} elapsed_ms=100`]);
   assert.ok(!messages.join('').includes('private-key-secret'));
+}
+const contextStart = pairingSource.indexOf('const commandContexts = new WeakMap();');
+const contextSource = pairingSource.slice(contextStart, pairingSource.indexOf('const error =', contextStart));
+assert.ok(contextStart > 0);
+for (const exitCode of [null, 101]) for (const denied of [false, true]) {
+  const host = {address:'private-address',pinFile:'private-pin-secret',keyFile:'private-key-secret'};
+  const android = {...host};
+  const response = denied ? {status:'error',error:{code:'unavailable'}} : {status:'ok',result:{preserved:true}};
+  const helper = runInNewContext(contextSource + ';({call,ok})', {
+    host,android,cli:'fixture-cli',assert,Buffer,server:{exitCode},serverStarted:0,Date:{now:()=>240100},
+    invoke:()=>({exitCode:denied?1:0,stdout:JSON.stringify(response)}),
+  });
+  const value = helper.call(android,'fixture.peer_command',{operation:'space.read',request:'private-request-secret'});
+  assert.equal(JSON.stringify(value),JSON.stringify(response),'Diagnostics cannot alter the response envelope');
+  if (!denied) assert.equal(JSON.stringify(helper.ok(value)),JSON.stringify(response.result));
+  else {
+    assert.throws(()=>helper.ok(value), cause=> {
+      assert.ok(cause.message.includes('operation=fixture.peer_command/space.read; target=android'));
+      assert.ok(cause.message.includes(`host_exit=${exitCode??'running'}; elapsed_ms=240100`));
+      assert.ok(!/private-|request:|pinFile|keyFile/.test(cause.message));
+      return true;
+    });
+  }
 }
 
 assert.ok((await pairingSuites({}, ["invalid"])).error);

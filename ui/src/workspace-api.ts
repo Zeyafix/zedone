@@ -20,6 +20,8 @@ export type EditorMutation = "card.begin_editing" | "card.autosave" | "card.fini
 export type Mutation = Extract<Operation, `${"space" | "column" | "card"}.${"create" | "rename" | "resolve_name" | "resolve_deletion" | "trash" | "restore" | "move"}`> | EditorMutation | TagMutation | "trash.purge" | "trash.resolve_purge" | "card.restore_text" | "card.resolve_text" | "card.resolve_placement" | "column.resolve_position" | "history.clear";
 export const pendingChanged = "zedone:pending";
 type Reads = {
+  "space.backups.inspect": Schemas["DailyBackups"];
+  "space.backups.read": Schemas["SpaceArchive"];
   "space.recovery.inspect": Schemas["RecoveryState"];
   "space.recovery.read_backup": Schemas["SpaceArchive"];
   "card.inspect_tags": Schemas["CardTags"];
@@ -91,7 +93,7 @@ export async function mutationCredential() {
 }
 
 export type AdministrationMutation = "access.issue" | "access.replace" | "access.revoke" | "invitation.cancel" | "pairing.confirm" | "pairing.reject" | "pairing.unlink";
-export async function createMutation<O extends Mutation | AdministrationMutation | "sync.select" | "sync.pause" | "space.export" | "space.import" | "space.recovery.restore" | "space.recovery.pause">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
+export async function createMutation<O extends Mutation | AdministrationMutation | "sync.select" | "sync.pause" | "space.export" | "space.import" | "space.recovery.restore" | "space.recovery.pause" | "space.backups.retry" | "space.backups.delete">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
   const credential = await mutationCredential();
   if (subject !== undefined && credential.subject !== subject) throw new Error("identity_changed");
   const saved = store();

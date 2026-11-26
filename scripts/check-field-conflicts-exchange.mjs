@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 
-export function checkFieldConflictsExchange({ host, android, space, pairing, call, command, ok, error }) {
+export function fieldConflictCases(first) {
+  assert.ok(first === undefined || ['card', 'space', 'column'].includes(first), 'Unknown field conflict scope');
+  return [
+    { order: ["card", "column", "space"], choices: null },
+    { order: ["space", "card", "column"], choices: [0, 1] },
+    { order: ["column", "space", "card"], choices: [1, 0] },
+  ].filter(item => first === undefined || item.order[0] === first);
+}
+
+export function checkFieldConflictsExchange({ host, android, space, pairing, call, command, ok, error, first }) {
+  const cases = fieldConflictCases(first);
   const id = () => randomBytes(16).toString("hex");
   const exchange = () => ok(call(android, "exchange.run", { space }));
   const pause = paused => {
@@ -9,11 +19,6 @@ export function checkFieldConflictsExchange({ host, android, space, pairing, cal
     ok(command(android, "sync.pause", { space, pairing, paused, expected: current.pause_version }));
   };
   const original = ok(command(host, "space.read", { space })).names[0];
-  const cases = [
-    { order: ["card", "column", "space"], choices: null },
-    { order: ["space", "card", "column"], choices: [0, 1] },
-    { order: ["column", "space", "card"], choices: [1, 0] },
-  ];
   for (const { order, choices } of cases) {
     const saved = choices !== null;
     const column = id(), card = id(), sibling = id();

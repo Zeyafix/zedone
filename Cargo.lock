@@ -4488,6 +4488,8 @@ version = "0.0.0"
 dependencies = [
  "automerge",
  "getrandom 0.4.3",
+ "iana-time-zone",
+ "jiff",
  "rusqlite",
  "serde",
  "serde_json",

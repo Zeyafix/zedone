@@ -783,6 +783,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/space.backups.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_backups_delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.backups.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_backups_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.backups.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_backups_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/space.backups.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["space_backups_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/space.create": {
         parameters: {
             query?: never;
@@ -1701,6 +1765,31 @@ export interface components {
                 tag: string;
             };
         };
+        CommandRequest_DeleteDailyBackup: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                copy: string;
+                space: string;
+            };
+        };
         CommandRequest_DeleteTag: {
             id: [
                 number,
@@ -1926,6 +2015,30 @@ export interface components {
             operation: string;
             parameters: {
                 column: string;
+                space: string;
+            };
+        };
+        CommandRequest_InspectDailyBackups: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
                 space: string;
             };
         };
@@ -2510,6 +2623,31 @@ export interface components {
             operation: string;
             parameters: {
                 column: string;
+                space: string;
+            };
+        };
+        CommandRequest_ReadDailyBackup: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                copy: string;
                 space: string;
             };
         };
@@ -3229,6 +3367,31 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_RetryDailyBackup: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                failed_sequence: number;
+                space: string;
+            };
+        };
         CommandRequest_RevokeAccess: {
             id: [
                 number,
@@ -3496,6 +3659,7 @@ export interface components {
         CommandResponse_ColumnList: components["schemas"]["CommandSuccess_ColumnList"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnPositions: components["schemas"]["CommandSuccess_ColumnPositions"] | components["schemas"]["CommandFailure"];
         CommandResponse_ColumnSnapshot: components["schemas"]["CommandSuccess_ColumnSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_DailyBackups: components["schemas"]["CommandSuccess_DailyBackups"] | components["schemas"]["CommandFailure"];
         CommandResponse_HistoryPreview: components["schemas"]["CommandSuccess_HistoryPreview"] | components["schemas"]["CommandFailure"];
         CommandResponse_ImportedSpace: components["schemas"]["CommandSuccess_ImportedSpace"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
@@ -3614,6 +3778,19 @@ export interface components {
                 space: string;
                 state: components["schemas"]["SpaceState"];
                 version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_DailyBackups: {
+            replayed: boolean;
+            result: {
+                cleanup_pending: boolean;
+                copies: components["schemas"]["DailyCopy"][];
+                failed_sequence?: number | null;
+                last_success?: components["schemas"]["DailyCopy"] | null;
+                retry_after_ms?: number | null;
+                space: string;
+                status: components["schemas"]["DailyStatus"];
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -3833,6 +4010,24 @@ export interface components {
             space: string;
             tag: string;
         };
+        DailyBackups: {
+            cleanup_pending: boolean;
+            copies: components["schemas"]["DailyCopy"][];
+            failed_sequence?: number | null;
+            last_success?: components["schemas"]["DailyCopy"] | null;
+            retry_after_ms?: number | null;
+            space: string;
+            status: components["schemas"]["DailyStatus"];
+        };
+        DailyCopy: {
+            created_at_unix_ms: number;
+            id: string;
+        };
+        DailyStatus: "ready" | "saved" | "unchanged" | "daily_limit" | "waiting" | "unavailable" | "calendar_rollback" | "running";
+        DeleteDailyBackup: {
+            copy: string;
+            space: string;
+        };
         DeleteTag: {
             expected: components["schemas"]["StateVersion"];
             space: string;
@@ -3888,6 +4083,9 @@ export interface components {
         };
         InspectColumnPositions: {
             column: string;
+            space: string;
+        };
+        InspectDailyBackups: {
             space: string;
         };
         InspectHistory: {
@@ -4030,6 +4228,10 @@ export interface components {
         };
         ReadColumn: {
             column: string;
+            space: string;
+        };
+        ReadDailyBackup: {
+            copy: string;
             space: string;
         };
         ReadSafetyBackup: {
@@ -4191,6 +4393,10 @@ export interface components {
         };
         RestoredSnapshot: {
             safety: string;
+            space: string;
+        };
+        RetryDailyBackup: {
+            failed_sequence: number;
             space: string;
         };
         RevokeAccess: {
@@ -5495,6 +5701,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_PairingSnapshot"];
+                };
+            };
+        };
+    };
+    space_backups_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_DeleteDailyBackup"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_DailyBackups"];
+                };
+            };
+        };
+    };
+    space_backups_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectDailyBackups"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_DailyBackups"];
+                };
+            };
+        };
+    };
+    space_backups_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ReadDailyBackup"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceArchive"];
+                };
+            };
+        };
+    };
+    space_backups_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_RetryDailyBackup"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_DailyBackups"];
                 };
             };
         };

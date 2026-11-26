@@ -141,3 +141,26 @@ A09/A44 не принимаются заодно. GAP-042/047/053 и все ос
 точного head/base и отсутствия блокирующих замечаний перед merge.
 Прежние 27 SUCCESS PR #122/#123/#124 принадлежат прежним продуктовым
 ревизиям и не выдаются за новый CI документационного PR.
+
+## Публикация и интеграция — LOG-836
+
+[PR #125](https://github.com/Zeyafix/zedone/pull/125), head `785cacc`,
+base `main/3eecdaf`: шесть документов, 322 additions/19 deletions.
+Title/body/credit и состав прочитаны обратно. Локальная валидация passed:
+54 актуальных fingerprints, девять хешей исходных логов, 98 определений,
+два повышения и 96 остальных состояний, 73 проблемы, 197 узлов без циклов,
+691 относительная ссылка; staged diff/privacy/noreply проверены.
+
+Checks этого PR пусты по path filters всех трёх workflow; main protected=false,
+активных branch rules нет. Это отсутствие нового product CI, не новый
+успешный product-прогон. Свежие exact head/base, behind0, MERGEABLE,
+non-draft, отсутствие comments/unresolved threads/truncation проверены
+перед порученным merge с expectedHeadSha.
+
+Merge `3659596ef635cbbc0badd289a2b9082544e87368` содержит reviewed head;
+их Git trees равны. Main=origin/main; ветка PR удалена remote с lease точного
+head и локально branch-d, local/remote/tracking refs отсутствуют.
+Прежняя fix/ci-failure-diagnostics сохранена. P07.02/A25/A32 опубликованы
+в принятом охвате; полный P07/T10, открытые GAP и прежние ограничения
+сохранены. Далее P07.04, не начат; active_work null.
+Этот интеграционный checkpoint локальный, без нового commit/push/runtime/Device.

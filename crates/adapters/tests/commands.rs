@@ -26,6 +26,8 @@ use zedone_storage::{
 #[path = "commands/spaces.rs"]
 mod spaces;
 
+#[path = "commands/backups.rs"]
+mod backups;
 #[path = "commands/recovery.rs"]
 mod recovery;
 #[path = "commands/snapshots.rs"]

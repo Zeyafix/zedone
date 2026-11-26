@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 use std::sync::Arc;
+#[path = "fixtures/backups.rs"]
+mod backup_fixture;
 #[path = "fixtures/column_positions.rs"]
 mod column_position_fixture;
 #[path = "fixtures/container_deletion.rs"]
@@ -40,6 +42,8 @@ async fn main() {
     assert!(
         args[0] == "--prepare"
             || args[0] == "--serve"
+            || args[0] == "--serve-backups"
+            || args[0] == "--prepare-backups"
             || args[0] == "--prepare-conflicts"
             || args[0] == "--serve-conflicts"
             || args[0] == "--prepare-text-conflicts"
@@ -94,6 +98,9 @@ async fn main() {
     if args[0] == "--prepare-conflicts" || args[0] == "--serve-conflicts" {
         seed_conflicts(&storage, &access, true, false, false).await;
     }
+    if args[0] == "--serve-backups" || args[0] == "--prepare-backups" {
+        backup_fixture::seed(&storage, access.clone()).await;
+    }
     if args[0] == "--prepare-text-conflicts" || args[0] == "--serve-text-conflicts" {
         seed_conflicts(&storage, &access, false, true, false).await;
     }
@@ -137,6 +144,7 @@ async fn main() {
         tag_fixture::seed(&storage, &access).await;
     }
     if args[0] == "--prepare"
+        || args[0] == "--prepare-backups"
         || args[0] == "--prepare-tag-conflicts"
         || args[0] == "--prepare-position-conflicts"
         || args[0] == "--prepare-column-position-conflicts"
@@ -155,7 +163,11 @@ async fn main() {
     println!("http://{address}");
     #[allow(unused_mut)]
     let mut shell = zedone_shell::Shell::new(
-        Some(zedone_adapters::Service::new(storage)),
+        Some(if args[0] == "--serve-backups" {
+            zedone_adapters::Service::new(storage).with_daily_backups()
+        } else {
+            zedone_adapters::Service::new(storage)
+        }),
         directory.join("local-session.json"),
     );
     #[cfg(not(windows))]

@@ -103,7 +103,7 @@ pub async fn open_shell(directory: &Path) -> Shell {
         match zedone_storage::Storage::open(directory.join("zedone.sqlite")).await {
             Ok(storage) => {
                 if storage.recover_editing_sessions().await.is_ok() {
-                    Some(Service::new(storage))
+                    Some(Service::new(storage).with_daily_backups())
                 } else {
                     let _ = storage.shutdown().await;
                     None

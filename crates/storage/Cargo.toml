@@ -16,6 +16,8 @@ tokio.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
 getrandom.workspace = true
+jiff = "=0.2.38"
+iana-time-zone = "=0.1.65"
 
 [dev-dependencies]
 utoipa.workspace = true

@@ -138,14 +138,32 @@ pub(crate) fn capture(
     limits: SnapshotLimits,
     checkpoint: impl Fn(Checkpoint, &Path) -> StorageResult<()>,
 ) -> StorageResult<PreparedRestoreBackup> {
+    capture_named(
+        locked,
+        folder,
+        space,
+        date,
+        limits,
+        "zedone-restore-candidate-",
+        checkpoint,
+    )
+}
+
+pub(crate) fn capture_named(
+    locked: &Connection,
+    folder: &Path,
+    space: String,
+    date: u64,
+    limits: SnapshotLimits,
+    prefix: &str,
+    checkpoint: impl Fn(Checkpoint, &Path) -> StorageResult<()>,
+) -> StorageResult<PreparedRestoreBackup> {
     directory(folder)?;
     let snapshot = capture_export(locked, space, date, limits)?;
     let bytes = snapshot
         .encode(limits)
         .map_err(|_| StorageError::Unavailable)?;
-    let directory = io(tempfile::Builder::new()
-        .prefix("zedone-restore-candidate-")
-        .tempdir_in(folder))?;
+    let directory = io(tempfile::Builder::new().prefix(prefix).tempdir_in(folder))?;
     let mut candidate = PreparedRestoreBackup {
         directory,
         metadata: snapshot.metadata().clone(),

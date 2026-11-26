@@ -64,9 +64,11 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     let storage = zedone_storage::Storage::open(&args[1])
         .await
         .map_err(|e| CommandError::from(e).code)?;
-    let response = Service::new(storage.clone())
+    let service = Service::new(storage.clone());
+    let response = service
         .dispatch(&args[5], &body, key.trim_end_matches(['\r', '\n']))
         .await;
+    service.flush_daily_backups().await;
     let _ = storage.shutdown().await;
     Ok(response)
 }
@@ -165,7 +167,7 @@ async fn listen() -> Result<(), ErrorCode> {
             .await
             .map_err(|_| ErrorCode::Unavailable)?;
         let host = std::sync::Arc::new(zedone_adapters::device_host::DeviceHost::new(
-            Service::new(storage.clone()),
+            Service::new(storage.clone()).with_daily_backups(),
             store,
         ));
         let (listener, pin) = host

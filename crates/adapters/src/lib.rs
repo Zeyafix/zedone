@@ -1,3 +1,4 @@
+mod backups;
 pub mod channel;
 pub mod device_control;
 pub mod device_host;
@@ -63,11 +64,26 @@ pub fn request_limit(operation: &str) -> usize {
 #[derive(Clone)]
 pub struct Service {
     storage: Storage,
+    backups: Option<std::sync::Arc<backups::Worker>>,
 }
 
 impl Service {
     pub fn new(storage: Storage) -> Self {
-        Self { storage }
+        Self {
+            storage,
+            backups: None,
+        }
+    }
+
+    pub fn with_daily_backups(mut self) -> Self {
+        self.backups = Some(std::sync::Arc::new(backups::Worker::new(
+            self.storage.clone(),
+        )));
+        self
+    }
+
+    pub async fn flush_daily_backups(&self) {
+        let _ = self.storage.daily_tick(true).await;
     }
 
     pub async fn dispatch(
@@ -83,6 +99,9 @@ impl Service {
             let secret = decode_key(key)?;
             if body.len() > request_limit(operation) {
                 return Err(invalid());
+            }
+            if operation.starts_with("space.backups.") {
+                self.storage.initialize_daily_backups().await.map_err(CommandError::from)?;
             }
             macro_rules! run {
                 ($command:ty, $handler:path) => {{
@@ -110,6 +129,10 @@ impl Service {
                 }};
             }
             match operation {
+                "space.backups.inspect" => run!(zedone_core::backups::InspectDailyBackups, zedone_core::backups::inspect),
+                "space.backups.retry" => run!(zedone_core::backups::RetryDailyBackup, zedone_core::backups::retry),
+                "space.backups.delete" => run!(zedone_core::backups::DeleteDailyBackup, zedone_core::backups::delete),
+                "space.backups.read" => run!(zedone_core::backups::ReadDailyBackup, zedone_core::backups::read),
                 "space.recovery.pause" => run!(zedone_core::recovery::RecoveryPause, zedone_core::recovery::pause),
                 "space.recovery.inspect" => run!(zedone_core::recovery::InspectRecovery, zedone_core::recovery::inspect),
                 "space.recovery.restore" => run!(zedone_core::recovery::RestoreSnapshot, zedone_core::recovery::restore),
@@ -199,6 +222,22 @@ impl Service {
             && let Some(space) = request["parameters"]["space"].as_str()
         {
             let _ = self.storage.cleanup_restore_backup(space.into()).await;
+        }
+        if result.is_ok() {
+            if matches!(operation, "space.backups.retry" | "space.backups.delete") {
+                let _ = self.storage.cleanup_daily_backups().await;
+            }
+            if !operation.ends_with(".read")
+                && !operation.ends_with(".inspect")
+                && !operation.ends_with(".list")
+                && !matches!(
+                    operation,
+                    "card.search" | "card.history" | "space.export" | "sync.pull" | "sync.catalog"
+                )
+                && let Some(worker) = &self.backups
+            {
+                worker.notify();
+            }
         }
         result.into()
     }

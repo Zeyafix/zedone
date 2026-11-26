@@ -235,3 +235,5 @@ footer { padding: 22px 44px; color: var(--muted); font-size: 12px; display: flex
   .theme-option { width: 100%; display: flex; flex-wrap: wrap; min-height: 60px; }
   .theme-swatch { display: none; }
 }
+ .daily-copy-list { padding-inline-start: 1.25rem; }
+ .daily-copy-list li { margin-block: 1rem; }

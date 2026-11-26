@@ -1,11 +1,13 @@
 pub mod access;
 pub mod access_commands;
+pub mod backups;
 pub mod card_history;
 pub mod cards;
 pub mod cleanup;
 pub mod column_positions;
 pub mod columns;
 pub mod command;
+pub mod daily_backup;
 pub mod error;
 pub mod invitations;
 pub mod ordering;
@@ -32,7 +34,7 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "ZeDone API"),
-    paths(access_commands::inspect, access_commands::revoke,
+    paths(backups::inspect, backups::retry, backups::delete, backups::read, access_commands::inspect, access_commands::revoke,
         access_commands::issue, access_commands::replace, access_commands::list,
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
         pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,

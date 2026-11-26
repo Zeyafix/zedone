@@ -1676,6 +1676,142 @@
         ]
       }
     },
+    "/v1/commands/space.backups.delete": {
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "operationId": "space_backups_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_DeleteDailyBackup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_DailyBackups"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.backups.inspect": {
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "operationId": "space_backups_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectDailyBackups"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_DailyBackups"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.backups.read": {
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "operationId": "space_backups_read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ReadDailyBackup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceArchive"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/space.backups.retry": {
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "operationId": "space_backups_retry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_RetryDailyBackup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_DailyBackups"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/space.create": {
       "post": {
         "tags": [
@@ -3830,6 +3966,47 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_DeleteDailyBackup": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "copy"
+            ],
+            "properties": {
+              "copy": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_DeleteTag": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -4203,6 +4380,43 @@
               "column": {
                 "type": "string"
               },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectDailyBackups": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space"
+            ],
+            "properties": {
               "space": {
                 "type": "string"
               }
@@ -5233,6 +5447,47 @@
             ],
             "properties": {
               "column": {
+                "type": "string"
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ReadDailyBackup": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "copy"
+            ],
+            "properties": {
+              "copy": {
                 "type": "string"
               },
               "space": {
@@ -6535,6 +6790,49 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_RetryDailyBackup": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "space",
+              "failed_sequence"
+            ],
+            "properties": {
+              "failed_sequence": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "space": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_RevokeAccess": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -7074,6 +7372,17 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CommandSuccess_ColumnSnapshot"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_DailyBackups": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_DailyBackups"
           },
           {
             "$ref": "#/components/schemas/CommandFailure"
@@ -7769,6 +8078,76 @@
               },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_DailyBackups": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "space",
+              "status",
+              "copies",
+              "cleanup_pending"
+            ],
+            "properties": {
+              "cleanup_pending": {
+                "type": "boolean"
+              },
+              "copies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DailyCopy"
+                }
+              },
+              "failed_sequence": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              },
+              "last_success": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DailyCopy"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "retry_after_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              },
+              "space": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "#/components/schemas/DailyStatus"
               }
             },
             "additionalProperties": false
@@ -8781,6 +9160,106 @@
         },
         "additionalProperties": false
       },
+      "DailyBackups": {
+        "type": "object",
+        "required": [
+          "space",
+          "status",
+          "copies",
+          "cleanup_pending"
+        ],
+        "properties": {
+          "cleanup_pending": {
+            "type": "boolean"
+          },
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyCopy"
+            }
+          },
+          "failed_sequence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "last_success": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DailyCopy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retry_after_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "space": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DailyStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DailyCopy": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at_unix_ms"
+        ],
+        "properties": {
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DailyStatus": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "saved",
+          "unchanged",
+          "daily_limit",
+          "waiting",
+          "unavailable",
+          "calendar_rollback",
+          "running"
+        ]
+      },
+      "DeleteDailyBackup": {
+        "type": "object",
+        "required": [
+          "space",
+          "copy"
+        ],
+        "properties": {
+          "copy": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "DeleteTag": {
         "type": "object",
         "required": [
@@ -9029,6 +9508,18 @@
           "column": {
             "type": "string"
           },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InspectDailyBackups": {
+        "type": "object",
+        "required": [
+          "space"
+        ],
+        "properties": {
           "space": {
             "type": "string"
           }
@@ -9721,6 +10212,22 @@
         },
         "additionalProperties": false
       },
+      "ReadDailyBackup": {
+        "type": "object",
+        "required": [
+          "space",
+          "copy"
+        ],
+        "properties": {
+          "copy": {
+            "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ReadSafetyBackup": {
         "type": "object",
         "required": [
@@ -10384,6 +10891,24 @@
         "properties": {
           "safety": {
             "type": "string"
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetryDailyBackup": {
+        "type": "object",
+        "required": [
+          "space",
+          "failed_sequence"
+        ],
+        "properties": {
+          "failed_sequence": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           },
           "space": {
             "type": "string"

@@ -1,7 +1,7 @@
 # EV-154: Maven Central mirror для Android-сборок
 
-Дата: 2026-11-25. Дополнение FIX.04/plugin path verified локально;
-GAP-037 in_progress до нового CI, интеграции нет. LOG-821–826.
+Дата: 2026-11-25. FIX.04 done в PR124/merge3eecdaf,
+GAP-037 resolved после PR CI и post-merge Android. LOG-821–831.
 
 ## Карточка
 
@@ -194,3 +194,78 @@ Gradle-only artifacts. Два новых settings включены в source com
 | ui/src-tauri/gen/android/settings.gradle | 89fd357386f6d1de3e43670e80c18a54e19633bffac8b5ff34734658dca815fb |
 | ui/src-tauri/gen/android/buildSrc/settings.gradle.kts | afc23f4064dd2b958d483bba53a2c49cca56d41d324660e14b0d876fb7d6c6e0 |
 | scripts/comment-policy.json | a5ba137d91f58366ae50850a39ded3593daada5e33e2ab1c5f73e9a705466055 |
+
+## Новый опубликованный head — LOG-827
+
+PR124 обновлён коммитом e677d6faee29407783f6e4e20b91f23e3fdd5121.
+Body/head прочитаны обратно; первые10 checks pending,0 success/failure,
+требуется полный набор27. Старые failures d238028 не заменены rerun.
+GAP-037 остаётся in_progress; watch продолжает действовать, после успеха
+предусмотрены свежая проверка/интеграция и post-merge Android CI.
+
+## Linux gate на e677d6f — LOG-828
+
+[Linux product job139358855590](https://github.com/Zeyafix/zedone/actions/runs/45657733755/job/139358855590)
+отменён по явно подтверждённому GitHub лимиту10m0s. Обычные Rust tests и
+isolated search1000/13331ms passed; отмена во время offline release-сборки,
+остальные unsafe/contract проверки не завершены. Это повтор симптома
+GAP-042, не доказательство нового отказа mirror; причина длительности
+compilation неизвестна. Android prototype-ui на том же head SUCCESS.
+
+Исходные job/run/annotations и ограниченный tail сохранены в ignored reports.
+Штатный targeted ci_rerun не принят: workflow ещё running; accepted0/limit1.
+После terminal host run45657733755 разрешён один recovery того же job/head
+со строгим aggregate и прежними10m, без изменения tests/source. Полный CI
+неуспешен, merge остаётся заблокированным; GAP-037 не закрывается.
+
+LOG-829: Linux aggregate139367725839 failed с RESULT:cancelled — следствие
+исходного timeout. После completed host workflow GitHub принял один targeted
+Linux product recovery на том же e677d6f (rerun=true, accepted1/limit1).
+Новых same-head повторов нет; timeout10m/tests/source сохраняются,
+исходный отказ остаётся в доказательствах. Результат recovery и зависимого
+aggregate ожидается, полный CI и закрытие GAP-037 пока не заявляются.
+
+## Интеграция — LOG-830
+
+PR124/e677d6f: все27 уникальных checks SUCCESS после одного принятого
+Linux recovery; host45657733755 attempt2 и Android45657735199 attempt1
+SUCCESS. Fresh head/base/feedback проверены, merge с expectedHeadSha выполнен
+в3eecdafb1a37428bb14b350b0c58c483545bbe7d; Git tree merge и checked head
+равны2427e0d2578c602d5786797b8229b8e99358a49f. Ветка сохранена.
+
+Отдельный Android main push-run45662497833 ещё выполняется; окончательный
+GAP-037 verdict ожидает его результат. Initial plugin429 и Linux10m не
+скрываются. GAP-042/047/053 остаются открытыми.
+
+## Итог — LOG-831
+
+[Android push-run45662497833](https://github.com/Zeyafix/zedone/actions/runs/45662497833)
+на merge3eecdafb1a37428bb14b350b0c58c483545bbe7d завершился SUCCESS,
+attempt1. Все16 jobs (15 suites плюс aggregate) completed/success;
+точный head и полнота уникальной матрицы проверены свежими metadata и
+отдельным verifier. Оба прежних HTTP429 targets, полный Android UI/парный
+набор и обе ABI прошли с первой попытки. CLI watch завершился HTTP502
+при чтении GitHub API; это отказ наблюдения, итог подтверждён прямым
+structured read, не взят из exit watch.
+
+GAP-037 resolved в охвате regular/plugin resolution обоих Android-проектов;
+FIX.04 done. Все27 PR checks и независимый Android после merge passed,
+деревья merge и checked head равны. Никаких дополнительных повторов
+Android main не было. Linux recovery в PR остаётся одним принятым повтором,
+GAP-042/047/053 open; исходные failures не переписываются. Доступность
+внешних зеркал и неизвестный исходный aggregate egress не превращаются
+в гарантию отсутствия любого будущего429 при fallback.
+
+Main=origin/main/3eecdaf, feature-ветка сохранена локально/remote/e677d6f.
+Продукт/API/данные/обратимость/единый граф прежние, Windows/Linux/Android
+PR CI и отдельный Android main подтверждены, developer/agent docs актуальны.
+Независимый main host45662497988 ещё выполнялся на снимке: полного нового
+host успеха здесь не заявляется. Финальный checkpoint локальный, без нового
+commit/push/CI; активных реализаций нет, дальнейшие исправления — по поручению.
+
+LOG-832: позднее завершился и отдельный main host45662497988 — SUCCESS,
+attempt1. Все11 host jobs/точный merge SHA проверены structured snapshot
+и verifier; вместе с16 Android jobs это полный post-merge набор27 SUCCESS,
+оба workflow с первой попытки. Прежняя pending-запись выше историческая.
+Окончательный вердикт сохранён в ignored main-verdict.json; GAP-037 resolved,
+FIX.03/04 done, прочие причины не объявляются исправленными.

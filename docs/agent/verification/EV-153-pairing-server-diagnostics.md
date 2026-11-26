@@ -1,6 +1,7 @@
 # EV-153: чтение stderr парного тестового сервера
 
-Дата: 2026-11-25. Шаг: FIX.03, verified локально. Связь: GAP-047, LOG-818–820.
+Дата: 2026-11-25. Шаг: FIX.03 done в PR124/merge3eecdaf.
+Связь: GAP-047 (остаётся open), LOG-818–831.
 
 ## Карточка работы
 
@@ -73,3 +74,14 @@ LOG-823: по поручению довести работу до конца FIX
 Опубликован [PR #124](https://github.com/Zeyafix/zedone/pull/124): FIX.03
 в98b7dac, итоговый head d238028. LOG-824:24 suites pending, полный набор27
 ещё ожидается; runtime/CI успех и интеграция пока не заявляются.
+
+LOG-830: итоговый head e677d6f прошёл все27 checks (host attempt2,
+Android attempt1). PR124 merged в3eecdaf с проверкой expectedHeadSha;
+tree merge равен checked head. FIX.03 интегрирован, исходная причина GAP-047
+остаётся открытой; отдельный main Android push-run ещё выполняется.
+
+LOG-831: Android push-run45662497833 на merge3eecdaf прошёл все16 jobs
+с первой попытки; metadata/точный head/полнота матрицы проверены отдельно.
+FIX.03 done в интегрированном охвате; GAP-047 остаётся open, успешный paired
+runtime не доказывает причину старого access_denied. Ветка сохранена,
+финальный checkpoint локальный без отдельного коммита/push.

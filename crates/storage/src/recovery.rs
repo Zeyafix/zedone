@@ -1,17 +1,14 @@
-use crate::restore_backup::{ARCHIVE, PreparedRestoreBackup};
+use crate::backup_io as bio;
+use crate::restore_backup::ARCHIVE;
 use crate::{
-    Storage, StorageError, StorageResult, WriteContext, restore_backup,
+    Storage, StorageError, StorageResult, WriteContext,
     snapshot::{SnapshotLimits, SpaceSnapshot},
     state_version,
 };
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{
-    fs::{self, File},
-    io::Read,
-    path::PathBuf,
-};
+use std::path::PathBuf;
 use zedone_core::{
     command::CommandResult,
     error::{CommandError, ErrorCode},
@@ -61,13 +58,7 @@ fn key(space: &str) -> Vec<u8> {
     format!("\0zedone/internal/restore-backup/v1/{space}").into_bytes()
 }
 fn folder(connection: &rusqlite::Connection) -> StorageResult<PathBuf> {
-    let path = connection.path().ok_or(StorageError::Unavailable)?;
-    let database = fs::canonicalize(path).map_err(|_| StorageError::Unavailable)?;
-    let name = database
-        .file_name()
-        .ok_or(StorageError::Unavailable)?
-        .to_string_lossy();
-    Ok(database.with_file_name(format!("{name}.backups")))
+    crate::backup_catalog::folder(connection)
 }
 fn checked(reference: &Reference, space: &str) -> StorageResult<()> {
     if reference.space != space
@@ -110,35 +101,9 @@ fn read_reference(
     reference: &Reference,
 ) -> StorageResult<Vec<u8>> {
     checked(reference, &reference.space)?;
-    if !fs::symlink_metadata(folder(connection)?)
-        .map_err(|_| StorageError::Unavailable)?
-        .file_type()
-        .is_dir()
-    {
-        return Err(StorageError::InvalidDatabase);
-    }
     let directory = folder(connection)?.join(&reference.name);
-    if !fs::symlink_metadata(&directory)
-        .map_err(|_| StorageError::Unavailable)?
-        .file_type()
-        .is_dir()
-    {
-        return Err(StorageError::InvalidDatabase);
-    }
-    let path = directory.join(ARCHIVE);
-    if !fs::symlink_metadata(&path)
-        .map_err(|_| StorageError::Unavailable)?
-        .file_type()
-        .is_file()
-    {
-        return Err(StorageError::InvalidDatabase);
-    }
-    let mut bytes = Vec::new();
-    File::open(path)
-        .map_err(|_| StorageError::Unavailable)?
-        .take(reference.bytes as u64 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| StorageError::Unavailable)?;
+    bio::directory(&directory)?;
+    let bytes = bio::read(&directory.join(ARCHIVE), reference.bytes)?;
     if bytes.len() != reference.bytes || Sha256::digest(&bytes).as_slice() != reference.digest {
         return Err(StorageError::InvalidDatabase);
     }
@@ -166,19 +131,14 @@ fn cleanup(connection: &rusqlite::Connection, space: &str) -> StorageResult<()> 
     {
         read_reference(connection, &value.current)?;
         let path = folder(connection)?.join(&previous.name);
-        match fs::symlink_metadata(&path) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Ok(metadata) if metadata.file_type().is_dir() => {
-                match fs::remove_file(path.join(restore_backup::ARCHIVE)) {
-                    Ok(()) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                    _ => return Err(StorageError::Unavailable),
-                }
-                fs::remove_dir(&path).map_err(|_| StorageError::Unavailable)?;
+        if bio::exists(&path)? {
+            let entries = bio::list(&path)?;
+            if entries.iter().any(|e| e.directory || e.name != ARCHIVE) {
+                return Err(StorageError::InvalidDatabase);
             }
-            _ => return Err(StorageError::Unavailable),
+            bio::remove_file(&path.join(ARCHIVE))?;
+            bio::remove_dir(&path)?;
         }
-        restore_backup::sync_directory(&folder(connection)?)?;
         value.previous = None;
         save_witness(connection, space, &value)?;
     }
@@ -267,29 +227,34 @@ impl RecoveryStore for WriteContext<'_> {
             cleanup(self.connection(), &request.space)?;
             let previous = witness(self.connection(), &request.space)?.map(|w| w.current);
             let folder = folder(self.connection())?;
-            if !folder.exists() && previous.is_none() {
-                fs::create_dir(&folder).map_err(|_| StorageError::Unavailable)?;
+            crate::backup_catalog::writable(self.connection())?;
+            if !bio::exists(&folder)?
+                && previous.is_none()
+                && folder == crate::backup_catalog::default_folder(self.connection())?
+            {
+                bio::mkdir(&folder)?;
             }
-            let candidate: PreparedRestoreBackup = restore_backup::capture(
+            let snapshot = crate::snapshot::export::capture_export(
                 self.connection(),
-                &folder,
                 request.space.clone(),
                 date,
                 LIMITS,
-                |_, _| Ok(()),
             )?;
+            let bytes = snapshot
+                .encode(LIMITS)
+                .map_err(|_| StorageError::Unavailable)?;
+            let name = format!("zedone-restore-candidate-{}", bio::random_id()?);
+            let path = folder.join(&name);
+            bio::mkdir(&path)?;
+            bio::write(&path.join(ARCHIVE), &bytes, true)?;
             let reference = Reference {
-                name: candidate
-                    .path()
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .ok_or(StorageError::Unavailable)?
-                    .into(),
+                name,
                 space: request.space.clone(),
                 date,
-                bytes: candidate.bytes,
-                digest: candidate.digest,
+                bytes: bytes.len(),
+                digest: Sha256::digest(&bytes).into(),
             };
+            read_reference(self.connection(), &reference)?;
             self.apply_changes(&request.space, changes)?;
             self.connection().execute(
                 "DELETE FROM card_editing WHERE space = ?1",
@@ -331,4 +296,16 @@ impl RecoveryStore for WriteContext<'_> {
         })();
         Ok(self.checked(result)?)
     }
+}
+
+pub(crate) fn forget_copy(c: &rusqlite::Connection, space: &str, id: &str) -> StorageResult<()> {
+    if let Some(mut value) = witness(c, space)? {
+        if value.current.name == id {
+            c.execute("DELETE FROM command_results WHERE key=?1", [key(space)])?;
+        } else if value.previous.as_ref().is_some_and(|p| p.name == id) {
+            value.previous = None;
+            save_witness(c, space, &value)?;
+        }
+    }
+    Ok(())
 }

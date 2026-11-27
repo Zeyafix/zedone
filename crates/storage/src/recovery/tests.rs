@@ -1,6 +1,7 @@
 use super::*;
 use crate::{Stage, restore_backup::tests::fixture};
 use automerge::{ObjType, ROOT, ReadDoc, transaction::Transactable};
+use std::fs;
 use zedone_core::{recovery::RecoveryStore, spaces::SpaceStore};
 fn id(value: u8) -> String {
     format!("{value:032x}")

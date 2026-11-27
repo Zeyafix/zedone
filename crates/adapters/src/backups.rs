@@ -10,6 +10,7 @@ impl Worker {
         let wake = Arc::new(Notify::new());
         let notify = wake.clone();
         let task = tokio::spawn(async move {
+            let _ = storage.cleanup_backup_location().await;
             let _ = storage.initialize_daily_backups().await;
             let _ = storage.cleanup_daily_backups().await;
             let mut changed = true;
@@ -18,6 +19,7 @@ impl Worker {
             let mut cleanup = std::time::Instant::now();
             loop {
                 if cleanup.elapsed() >= Duration::from_secs(300) {
+                    let _ = storage.cleanup_backup_location().await;
                     let _ = storage.retry_daily_cleanup().await;
                     cleanup = std::time::Instant::now();
                 }

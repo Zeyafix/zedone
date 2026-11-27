@@ -30,6 +30,7 @@ if (mode !== "--conflicts") for (const args of [
   ["test", "--locked", "--offline"],
 ]) run(["cargo", `+${versions.rust}`, args[0], "--manifest-path", "ui/src-tauri/Cargo.toml", ...args.slice(1)]);
 run(["cargo", `+${versions.rust}`, "build", "--manifest-path", "ui/src-tauri/Cargo.toml", "--bin", "serve-shell", "--example", "shell-fixture", "--locked", "--offline"]);
+if (mode !== "--conflicts") run(["cargo", `+${versions.rust}`, "build", "-p", "zedone-adapters", "--bin", "zedone", "--locked", "--offline"]);
 run([process.execPath, "scripts/check-ui-browser.mjs", mode || "--main"]);
 if (!mode) run([process.execPath, "scripts/check-ui-browser.mjs", "--conflicts"]);
 if (mode !== "--main") run([process.execPath, "scripts/check-ui-pairing.mjs"]);

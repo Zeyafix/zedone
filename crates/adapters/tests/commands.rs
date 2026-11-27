@@ -28,6 +28,8 @@ mod spaces;
 
 #[path = "commands/backups.rs"]
 mod backups;
+#[path = "commands/catalog.rs"]
+mod catalog;
 #[path = "commands/recovery.rs"]
 mod recovery;
 #[path = "commands/snapshots.rs"]

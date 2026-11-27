@@ -5,6 +5,8 @@ step: P07.04
 date: 2026-11-26
 base_revision: 3659596ef635cbbc0badd289a2b9082544e87368
 branch: feat/p07-04-daily-snapshots
+integration_revision: 0928f9452a3a0909e87e8331da287b4c83b170dc
+tested_revision: 84922dffb6d2987d4fdbd7edff87bde522cbb1a5
 revision: "dirty: 338 source fingerprints, e9e324475b9e4e56e053509a758018606ce4eaddab7af71fa6d6f91d313328ad"
 requirements_revision: "product-spec 35f2c153213d8b4796bd42a7f7ca2f41839ee74cc20fe685c7b2551249e6a213; ADR-0015 c84424be292bae2c432d8c7a09ce5d80907faed9043a99df502304ee0fb529fa"
 goal: "Завершить ежедневные согласованные копии, фоновые запуски, повтор и обратное удаление через один API/UI Windows и Android."
@@ -13,9 +15,9 @@ dependencies_evidence: ["P07.04.1/EV-156: verified локально", "P07.01/P0
 scope: ["storage: постоянное состояние, файлы, публикация/cleanup, часы", "core/adapters: команды и worker", "Windows/Android UI", "контракт/проверки/документация"]
 checks: ["управляемые часы и файловые отказы/restart/crash/ротация", "авторизованные HTTP/CLI/IPC и replay", "host-tests, native Android и обе ABI", "Windows UI и APK/Device"]
 reverse_and_failure: "Удаление созданных копий не сбрасывает дневной лимит; ошибки не удаляют прежние копии и не подменяют папку; восстановление через прежний общий API."
-result: "passed локально; P07.04 и .1/.2/.3/.4 verified, без CI/интеграции."
+result: "passed в проверенном scope; интегрировано PR126/0928f94 после CI31 на84922df."
 evidence: ["docs/reports/p07-04-complete"]
-next: "Ревью/фиксация и CI/интеграция P07.04 по отдельному поручению; затем P07.05 при готовой зависимости."
+next: "P07.04/.1–.4 и FIX.05–07 done; готов P07.05, не начат. Полный P07/T10 отдельно."
 ```
 
 Разработчик прямо поручил довести весь P07.04 до конца. Зависимые .2/.3/.4
@@ -240,3 +242,64 @@ host reason=fixture_timeout; job cancelled15m. History и native того же h
 SUCCESS. FIX.07/EV-160 отделяет три field orders с прежним body/assertions/
 240s/15m, точный union/guards passed. Runtime/UI прежние; новый CI31 pending,
 исторические GAP-047/054/055 сохраняются.
+
+
+LOG-855: Windows product84922df/job139936680757 failed в concurrent replay
+на Unavailable/JoinError до итоговых effect/receipt assertions. Storage369
+passed/1failed/2ignored; причина неизвестна, новое наблюдение GAP-043 без
+отождествления с прежним tag test. Локальный точный target passed0.06s, не фикс.
+Один targeted Windows recovery с aggregate после terminal45827892848,
+accepted0/limit1; source/assertions/тайм-ауты прежние, полный CI31 ещё pending.
+
+
+LOG-856: Android native84922df/job139936680696 CANCELLED по annotation15m0s.
+Release3m31s/test compile2m12s passed; contract8/core32/adapters27/commands55
+passed. Storage13:29:47.912→cancel13:33:54.195 без итога; full native/search/
+парные probes/contract/cleanup не завершены. Полные raw/clean log/job/steps/
+annotations сохранены; источник длительности неизвестен, GAP-055 open.
+Один targeted native recovery после terminal45827892859, accepted0/limit1,
+прежние15m/сценарии/assertions. Windows recovery также ждёт terminal.
+Привязка Windows LOG-855 уточнена: существующий GAP-046 относится к тому же
+replay test, поэтому новое наблюдение перенесено туда из GAP-043; общая причина
+между разными тестами не доказана. Все98 критериев/75 ID и states сохранены.
+
+
+LOG-857: после terminal host45827892848/failure и Android45827892859/cancelled
+GitHub принял по одному Windows product и Android product-native recovery
+на прежнем84922df. Responses rerun=true сохранены; accepted1/limit1 каждый,
+результатов ещё нет, дополнительных rerun не назначать. Strict aggregates
+обязательны; GAP-046/055 остаются open, весь CI31 пока не принят.
+Все98 критериев/75 ID и states/исторические failures сохранены.
+
+
+## Интеграция — LOG-858/859
+
+[PR #126](https://github.com/Zeyafix/zedone/pull/126) merged в
+`0928f9452a3a0909e87e8331da287b4c83b170dc`, checked head `84922dffb6d2987d4fdbd7edff87bde522cbb1a5`.
+Все31 checks SUCCESS: шесть Windows, четыре Linux, восемнадцать Android
+и три strict aggregates. Windows product и native Android прошли после
+одного targeted recovery каждый; прочие успешные outcomes сохранены.
+Первоначальные Unavailable/15m и прежние field failures сохранены;
+GAP-042/046/047/054/055 остаются open в неизвестном scope. Никакие
+assertions/240s fixture/15m Android/20m Windows/SQLite policy не ослаблены.
+
+Все три field order/choice vectors и history прошли с общими правами,
+повторами/Keystore restart/recovery/reverse и восстановлением исходных
+APK/файлов по SHA-256, очисткой keys/transport/emulator. Windows replay
+тест теперь passed; storage370/search19371ms/contract/invalid11 passed.
+Native storage371/search11226ms, парные TLS/pending-request probes,
+идентичный контракт и cleanup passed. Это фактические логи нового head;
+исходные отменённые jobs не считаются успешными.
+
+Перед merge сверены head/base/behind0/mergeable/nondraft, полный feedback
+пуст и все31 outcomes SUCCESS. Merge содержит head и имеет то же дерево.
+Main=origin/main/0928f94; feature-ветка удалена local/remote/tracking,
+три исходных dirty checkpoint сохранены и проверены SHA-256.
+P07.04/.1–.4 и FIX.05/06/07 done; A13/A43 passed по матрице EV-157,
+остальные96 состояния/все98 определения и75 ID/состояния проблем прежние.
+Физический arm64 runtime и реальный power-loss не проверены и не заявляются;
+полный P07/T10 partial. Обратимость, общий API, docs, паритет в проверенном
+scope и один авторитетный граф соблюдены. Далее P07.05 готов, не начат.
+Итоговый checkpoint локальный без дополнительного commit/push; raw CI/media/
+машинная proof остаются в ignored reports. Post-merge push CI не подменяет
+пройденный PR CI и здесь не заявляется.

@@ -3,11 +3,18 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from "reka-ui";
 import { checkConnection, type Connection } from "./connection";
 import { readTheme, saveTheme, type Theme } from "./appearance";
+import BackupCatalog from "./BackupCatalog.vue";
 import SpacesView from "./SpacesView.vue";
 import DevicesPanel from "./DevicesPanel.vue";
 import ExchangePanel from "./ExchangePanel.vue";
 import AccessPanel from "./AccessPanel.vue";
 
+const spacesView = ref<InstanceType<typeof SpacesView>>();
+async function selectBackup(space: string, archive: string) {
+  location.hash = `/spaces/${space}`;
+  await nextTick();
+  await spacesView.value?.selectBackup(space, archive);
+}
 type Page = "spaces" | "settings";
 const pageFromHash = (): Page => location.hash === "#/settings" ? "settings" : "spaces";
 const page = ref<Page>(pageFromHash());
@@ -140,10 +147,11 @@ onUnmounted(() => {
             <p>Для просмотра и изменения пространств нужен действующий локальный доступ. Оформление доступно сейчас.</p>
             <a class="primary-link" href="#/settings" @click.prevent="navigate('settings')">Выбрать оформление</a>
           </section>
-          <SpacesView :ready="connection === 'ready'" />
+          <SpacesView ref="spacesView" :ready="connection === 'ready'" />
         </div>
 
         <template v-if="page === 'settings'">
+          <BackupCatalog :ready="connection === 'ready'" @selected="selectBackup" />
           <DevicesPanel v-if="managementOpened" :ready="managementReady" />
           <AccessPanel v-if="managementOpened" :ready="managementReady" />
           <ExchangePanel v-if="managementOpened" :ready="managementReady" />

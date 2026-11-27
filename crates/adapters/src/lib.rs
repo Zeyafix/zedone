@@ -82,6 +82,18 @@ impl Service {
         self
     }
 
+    pub async fn select_backup_folder(
+        &self,
+        key: &str,
+        root: Option<String>,
+        writable: bool,
+    ) -> Result<zedone_core::backup_catalog::BackupFolder, CommandError> {
+        self.storage
+            .select_backup_folder(decode_key(key)?.to_vec(), root, writable)
+            .await
+            .map_err(CommandError::from)
+    }
+
     pub async fn flush_daily_backups(&self) {
         let _ = self.storage.daily_tick(true).await;
     }
@@ -129,6 +141,14 @@ impl Service {
                 }};
             }
             match operation {
+                "backups.folder.forget" => run!(zedone_core::backup_catalog::ForgetBackupFolder, zedone_core::backup_catalog::forget),
+                "backups.folders" => run!(zedone_core::backup_catalog::InspectBackupFolders, zedone_core::backup_catalog::folders),
+                "backups.location.inspect" => run!(zedone_core::backup_catalog::InspectBackupLocation, zedone_core::backup_catalog::location),
+                "backups.catalog" => run!(zedone_core::backup_catalog::CatalogFolder, zedone_core::backup_catalog::catalog),
+                "backups.catalog.read" => run!(zedone_core::backup_catalog::CatalogRead, zedone_core::backup_catalog::read),
+                "backups.catalog.delete" => run!(zedone_core::backup_catalog::CatalogDelete, zedone_core::backup_catalog::delete),
+                "backups.location.change" => run!(zedone_core::backup_catalog::ChangeBackupLocation, zedone_core::backup_catalog::change),
+                "backups.location.cleanup" => run!(zedone_core::backup_catalog::CleanupBackupLocation, zedone_core::backup_catalog::cleanup),
                 "space.backups.inspect" => run!(zedone_core::backups::InspectDailyBackups, zedone_core::backups::inspect),
                 "space.backups.retry" => run!(zedone_core::backups::RetryDailyBackup, zedone_core::backups::retry),
                 "space.backups.delete" => run!(zedone_core::backups::DeleteDailyBackup, zedone_core::backups::delete),
@@ -224,10 +244,17 @@ impl Service {
             let _ = self.storage.cleanup_restore_backup(space.into()).await;
         }
         if result.is_ok() {
+            if matches!(
+                operation,
+                "backups.location.change" | "backups.catalog.delete"
+            ) {
+                let _ = self.storage.cleanup_backup_location().await;
+            }
             if matches!(operation, "space.backups.retry" | "space.backups.delete") {
                 let _ = self.storage.cleanup_daily_backups().await;
             }
-            if !operation.ends_with(".read")
+            if !operation.starts_with("backups.")
+                && !operation.ends_with(".read")
                 && !operation.ends_with(".inspect")
                 && !operation.ends_with(".list")
                 && !matches!(

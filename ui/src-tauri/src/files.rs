@@ -52,6 +52,9 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
                 "app.zedone.local",
                 "SnapshotFilesPlugin",
             )?));
+            zedone_storage::backup_io::register_tree_backend(std::sync::Arc::new(BackupTrees(
+                app.clone(),
+            )))?;
             Ok(())
         })
         .invoke_handler(|invoke| {
@@ -59,4 +62,74 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
             true
         })
         .build()
+}
+
+struct BackupTrees<R: Runtime>(tauri::AppHandle<R>);
+impl<R: Runtime> zedone_storage::backup_io::TreeBackend for BackupTrees<R> {
+    fn execute(
+        &self,
+        request: zedone_storage::backup_io::TreeRequest,
+    ) -> zedone_storage::StorageResult<zedone_storage::backup_io::TreeReply> {
+        self.0
+            .state::<Files<R>>()
+            .0
+            .run_mobile_plugin("tree", request)
+            .map_err(|_| zedone_storage::StorageError::Unavailable)
+    }
+}
+
+#[derive(Deserialize)]
+struct SelectedTree {
+    status: String,
+    root: Option<String>,
+}
+
+#[tauri::command]
+pub async fn backup_folder_select(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::Shell>,
+    selection: crate::backup_folders::FolderSelection,
+    credential: String,
+) -> Result<crate::backup_folders::FolderSelectionReply, ()> {
+    let crate::Session::Configured { credential: local } = state.session() else {
+        return Err(());
+    };
+    if local.key != credential {
+        return Err(());
+    }
+    let service = state.service.as_ref().ok_or(())?;
+    let body=serde_json::to_vec(&serde_json::json!({"id":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"operation":"backups.folders","parameters":{}})).map_err(|_|())?;
+    if !matches!(
+        service
+            .dispatch("backups.folders", &body, &credential)
+            .await,
+        zedone_core::wire::CommandResponse::Ok(_)
+    ) {
+        return Err(());
+    }
+    let root = if selection.default {
+        None
+    } else {
+        let reply: SelectedTree = app
+            .state::<Files<tauri::Wry>>()
+            .0
+            .run_mobile_plugin_async(
+                "selectFolder",
+                serde_json::json!({"writable":selection.writable}),
+            )
+            .await
+            .map_err(|_| ())?;
+        if reply.status == "cancelled" {
+            return Ok(crate::backup_folders::FolderSelectionReply::Cancelled);
+        }
+        if reply.status != "ok" {
+            return Err(());
+        }
+        Some(reply.root.ok_or(())?)
+    };
+    let folder = service
+        .select_backup_folder(&credential, root, selection.writable)
+        .await
+        .map_err(|_| ())?;
+    Ok(crate::backup_folders::FolderSelectionReply::Selected { folder })
 }

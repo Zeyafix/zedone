@@ -5,12 +5,14 @@ step: FIX.07
 date: 2026-11-26
 base_revision: 22ad15567d200c7fee17fcf55e3b545e7d55de76
 branch: feat/p07-04-daily-snapshots
+integration_revision: 0928f9452a3a0909e87e8331da287b4c83b170dc
+tested_revision: 84922dffb6d2987d4fdbd7edff87bde522cbb1a5
 requirements: [T09, T16]
 goal: "Выполнить все три field-conflict порядка с общим lifecycle в прежних240s каждого fixture."
 scope: ["field case selector", "paired CI routing/preparation", "guards/docs"]
-result: "Локальные guards passed, новый CI31 впереди."
+result: "passed в проверенном scope; интегрировано PR126/0928f94 после CI31 на84922df."
 reverse_and_failure: "Полный --fields/--standard сохраняется; любой failed/cancelled case отвергается общим aggregate."
-next: "Проверить все31 checks и feedback, затем порученные merge/удаление."
+next: "P07.04/.1–.4 и FIX.05–07 done; готов P07.05, не начат. Полный P07/T10 отдельно."
 ```
 
 Новая диагностика22ad155/job139924068906 доказала непосредственный отказ:
@@ -60,3 +62,44 @@ Runtime/контракт/UI/права продукта не менялись, �
 Все98 определения/состояния и75 ID/состояний проблем прежние. Фактический полный
 native22ad155 прошёл, GAP-055 при этом не закрыт: причина старой15m неизвестна.
 Итоговый CI31/merge ещё ожидаются; успешный поднабор не разрешает merge.
+
+## Публикация — LOG-854
+
+[PR #126](https://github.com/Zeyafix/zedone/pull/126), commit
+`84922dffb6d2987d4fdbd7edff87bde522cbb1a5`. Guard/actual preparation/body-hash/
+linters passed; полный CI31 нового head pending. Runtime/UI/контракт прежние,
+исторические failures и75 ID/состояний проблем сохранены. Merge/удаление ждут
+полного успешного результата/feedback по поручению разработчика.
+
+
+## Интеграция — LOG-858/859
+
+[PR #126](https://github.com/Zeyafix/zedone/pull/126) merged в
+`0928f9452a3a0909e87e8331da287b4c83b170dc`, checked head `84922dffb6d2987d4fdbd7edff87bde522cbb1a5`.
+Все31 checks SUCCESS: шесть Windows, четыре Linux, восемнадцать Android
+и три strict aggregates. Windows product и native Android прошли после
+одного targeted recovery каждый; прочие успешные outcomes сохранены.
+Первоначальные Unavailable/15m и прежние field failures сохранены;
+GAP-042/046/047/054/055 остаются open в неизвестном scope. Никакие
+assertions/240s fixture/15m Android/20m Windows/SQLite policy не ослаблены.
+
+Все три field order/choice vectors и history прошли с общими правами,
+повторами/Keystore restart/recovery/reverse и восстановлением исходных
+APK/файлов по SHA-256, очисткой keys/transport/emulator. Windows replay
+тест теперь passed; storage370/search19371ms/contract/invalid11 passed.
+Native storage371/search11226ms, парные TLS/pending-request probes,
+идентичный контракт и cleanup passed. Это фактические логи нового head;
+исходные отменённые jobs не считаются успешными.
+
+Перед merge сверены head/base/behind0/mergeable/nondraft, полный feedback
+пуст и все31 outcomes SUCCESS. Merge содержит head и имеет то же дерево.
+Main=origin/main/0928f94; feature-ветка удалена local/remote/tracking,
+три исходных dirty checkpoint сохранены и проверены SHA-256.
+P07.04/.1–.4 и FIX.05/06/07 done; A13/A43 passed по матрице EV-157,
+остальные96 состояния/все98 определения и75 ID/состояния проблем прежние.
+Физический arm64 runtime и реальный power-loss не проверены и не заявляются;
+полный P07/T10 partial. Обратимость, общий API, docs, паритет в проверенном
+scope и один авторитетный граф соблюдены. Далее P07.05 готов, не начат.
+Итоговый checkpoint локальный без дополнительного commit/push; raw CI/media/
+машинная proof остаются в ignored reports. Post-merge push CI не подменяет
+пройденный PR CI и здесь не заявляется.

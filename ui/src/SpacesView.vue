@@ -22,6 +22,11 @@ import SpaceBackups from "./SpaceBackups.vue";
 const recoveryPanel = ref<InstanceType<typeof SpaceRecovery>>();
 async function selectDailyArchive(archive: string) { await nextTick(); await recoveryPanel.value?.selectArchive(archive); }
 
+defineExpose({ selectBackup: async (space: string, archive: string) => {
+  selected.value = space;
+  await refresh();
+  await selectDailyArchive(archive);
+} });
 const props = defineProps<{ ready: boolean }>();
 type Action =
   | { kind: "space.create" }
@@ -434,6 +439,10 @@ async function submit() {
   await retry(id);
 }
 function pendingLabel(item: Pending) {
+  if (item.intention.operation === "backups.catalog.delete") return "Удаление сохранённой копии";
+  if (item.intention.operation === "backups.location.change") return "Смена папки копий";
+  if (item.intention.operation === "backups.location.cleanup") return "Удаление исходных файлов копий";
+  if (item.intention.operation === "backups.folder.forget") return "Отзыв разрешения папки";
   if (item.intention.operation === "space.backups.retry") return "Повтор ежедневной копии";
   if (item.intention.operation === "space.backups.delete") return "Удаление ежедневной копии";
   if (item.intention.operation === "space.export") return "Экспорт пространства";

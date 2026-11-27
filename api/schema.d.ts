@@ -79,6 +79,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/backups.catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_catalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.catalog.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_catalog_delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.catalog.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_catalog_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.folder.forget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_folder_forget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_folders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.location.change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_location_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.location.cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_location_cleanup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commands/backups.location.inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["backups_location_inspect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/card.autosave": {
         parameters: {
             query?: never;
@@ -1363,6 +1491,28 @@ export interface components {
             space: string;
             title: string;
         };
+        BackupCatalog: {
+            copies: components["schemas"]["CatalogCopy"][];
+            unreadable: number;
+        };
+        BackupDeleted: {
+            cleanup_pending: boolean;
+            deleted: boolean;
+        };
+        BackupFolder: {
+            id: string;
+            label: string;
+            writable: boolean;
+        };
+        BackupFolders: {
+            folders: components["schemas"]["BackupFolder"][];
+        };
+        BackupLocation: {
+            cleanup_pending: boolean;
+            folder: string;
+            is_default: boolean;
+            version: components["schemas"]["StateVersion"];
+        };
         BeginCardEditing: {
             card: string;
             expected: components["schemas"]["StateVersion"];
@@ -1420,7 +1570,35 @@ export interface components {
             subject: string;
             title: string;
         };
+        CatalogCopy: {
+            created_at_unix_ms: number;
+            digest: components["schemas"]["StateVersion"];
+            id: string;
+            kind: string;
+            names: string[];
+            space: string;
+        };
+        CatalogDelete: {
+            copy: string;
+            expected: components["schemas"]["StateVersion"];
+            folder: string;
+        };
+        CatalogFolder: {
+            folder: string;
+        };
+        CatalogRead: {
+            copy: string;
+            expected: components["schemas"]["StateVersion"];
+            folder: string;
+        };
         CatalogSync: Record<string, never>;
+        ChangeBackupLocation: {
+            expected: components["schemas"]["StateVersion"];
+            folder: string;
+        };
+        CleanupBackupLocation: {
+            expected: components["schemas"]["StateVersion"];
+        };
         ClearHistory: {
             card?: string | null;
             expected: components["schemas"]["StateVersion"];
@@ -1560,6 +1738,82 @@ export interface components {
                 request: string;
             };
         };
+        CommandRequest_CatalogDelete: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                copy: string;
+                expected: components["schemas"]["StateVersion"];
+                folder: string;
+            };
+        };
+        CommandRequest_CatalogFolder: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                folder: string;
+            };
+        };
+        CommandRequest_CatalogRead: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                copy: string;
+                expected: components["schemas"]["StateVersion"];
+                folder: string;
+            };
+        };
         CommandRequest_CatalogSync: {
             id: [
                 number,
@@ -1581,6 +1835,55 @@ export interface components {
             ];
             operation: string;
             parameters: Record<string, never>;
+        };
+        CommandRequest_ChangeBackupLocation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+                folder: string;
+            };
+        };
+        CommandRequest_CleanupBackupLocation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                expected: components["schemas"]["StateVersion"];
+            };
         };
         CommandRequest_ClearHistory: {
             id: [
@@ -1895,6 +2198,30 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_ForgetBackupFolder: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                folder: string;
+            };
+        };
         CommandRequest_ImportSpace: {
             id: [
                 number,
@@ -1942,6 +2269,50 @@ export interface components {
             parameters: {
                 subject: string;
             };
+        };
+        CommandRequest_InspectBackupFolders: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: Record<string, never>;
+        };
+        CommandRequest_InspectBackupLocation: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: Record<string, never>;
         };
         CommandRequest_InspectCardPlacements: {
             id: [
@@ -3651,6 +4022,10 @@ export interface components {
         };
         CommandResponse_AccessList: components["schemas"]["CommandSuccess_AccessList"] | components["schemas"]["CommandFailure"];
         CommandResponse_AccessSnapshot: components["schemas"]["CommandSuccess_AccessSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_BackupCatalog: components["schemas"]["CommandSuccess_BackupCatalog"] | components["schemas"]["CommandFailure"];
+        CommandResponse_BackupDeleted: components["schemas"]["CommandSuccess_BackupDeleted"] | components["schemas"]["CommandFailure"];
+        CommandResponse_BackupFolders: components["schemas"]["CommandSuccess_BackupFolders"] | components["schemas"]["CommandFailure"];
+        CommandResponse_BackupLocation: components["schemas"]["CommandSuccess_BackupLocation"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardHistory: components["schemas"]["CommandSuccess_CardHistory"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardList: components["schemas"]["CommandSuccess_CardList"] | components["schemas"]["CommandFailure"];
         CommandResponse_CardPlacements: components["schemas"]["CommandSuccess_CardPlacements"] | components["schemas"]["CommandFailure"];
@@ -3694,6 +4069,39 @@ export interface components {
                 revoked: boolean;
                 scope: components["schemas"]["AccessScope"];
                 subject: string;
+                version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_BackupCatalog: {
+            replayed: boolean;
+            result: {
+                copies: components["schemas"]["CatalogCopy"][];
+                unreadable: number;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_BackupDeleted: {
+            replayed: boolean;
+            result: {
+                cleanup_pending: boolean;
+                deleted: boolean;
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_BackupFolders: {
+            replayed: boolean;
+            result: {
+                folders: components["schemas"]["BackupFolder"][];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_BackupLocation: {
+            replayed: boolean;
+            result: {
+                cleanup_pending: boolean;
+                folder: string;
+                is_default: boolean;
                 version: components["schemas"]["StateVersion"];
             };
             status: components["schemas"]["SuccessStatus"];
@@ -4051,6 +4459,9 @@ export interface components {
             session: string;
             space: string;
         };
+        ForgetBackupFolder: {
+            folder: string;
+        };
         HistoryEntry: {
             card: string;
             retained: boolean;
@@ -4073,6 +4484,8 @@ export interface components {
         InspectAccess: {
             subject: string;
         };
+        InspectBackupFolders: Record<string, never>;
+        InspectBackupLocation: Record<string, never>;
         InspectCardPlacements: {
             card: string;
             space: string;
@@ -4689,6 +5102,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_AccessSnapshot"];
+                };
+            };
+        };
+    };
+    backups_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CatalogFolder"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupCatalog"];
+                };
+            };
+        };
+    };
+    backups_catalog_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CatalogDelete"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupDeleted"];
+                };
+            };
+        };
+    };
+    backups_catalog_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CatalogRead"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_SpaceArchive"];
+                };
+            };
+        };
+    };
+    backups_folder_forget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ForgetBackupFolder"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupFolders"];
+                };
+            };
+        };
+    };
+    backups_folders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectBackupFolders"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupFolders"];
+                };
+            };
+        };
+    };
+    backups_location_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_ChangeBackupLocation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupLocation"];
+                };
+            };
+        };
+    };
+    backups_location_cleanup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_CleanupBackupLocation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupLocation"];
+                };
+            };
+        };
+    };
+    backups_location_inspect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_InspectBackupLocation"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_BackupLocation"];
                 };
             };
         };

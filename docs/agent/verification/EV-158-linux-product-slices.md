@@ -5,13 +5,15 @@ step: FIX.05
 date: 2026-11-26
 base_revision: 639434d27c3652caf70d9b34adacf9189117848c
 branch: feat/p07-04-daily-snapshots
+integration_revision: 0928f9452a3a0909e87e8331da287b4c83b170dc
+tested_revision: 84922dffb6d2987d4fdbd7edff87bde522cbb1a5
 requirements: [T16]
 goal: "Проверять весь Linux product в прежних 10m каждого job после двух отмен объединённого набора."
 scope: ["prototype-foundation Linux matrix", "host routing guard", "CI documentation/evidence"]
 checks: ["red/green host routing guard", "точное объединение двух режимов", "матрицы/gates/cache/failure guards", "новый CI head"]
-result: "Локальные guards passed; CI нового head ожидается."
+result: "passed в проверенном scope; интегрировано PR126/0928f94 после CI31 на84922df."
 reverse_and_failure: "Rollback workflow возвращает прежнее объединение. Любой failed/cancelled/skipped suite отвергается aggregate."
-next: "Проверить полный CI нового head PR126, затем порученные merge/удаление при успехе."
+next: "P07.04/.1–.4 и FIX.05–07 done; готов P07.05, не начат. Полный P07/T10 отдельно."
 ```
 
 PR126/head639434d дважды отменён по annotation `The job has exceeded the maximum
@@ -68,3 +70,36 @@ guard, CI docs и исходные сохранённые checkpoints; прод�
 LOG-851: на fde70ef Linux product139910675373/product-build139910675338,
 shell/prototype-ui и aggregate139918234611 SUCCESS. Охват и прежние10m
 подтверждены новым CI; полный PR ещё ждёт Android, интеграция впереди.
+
+
+## Интеграция — LOG-858/859
+
+[PR #126](https://github.com/Zeyafix/zedone/pull/126) merged в
+`0928f9452a3a0909e87e8331da287b4c83b170dc`, checked head `84922dffb6d2987d4fdbd7edff87bde522cbb1a5`.
+Все31 checks SUCCESS: шесть Windows, четыре Linux, восемнадцать Android
+и три strict aggregates. Windows product и native Android прошли после
+одного targeted recovery каждый; прочие успешные outcomes сохранены.
+Первоначальные Unavailable/15m и прежние field failures сохранены;
+GAP-042/046/047/054/055 остаются open в неизвестном scope. Никакие
+assertions/240s fixture/15m Android/20m Windows/SQLite policy не ослаблены.
+
+Все три field order/choice vectors и history прошли с общими правами,
+повторами/Keystore restart/recovery/reverse и восстановлением исходных
+APK/файлов по SHA-256, очисткой keys/transport/emulator. Windows replay
+тест теперь passed; storage370/search19371ms/contract/invalid11 passed.
+Native storage371/search11226ms, парные TLS/pending-request probes,
+идентичный контракт и cleanup passed. Это фактические логи нового head;
+исходные отменённые jobs не считаются успешными.
+
+Перед merge сверены head/base/behind0/mergeable/nondraft, полный feedback
+пуст и все31 outcomes SUCCESS. Merge содержит head и имеет то же дерево.
+Main=origin/main/0928f94; feature-ветка удалена local/remote/tracking,
+три исходных dirty checkpoint сохранены и проверены SHA-256.
+P07.04/.1–.4 и FIX.05/06/07 done; A13/A43 passed по матрице EV-157,
+остальные96 состояния/все98 определения и75 ID/состояния проблем прежние.
+Физический arm64 runtime и реальный power-loss не проверены и не заявляются;
+полный P07/T10 partial. Обратимость, общий API, docs, паритет в проверенном
+scope и один авторитетный граф соблюдены. Далее P07.05 готов, не начат.
+Итоговый checkpoint локальный без дополнительного commit/push; raw CI/media/
+машинная proof остаются в ignored reports. Post-merge push CI не подменяет
+пройденный PR CI и здесь не заявляется.

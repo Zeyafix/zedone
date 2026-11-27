@@ -492,3 +492,13 @@ impl DailyBackupStore for WriteContext<'_> {
         Ok(self.checked(result)?)
     }
 }
+
+pub(crate) fn forget_copy(c: &Connection, space: &str, id: &str) -> StorageResult<()> {
+    if load::<Global>(c, GLOBAL)?.is_none() {
+        return Ok(());
+    }
+    let mut s = state(c, space)?;
+    s.files.retain(|r| r.id != id);
+    s.obsolete.retain(|r| r.id != id);
+    save(c, &state_key(space), &s)
+}

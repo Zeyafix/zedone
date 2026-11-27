@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::{io::Read, path::Path};
 use zedone_adapters::Service;
 
+pub mod backup_folders;
 #[cfg(target_os = "android")]
 pub mod devices;
 #[cfg(target_os = "android")]
@@ -191,6 +192,7 @@ mod entry_point {
                 super::zedone_command,
                 super::files::snapshot_file_open,
                 super::files::snapshot_file_save,
+                super::files::backup_folder_select,
                 super::devices::device_host_start,
                 super::devices::device_host_stop,
                 super::devices::device_session

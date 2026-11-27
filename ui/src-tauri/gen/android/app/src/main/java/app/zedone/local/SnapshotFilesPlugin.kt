@@ -24,6 +24,50 @@ class SnapshotFilesPlugin(private val activity: Activity) : Plugin(activity) {
   private val worker = Executors.newSingleThreadExecutor()
   private var active = false
 
+  @Command
+  fun selectFolder(invoke: Invoke) {
+    activity.runOnUiThread {
+      if(active) { invoke.resolve(JSObject().put("status","unavailable"));return@runOnUiThread }
+      try {
+        val args=invoke.parseArgs(BackupFolderArgs::class.java)
+        val intent=Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+          addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+          if(args.writable) addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        active=true
+        startActivityForResult(invoke,intent,"folderSelected")
+      } catch (_: Exception) { active=false;invoke.resolve(JSObject().put("status","unavailable")) }
+    }
+  }
+
+  @ActivityCallback
+  private fun folderSelected(invoke: Invoke,result: ActivityResult) {
+    val reply=JSObject()
+    try {
+      if(result.resultCode!=Activity.RESULT_OK) reply.put("status","cancelled") else {
+        val uri=result.data?.data ?: throw java.io.IOException()
+        require(uri.scheme=="content" && uri.authority in setOf("com.android.externalstorage.documents","com.android.providers.downloads.documents"))
+        val args=invoke.parseArgs(BackupFolderArgs::class.java)
+        val flags=Intent.FLAG_GRANT_READ_URI_PERMISSION or if(args.writable) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0
+        require((result.data!!.flags and flags)==flags)
+        activity.contentResolver.takePersistableUriPermission(uri,flags)
+        val canonical=DocumentsContract.buildTreeDocumentUri(uri.authority,DocumentsContract.getTreeDocumentId(uri))
+        val root="saf-"+canonical.toString().toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it.toInt() and 255) }
+        reply.put("status","ok").put("root",root)
+      }
+    } catch (_: Exception) { reply.put("status","unavailable") }
+    active=false
+    invoke.resolve(reply)
+  }
+
+  @Command
+  fun tree(invoke: Invoke) {
+    worker.execute {
+      try { invoke.resolve(BackupTrees.execute(activity.contentResolver,invoke.parseArgs(BackupTreeArgs::class.java))) }
+      catch (_: Exception) { invoke.reject("backup folder unavailable") }
+    }
+  }
+
   override fun onDestroy(activity: androidx.appcompat.app.AppCompatActivity) {
     worker.shutdown()
   }

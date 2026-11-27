@@ -10,7 +10,7 @@ const incoming = ref(""), outgoing = ref(""), error = ref(""), message = ref("")
 const confirmed = ref(false), working = ref(false);
 const details = ref<HTMLDetailsElement>();
 defineExpose({ selectArchive: async (archive: string) => {
-  await work(async space => { incoming.value = archive; await inspect(space); if (details.value) details.value.open = true; message.value = "Ежедневная копия выбрана. Подтвердите восстановление ниже."; });
+  await work(async space => { incoming.value = archive; await inspect(space); if (details.value) details.value.open = true; message.value = "Сохранённая копия выбрана. Подтвердите восстановление ниже."; });
 } });
 let generation = 0;
 watch(() => props.space, () => { generation++; state.value = undefined; incoming.value = ""; outgoing.value = ""; confirmed.value = false; error.value = ""; message.value = ""; });

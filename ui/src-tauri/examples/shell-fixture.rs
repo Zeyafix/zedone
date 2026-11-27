@@ -100,6 +100,23 @@ async fn main() {
     }
     if args[0] == "--serve-backups" || args[0] == "--prepare-backups" {
         backup_fixture::seed(&storage, access.clone()).await;
+        storage.daily_tick(true).await.unwrap();
+        if args[0] == "--serve-backups" {
+            storage
+                .select_backup_folder(access.credential().0.to_vec(), None, true)
+                .await
+                .unwrap();
+            let target = directory.join("catalog-target");
+            std::fs::create_dir(&target).unwrap();
+            storage
+                .select_backup_folder(
+                    access.credential().0.to_vec(),
+                    Some(target.to_str().unwrap().into()),
+                    true,
+                )
+                .await
+                .unwrap();
+        }
     }
     if args[0] == "--prepare-text-conflicts" || args[0] == "--serve-text-conflicts" {
         seed_conflicts(&storage, &access, false, true, false).await;

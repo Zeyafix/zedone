@@ -37,6 +37,9 @@ async fn main() {
 
 async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("--select-backup-folder") {
+        return select_backup_folder(&args).await;
+    }
     if args.first().map(String::as_str) == Some("--endpoint") {
         return remote(&args).await;
     }
@@ -68,7 +71,9 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     let response = service
         .dispatch(&args[5], &body, key.trim_end_matches(['\r', '\n']))
         .await;
-    service.flush_daily_backups().await;
+    if !args[5].starts_with("backups.") {
+        service.flush_daily_backups().await;
+    }
     let _ = storage.shutdown().await;
     Ok(response)
 }
@@ -189,4 +194,47 @@ async fn listen() -> Result<(), ErrorCode> {
         let _ = storage.shutdown().await;
         Ok(())
     }
+}
+
+async fn select_backup_folder(
+    args: &[String],
+) -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
+    if args.len() != 9
+        || args[1] != "--database"
+        || args[3] != "--key-file"
+        || args[5] != "--mode"
+        || args[7] != "--folder"
+        || !matches!(args[6].as_str(), "read" | "manage")
+    {
+        return Err(ErrorCode::InvalidRequest);
+    }
+    if !Path::new(&args[2]).is_file() {
+        return Err(ErrorCode::Unavailable);
+    }
+    let key = read_key(&args[4])?;
+    let db = zedone_storage::Storage::open(&args[2])
+        .await
+        .map_err(|e| CommandError::from(e).code)?;
+    let service = Service::new(db.clone());
+    let result = service
+        .select_backup_folder(
+            &key,
+            if args[8] == "default" {
+                None
+            } else {
+                Some(args[8].clone())
+            },
+            args[6] == "manage",
+        )
+        .await;
+    let _ = db.shutdown().await;
+    let response = result.and_then(|folder| {
+        Ok(zedone_core::replay::Execution {
+            result: serde_json::to_value(folder).map_err(|_| CommandError {
+                code: ErrorCode::Unavailable,
+            })?,
+            replayed: false,
+        })
+    });
+    Ok(response.into())
 }

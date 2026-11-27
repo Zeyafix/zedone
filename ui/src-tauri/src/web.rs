@@ -47,6 +47,7 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
         )
         .route("/host/session", get(session))
         .route("/host/devices/{operation}", post(devices))
+        .route("/host/backup-folder", post(backup_folder))
         .layer(DefaultBodyLimit::max(zedone_adapters::MAX_REQUEST_BYTES))
         .with_state(Arc::new(shell));
     let app = if let Some(service) = service {
@@ -98,6 +99,64 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
 
 async fn session(State(shell): State<Arc<Shell>>) -> axum::Json<crate::Session> {
     axum::Json(shell.session())
+}
+
+async fn backup_folder(
+    State(shell): State<Arc<Shell>>,
+    headers: HeaderMap,
+    body: Result<Bytes, axum::extract::rejection::BytesRejection>,
+) -> axum::Json<zedone_core::wire::CommandResponse<serde_json::Value>> {
+    use zedone_core::{
+        error::{CommandError, ErrorCode},
+        wire::CommandResponse,
+    };
+    let result = async {
+        if headers.get_all("authorization").iter().count() != 1
+            || headers.get_all("content-type").iter().count() != 1
+            || headers.get("content-type").and_then(|h| h.to_str().ok()) != Some("application/json")
+        {
+            return Err(CommandError {
+                code: ErrorCode::InvalidRequest,
+            });
+        }
+        let key = headers
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            .ok_or(CommandError {
+                code: ErrorCode::AccessDenied,
+            })?;
+        let crate::Session::Configured { credential } = shell.session() else {
+            return Err(CommandError {
+                code: ErrorCode::AccessDenied,
+            });
+        };
+        if key != credential.key {
+            return Err(CommandError {
+                code: ErrorCode::AccessDenied,
+            });
+        }
+        let selection = serde_json::from_slice(&body.map_err(|_| CommandError {
+            code: ErrorCode::InvalidRequest,
+        })?)
+        .map_err(|_| CommandError {
+            code: ErrorCode::InvalidRequest,
+        })?;
+        let service = shell.service.as_ref().ok_or(CommandError {
+            code: ErrorCode::Unavailable,
+        })?;
+        let check=serde_json::to_vec(&serde_json::json!({"id":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"operation":"backups.folders","parameters":{}})).map_err(|_|CommandError{code:ErrorCode::Unavailable})?;
+        if !matches!(service.dispatch("backups.folders",&check,key).await,CommandResponse::Ok(_)) {return Err(CommandError{code:ErrorCode::AccessDenied});}
+        let reply = crate::backup_folders::choose(service, key, selection).await?;
+        Ok(zedone_core::replay::Execution {
+            result: serde_json::to_value(reply).map_err(|_| CommandError {
+                code: ErrorCode::Unavailable,
+            })?,
+            replayed: false,
+        })
+    }
+    .await;
+    axum::Json(CommandResponse::from(result))
 }
 async fn devices(
     State(shell): State<Arc<Shell>>,

@@ -180,6 +180,278 @@
         ]
       }
     },
+    "/v1/commands/backups.catalog": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_catalog",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CatalogFolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupCatalog"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.catalog.delete": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_catalog_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CatalogDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupDeleted"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.catalog.read": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_catalog_read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CatalogRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_SpaceArchive"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.folder.forget": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_folder_forget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ForgetBackupFolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupFolders"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.folders": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_folders",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectBackupFolders"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupFolders"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.location.change": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_location_change",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_ChangeBackupLocation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupLocation"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.location.cleanup": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_location_cleanup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_CleanupBackupLocation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupLocation"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
+    "/v1/commands/backups.location.inspect": {
+      "post": {
+        "tags": [
+          "backup_catalog"
+        ],
+        "operationId": "backups_location_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_InspectBackupLocation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_BackupLocation"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/card.autosave": {
       "post": {
         "tags": [
@@ -2988,6 +3260,101 @@
         },
         "additionalProperties": false
       },
+      "BackupCatalog": {
+        "type": "object",
+        "required": [
+          "copies",
+          "unreadable"
+        ],
+        "properties": {
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogCopy"
+            }
+          },
+          "unreadable": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "BackupDeleted": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "cleanup_pending"
+        ],
+        "properties": {
+          "cleanup_pending": {
+            "type": "boolean"
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BackupFolder": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "writable"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "writable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BackupFolders": {
+        "type": "object",
+        "required": [
+          "folders"
+        ],
+        "properties": {
+          "folders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupFolder"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "BackupLocation": {
+        "type": "object",
+        "required": [
+          "folder",
+          "version",
+          "is_default",
+          "cleanup_pending"
+        ],
+        "properties": {
+          "cleanup_pending": {
+            "type": "boolean"
+          },
+          "folder": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
+        "additionalProperties": false
+      },
       "BeginCardEditing": {
         "type": "object",
         "description": "The command ID becomes the session ID. Begin anew after a client restart;\nretry an uncertain begin with its original ID before making a new intention.",
@@ -3258,8 +3625,125 @@
         },
         "additionalProperties": false
       },
+      "CatalogCopy": {
+        "type": "object",
+        "required": [
+          "id",
+          "space",
+          "names",
+          "kind",
+          "created_at_unix_ms",
+          "digest"
+        ],
+        "properties": {
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "digest": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "space": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CatalogDelete": {
+        "type": "object",
+        "required": [
+          "folder",
+          "copy",
+          "expected"
+        ],
+        "properties": {
+          "copy": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CatalogFolder": {
+        "type": "object",
+        "required": [
+          "folder"
+        ],
+        "properties": {
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CatalogRead": {
+        "type": "object",
+        "required": [
+          "folder",
+          "copy",
+          "expected"
+        ],
+        "properties": {
+          "copy": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CatalogSync": {
         "type": "object",
+        "additionalProperties": false
+      },
+      "ChangeBackupLocation": {
+        "type": "object",
+        "required": [
+          "folder",
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CleanupBackupLocation": {
+        "type": "object",
+        "required": [
+          "expected"
+        ],
+        "properties": {
+          "expected": {
+            "$ref": "#/components/schemas/StateVersion"
+          }
+        },
         "additionalProperties": false
       },
       "ClearHistory": {
@@ -3610,6 +4094,133 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_CatalogDelete": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "folder",
+              "copy",
+              "expected"
+            ],
+            "properties": {
+              "copy": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "folder": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_CatalogFolder": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "folder"
+            ],
+            "properties": {
+              "folder": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_CatalogRead": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "folder",
+              "copy",
+              "expected"
+            ],
+            "properties": {
+              "copy": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "folder": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_CatalogSync": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -3634,6 +4245,84 @@
           },
           "parameters": {
             "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_ChangeBackupLocation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "folder",
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "folder": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_CleanupBackupLocation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "expected"
+            ],
+            "properties": {
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
             "additionalProperties": false
           }
         },
@@ -4191,6 +4880,43 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_ForgetBackupFolder": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "folder"
+            ],
+            "properties": {
+              "folder": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_ImportSpace": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -4261,6 +4987,64 @@
                 "type": "string"
               }
             },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectBackupFolders": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandRequest_InspectBackupLocation": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
             "additionalProperties": false
           }
         },
@@ -7291,6 +8075,50 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_BackupCatalog": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_BackupCatalog"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_BackupDeleted": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_BackupDeleted"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_BackupFolders": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_BackupFolders"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
+      "CommandResponse_BackupLocation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_BackupLocation"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_CardHistory": {
         "oneOf": [
           {
@@ -7675,6 +8503,149 @@
               },
               "subject": {
                 "type": "string"
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_BackupCatalog": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "copies",
+              "unreadable"
+            ],
+            "properties": {
+              "copies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogCopy"
+                }
+              },
+              "unreadable": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_BackupDeleted": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "deleted",
+              "cleanup_pending"
+            ],
+            "properties": {
+              "cleanup_pending": {
+                "type": "boolean"
+              },
+              "deleted": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_BackupFolders": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "folders"
+            ],
+            "properties": {
+              "folders": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BackupFolder"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_BackupLocation": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "folder",
+              "version",
+              "is_default",
+              "cleanup_pending"
+            ],
+            "properties": {
+              "cleanup_pending": {
+                "type": "boolean"
+              },
+              "folder": {
+                "type": "string"
+              },
+              "is_default": {
+                "type": "boolean"
               },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
@@ -9365,6 +10336,18 @@
         },
         "additionalProperties": false
       },
+      "ForgetBackupFolder": {
+        "type": "object",
+        "required": [
+          "folder"
+        ],
+        "properties": {
+          "folder": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "HistoryEntry": {
         "type": "object",
         "required": [
@@ -9464,6 +10447,14 @@
             "type": "string"
           }
         },
+        "additionalProperties": false
+      },
+      "InspectBackupFolders": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "InspectBackupLocation": {
+        "type": "object",
         "additionalProperties": false
       },
       "InspectCardPlacements": {

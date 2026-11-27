@@ -1,4 +1,6 @@
 pub mod access;
+pub mod backup_catalog;
+pub mod backup_io;
 mod card_history;
 mod cards;
 mod cleanup;

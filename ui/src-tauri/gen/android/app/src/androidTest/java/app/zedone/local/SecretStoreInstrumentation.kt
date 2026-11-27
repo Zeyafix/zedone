@@ -13,8 +13,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.SecretKeyFactory
 
 class SecretStoreInstrumentation : Instrumentation() {
-  override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); start() }
+  private var backupFolderProbe=false
+  override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); backupFolderProbe=arguments?.getString("backup_folder_probe")=="true";start() }
   override fun onStart() {
+    if(backupFolderProbe) { verifySelectedBackupFolder(this);return }
     val namespace = MessageDigest.getInstance("SHA-256").digest(UUID.randomUUID().toString().toByteArray())
       .joinToString("") { "%02x".format(it) }
     val store = ProtectedSecrets(targetContext, namespace)

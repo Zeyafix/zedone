@@ -134,3 +134,34 @@ P07.09, P07.10 и остальная приёмка T10 отдельно. Все
 только `not_run` → `partial` с полной локальной матрицей. T10 partial и DEC-006
 open дополнены доказательствами. Исходные пять EV-156–160 побайтово сохранены.
 CI/интеграции нет; `verified` не подменяет `done` или `passed`.
+
+
+## CI после публикации — LOG-865
+
+[PR #127](https://github.com/Zeyafix/zedone/pull/127), исходный head5949f81:
+Windows shell gate failed с ENOENT CLI. Новый browser сценарий использовал
+настоящий локальный CLI, который gate явно не собирал; прежний локальный
+product run оставил executable и скрыл дефект подготовки. Исходный CI failure
+сохранён; это не transient и не успешная проверка. Удаление готового бинарника
+из target с сохранением копии воспроизвело тот же отказ каталога.
+
+UI main/полный gate теперь явно собирает zedone до browser сценария;
+conflicts не требует этой зависимости. Полный main на отсутствующем CLI
+повторяется. Продукт/API/права/лимиты/assertions не менялись; окончательный CI
+нового head ещё ожидается, A29/A42/A57 partial. Успешный product/Android/Device
+охват EV сохраняется отдельно от исправляемого UI orchestration.
+
+
+### Проверка исправления — LOG-866
+
+На исходном5949f81 Linux shell также подтвердил тот же ENOENT; два host
+aggregates failed как следствие. Старый head не имеет полного успеха CI.
+После controlled red исправленный `bun scripts/check-ui.mjs --main` сам
+собрал отсутствующий CLI и прошёл полностью: QR13/file2, Vue types/build,
+shell fmt/clippy/tests3, каталог desktop/touch и lifecycle/board/touch, exit0.
+Продукт/API/native/UI исходники неизменны; из365 source fingerprints изменён
+только check-ui.mjs. Документация разработки описывает самостоятельный gate.
+Бюджеты, assertions и проверки безопасности не ослаблены; CI нового head
+проверяет оба host shell и прочую матрицу заново. Before/After актуальны.
+Состояние остаётся verified локально, A29/A42/A57 partial до интеграции;
+CI recovery не объявляется пройденным до фактического результата.

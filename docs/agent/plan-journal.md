@@ -11,7 +11,7 @@ current_step: P07.05
 last_completed_stage: P06
 last_completed_step: P07.04
 active_work: "P07.05: публикация PR, проверка CI/feedback; при успехе merge и удаление feat/p07-05-backup-catalog по поручению разработчика."
-next_action: "Опубликовать проверенный P07.05 и связанные checkpoints P07.04; дождаться полного CI, проверить feedback/head/base, при успехе merge и удалить ветку. EV-161/LOG-863."
+next_action: "PR127: самостоятельная сборка CLI исправлена, controlled red/full UI main green; завершить полный CI свежего head и feedback, при успехе merge и удаление ветки. EV-161/LOG-866."
 passed_acceptance: [T03, T05, T06, T07, T09, T13, T14, T15, T16, T17, A03, A04, A05, A06, A08, A12, A13, A14, A15, A16, A17, A19, A20, A22, A23, A24, A25, A26, A31, A32, A35, A38, A39, A40, A43, A48, A49, A51, A52, A53, S01, S02, S03, S04, S05, S06, S07, S08, S09, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-032, GAP-034, GAP-035, GAP-036, GAP-038, GAP-039, GAP-042, GAP-043, GAP-046, GAP-047, GAP-048, GAP-049, GAP-050, GAP-053, GAP-054, GAP-055]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-863
+last_event: LOG-866
 ```
 
 LOG-863: разработчик поручил PR и при успехе merge/удаление ветки. Публикуется
@@ -8482,3 +8482,22 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - Разработчик поручил создать PR, при успехе выполнить merge и удалить ветку. База origin/main по-прежнему0928f94; проверенные исходники365 совпадают с окончательной матрицей EV-161. Результат verified локально, A29/A42/A57 partial до интеграции;75 проблем прежние.
 - В публикацию входят связанные исходные dirty checkpoints P07.04/EV-156–160, журнал/очередь и весь P07.05. Эти записи документируют уже состоявшуюся приёмку/PR126; исходные копии сохранены побайтово в ignored reports. Посторонние изменения не обнаружены, машинные данные/логи/ключи/APK в Git не включаются, автор/коммиттер noreply.
 - Статические Before/After получены из настоящего frontend базовой и окончательной версий на одной фикстуре/viewport/theme, вне репозитория. Нужны hosted attachments; публикация готового PR после проверки медиа. CI, feedback и merge на этом checkpoint не объявляются пройденными. Поручение merge/удаления сохраняется до завершения.
+
+### LOG-864 — 2026-11-27 — PR127 опубликован, ожидаются проверки перед merge
+
+- [PR #127](https://github.com/Zeyafix/zedone/pull/127), head5949f8111dde1e254b9b7ffbb6b727d8de3e5ea8, base main/0928f94. Коммит feat(backups): let users browse copies and safely change their folder создан и отправлен; PR nondraft/mergeable/behind0, feedback на публикации пуст. Связанные прежние dirty checkpoints включены; рабочие исходники совпадают с локальной матрицей EV-161.
+- Before/After из настоящих версий загружены как hosted attachments, проверены визуально и побайтово после загрузки; медиаданные вне Git. Тело PR имеет Summary/UI Changes/Changes/Testing и фактический generation credit, CI честно pending. Нативный PR tool использован для создания/редактирования/связи; gh только для отсутствующей у него загрузки вложений.
+- CI запущен, успех/merge пока не заявляются. Поручение merge и удаления ветки после успеха остаётся активным; подписка на события PR до merged. A29/A42/A57 partial, T10/P07 partial,75 проблем прежние. Этот checkpoint локальный без нового push, чтобы не перезапускать CI из-за записи ожидания.
+
+### LOG-865 — 2026-11-27 — CI обнаружил неявную зависимость UI gate от готового CLI
+
+- На5949f81 [windows-checks (shell)](https://github.com/Zeyafix/zedone/actions/runs/45947740936/job/140336213269) failed: новый каталог вызывает настоящий CLI для выдачи локального handle, но check-ui --main собирал только shell/fixture, не executable zedone. Локальная прежняя сборка product скрыла отсутствие этой зависимости. Это доказанный дефект подготовки UI gate, не случайный timeout; простой rerun без исправления недостаточен.
+- CLI временно убран из target с сохранением собственной копии в ignored reports; отдельный каталог воспроизвёл тот же ENOENT. Добавлена явная cargo build -p zedone-adapters --bin zedone --locked --offline перед браузером для main/полного UI набора; conflicts отдельно не меняется. Полный UI main с отсутствующим бинарником выполняется заново, успех пока не заявляется.
+- Продуктовый код, API, права, ожидания/assertions и бюджеты не меняются. Старый исходный CI failure/controlled red сохранены; прежние локальные product/Android/Device результаты сохраняют свой охват. A29/A42/A57 partial и75 проблем прежние; merge/удаление ждут нового полного CI. LOG-864 локальный checkpoint сохранён в продолжении.
+
+### LOG-866 — 2026-11-27 — Самостоятельный UI gate проверен red→green
+
+- Проверен весь feedback старого5949f81: Windows и Linux shell имеют одинаковый ENOENT отсутствующего zedone, два host aggregates failed вслед за ними. Перед исправлением24 checks success/2 pending/4 failed, иных первичных отказов не обнаружено. Raw failures сохранены ignored; успех старого CI не заявляется.
+- Controlled red воспроизвёл отказ после перемещения только собственного готового CLI в ignored backup. Исправленный check-ui --main явно собрал отсутствующий бинарник и полностью прошёл: QR13/file2, Vue types/build, shell fmt/clippy/tests3, каталог desktop/touch и UI lifecycle/board/touch. Exit0, assertions/лимиты/правила CI прежние, conflicts branch не меняется.
+- Единственное отличие365 прежних исходников — scripts/check-ui.mjs, продуктовый/API/native/UI код прежний; локальные product/Android/Device результаты EV-161 сохраняют свой охват. Никакие старые timing/Unavailable GAP не закрываются,75 проблем и98 определения/состояния критериев на этом продолжении прежние.
+- Исправление и связанные LOG-864/865/866/EV публикуются в том же PR127; новый полный CI обязателен. UI не менялся относительно опубликованных Before/After, повторная съёмка не нужна. Merge/удаление остаются поручены только после успеха; A29/A42/A57 partial до интеграции.

@@ -19,6 +19,8 @@ Android SAF к тем же операциям. Windows/browser и Android/IPC и
 Проверки: `bun scripts/check-product.mjs --host-tests`, `--host-build`,
 `--android`; `bun scripts/check-ui.mjs --main`. Целевой браузерный сценарий
 `scripts/check-ui-backup-catalog.mjs` входит в main и выполняется desktop/touch.
+UI main сам собирает CLI `zedone` для сценария выдачи локального handle;
+предварительный запуск product gate или наличие старого executable не нужны.
 Тесты storage включают пустую новую базу со старой папкой, повреждённую
 коллизию, прерванную запись/продолжение, реальные process exit до/после commit,
 restart/возврат, отказ cleanup, целый migration package и отдельное удаление.

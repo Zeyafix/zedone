@@ -8,7 +8,7 @@
 - Охват .2: межпроцессное владение, staging/проверка полного комплекта, внешний журнал замены и защита старых ключей/намерений при откате. .3: отдельная служебная власть вне базы, права/отзыв и общий HTTP/CLI/IPC контракт. .4: общий служебный UI, File/SAF, причина/копия/охват/подтверждение и retry, Windows/Android Device.
 - Обратимость: отмена подготовки без замены, явное возвращение сохранённого проблемного состояния с закрытым обычным доступом, отдельное удаление ненужного raw-комплекта, выдача/отзыв служебных полномочий. Прежние исправные копии не удаляются.
 - Проверки: адресные Rust/API/файловые fault/crash/replay/права, штатные host-tests/build, Android native/обе ABI/unsafe, Rust/OpenAPI/TS, UI main и целевые recovery desktop/touch, APK/Device. Команды и фактические результаты добавляются по мере выполнения.
-- Состояние: весь P07.09/.1–.4 verified локально; M05/M06/T10 partial до ревью/CI/интеграции. Active_work null; новых commit/push/PR/CI/merge нет. Далее ревью/фиксация всего среза.
+- Состояние: весь P07.09/.1–.4 done, M05/M06 passed после полной локальной матрицы и CI32/интеграции PR130/a6d9453 в dee4048; T10/P07 partial. Active_work null; далее готов P07.10, не начат. LOG-923.
 
 Продолжение LOG-921: разработчик поручил PR и, при успешных проверках,
 merge/удаление ветки. Публикуется весь проверенный P07.09 вместе со связанными
@@ -17,6 +17,40 @@ merge/удаление ветки. Публикуется весь провер�
 образуют один порученный аварийный сценарий; их временное разделение в выпуске
 не допускается. Rust/OpenAPI/TS validator часть diff сгенерирована штатно.
 Локальная матрица выше остаётся основанием; новые CI/merge ещё не приняты.
+
+LOG-922: опубликован [PR #130](https://github.com/Zeyafix/zedone/pull/130),
+head a6d9453354acff083444ee983ebd6e315e33d2b1,57 файлов. Проверены состав/
+noreply/приватность, ровно одна настоящая статическая Before/After пара вне
+Git (1280×680/light/base/final), доступность и SHA hosted attachments, финальный
+body/credit. PR ready/mergeable/behind0, feedback пуст;29 suites pending и
+три aggregates ожидаются, нужен полный CI32. Все43 source fingerprints
+прежние. Merge/delete не выполнены; этот checkpoint локальный без нового push.
+
+## Интеграция — LOG-923
+
+[PR #130](https://github.com/Zeyafix/zedone/pull/130) merged в
+`dee404826c07078da54f72548da8260c43eb1528`, checked head
+`a6d9453354acff083444ee983ebd6e315e33d2b1`. Fresh readback подтвердил
+все32 SUCCESS:5 Linux+6 Windows+18 Android+3 strict aggregates, точные
+head/main/behind0/mergeability/nondraft и отсутствие полного feedback/unresolved.
+Слияние выполнено штатным tool с expectedHeadSha. Parents ровноa41e762/a6d9453,
+tree `8035a47c2a9100290d117f860b4493c24ff33def` равен checked head tree.
+Новый post-merge CI этим не заявляется пройденным.
+
+Main=origin/main/dee4048; feature-ветка удалена local/remote/tracking с проверкой
+точного удаляемого head. Два исходных dirty publication checkpoints сохранены
+с SHA-256 до switch и остались побайтово прежними; затем дополнены итогами.
+Все43 fingerprints исходников прежние. Ровно одна Before/After пара и финальный
+generation credit сохранены при обновлении PR body завершёнными результатами.
+
+P07.09/.1–.4 done, M05/M06 passed по полной локальной матрице и CI32; BUG-011
+исправлен и интегрирован. Все98 определения и96 остальных состояний критериев,
+77 problem IDs/types/states сохранены; прежние76 problem rows неизменны.
+T10/P07 partial, неизвестные причины открытых GAP прежние. Исходный APK/204
+private entries восстановлены ранее, Device выключен; аппаратный power-loss
+и физический arm64 runtime не проверялись. Новых local runtime/Device нет.
+Пять правил AGENTS.md подтверждены в принятом охвате. Итоговые записи приёмки
+локальные без нового commit/push; active_work null, готов P07.10, не начат.
 
 ## Реализация полного среза
 

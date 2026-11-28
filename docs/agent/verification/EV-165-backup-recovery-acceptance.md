@@ -13,9 +13,9 @@ dependencies_evidence: ["P07.02/EV-155", "P07.03/EV-152", "P07.04/EV-157", "P07.
 scope: ["сверка требований, кода, исходных логов и интеграций", "сводная матрица, вердикт, журнал и очередь"]
 checks: ["source fingerprints и Git ancestry/tree", "исходные Windows/native Android/UI/Device результаты", "покрытие требований/отказов/обратных действий", "определения и состояния критериев/проблем, ссылки и diff"]
 reverse_and_failure: "Сверяются существующие проверки отмены, удаления, обратного восстановления, прав, отказов и сбоев; продукт и данные установки не меняются."
-result: verified_local
+result: done
 evidence: ["EV-049–054", "EV-147–157", "EV-161–164"]
-next: "Интеграция сводки отдельно; GAP-057 исправляется отдельным P07.11, историческая совместимость остаётся POST.02 по ADR-0047."
+next: "Готов P07.11 по GAP-057; историческая совместимость остаётся POST.02 по ADR-0047."
 ```
 
 Три исходных незакоммиченных документа итогов P07.09 сохранены побайтово
@@ -144,3 +144,27 @@ P08.06 явно ждёт также P07.11. Проверены 709 относи�
 и полный feedback перед merge. Прежние 27/31/31/32/32 SUCCESS принадлежат
 проверенным продуктовым ревизиям и не выдаются за новый CI этого PR.
 GAP-057/P07.11 и POST.02 остаются открытыми; приёмка всего P07 не заявляется.
+
+## Публикация и интеграция — LOG-927
+
+[PR #131](https://github.com/Zeyafix/zedone/pull/131), checked head
+`cc5c03743cdd7e1fd9ac66c4b76e41f954052150`, содержит пять документов,
+363 additions/37 deletions. Staged diff, приватность и noreply проверены;
+title/body/секция Testing/финальный credit прочитаны обратно.
+
+Перед merge повторно подтверждены точный head/main, nondraft, MERGEABLE,
+behind0, полные пустые comments/threads/unresolved без truncation.
+PR checks пусты по docs path filters всех трёх workflows; main protected=false,
+активных branch rules нет. Это отсутствие нового CI, а не новый успешный
+product-run. Локальные audit/validation и прежние источники passed.
+
+Merge выполнен штатным tool с expectedHeadSha в
+`ea7df1d1b8876c33460d74626cdf1ace1487a8fb`. Parents ровно `dee4048/cc5c037`,
+Git tree `bc4b0a02b229ffd542528aef5bab24e9f07810f2` равен checked head.
+Локальный main fast-forward обновлён до origin/main. Ветка удалена на origin
+с lease точного head и локально обычным branch-d; tracking ref отсутствует.
+
+P07.10 **done** в объёме сводки; A09 passed опубликован. T10/P07 partial,
+GAP-057/P07.11, POST.02 и все прочие состояния/ограничения сохранены.
+Нового runtime/Device/CI нет. Итоговые журнал/очередь/EV остаются локальными
+без дополнительного commit/push; active_work null. Готов P07.11, не начат.

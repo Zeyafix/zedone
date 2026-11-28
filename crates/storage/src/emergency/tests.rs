@@ -298,6 +298,36 @@ async fn owner_can_explicitly_continue_after_lost_agent_intention_without_repeat
 
 use rusqlite::Connection;
 #[tokio::test]
+async fn restart_keeps_the_saved_failure_but_a_new_attempt_updates_it() {
+    let f = fixture().await;
+    let (mut e, key) = engine(&f);
+    e.activate_failed("UnsupportedSchema".into()).unwrap();
+    drop(e);
+    let mut e = Emergency::open(f.path.clone()).unwrap();
+    e.activate_failed("RetryRequired".into()).unwrap();
+    assert_eq!(
+        inspect(&mut e, &key).reason.as_deref(),
+        Some("UnsupportedSchema")
+    );
+    e.activate_failed("InvalidDatabase".into()).unwrap();
+    let v = inspect(&mut e, &key);
+    assert_eq!(v.reason.as_deref(), Some("InvalidDatabase"));
+    e.release_for_retry(
+        &key,
+        [20; 16],
+        &MaintenanceCommand::Retry {
+            expected: v.version,
+        },
+    )
+    .unwrap();
+    e.activate_failed("RetryRequired".into()).unwrap();
+    assert_eq!(
+        inspect(&mut e, &key).reason.as_deref(),
+        Some("RetryRequired")
+    );
+}
+
+#[tokio::test]
 async fn ordinary_workers_and_recovery_exclude_each_other_until_acknowledged_shutdown() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("db");

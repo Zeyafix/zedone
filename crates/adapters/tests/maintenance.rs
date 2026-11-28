@@ -277,3 +277,140 @@ async fn manual_enter_shuts_the_shared_worker_and_explicit_retry_reopens_without
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn unsupported_schema_keeps_files_and_authority_closed_until_explicit_retry() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("zedone.sqlite");
+    Storage::open(&path)
+        .await
+        .unwrap()
+        .shutdown()
+        .await
+        .unwrap();
+    let supported = std::fs::read(&path).unwrap();
+    let mut newer = supported.clone();
+    newer[60..64].copy_from_slice(&99_u32.to_be_bytes());
+    std::fs::write(&path, &newer).unwrap();
+    let durable = || {
+        ["", "-wal", "-journal"]
+            .map(|suffix| std::fs::read(root.path().join(format!("zedone.sqlite{suffix}"))).ok())
+    };
+    let error = Storage::open(&path).await.err().unwrap();
+    assert_eq!(error, zedone_storage::StorageError::UnsupportedSchema);
+    assert!(std::fs::read(&path).unwrap() == newer);
+    assert!(
+        std::fs::read(path.with_file_name("zedone.sqlite-wal"))
+            .unwrap_or_default()
+            .is_empty()
+    );
+    assert!(!path.with_file_name("zedone.sqlite-journal").exists());
+    let original = durable();
+    for attempt in 0..2 {
+        let error = Storage::open(&path).await.err().unwrap();
+        assert_eq!(
+            error,
+            if attempt == 0 {
+                zedone_storage::StorageError::UnsupportedSchema
+            } else {
+                zedone_storage::StorageError::RetryRequired
+            }
+        );
+        let controller = Maintenance::open(path.clone(), None, Some(error.to_string()))
+            .await
+            .unwrap();
+        let key = controller.local_session().unwrap().key;
+        let f = Fixture {
+            root: tempfile::tempdir().unwrap(),
+            path: path.clone(),
+            old_key: String::new(),
+            key,
+            controller,
+        };
+        let state = call(&f, 10, json!({"action":"inspect"})).await;
+        assert_eq!(state["reason"], "UnsupportedSchema");
+        assert_eq!(state["normal_ready"], false);
+        let remote = http(&f, &f.key, body(11, json!({"action":"inspect"})), None).await;
+        assert_eq!(remote["result"]["reason"], state["reason"]);
+        let listener = f.controller.start_loopback().await.unwrap();
+        let key_path = f.root.path().join("key");
+        std::fs::write(&key_path, &f.key).unwrap();
+        let endpoint = listener.endpoint.clone();
+        let cli = std::env::var_os("ZEDONE_TEST_CLI")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_zedone")));
+        let result = tokio::task::spawn_blocking(move || {
+            let mut child = std::process::Command::new(cli)
+                .args([
+                    "--maintenance-endpoint",
+                    &endpoint,
+                    "--key-file",
+                    key_path.to_str().unwrap(),
+                    "--stdin",
+                ])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(&body(12, json!({"action":"inspect"})))
+                .unwrap();
+            let output = child.wait_with_output().unwrap();
+            assert!(output.status.success());
+            serde_json::from_slice::<Value>(&output.stdout).unwrap()
+        })
+        .await
+        .unwrap();
+        assert_eq!(result["result"]["reason"], state["reason"]);
+        assert_eq!(result["result"]["normal_ready"], false);
+        let retry = f
+            .controller
+            .dispatch(
+                "maintenance.execute",
+                &body(13, json!({"action":"retry","expected":state["version"]})),
+                &f.key,
+            )
+            .await;
+        assert!(matches!(retry, CommandResponse::Error(_)));
+        assert!(f.controller.service().is_none());
+        let failed = call(&f, 14, json!({"action":"inspect"})).await;
+        assert_eq!(failed["reason"], "UnsupportedSchema");
+        let request = Request::post("/v1/commands/space.list")
+            .header("authorization", format!("Bearer {}", f.key))
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_vec(&json!({"id":vec![15;16],"operation":"space.list","parameters":{"include_trashed":false}})).unwrap())).unwrap();
+        let response = zedone_adapters::http::maintenance_router(f.controller.clone(), None)
+            .oneshot(request)
+            .await
+            .unwrap();
+        let denied: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 1024).await.unwrap()).unwrap();
+        assert_eq!(denied["error"]["code"], "unavailable");
+        assert!(
+            durable() == original,
+            "database/WAL/journal changed on refusal"
+        );
+        if attempt == 1 {
+            std::fs::write(&path, &supported).unwrap();
+            assert!(f.controller.service().is_none());
+            let ready = call(
+                &f,
+                16,
+                json!({"action":"retry","expected":failed["version"]}),
+            )
+            .await;
+            assert_eq!(ready["normal_ready"], true);
+            assert!(ready["reason"].is_null());
+            f.controller
+                .service()
+                .unwrap()
+                .storage_shutdown()
+                .await
+                .unwrap();
+        }
+        listener.shutdown().await;
+    }
+}

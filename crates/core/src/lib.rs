@@ -42,6 +42,7 @@ use utoipa::OpenApi;
         sync::inspect, sync::select, sync::pause, sync::catalog, sync::pull, sync::push,
         spaces::create, spaces::read, spaces::list, spaces::rename, snapshots::export, snapshots::import,
         recovery::inspect, recovery::restore, recovery::read_backup, recovery::pause,
+        recovery::missing::inspect, recovery::missing::restore,
         spaces::trash, spaces::restore, spaces::resolve_name, spaces::resolve_deletion,
         columns::create, columns::read, columns::list, columns::rename,
         columns::trash, columns::restore, columns::resolve_name, columns::resolve_deletion, ordering::move_column, ordering::move_card,

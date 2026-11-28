@@ -32,6 +32,8 @@ mod backups;
 mod catalog;
 #[path = "commands/recovery.rs"]
 mod recovery;
+#[path = "commands/reinstallation.rs"]
+mod reinstallation;
 #[path = "commands/snapshots.rs"]
 mod snapshots;
 

@@ -10,10 +10,10 @@ import ExchangePanel from "./ExchangePanel.vue";
 import AccessPanel from "./AccessPanel.vue";
 
 const spacesView = ref<InstanceType<typeof SpacesView>>();
-async function selectBackup(space: string, archive: string) {
-  location.hash = `/spaces/${space}`;
+async function selectBackup(space: string, archive: string, missing: boolean) {
+  location.hash = missing ? "/spaces" : `/spaces/${space}`;
   await nextTick();
-  await spacesView.value?.selectBackup(space, archive);
+  await spacesView.value?.selectBackup(space, archive, missing);
 }
 type Page = "spaces" | "settings";
 const pageFromHash = (): Page => location.hash === "#/settings" ? "settings" : "spaces";

@@ -16,6 +16,7 @@ use zedone_core::{
     snapshots::{MAX_ARCHIVE_BYTES, MAX_ARCHIVE_CHANGES, SpaceArchive},
 };
 mod graph;
+mod missing;
 #[cfg(test)]
 mod tests;
 const LIMITS: SnapshotLimits = SnapshotLimits {

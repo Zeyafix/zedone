@@ -18,11 +18,15 @@ import { discardDraft, draftsChanged, listDrafts, type EditorDraft } from "./edi
 import { pendingChanged } from "./workspace-api";
 import SpaceTransfer from "./SpaceTransfer.vue";
 import SpaceRecovery from "./SpaceRecovery.vue";
+import MissingRecovery from "./MissingRecovery.vue";
 import SpaceBackups from "./SpaceBackups.vue";
 const recoveryPanel = ref<InstanceType<typeof SpaceRecovery>>();
+const missingRecovery = ref<InstanceType<typeof MissingRecovery>>();
+async function missingRestored(space: string) { location.hash = `/spaces/${space}`; selected.value = space; await refresh(); }
 async function selectDailyArchive(archive: string) { await nextTick(); await recoveryPanel.value?.selectArchive(archive); }
 
-defineExpose({ selectBackup: async (space: string, archive: string) => {
+defineExpose({ selectBackup: async (space: string, archive: string, missing: boolean) => {
+  if (missing) { selected.value = undefined; await refresh(); await nextTick(); await missingRecovery.value?.selectArchive(archive); return; }
   selected.value = space;
   await refresh();
   await selectDailyArchive(archive);
@@ -448,6 +452,7 @@ function pendingLabel(item: Pending) {
   if (item.intention.operation === "space.export") return "Экспорт пространства";
   if (item.intention.operation === "space.import") return "Импорт пространства";
   if (item.intention.operation === "space.recovery.restore") return "Восстановление пространства из снимка";
+  if (item.intention.operation === "space.recovery.restore_missing") return "Восстановление после переустановки";
   if (item.intention.operation === "space.recovery.pause") return "Пауза обмена пространства";
   return labels[item.intention.operation as Mutation] ?? "Незавершённое действие";
 }
@@ -473,6 +478,7 @@ function pendingName(item: Pending) {
     </div>
     <SpaceTransfer v-show="ready" ref="transferPanel" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
     <SpaceBackups v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @selected="selectDailyArchive" />
+    <MissingRecovery ref="missingRecovery" v-show="ready" :ready="ready" :blocked="blocked || dialogOpen" @busy="busy = $event" @restored="missingRestored" />
     <SpaceRecovery ref="recoveryPanel" v-show="ready && selected" :space="selected" :blocked="blocked || dialogOpen" @busy="busy = $event" @changed="refresh" />
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="error" role="alert" class="action-error">{{ error }}</p>

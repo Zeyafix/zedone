@@ -1,5 +1,24 @@
 # Проверки PR и кэши сборки
 
+## Linux shell: основные UI и conflicts/pairing отдельно — FIX.08
+
+Два Linux shell jobs PR129/7be4018 превышали10m: исходный остановлен в
+pairing, единственный recovery завершил сценарии, но достиг лимита на cleanup.
+Обе причины подтверждены GitHub annotations; отмены остаются failures evidence.
+Linux теперь использует прежние режимы Windows: `shell` вызывает
+`bun run ui:check --main`, `shell-conflicts` — `bun run ui:check --conflicts`.
+Второй включает весь conflicts/positions и pairing. Полный локальный
+`bun run ui:check` сохранён; тела проверок и assertions не меняются.
+
+Оба Linux jobs имеют прежние10m, max-parallel2/fail-fast false и общий
+strict aggregate требует успеха всей матрицы. Существующий shell-conflicts
+namespace получает read-only seed от shell; cache keys/owners/writer policy
+прежние. Подготовка двух jobs повторяется, экономия runner-minutes не обещается.
+Текущая ожидаемая матрица32: пять Linux, шесть Windows, восемнадцать Android,
+три strict aggregates. Routing guard проверяет union режимов, ошибки/сигналы
+каждого шага, точные команды обеих ОС и aggregate; фактическая длительность
+раздельных Linux jobs требует нового CI. [EV-162](../agent/verification/EV-162-reinstallation-recovery.md).
+
 ## Парные fields/history: отдельные fixtures — FIX.06
 
 FIX.07 уточняет fields после подтверждённого timeout на `session.unlink`:
@@ -8,7 +27,7 @@ FIX.07 уточняет fields после подтверждённого timeout
 Каждый имеет полный общий lifecycle/cleanup и прежние240s/15m. Тело каждого
 case/assertions прежнее; helper/guard доказывает все три порядка и choice vectors
 ровно по одному разу. Режимы `--fields`/`--standard` сохраняют полный локальный
-охват. Текущая матрица31 checks; [EV-160](../agent/verification/EV-160-pairing-field-case-slices.md).
+охват. До FIX.08 матрица содержала31 checks; [EV-160](../agent/verification/EV-160-pairing-field-case-slices.md).
 
 Android `pairing-fields` проверяет текстовые/комбинированные конфликты,
 `pairing-history` — прежнюю независимую матрицу истории. У каждого собственные
@@ -35,7 +54,7 @@ GAP-047 этим не устанавливается. [EV-159](../agent/verifica
 Используется прежняя схема Windows, без изменения самих команд, assertions,
 профилей или тайм-аутов. Общий локальный запуск без аргумента сохранён.
 
-Linux matrix: product/product-build/shell/prototype-ui, max-parallel 2,
+Linux matrix: product/product-build/shell/shell-conflicts/prototype-ui, max-parallel 2,
 fail-fast false, каждый job 10m. Aggregate требует `success` всей матрицы.
 Разделённый build использует существующий isolated namespace и read-only seed
 из product cache; новые правила сохранения кэшей не вводятся. Guard сверяет
@@ -207,16 +226,15 @@ fixture 240s и strict aggregate сохранены. Локальная Device U
 | --- | --- | --- |
 | Windows/Linux | product | `bun scripts/check-product.mjs --host-tests`: fmt/Clippy/Rust/client/contract/types |
 | Windows/Linux | product-build | `bun scripts/check-product.mjs --host-build`: release all-targets/all-features, unsafe/comment rejection и recovery |
-| Windows | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
-| Windows | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
-| Linux | shell | `bun run ui:check`: оба прежних UI-среза, все conflicts/positions и pairing browser сценарии |
+| Windows/Linux | shell | `bun run ui:check --main`: QR/types/build/native и основной desktop/touch UI |
+| Windows/Linux | shell-conflicts | `bun run ui:check --conflicts`: все workspace/conflicts/positions и pairing browser сценарии |
 | Android | product-native | `--android-runtime`: native Rust, release CLI/exporter, host/device contract и оба paired probes |
 | Android | product-x86_64 | `--android-x86_64`: release all-targets/all-features и unsafe/comment guards без AVD |
 | Android | prototype-ui / prototype-arm64 | Прежний x86_64 APK/WebView/instrumentation runtime / отдельная arm64 APK/instrumentation сборка |
 | Android | pairing-fields / pairing-history / pairing-placements / pairing-positions-cross / pairing-positions-same | Самостоятельные text/fields, history, card/column placements, combined positions suites |
 
 Host prototype-native/prototype-ui и Android product-arm64/prototype-native/
-shell/shell-arm64 сохраняются. Всего 31 checks: 6 Windows + 4 Linux + 18 Android
+shell/shell-arm64 сохраняются. Всего 32 checks: 6 Windows + 5 Linux + 18 Android
 и 3 aggregates. Каждый aggregate требует успеха всей своей матрицы;
 `fail-fast: false`, без `continue-on-error`. Лимиты прежние: Linux 10m,
 Windows 20m, Android 15m, aggregates 1m. Ручные полные команды, включая

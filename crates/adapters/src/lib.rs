@@ -53,7 +53,11 @@ pub const MAX_EXCHANGE_BYTES: usize = 3 * 1024 * 1024;
 pub fn request_limit(operation: &str) -> usize {
     if matches!(
         operation,
-        "sync.push" | "space.import" | "space.recovery.restore"
+        "sync.push"
+            | "space.import"
+            | "space.recovery.restore"
+            | "space.recovery.inspect_missing"
+            | "space.recovery.restore_missing"
     ) {
         MAX_EXCHANGE_BYTES
     } else {
@@ -157,6 +161,8 @@ impl Service {
                 "space.recovery.inspect" => run!(zedone_core::recovery::InspectRecovery, zedone_core::recovery::inspect),
                 "space.recovery.restore" => run!(zedone_core::recovery::RestoreSnapshot, zedone_core::recovery::restore),
                 "space.recovery.read_backup" => run!(zedone_core::recovery::ReadSafetyBackup, zedone_core::recovery::read_backup),
+                "space.recovery.inspect_missing" => run!(zedone_core::recovery::missing::InspectMissingRecovery, zedone_core::recovery::missing::inspect),
+                "space.recovery.restore_missing" => run!(zedone_core::recovery::missing::RestoreMissingSnapshot, zedone_core::recovery::missing::restore),
                 "sync.inspect" => run!(zedone_core::sync::InspectSync, zedone_core::sync::inspect),
                 "sync.select" => run!(zedone_core::sync::SelectSync, zedone_core::sync::select),
                 "sync.pause" => run!(zedone_core::sync::PauseSync, zedone_core::sync::pause),
@@ -259,7 +265,12 @@ impl Service {
                 && !operation.ends_with(".list")
                 && !matches!(
                     operation,
-                    "card.search" | "card.history" | "space.export" | "sync.pull" | "sync.catalog"
+                    "card.search"
+                        | "card.history"
+                        | "space.export"
+                        | "sync.pull"
+                        | "sync.catalog"
+                        | "space.recovery.inspect_missing"
                 )
                 && let Some(worker) = &self.backups
             {

@@ -506,6 +506,10 @@ invalid/rejected/timeout. Ключи и полный session object не воз�
 этой синтетической CI-установки. Диагностика не повторяет действия и не меняет
 таймауты/assertions сценария или job budget. Host-набор проверяет настоящий
 configured/unconfigured Service и отсутствие credential key в проекции.
+Host-проверка передаёт отдельный обработчик отчёта в
+`withShellFailureDiagnostics`: она не подменяет общий `console.error`, пока
+параллельно выполняются другие browser-срезы. Два одновременных сбоя проверяются
+с разными получателями; отказ получателя не заменяет исходную ошибку сценария.
 Причина первого native startup отказа c286cc4 пока не доказана —
 [EV-082, GAP-020](../agent/verification/EV-082-board-moves-ui.md#первый-экран-c286cc4--gap-020--log-446).
 

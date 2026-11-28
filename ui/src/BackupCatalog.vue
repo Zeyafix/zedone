@@ -8,7 +8,7 @@ import { saveArchive } from "./snapshot-files";
 type Folder = components["schemas"]["BackupFolder"];
 type Copy = components["schemas"]["CatalogCopy"];
 const props = defineProps<{ ready: boolean }>();
-const emit = defineEmits<{ selected: [space: string, archive: string] }>();
+const emit = defineEmits<{ selected: [space: string, archive: string, missing: boolean] }>();
 const folders = ref<Folder[]>([]), selected = ref("");
 const catalog = ref<components["schemas"]["BackupCatalog"]>();
 const location = ref<components["schemas"]["BackupLocation"]>();
@@ -98,7 +98,15 @@ async function useCopy(copy: Copy, restore: boolean) {
   await work(async () => {
     const value = await read("backups.catalog.read", { folder: selected.value, copy: copy.id, expected: copy.digest });
     if (current !== generation || !props.ready) return;
-    if (restore) { await read("space.recovery.inspect", { space: copy.space }); if (current === generation && props.ready) emit("selected", copy.space, value.archive); }
+    if (restore) {
+      let missing = true;
+      try { await read("space.recovery.inspect_missing", { archive: value.archive }); }
+      catch (cause) {
+        if (!(cause instanceof Error) || cause.message !== "stale_state") throw cause;
+        missing = false; await read("space.recovery.inspect", { space: copy.space });
+      }
+      if (current === generation && props.ready) emit("selected", copy.space, value.archive, missing);
+    }
     else { const saved = await saveArchive(value.archive); message.value = saved === "cancelled" ? "Сохранение файла отменено." : "Копия передана для сохранения в файл."; }
   });
 }

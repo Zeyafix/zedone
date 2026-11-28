@@ -244,7 +244,7 @@ fn preserve_conflicts(graph: &mut Automerge, source: &Automerge, space: &str) ->
     }
     Ok(())
 }
-pub(super) fn plan(current: &Automerge, snapshot: &SpaceSnapshot) -> StorageResult<Vec<Change>> {
+pub(super) fn source(snapshot: &SpaceSnapshot) -> StorageResult<Automerge> {
     let mut source = Automerge::new();
     source
         .apply_changes(snapshot.changes().iter().cloned())
@@ -259,6 +259,10 @@ pub(super) fn plan(current: &Automerge, snapshot: &SpaceSnapshot) -> StorageResu
         schema.visit(&mut decoded, &mut |id| Ok(id.into()))?;
     }
     schema.check_references()?;
+    Ok(source)
+}
+pub(super) fn plan(current: &Automerge, snapshot: &SpaceSnapshot) -> StorageResult<Vec<Change>> {
+    let source = source(snapshot)?;
     let initial = source.get_changes(&[]).first().ok_or_else(invalid)?.hash();
     if current.get_change_by_hash(&initial).is_none() {
         return Err(invalid());

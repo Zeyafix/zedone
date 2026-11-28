@@ -5,6 +5,7 @@ pub mod device_host;
 mod exchange;
 pub mod http;
 pub mod ipc;
+pub mod maintenance;
 pub mod network;
 pub mod pairing;
 pub mod secrets;
@@ -72,6 +73,13 @@ pub struct Service {
 }
 
 impl Service {
+    pub async fn storage_shutdown(&self) -> Result<(), CommandError> {
+        self.storage
+            .clone()
+            .shutdown()
+            .await
+            .map_err(CommandError::from)
+    }
     pub fn new(storage: Storage) -> Self {
         Self {
             storage,

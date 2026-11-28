@@ -17,6 +17,7 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
     let origin = format!("http://{address}");
     let authority = address.to_string();
     let service = shell.service.clone();
+    let maintenance = shell.maintenance.clone();
     let assets = Router::new()
         .route(
             "/",
@@ -46,11 +47,18 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
             }),
         )
         .route("/host/session", get(session))
+        .route("/host/maintenance-session", get(maintenance_session))
+        .route("/host/maintenance-folder", post(maintenance_folder))
         .route("/host/devices/{operation}", post(devices))
         .route("/host/backup-folder", post(backup_folder))
         .layer(DefaultBodyLimit::max(zedone_adapters::MAX_REQUEST_BYTES))
         .with_state(Arc::new(shell));
-    let app = if let Some(service) = service {
+    let app = if let Some(maintenance) = maintenance {
+        assets.merge(zedone_adapters::http::maintenance_router(
+            maintenance,
+            Some(origin.clone()),
+        ))
+    } else if let Some(service) = service {
         assets.merge(zedone_adapters::http::router_with_origin(
             service,
             Some(origin.clone()),
@@ -100,6 +108,37 @@ pub fn router(shell: Shell, address: std::net::SocketAddr) -> Router {
 async fn session(State(shell): State<Arc<Shell>>) -> axum::Json<crate::Session> {
     axum::Json(shell.session())
 }
+async fn maintenance_session(
+    State(shell): State<Arc<Shell>>,
+) -> axum::Json<Option<zedone_storage::emergency::LocalSession>> {
+    axum::Json(shell.maintenance_session())
+}
+
+async fn maintenance_folder(
+    State(shell): State<Arc<Shell>>,
+    headers: HeaderMap,
+) -> Result<axum::Json<Option<String>>, StatusCode> {
+    if headers.get_all("authorization").iter().count() != 1 {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let key = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or(StatusCode::FORBIDDEN)?;
+    shell
+        .maintenance
+        .as_ref()
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?
+        .owner_access(key)
+        .await
+        .map_err(|_| StatusCode::FORBIDDEN)?;
+    Ok(axum::Json(
+        crate::backup_folders::select_path()
+            .await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+    ))
+}
 
 async fn backup_folder(
     State(shell): State<Arc<Shell>>,
@@ -142,12 +181,12 @@ async fn backup_folder(
         .map_err(|_| CommandError {
             code: ErrorCode::InvalidRequest,
         })?;
-        let service = shell.service.as_ref().ok_or(CommandError {
+        let service = shell.current_service().ok_or(CommandError {
             code: ErrorCode::Unavailable,
         })?;
         let check=serde_json::to_vec(&serde_json::json!({"id":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"operation":"backups.folders","parameters":{}})).map_err(|_|CommandError{code:ErrorCode::Unavailable})?;
         if !matches!(service.dispatch("backups.folders",&check,key).await,CommandResponse::Ok(_)) {return Err(CommandError{code:ErrorCode::AccessDenied});}
-        let reply = crate::backup_folders::choose(service, key, selection).await?;
+        let reply = crate::backup_folders::choose(&service, key, selection).await?;
         Ok(zedone_core::replay::Execution {
             result: serde_json::to_value(reply).map_err(|_| CommandError {
                 code: ErrorCode::Unavailable,
@@ -187,7 +226,7 @@ async fn devices(
     let Ok(body) = body else {
         return axum::Json(failure(ErrorCode::InvalidRequest));
     };
-    axum::Json(match &shell.devices {
+    axum::Json(match shell.device_control() {
         Some(devices) => devices.dispatch(&operation, &body, key).await,
         None => failure(ErrorCode::Unavailable),
     })

@@ -19,6 +19,7 @@ use zedone_core::{
 mod migration;
 const KEY: &[u8] = b"\0zedone/internal/backup-location/v1";
 const CAP: &str = "\0zedone/internal/backup-folder/v1/";
+const RECOVERY_HOLD: &[u8] = b"\0zedone/internal/backup-recovery-hold/v1";
 const LIMITS: SnapshotLimits = SnapshotLimits {
     max_bytes: MAX_ARCHIVE_BYTES,
     max_changes: MAX_ARCHIVE_CHANGES,
@@ -201,10 +202,20 @@ pub(crate) fn folder(c: &Connection) -> StorageResult<PathBuf> {
         .unwrap_or(default_folder(c)?))
 }
 pub(crate) fn writable(c: &Connection) -> StorageResult<()> {
-    if location(c)?.pending.is_some() {
+    if location(c)?.pending.is_some() || load::<bool>(c, RECOVERY_HOLD)?.unwrap_or(false) {
         return Err(unavailable());
     }
     Ok(())
+}
+pub(crate) fn detach_after_recovery(c: &Connection) -> StorageResult<()> {
+    save(c, KEY, &Location::default())?;
+    let mut upper = CAP.as_bytes().to_vec();
+    upper.push(255);
+    c.execute(
+        "DELETE FROM command_results WHERE key>=?1 AND key<?2",
+        (CAP.as_bytes(), upper),
+    )?;
+    save(c, RECOVERY_HOLD, &true)
 }
 fn root_text(root: &Path) -> StorageResult<String> {
     root.to_str().map(str::to_owned).ok_or_else(unavailable)
@@ -583,6 +594,12 @@ impl Storage {
                                     writable,
                                 });
                             }
+                        }
+                        if writable {
+                            ctx.connection().execute(
+                                "DELETE FROM command_results WHERE key=?1",
+                                [RECOVERY_HOLD],
+                            )?;
                         }
                         selected.ok_or_else(unavailable)
                     })();

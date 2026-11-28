@@ -41,6 +41,34 @@ pub async fn snapshot_file_open(app: tauri::AppHandle) -> Result<FileReply, ()> 
 }
 
 #[tauri::command]
+pub async fn maintenance_folder_select(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::Shell>,
+    credential: String,
+) -> Result<Option<String>, ()> {
+    state
+        .maintenance
+        .as_ref()
+        .ok_or(())?
+        .owner_access(&credential)
+        .await
+        .map_err(|_| ())?;
+    let reply: SelectedTree = app
+        .state::<Files<tauri::Wry>>()
+        .0
+        .run_mobile_plugin_async("selectFolder", serde_json::json!({"writable":false}))
+        .await
+        .map_err(|_| ())?;
+    if reply.status == "cancelled" {
+        return Ok(None);
+    }
+    if reply.status != "ok" {
+        return Err(());
+    }
+    Ok(Some(reply.root.ok_or(())?))
+}
+
+#[tauri::command]
 pub async fn snapshot_file_save(app: tauri::AppHandle, archive: String) -> Result<FileReply, ()> {
     access(app, Some(archive)).await
 }
@@ -97,7 +125,7 @@ pub async fn backup_folder_select(
     if local.key != credential {
         return Err(());
     }
-    let service = state.service.as_ref().ok_or(())?;
+    let service = state.current_service().ok_or(())?;
     let body=serde_json::to_vec(&serde_json::json!({"id":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"operation":"backups.folders","parameters":{}})).map_err(|_|())?;
     if !matches!(
         service

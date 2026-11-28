@@ -8,10 +8,13 @@ mod clock;
 mod columns;
 pub mod daily_backup;
 mod document;
+pub mod emergency;
 mod invitations;
 pub mod migration_backup;
 mod ordering;
+mod ownership;
 mod pairing;
+pub mod problem_state;
 mod recovery;
 mod recovery_flags;
 pub mod restore_backup;
@@ -120,15 +123,28 @@ impl Storage {
         thread::Builder::new()
             .name("zedone-storage".into())
             .spawn(move || {
+                let ownership = match ownership::Ownership::shared(&path) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        let _ = ready.send(Err(error));
+                        return;
+                    }
+                };
                 let initialized: StorageResult<Connection> = (|| {
+                    emergency::admit(&path)?;
                     schema::preflight_with(&path, registry)?;
                     let mut connection = Connection::open(path)?;
+                    emergency::validate_epoch(
+                        std::path::Path::new(connection.path().ok_or(StorageError::Unavailable)?),
+                        &connection,
+                    )?;
                     startup::initialize(&mut connection, options.as_ref(), registry, |_| Ok(()))?;
                     Ok(connection)
                 })();
                 let mut connection = match initialized {
                     Ok(c) => c,
                     Err(error) => {
+                        drop(ownership);
                         let _ = ready.send(Err(error));
                         return;
                     }
@@ -147,6 +163,7 @@ impl Storage {
                     }
                 }
                 drop(connection);
+                drop(ownership);
                 for reply in stopped {
                     let _ = reply.send(());
                 }

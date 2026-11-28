@@ -10,8 +10,8 @@
 - Проверки: штатные `bun scripts/check-product.mjs --host-tests`, `--host-build`, `--android`, `bun scripts/check-ui.mjs --main`, целевые browser desktop/touch и APK/Device; конкретные результаты фиксируются после выполнения.
 - Отказы: malformed/несовместимый архив, отсутствие прав, появившееся/существующее/trashed/purged состояние, ошибка чтения, транзакционный сбой/остановка и повтор после restart. Нет частичной публикации; исходный файл не изменяется.
 - Обратимость: отмена подготовки, обычное удаление восстановленного пространства/восстановление из корзины; отключение новых подключений и отзыв новых прав, отдельный resume/pause. Последующие восстановления существующего пространства всегда со страховочным снимком.
-- Состояние: весь P07.06 и .1/.2/.3/.4 verified локально. A58/A59 partial с полной локальной матрицей до ревью/CI/интеграции; T10/P07 partial. Новых commit/push/PR/CI/merge нет.
-- Следующее: ревью/фиксация и CI/интеграция P07.06 по поручению разработчика; затем готов P07.09. Active_work null.
+- Состояние: P07.06/.1–.4 и FIX.08 done, A58/A59 passed после полной локальной матрицы и CI32/интеграции PR129 вa41e762; T10/P07 partial, GAP-056 open. LOG-915.
+- Следующее: готов P07.09, не начат; active_work null. Итоговые записи приёмки локальные без нового commit/push, источник продукта соответствует проверенному merge tree.
 
 
 ## Промежуточная проверка
@@ -311,3 +311,91 @@ UI/Android/Device runtime не запускался; прежняя локаль
 Windows/Android CI7be4018 сохраняют свой scope. A58/A59/T10/P07 partial,
 75 проблем и98 определения критериев прежние. Пять правил проекта сохраняются
 в прежнем продуктовом охвате. Далее commit/push и новый CI, merge/delete пока нет.
+
+## Публикация FIX.08 — LOG-911
+
+Commit `671180aeca474a51cea0cb13be530a6c5978d62c` отправлен в тот же
+[PR #129](https://github.com/Zeyafix/zedone/pull/129). Readback: точный head,
+main/bbdb055, nondraft/mergeable/behind0, полный feedback пуст, обновлённое
+тело совпало, одна пара Before/After и credit сохранены. Host run46116967106
+и Android run46116967082 начаты:29 suites pending, включая оба Linux UI jobs,
+три strict aggregates ожидаются. Для интеграции нужны все32 SUCCESS.
+
+31 source fingerprints совпали;98 criterion rows и75 problem IDs/types/states
+побайтово/структурно прежние, GAP-042 только дополнен evidence и остаётся open.
+FIX.08 verified локально, A58/A59/T10/P07 partial. Existing watch активен,
+merge/delete ожидают полной новой матрицы; checkpoint локальный без нового push.
+
+## Android prototype-ui: column gesture timeout — GAP-056 / LOG-912
+
+[Job140892850528](https://github.com/Zeyafix/zedone/actions/runs/46116967082/job/140892850528)
+на671180a failed в board-scenarios.mjs:164: после column reorder gesture
+saved() не дождался «Перемещение сохранено.» за прежние10000ms. До него
+Activity recreation/IPC/Markdown/QR/scanner/storage/HTTP и card reorder/
+inverse/cross-column gesture прошли. Assertion порядка колонок и последующие
+native сценарии не достигнуты. Android probe cleanup completed. Причина
+не установлена; emulator graphics warnings не доказывают причинную связь.
+
+Runtime/board/scenarios/native driver не менялись после успешного7be4018
+prototype-ui job140884222868; в prototypes изменён только CI routing guard.
+Прежний успех не заменяет новый failure.31 source fingerprints прежние;
+CI readback точный/nondraft/mergeable/behind0, feedback пуст, на чтении
+6 SUCCESS/22 pending/1 failure. Исходные tails/snapshot сохранены ignored.
+
+Добавлен GAP-056 open:76 problem rows,75 прежних ID/типов/состояний и98
+criterion rows сохраняются. Неизвестная причина не объявляется исправленной.
+Запрошен один targeted prototype-ui recovery, GitHub вернул rerun=false:
+«The workflow run containing this job is already running». Accepted0/limit1;
+после terminal workflow нужен один принятый запрос на том же head/коде/10s/
+assertions. Далее требуются job и dependent aggregate SUCCESS, полный CI32.
+Нового same-head recovery ещё нет, local runtime/Device не запускались;
+existing watch сохранён, checkpoint локальный без commit/push, merge/delete нет.
+
+## Prototype-ui recovery принят — LOG-913
+
+После terminal workflow671180a имеет30 SUCCESS/0 pending/2 failures,
+feedback пуст, nondraft/mergeable/behind0. Все пять Linux suites (включая
+раздельные main/conflicts) и Ubuntu aggregate passed, все Windows и прочие17
+Android suites SUCCESS. [Android aggregate140896711178](https://github.com/Zeyafix/zedone/actions/runs/46116967082/job/140896711178)
+прямо содержит RESULT failure/exit1, нового первичного отказа нет.
+
+Запрос targeted prototype-ui recovery принят: rerun=true, accepted1/limit1,
+тот же head/код/10s/assertions/job budget.30 успешных outcomes вручную
+не перезапускаются. Требуются полный prototype-ui и dependent aggregate
+SUCCESS перед merge. Исходный failure GAP-056 и неизвестная причина
+сохранены; успешный recovery сам по себе её не закрывает. Новых same-head
+повторов не назначать. Snapshot/aggregate log/request result сохранены ignored,
+existing watch активен, checkpoint локальный, нового local runtime/Device нет.
+
+## Интеграция — LOG-914/915
+
+[PR #129](https://github.com/Zeyafix/zedone/pull/129) merged в
+`a41e7624b53e4b7b2d0b43b7940dcf93ce098e15`, checked head
+`671180aeca474a51cea0cb13be530a6c5978d62c`. Перед merge штатный readback
+подтвердил все32 SUCCESS:5 Linux+6 Windows+18 Android+3 strict aggregates,
+точные head/base/behind0/mergeability/nondraft, отсутствие feedback и unresolved.
+Merge с expectedHeadSha имеет parentsbbdb055/671180a и то же дерево
+`9dd021f9912ca300f634280a4e59650ba909e221`; ancestry проверен.
+
+Prototype-ui recovery140897128481 прошёл column gesture/полный board/
+auto-scroll/API equality, SQLite lock/restart, очистку synthetic sets и probe
+cleanup; aggregate140898595798 SUCCESS. Открытый GAP-056 сохраняет initial10s
+failure и неизвестную причину. Уточнение объёма повторов: один named ci_rerun
+запрос фактически дал новые IDs всех18 Android suites+aggregate.13 host
+outcomes прежние; все19 повторённых Android outcomes SUCCESS. Request result,
+comparison, initial failures и успешный tail сохранены ignored.
+
+P07.06/.1–.4 и FIX.08 done, A58/A59 passed по полной локальной Windows515/
+native Android513/API/UI/Device матрице, обеим ABI/unsafe/парным probes/
+контракту и финальному CI32. Определения98 критериев и96 остальных состояний
+сохранены; T10/P07 partial.76 problem IDs/types/states прежние, GAP-056 и
+прочие неизвестные причины не закрываются успехом повторов. Физический
+arm64 runtime/hardware power-loss не проверялись; прежние ограничения действуют.
+
+Main=origin/main/a41e762; ветка удалена local/remote/tracking. Два dirty
+checkpoint сохранены по SHA-256 перед switch и остались побайтово прежними
+при переходе между одинаковыми trees, затем дополнены итогами. Исходный APK/
+204 private entries восстановлены ранее, Device выключен. Все пять правил
+AGENTS.md соблюдены в указанном scope. Итоговые journal/queue/EV/development
+записи локальные без нового commit/push; новый post-merge CI не заявляется.
+Active_work null; готов P07.09, не начат.

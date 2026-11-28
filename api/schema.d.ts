@@ -815,6 +815,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commands/maintenance.execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["maintenance_execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commands/pairing.cancel": {
         parameters: {
             query?: never;
@@ -2814,6 +2830,75 @@ export interface components {
                 space: string;
             };
         };
+        CommandRequest_MaintenanceCommand: {
+            id: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+            operation: string;
+            parameters: {
+                action: "inspect";
+            } | {
+                action: "enter";
+                expected: components["schemas"]["StateVersion"];
+            } | {
+                action: "select_folder";
+                expected: components["schemas"]["StateVersion"];
+                root: string;
+            } | {
+                action: "prepare";
+                copy: string;
+                expected: components["schemas"]["StateVersion"];
+            } | {
+                action: "apply";
+                expected: components["schemas"]["StateVersion"];
+                plan: string;
+            } | {
+                action: "continue";
+                expected: components["schemas"]["StateVersion"];
+                plan: string;
+            } | {
+                action: "cancel";
+                expected: components["schemas"]["StateVersion"];
+                plan: string;
+            } | {
+                action: "rollback";
+                expected: components["schemas"]["StateVersion"];
+                plan: string;
+            } | {
+                action: "retry";
+                expected: components["schemas"]["StateVersion"];
+            } | {
+                action: "delete_problem";
+                expected: components["schemas"]["StateVersion"];
+                problem: string;
+            } | {
+                action: "issue_access";
+                expected: components["schemas"]["StateVersion"];
+                expires_ms?: number | null;
+                label: string;
+                verifier: number[];
+                writable: boolean;
+            } | {
+                action: "revoke_access";
+                expected: components["schemas"]["StateVersion"];
+                subject: string;
+            };
+        };
         CommandRequest_MoveCard: {
             id: [
                 number,
@@ -4121,6 +4206,7 @@ export interface components {
         CommandResponse_ImportedSpace: components["schemas"]["CommandSuccess_ImportedSpace"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationList: components["schemas"]["CommandSuccess_InvitationList"] | components["schemas"]["CommandFailure"];
         CommandResponse_InvitationSnapshot: components["schemas"]["CommandSuccess_InvitationSnapshot"] | components["schemas"]["CommandFailure"];
+        CommandResponse_MaintenanceView: components["schemas"]["CommandSuccess_MaintenanceView"] | components["schemas"]["CommandFailure"];
         CommandResponse_MissingRecoveryState: components["schemas"]["CommandSuccess_MissingRecoveryState"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingList: components["schemas"]["CommandSuccess_PairingList"] | components["schemas"]["CommandFailure"];
         CommandResponse_PairingSnapshot: components["schemas"]["CommandSuccess_PairingSnapshot"] | components["schemas"]["CommandFailure"];
@@ -4320,6 +4406,25 @@ export interface components {
                 invitation: string;
                 status: components["schemas"]["InvitationStatus"];
                 version: components["schemas"]["StateVersion"];
+            };
+            status: components["schemas"]["SuccessStatus"];
+        };
+        CommandSuccess_MaintenanceView: {
+            replayed: boolean;
+            result: {
+                access: components["schemas"]["MaintenanceAccess"][];
+                copies: components["schemas"]["FullCopy"][];
+                endpoint?: string | null;
+                folder?: string | null;
+                folder_available: boolean;
+                issued_subject?: string | null;
+                normal_ready: boolean;
+                owner: boolean;
+                plan?: components["schemas"]["RecoveryPlan"] | null;
+                problems: string[];
+                reason?: string | null;
+                version: components["schemas"]["StateVersion"];
+                writable: boolean;
             };
             status: components["schemas"]["SuccessStatus"];
         };
@@ -4554,6 +4659,11 @@ export interface components {
         ForgetBackupFolder: {
             folder: string;
         };
+        FullCopy: {
+            created_at_unix_ms: number;
+            id: string;
+            spaces: number;
+        };
         HistoryEntry: {
             card: string;
             retained: boolean;
@@ -4665,6 +4775,76 @@ export interface components {
             include_deleted: boolean;
             space: string;
         };
+        MaintenanceAccess: {
+            expires_ms?: number | null;
+            label: string;
+            revoked: boolean;
+            subject: string;
+            writable: boolean;
+        };
+        MaintenanceCommand: {
+            action: "inspect";
+        } | {
+            action: "enter";
+            expected: components["schemas"]["StateVersion"];
+        } | {
+            action: "select_folder";
+            expected: components["schemas"]["StateVersion"];
+            root: string;
+        } | {
+            action: "prepare";
+            copy: string;
+            expected: components["schemas"]["StateVersion"];
+        } | {
+            action: "apply";
+            expected: components["schemas"]["StateVersion"];
+            plan: string;
+        } | {
+            action: "continue";
+            expected: components["schemas"]["StateVersion"];
+            plan: string;
+        } | {
+            action: "cancel";
+            expected: components["schemas"]["StateVersion"];
+            plan: string;
+        } | {
+            action: "rollback";
+            expected: components["schemas"]["StateVersion"];
+            plan: string;
+        } | {
+            action: "retry";
+            expected: components["schemas"]["StateVersion"];
+        } | {
+            action: "delete_problem";
+            expected: components["schemas"]["StateVersion"];
+            problem: string;
+        } | {
+            action: "issue_access";
+            expected: components["schemas"]["StateVersion"];
+            expires_ms?: number | null;
+            label: string;
+            verifier: number[];
+            writable: boolean;
+        } | {
+            action: "revoke_access";
+            expected: components["schemas"]["StateVersion"];
+            subject: string;
+        };
+        MaintenanceView: {
+            access: components["schemas"]["MaintenanceAccess"][];
+            copies: components["schemas"]["FullCopy"][];
+            endpoint?: string | null;
+            folder?: string | null;
+            folder_available: boolean;
+            issued_subject?: string | null;
+            normal_ready: boolean;
+            owner: boolean;
+            plan?: components["schemas"]["RecoveryPlan"] | null;
+            problems: string[];
+            reason?: string | null;
+            version: components["schemas"]["StateVersion"];
+            writable: boolean;
+        };
         MissingRecoveryState: {
             names: string[];
             space: string;
@@ -4762,6 +4942,15 @@ export interface components {
             expected: components["schemas"]["StateVersion"];
             paused: boolean;
             space: string;
+        };
+        RecoveryPhase: "prepared" | "applying" | "restored" | "reverting" | "reverted" | "cancelled";
+        RecoveryPlan: {
+            copy: string;
+            created_at_unix_ms: number;
+            id: string;
+            phase: components["schemas"]["RecoveryPhase"];
+            problem: string;
+            spaces: number;
         };
         RecoveryState: {
             backup?: components["schemas"]["SafetyBackup"] | null;
@@ -6265,6 +6454,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommandResponse_InvitationList"];
+                };
+            };
+        };
+    };
+    maintenance_execute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandRequest_MaintenanceCommand"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandResponse_MaintenanceView"];
                 };
             };
         };

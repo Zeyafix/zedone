@@ -64,6 +64,65 @@ fn running_retry_uses_monotonic_time_while_restart_resumes_persisted_wait() {
 }
 const SPACE: &str = "00000000000000000000000000000001";
 const OTHER: &str = "00000000000000000000000000000002";
+#[tokio::test]
+async fn recovered_backups_keep_policy_but_never_resume_old_file_intentions() {
+    let directory = tempfile::tempdir().unwrap();
+    let db = Storage::open(directory.path().join("source.db"))
+        .await
+        .unwrap();
+    let credential = std::sync::Arc::new(PendingAccess::generate().unwrap());
+    let owner = credential.clone();
+    db.transact(move |ctx| {
+        ctx.bootstrap_access(&owner)?;
+        ctx.create_space(SPACE, "Копии", owner.subject())?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+    db.initialize_daily_backups().await.unwrap();
+    attempt_at(&db, 10, 10, Trigger::Automatic).await;
+    db.cleanup_daily_backups().await.unwrap();
+    let original = saved(&db).await;
+    let reference = original.files[0].clone();
+    let copy = root(&db).await.join(&reference.id);
+    let archive = fs::read(copy.join("space.bin")).unwrap();
+    let marker = fs::read(copy.join("commit.json")).unwrap();
+    let policy = original.policy.clone();
+    db.transact(move |ctx| {
+        let c = ctx.connection();
+        let old_installation = global(c)?.installation;
+        let mut s = state(c, SPACE)?;
+        s.files.clear();
+        s.obsolete.push(reference);
+        save(c, &state_key(SPACE), &s)?;
+        detach_after_recovery(c)?;
+        crate::backup_catalog::detach_after_recovery(c)?;
+        assert_ne!(global(c)?.installation, old_installation);
+        assert_eq!(state(c, SPACE)?.policy, policy);
+        assert!(state(c, SPACE)?.obsolete.is_empty());
+        assert!(crate::backup_catalog::writable(c).is_err());
+        Ok(())
+    })
+    .await
+    .unwrap();
+    assert!(db.cleanup_daily_backups().await.is_err());
+    db.select_backup_folder(credential.credential().0.to_vec(), None, false)
+        .await
+        .unwrap();
+    assert!(db.cleanup_daily_backups().await.is_err());
+    db.select_backup_folder(credential.credential().0.to_vec(), None, true)
+        .await
+        .unwrap();
+    db.cleanup_daily_backups().await.unwrap();
+    assert_eq!(fs::read(copy.join("space.bin")).unwrap(), archive);
+    assert_eq!(fs::read(copy.join("commit.json")).unwrap(), marker);
+    rename(&db, "После восстановления").await;
+    assert_eq!(
+        attempt_at(&db, 10, 20, Trigger::Automatic).await.status,
+        DailyStatus::DailyLimit
+    );
+    db.shutdown().await.unwrap();
+}
 async fn fixture() -> (tempfile::TempDir, Storage) {
     let dir = tempfile::tempdir().unwrap();
     let db = Storage::open(dir.path().join("source.db")).await.unwrap();

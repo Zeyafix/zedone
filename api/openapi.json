@@ -1744,6 +1744,40 @@
         ]
       }
     },
+    "/v1/commands/maintenance.execute": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "operationId": "maintenance_execute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest_MaintenanceCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse_MaintenanceView"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_key": []
+          }
+        ]
+      }
+    },
     "/v1/commands/pairing.cancel": {
       "post": {
         "tags": [
@@ -5878,6 +5912,304 @@
         },
         "additionalProperties": false
       },
+      "CommandRequest_MaintenanceCommand": {
+        "type": "object",
+        "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
+        "required": [
+          "id",
+          "operation",
+          "parameters"
+        ],
+        "properties": {
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "maxItems": 16,
+            "minItems": 16
+          },
+          "operation": {
+            "type": "string"
+          },
+          "parameters": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "inspect"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "enter"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "root",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "select_folder"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "root": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "copy",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "prepare"
+                    ]
+                  },
+                  "copy": {
+                    "type": "string"
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "plan",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "apply"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "plan": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "plan",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "continue"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "plan": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "plan",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "cancel"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "plan": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "plan",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "rollback"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "plan": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "retry"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "problem",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "delete_problem"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "problem": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "label",
+                  "verifier",
+                  "writable",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "issue_access"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "expires_ms": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "verifier": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32",
+                      "minimum": 0
+                    }
+                  },
+                  "writable": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "subject",
+                  "expected",
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "revoke_access"
+                    ]
+                  },
+                  "expected": {
+                    "$ref": "#/components/schemas/StateVersion"
+                  },
+                  "subject": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "CommandRequest_MoveCard": {
         "type": "object",
         "description": "Preserve this entire request, including the ID, for every delivery of an\nintention. New intentions require new client-generated cryptographic IDs.\nConcrete command types define all targets, parameters and original versions.\nThe Value specialization in OpenAPI describes only this envelope, not an\nimplemented operation or a substitute for concrete command validation.",
@@ -8414,6 +8746,17 @@
         ],
         "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
       },
+      "CommandResponse_MaintenanceView": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommandSuccess_MaintenanceView"
+          },
+          {
+            "$ref": "#/components/schemas/CommandFailure"
+          }
+        ],
+        "description": "Transport JSON is explicitly tagged, never Rust Result's Ok/Err encoding.\nA success confirms the original completion, not the current object state.\nConstruct success only AFTER the storage transaction commits. Cancellation,\na lost response or uncertain commit must never be converted to success."
+      },
       "CommandResponse_MissingRecoveryState": {
         "oneOf": [
           {
@@ -9461,6 +9804,106 @@
               },
               "version": {
                 "$ref": "#/components/schemas/StateVersion"
+              }
+            },
+            "additionalProperties": false
+          },
+          "status": {
+            "$ref": "#/components/schemas/SuccessStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommandSuccess_MaintenanceView": {
+        "type": "object",
+        "required": [
+          "status",
+          "result",
+          "replayed"
+        ],
+        "properties": {
+          "replayed": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object",
+            "required": [
+              "version",
+              "normal_ready",
+              "owner",
+              "writable",
+              "folder_available",
+              "copies",
+              "problems",
+              "access"
+            ],
+            "properties": {
+              "access": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MaintenanceAccess"
+                }
+              },
+              "copies": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FullCopy"
+                }
+              },
+              "endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "folder": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "folder_available": {
+                "type": "boolean"
+              },
+              "issued_subject": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "normal_ready": {
+                "type": "boolean"
+              },
+              "owner": {
+                "type": "boolean"
+              },
+              "plan": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RecoveryPlan"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "writable": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false
@@ -10551,6 +10994,29 @@
         },
         "additionalProperties": false
       },
+      "FullCopy": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at_unix_ms",
+          "spaces"
+        ],
+        "properties": {
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "spaces": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "HistoryEntry": {
         "type": "object",
         "required": [
@@ -11048,6 +11514,394 @@
         },
         "additionalProperties": false
       },
+      "MaintenanceAccess": {
+        "type": "object",
+        "required": [
+          "subject",
+          "label",
+          "writable",
+          "revoked"
+        ],
+        "properties": {
+          "expires_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "writable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MaintenanceCommand": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "inspect"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "enter"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "root",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "select_folder"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "root": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "copy",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "prepare"
+                ]
+              },
+              "copy": {
+                "type": "string"
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plan",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "apply"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "plan": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plan",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "continue"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "plan": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plan",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "cancel"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "plan": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plan",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "rollback"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "plan": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "retry"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "problem",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "delete_problem"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "problem": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "label",
+              "verifier",
+              "writable",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "issue_access"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "expires_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              },
+              "label": {
+                "type": "string"
+              },
+              "verifier": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              },
+              "writable": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "subject",
+              "expected",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "revoke_access"
+                ]
+              },
+              "expected": {
+                "$ref": "#/components/schemas/StateVersion"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "MaintenanceView": {
+        "type": "object",
+        "required": [
+          "version",
+          "normal_ready",
+          "owner",
+          "writable",
+          "folder_available",
+          "copies",
+          "problems",
+          "access"
+        ],
+        "properties": {
+          "access": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceAccess"
+            }
+          },
+          "copies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FullCopy"
+            }
+          },
+          "endpoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder_available": {
+            "type": "boolean"
+          },
+          "issued_subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "normal_ready": {
+            "type": "boolean"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "plan": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/StateVersion"
+          },
+          "writable": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "MissingRecoveryState": {
         "type": "object",
         "required": [
@@ -11518,6 +12372,52 @@
           },
           "space": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecoveryPhase": {
+        "type": "string",
+        "enum": [
+          "prepared",
+          "applying",
+          "restored",
+          "reverting",
+          "reverted",
+          "cancelled"
+        ]
+      },
+      "RecoveryPlan": {
+        "type": "object",
+        "required": [
+          "id",
+          "copy",
+          "spaces",
+          "created_at_unix_ms",
+          "phase",
+          "problem"
+        ],
+        "properties": {
+          "copy": {
+            "type": "string"
+          },
+          "created_at_unix_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/RecoveryPhase"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "spaces": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": false

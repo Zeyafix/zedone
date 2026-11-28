@@ -13,6 +13,18 @@
   --selected: #2a3c33; --error: #f0a492;
 }
 * { box-sizing: border-box; }
+.maintenance-panel { margin-bottom: 28px; }
+.maintenance-failed { border-left: 3px solid var(--error); padding-left: 20px; }
+.maintenance-panel h3 { margin: 26px 0 10px; font-size: 17px; }
+.maintenance-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.maintenance-artifact, .maintenance-grants li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.maintenance-folder, .maintenance-endpoint, .maintenance-dialog p { overflow-wrap: anywhere; }
+.maintenance-pending { padding: 16px 0; border-top: 1px solid var(--border); }
+.maintenance-pending button { margin: 0 10px 10px 0; }
+.maintenance-access { margin-top: 24px; }
+.maintenance-access summary { min-height: 44px; cursor: pointer; padding: 10px 0; }
+.maintenance-grants { list-style: none; padding: 0; }
+.maintenance-dialog { max-height: calc(100dvh - 48px); overflow: auto; }
 body { margin: 0; min-width: 280px; }
 .qr-viewport { max-width: 100%; overflow: auto; margin: 16px 0; }
 .device-qr { min-width: 0; }

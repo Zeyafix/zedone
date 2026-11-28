@@ -10,7 +10,7 @@ import java.util.UUID
 fun releaseBackupFolderPermission(instrumentation:Instrumentation,tree:String) {
   val result=Bundle()
   try {
-    require(tree.matches(Regex("primary:Download/ZeDone-P0706-[a-f0-9]{32}")))
+    require(tree.matches(Regex("primary:Download/ZeDone-P07(?:06|09)-[a-f0-9]{32}")))
     val resolver=instrumentation.targetContext.contentResolver
     val permission=resolver.persistedUriPermissions.single { it.uri.authority=="com.android.externalstorage.documents" && DocumentsContract.getTreeDocumentId(it.uri)==tree }
     val flags=(if(permission.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or (if(permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)

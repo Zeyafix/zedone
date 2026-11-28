@@ -20,6 +20,62 @@ pub async fn connect(address: SocketAddr) -> Result<TcpStream, ErrorCode> {
         .map_err(|_| ErrorCode::Unavailable)
 }
 
+pub async fn local_command(
+    endpoint: &str,
+    key: &str,
+    body: &[u8],
+) -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
+    let address: SocketAddr = endpoint
+        .strip_prefix("http://")
+        .ok_or(ErrorCode::InvalidRequest)?
+        .parse()
+        .map_err(|_| ErrorCode::InvalidRequest)?;
+    if !address.ip().is_loopback()
+        || body.len() > crate::MAX_REQUEST_BYTES
+        || key.len() != 64
+        || !key.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(ErrorCode::InvalidRequest);
+    }
+    let mut authorization = hyper::header::HeaderValue::from_str(&format!("Bearer {key}"))
+        .map_err(|_| ErrorCode::InvalidRequest)?;
+    authorization.set_sensitive(true);
+    let request = hyper::Request::builder()
+        .method("POST")
+        .uri("/v1/commands/maintenance.execute")
+        .header("host", address.to_string())
+        .header("authorization", authorization)
+        .header("content-type", "application/json")
+        .header("connection", "close")
+        .body(Full::new(Bytes::copy_from_slice(body)))
+        .map_err(|_| ErrorCode::InvalidRequest)?;
+    let tcp = connect(address).await?;
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(tcp))
+            .await
+            .map_err(|_| ErrorCode::OutcomeUnknown)?;
+        let send = async {
+            let response = sender
+                .send_request(request)
+                .await
+                .map_err(|_| ErrorCode::OutcomeUnknown)?;
+            if response.status() != hyper::StatusCode::OK {
+                return Err(ErrorCode::OutcomeUnknown);
+            }
+            let bytes = Limited::new(response.into_body(), crate::MAX_EXCHANGE_BYTES)
+                .collect()
+                .await
+                .map_err(|_| ErrorCode::OutcomeUnknown)?
+                .to_bytes();
+            serde_json::from_slice(&bytes).map_err(|_| ErrorCode::OutcomeUnknown)
+        };
+        let (result, _) = tokio::join!(send, connection);
+        result
+    })
+    .await
+    .map_err(|_| ErrorCode::OutcomeUnknown)?
+}
+
 pub async fn command(
     address: SocketAddr,
     pin: Fingerprint,

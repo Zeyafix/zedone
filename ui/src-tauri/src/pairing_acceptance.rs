@@ -159,7 +159,7 @@ pub fn start<R: Runtime>(app: tauri::AppHandle<R>) {
             );
             let host = Arc::new(DeviceHost::new(
                 if agent {
-                    app.state::<crate::Shell>().service.clone().ok_or(())?
+                    app.state::<crate::Shell>().current_service().ok_or(())?
                 } else {
                     zedone_adapters::Service::new(db.ok_or(())?)
                 },

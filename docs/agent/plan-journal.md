@@ -10,8 +10,8 @@ current_stage_state: in_progress
 current_step: P07.06
 last_completed_stage: P06
 last_completed_step: P07.05
-active_work: "P07.06: подготовка commit/PR и порученные merge/удаление ветки после успешных проверок; LOG-904"
-next_action: "Разработчик поручил PR и, при успехе, merge/удаление ветки. Публикуется проверенный P07.06 вместе со связанными исходными checkpoints P07.05; CI/интеграция ожидаются. LOG-904."
+active_work: "P07.06: исправление Linux shell CI проверено локально, готовится commit/push в PR129; LOG-906"
+next_action: "Отправить исправление в PR129; после полной новой CI-матрицы и свежих head/base/feedback выполнить порученные merge/удаление. LOG-906."
 passed_acceptance: [T03, T05, T06, T07, T09, T13, T14, T15, T16, T17, A03, A04, A05, A06, A08, A12, A13, A14, A15, A16, A17, A19, A20, A22, A23, A24, A25, A26, A29, A31, A32, A35, A38, A39, A40, A42, A43, A48, A49, A51, A52, A53, A57, S01, S02, S03, S04, S05, S06, S07, S08, S09, S10]
 open_bugs: []
 open_gaps: [GAP-007, GAP-012, GAP-013, GAP-020, GAP-028, GAP-032, GAP-034, GAP-035, GAP-036, GAP-038, GAP-039, GAP-042, GAP-043, GAP-046, GAP-047, GAP-048, GAP-049, GAP-050, GAP-053, GAP-054, GAP-055]
@@ -20,7 +20,7 @@ open_decisions: [DEC-001, DEC-002, DEC-003, DEC-004, DEC-005, DEC-006, DEC-007, 
 blocking_current_stage: []
 blocking_current_step: []
 visual_exploration: "Графит, Шов и Минерал интегрированы PR #48 как примеры; в P05.01 применены как ориентиры структуры с утверждёнными цветами. Windows/Android UI проверен локально; EV-064/LOG-308."
-last_event: LOG-904
+last_event: LOG-906
 ```
 
 P07.06 и .1/.2/.3/.4 verified локально в отдельной
@@ -8619,3 +8619,18 @@ Merge/delete не поручены. Пять правил в scope прежни�
 - Проверки EV-162 сохраняют прежний охват и ограничения. Публикация не объявляет P07/T10 или аварийное восстановление всей базы принятыми; следующие результаты CI/feedback фиксируются по точному head.
 
 - Продолжение LOG-904: Before/After сняты с настоящих bbdb055/final, одинаковые1440×1000/светлая тема/пустая установка; оба файла просмотрены, текст читаем. Базовая сборка и медиа вне Git. После захвата исходный проверенный shell-fixture восстановлен;27 fingerprints продукта прежние. Публикуется один связанный feature commit, CI пока не запущен.
+
+
+### LOG-905 — 2026-11-28 — PR129 опубликован, CI ожидается
+
+- Создан47dfa8cfff85b220954a571e97b724db85724582, `feat(recovery): restore original spaces after reinstalling`,39 связанных файлов. [PR #129](https://github.com/Zeyafix/zedone/pull/129) создан штатным PR tool, связан с сеансом; base main/bbdb055, behind0/mergeable. Встроенный tool не поддерживает вложения: только их загрузка выполнена через gh --attach, затем readback/ready — штатным tool.
+- Тело содержит Summary/UI Changes/Changes/Testing и фактический generation credit; ровно одна пара hosted Before/After из настоящих base/final. Оба загруженных PNG совпали с просмотренными исходниками побайтово, media вне Git. PR переведён из draft в ready после проверки тела и вложений.
+- На публикации все28 jobs pending, успешный CI не заявляется; полный feedback/unresolved пуст. Локальные результаты и27 source fingerprints EV-162 прежние, A58/A59 partial и75 проблем сохраняются. Поручение merge/удаления остаётся активным только при полном успехе и свежей проверке точного head/base.
+- Подписка PR до merged; чекпойнт локальный без нового push, чтобы не сбрасывать выполняющуюся матрицу. Нового runtime/Device/интеграции нет.
+
+### LOG-906 — 2026-11-28 — Изоляция параллельных отчётов после Linux shell failure
+
+- PR129/head47dfa8c: linux-checks (shell), run46112534824/job140879048303 отказал в checkShellFailureDiagnostics: lines.length=2 вместо1; зависимый check (ubuntu-24.04) тоже failure. На чтении25 SUCCESS/3 pending/2 failure, feedback/unresolved пуст; эти промежуточные результаты не считаются полным успехом. Исходный лог и snapshot сохранены в ignored reports.
+- В --main три browser-среза идут через Promise.allSettled в одном процессе. Проверка диагностики подменяла общий console.error и принимала постороннее параллельное сообщение за своё. Исправление передаёт обработчик отчёта конкретному вызову без изменения глобального console; два одновременных сбоя имеют отдельных получателей. Сохраняются точная исходная ошибка, отказ получателя, ограничения чтения/таймауты и исключение credentials.
+- Полный локальный bun scripts/check-ui.mjs --main с предусмотренным UI_NODE_VERSION=26.8.1 завершён exit0: типы/build, fmt/clippy,3 shell tests и lifecycle/board/touch passed, включая новый конкурентный сценарий диагностики и desktop/touch переустановки/каталога. Source-comments482 и diff --check passed;27 fingerprints P07.06 сохраняются, два дополнительных diagnostic fingerprints внесены в EV-162. Продуктовый UI/API/storage и Before/After прежние.
+- Пять правил проекта сохраняются в прежнем проверенном продуктовом охвате: обратимость, общий API человека/агента, документация, Windows/Android parity и единый источник. Это исправление стенда, нового Device/runtime Android не заявляется. A58/A59 partial, T10/P07 partial и75 проблем прежние; merge/удаление до полного успеха нового head не выполняются. Далее commit/push исправления и новый CI; старый failure не подменяется повтором.

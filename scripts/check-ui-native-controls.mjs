@@ -36,7 +36,6 @@ async function checkReadLifecycle(secret) {
 export async function checkShellFailureDiagnostics(browser, url, secret) {
   await checkReadLifecycle(secret);
   const context = await browser.newContext({ viewport: { width: 360, height: 760 }, hasTouch: true, isMobile: true });
-  const report = console.error;
   try {
     const main = await context.newPage(), touch = await context.newPage();
     await main.goto(url);
@@ -49,22 +48,31 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
       json: async () => ({ status: "error", error: { code: "access_denied", credential: secret }, credential: secret, result: { tags: [], credential: secret } }),
     });
     assert.equal(reads.length, 30);
-    const lines = [];
-    console.error = (...args) => lines.push(args);
+    const lines = [], otherLines = [];
+    const report = (...args) => lines.push(args);
+    const unrelated = new Error("controlled parallel failure");
     let original;
     let attempts = 0;
-    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => {
-      attempts++;
-      try { await touch.waitForFunction(() => false, undefined, { timeout: 50 }); }
-      catch (error) { original = error; throw error; }
-    }), error => error === original && error.name === "TimeoutError");
+    await Promise.all([
+      assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads }, async () => {
+        attempts++;
+        try { await touch.waitForFunction(() => false, undefined, { timeout: 50 }); }
+        catch (error) { original = error; throw error; }
+      }, report), error => error === original && error.name === "TimeoutError"),
+      assert.rejects(withShellFailureDiagnostics(main, { label: "parallel page", stage: "isolated report" }, async () => {
+        throw unrelated;
+      }, (...args) => otherLines.push(args)), error => error === unrelated),
+    ]);
     assert.equal(attempts, 1); assert.equal(lines.length, 1);
+    assert.equal(otherLines.length, 1);
+    assert.equal(JSON.parse(otherLines[0][1]).label, "parallel page");
+    assert.equal(JSON.parse(otherLines[0][1]).hash, await main.evaluate(() => location.hash));
     assert.equal(lines[0][0], "UI failure state:");
     const state = JSON.parse(lines[0][1]);
     assert.equal(state.label, "host touch"); assert.equal(state.stage, "tags");
     assert.equal(state.hash, "#/settings"); assert.notEqual(state.hash, await main.evaluate(() => location.hash));
     assert.equal(state.mounted, true); assert.equal(state.session, "configured");
-    assert.ok(!JSON.stringify(lines).includes(secret));
+    assert.ok(!JSON.stringify([...lines, ...otherLines]).includes(secret));
     assert.equal(state.reads.length, 30); assert.equal(state.reads[0].path, "/v1/commands/tag.list");
     assert.equal(state.reads[0].error, "access_denied");
     const readLifecycle = observeShellReadLifecycle(touch);
@@ -75,7 +83,7 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
     const fetching = touch.evaluate(() => fetch("/v1/commands/tag.list", { method: "POST" }).then(() => "unexpected response", () => "failed"));
     await intercepted;
     try {
-      await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "trash", reads, readLifecycle }, async () => { throw original; }), error => error === original);
+      await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "trash", reads, readLifecycle }, async () => { throw original; }, report), error => error === original);
       const pendingState = JSON.parse(lines[1][1]);
       const pendingRead = pendingState.readLifecycle.find(item => item.path === "/v1/commands/tag.list");
       assert.equal(pendingRead.phase, "started"); assert.ok(pendingRead.elapsedMs >= 0);
@@ -87,11 +95,11 @@ export async function checkShellFailureDiagnostics(browser, url, secret) {
       assert.equal(await fetching, "failed"); await touch.unroute(pattern);
     }
     assert.equal(readLifecycle().find(item => item.path === "/v1/commands/tag.list").phase, "failed");
-    console.error = () => { throw new Error("controlled diagnostic failure"); };
-    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads, readLifecycle }, async () => { throw original; }), error => error === original);
-    console.error = report;
-    console.log("Diagnostics: failing touch page/stage, pending/headers/finished/failed reads, bounded metadata, secret exclusion and original error passed.");
-  } finally { console.error = report; await context.close(); }
+    await assert.rejects(withShellFailureDiagnostics(touch, { label: "host touch", stage: "tags", reads, readLifecycle }, async () => { throw original; }, () => {
+      throw new Error("controlled diagnostic failure");
+    }), error => error === original);
+    console.log("Diagnostics: isolated parallel reports, failing touch page/stage, pending/headers/finished/failed reads, bounded metadata, secret exclusion and original error passed.");
+  } finally { await context.close(); }
 }
 
 export async function withoutVisibilityApi(page) {

@@ -89,12 +89,12 @@ export function observeShellReadLifecycle(page) {
   return () => entries.map(({ start, ...entry }) => ({ ...entry, elapsedMs: entry.elapsedMs ?? Math.round(performance.now() - start) }));
 }
 
-export async function withShellFailureDiagnostics(page, details, work) {
+export async function withShellFailureDiagnostics(page, details, work, report = console.error) {
   try { return await work(); }
   catch (error) {
     try {
       const state = await shellDiagnosticState(page);
-      console.error("UI failure state:", JSON.stringify({ label: details.label, stage: details.stage, ...state, reads: details.reads, readLifecycle: details.readLifecycle?.() }));
+      report("UI failure state:", JSON.stringify({ label: details.label, stage: details.stage, ...state, reads: details.reads, readLifecycle: details.readLifecycle?.() }));
     } catch {                                                                    }
     throw error;
   }

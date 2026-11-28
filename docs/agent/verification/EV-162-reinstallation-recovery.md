@@ -169,3 +169,50 @@ UI-пары использованы настоящая база bbdb055 и со
 отсутствующего исходного ID с отдельным подтверждением. Оба снимка просмотрены,
 текст читаем; медиа и промежуточная базовая сборка вне репозитория. Новых
 результатов продуктового runtime/CI этим захватом не заявляется.
+
+
+## Публикация — LOG-905
+
+[PR #129](https://github.com/Zeyafix/zedone/pull/129), head
+`47dfa8cfff85b220954a571e97b724db85724582`, base bbdb055. Создание/связь/readback/ready
+выполнены штатными PR tools; gh использован только для отсутствующей у tool
+загрузки attachments. Before/After проверены визуально и после загрузки по
+полному совпадению байтов. Все28 jobs на публикации pending, feedback пуст;
+успех CI/интеграция ещё не заявляются. Локальные проверки и27 fingerprints
+прежние. Поручение merge и удаления ветки после полного успеха активно;
+этот checkpoint локальный без дополнительного push.
+
+## Linux shell CI — LOG-906
+
+На исходном head47dfa8c отказал [linux-checks (shell)](https://github.com/Zeyafix/zedone/actions/runs/46112534824/job/140879048303):
+checkShellFailureDiagnostics ожидал одну запись и получил две. Зависимый
+check (ubuntu-24.04) также failure; snapshot на чтении25 SUCCESS/3 pending/
+2 failure, feedback/unresolved пуст. Полный успех не заявляется, исходный
+лог и snapshot сохранены в ignored reports.
+
+Три --main среза выполняются в одном процессе. Подмена console.error внутри
+проверки захватывала сообщения параллельных сценариев. Обработчик отчёта
+теперь передаётся отдельному вызову withShellFailureDiagnostics; глобальная
+подмена удалена. Проверка намеренно запускает два одновременных сбоя с
+разными получателями, сохраняет точную исходную ошибку даже при отказе
+получателя и проверяет отсутствие credentials. Assertions, таймауты, лимиты
+диагностики и параллелизм сохранены.
+
+Полный повтор `bun scripts/check-ui.mjs --main` с предусмотренным локальным
+UI_NODE_VERSION=26.8.1 завершён exit0: QR13/file2 tests, Vue types/build,
+shell fmt/clippy и3 tests, все lifecycle/board/touch срезы passed. Новый
+конкурентный сценарий диагностики и desktop/touch переустановки/каталога
+прошли внутри общего параллельного прогона. Source-comments482 и diff
+--check passed. Raw log сохранён в ignored reports; новая CI-матрица после
+commit/push ещё ожидается, исходный Linux failure остаётся evidence.
+
+27 fingerprints продукта P07.06 прежние; изменены только два диагностических
+скрипта и документация. Нового Android/Device runtime этим исправлением
+не заявляется; A58/A59 partial, T10/P07 partial,75 проблем прежние.
+
+Дополнительные SHA-256 диагностических исходников LOG-906:
+
+| Файл | SHA-256 |
+|---|---|
+| `scripts/check-ui-diagnostics.mjs` | `b04b55b6b14a3a1d87afa80aeed4943c62963a473e082e136c9b2099a924ebc4` |
+| `scripts/check-ui-native-controls.mjs` | `0bbf2e3cf67d348df629f6d7b44b13b93276d951973e179461149dcbf38c6f48` |

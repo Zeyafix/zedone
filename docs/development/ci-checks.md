@@ -16,8 +16,9 @@ namespace получает read-only seed от shell; cache keys/owners/writer p
 прежние. Подготовка двух jobs повторяется, экономия runner-minutes не обещается.
 Текущая ожидаемая матрица32: пять Linux, шесть Windows, восемнадцать Android,
 три strict aggregates. Routing guard проверяет union режимов, ошибки/сигналы
-каждого шага, точные команды обеих ОС и aggregate; фактическая длительность
-раздельных Linux jobs требует нового CI. [EV-162](../agent/verification/EV-162-reinstallation-recovery.md).
+каждого шага, точные команды обеих ОС и aggregate. Оба раздельных Linux UI jobs
+и полный CI32 SUCCESS на671180a, PR129 интегрированa41e762; wall/runner-minutes
+benchmark этим не заявляется. [EV-162](../agent/verification/EV-162-reinstallation-recovery.md).
 
 ## Парные fields/history: отдельные fixtures — FIX.06
 

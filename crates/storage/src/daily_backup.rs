@@ -136,6 +136,27 @@ fn state(c: &Connection, space: &str) -> StorageResult<State> {
     }
     Ok(s)
 }
+pub(crate) fn detach_after_recovery(c: &Connection) -> StorageResult<()> {
+    if let Some(mut g) = load::<Global>(c, GLOBAL)? {
+        g.installation = crate::backup_io::random_id()?;
+        g.folder_initialized = false;
+        save(c, GLOBAL, &g)?;
+    }
+    let mut upper = PREFIX.as_bytes().to_vec();
+    upper.push(255);
+    let keys = c
+        .prepare("SELECT key FROM command_results WHERE key>=?1 AND key<?2")?
+        .query_map((PREFIX.as_bytes(), upper), |r| r.get::<_, Vec<u8>>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for key in keys {
+        let space = std::str::from_utf8(&key[PREFIX.len()..]).map_err(|_| invalid())?;
+        let mut s = state(c, space)?;
+        s.files.clear();
+        s.obsolete.clear();
+        save(c, &key, &s)?;
+    }
+    Ok(())
+}
 pub fn local_day() -> StorageResult<i32> {
     let name = iana_time_zone::get_timezone().map_err(|_| unavailable())?;
     let zone = jiff::tz::TimeZone::get(&name).map_err(|_| unavailable())?;

@@ -11,6 +11,7 @@ pub mod command;
 pub mod daily_backup;
 pub mod error;
 pub mod invitations;
+pub mod maintenance;
 pub mod ordering;
 pub mod pairing;
 pub mod placements;
@@ -35,7 +36,7 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "ZeDone API"),
-    paths(backup_catalog::forget, backup_catalog::folders, backup_catalog::location, backup_catalog::catalog, backup_catalog::read, backup_catalog::delete, backup_catalog::change, backup_catalog::cleanup, backups::inspect, backups::retry, backups::delete, backups::read, access_commands::inspect, access_commands::revoke,
+    paths(maintenance::execute_contract, backup_catalog::forget, backup_catalog::folders, backup_catalog::location, backup_catalog::catalog, backup_catalog::read, backup_catalog::delete, backup_catalog::change, backup_catalog::cleanup, backups::inspect, backups::retry, backups::delete, backups::read, access_commands::inspect, access_commands::revoke,
         access_commands::issue, access_commands::replace, access_commands::list,
         invitations::create, invitations::inspect, invitations::cancel, invitations::list,
         pairing::inspect, pairing::cancel, pairing::list, pairing::confirm, pairing::reject, pairing::unlink,

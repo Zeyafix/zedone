@@ -37,6 +37,14 @@ pub struct Shell {
     pub service: Option<Service>,
     credential_path: std::path::PathBuf,
     pub devices: Option<std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>>,
+    pub maintenance: Option<std::sync::Arc<zedone_adapters::maintenance::Maintenance>>,
+    resumed_devices: std::sync::Mutex<
+        Option<(
+            u64,
+            std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>,
+        )>,
+    >,
+    _maintenance_listener: Option<zedone_adapters::maintenance::LocalListener>,
 }
 
 impl Shell {
@@ -65,11 +73,86 @@ impl Shell {
             service,
             credential_path,
             devices,
+            maintenance: None,
+            resumed_devices: std::sync::Mutex::new(None),
+            _maintenance_listener: None,
         }
     }
 
+    pub fn current_service(&self) -> Option<Service> {
+        match &self.maintenance {
+            Some(value) => value.service(),
+            None => self.service.clone(),
+        }
+    }
+    pub fn maintenance_session(&self) -> Option<zedone_storage::emergency::LocalSession> {
+        self.maintenance.as_ref()?.local_session().ok()
+    }
+    pub fn generation(&self) -> u64 {
+        self.maintenance.as_ref().map_or(0, |m| m.generation())
+    }
+    pub fn device_control(
+        &self,
+    ) -> Option<std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>> {
+        if self.maintenance.is_none() {
+            return self.devices.clone();
+        }
+        #[cfg(windows)]
+        {
+            let generation = self.generation();
+            let mut saved = self.resumed_devices.lock().ok()?;
+            if let Some((prior, value)) = &*saved
+                && *prior == generation
+                && self.current_service().is_some()
+            {
+                return Some(value.clone());
+            }
+            let service = self.current_service()?;
+            let directory = self.credential_path.parent()?;
+            let namespace = zedone_adapters::device_host::namespace(directory).ok()?;
+            let store = zedone_adapters::secrets::windows::WindowsSecrets::new(
+                namespace,
+                &directory.join("host-locks"),
+            );
+            let control = std::sync::Arc::new(
+                zedone_adapters::device_control::Controller::new(std::sync::Arc::new(
+                    zedone_adapters::device_host::DeviceHost::new(service, store),
+                ))
+                .with_automatic(self.credential_path.clone()),
+            )
+                as std::sync::Arc<dyn zedone_adapters::device_control::DeviceControl>;
+            self.maintenance.as_ref()?.register_device(control.clone());
+            *saved = Some((generation, control.clone()));
+            Some(control)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = &self.resumed_devices;
+            None
+        }
+    }
+    pub async fn dispatch(
+        &self,
+        operation: &str,
+        body: &[u8],
+        key: &str,
+    ) -> zedone_core::wire::CommandResponse<serde_json::Value> {
+        if operation == "maintenance.execute"
+            && let Some(value) = &self.maintenance
+        {
+            return value.dispatch(operation, body, key).await;
+        }
+        if let Some(service) = self.current_service() {
+            return service.dispatch(operation, body, key).await;
+        }
+        Err(zedone_core::error::CommandError {
+            code: zedone_core::error::ErrorCode::Unavailable,
+        })
+        .into()
+    }
+
     pub fn session(&self) -> Session {
-        if self.service.is_none() {
+        if self.current_service().is_none() {
             return Session::Unavailable;
         }
         let mut text = String::new();
@@ -100,22 +183,47 @@ impl Shell {
 }
 
 pub async fn open_shell(directory: &Path) -> Shell {
+    let mut failure = None;
     let service = if std::fs::create_dir_all(directory).is_ok() {
         match zedone_storage::Storage::open(directory.join("zedone.sqlite")).await {
-            Ok(storage) => {
-                if storage.recover_editing_sessions().await.is_ok() {
-                    Some(Service::new(storage).with_daily_backups())
-                } else {
+            Ok(storage) => match storage.recover_editing_sessions().await {
+                Ok(()) => Some(Service::new(storage).with_daily_backups()),
+                Err(error) => {
+                    failure = Some(format!("{error}"));
                     let _ = storage.shutdown().await;
                     None
                 }
+            },
+            Err(error) => {
+                failure = Some(format!("{error}"));
+                None
             }
-            Err(_) => None,
         }
     } else {
         None
     };
-    Shell::new(service, directory.join("local-session.json"))
+    let mut shell = Shell::new(service.clone(), directory.join("local-session.json"));
+    match zedone_adapters::maintenance::Maintenance::open(
+        directory.join("zedone.sqlite"),
+        service,
+        failure,
+    )
+    .await
+    {
+        Ok(controller) => {
+            if let Some(device) = shell.devices.take() {
+                controller.register_device(device.clone());
+                *shell.resumed_devices.lock().expect("new lock") = Some((0, device));
+            }
+            shell._maintenance_listener = controller.start_loopback().await.ok();
+            shell.maintenance = Some(controller);
+        }
+        Err(_) => {
+            shell.service = None;
+            shell.devices = None;
+        }
+    }
+    shell
 }
 
 #[cfg(target_os = "android")]
@@ -126,29 +234,29 @@ fn shell_session(state: tauri::State<'_, Shell>) -> Session {
 
 #[cfg(target_os = "android")]
 #[tauri::command]
+fn maintenance_session(
+    state: tauri::State<'_, Shell>,
+) -> Option<zedone_storage::emergency::LocalSession> {
+    state.maintenance_session()
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
 async fn zedone_command(
     state: tauri::State<'_, Shell>,
     invocation: zedone_core::wire::IpcInvocation,
     credential: String,
 ) -> Result<String, ()> {
-    Ok(if let Some(service) = &state.service {
-        zedone_adapters::ipc::invoke(
-            service,
-            &invocation.operation,
-            &invocation.request,
-            &credential,
-        )
-        .await
-    } else {
-        serde_json::to_string(
-            &zedone_core::wire::CommandResponse::<serde_json::Value>::from(Err(
-                zedone_core::error::CommandError {
-                    code: zedone_core::error::ErrorCode::Unavailable,
-                },
-            )),
-        )
-        .expect("fixed serializable error")
-    })
+    Ok(serde_json::to_string(
+        &state
+            .dispatch(
+                &invocation.operation,
+                invocation.request.as_bytes(),
+                &credential,
+            )
+            .await,
+    )
+    .expect("serializable response"))
 }
 
 #[cfg(target_os = "android")]
@@ -175,13 +283,9 @@ mod entry_point {
                 #[cfg(feature = "pairing-acceptance")]
                 let directory = super::pairing_acceptance::ui_directory(&base).unwrap_or(directory);
                 let shell = tauri::async_runtime::block_on(super::open_shell(&directory));
-                if let Some(service) = &shell.service {
-                    if let Ok(devices) = tauri::async_runtime::block_on(async {
-                        super::devices::Devices::new(app.handle(), service.clone(), &directory)
-                    }) {
-                        app.manage(devices);
-                    }
-                }
+                app.manage(tauri::async_runtime::block_on(async {
+                    super::devices::Devices::new(app.handle(), &directory, &shell)
+                }));
                 app.manage(shell);
                 #[cfg(feature = "pairing-acceptance")]
                 super::pairing_acceptance::start(app.handle().clone());
@@ -189,10 +293,12 @@ mod entry_point {
             })
             .invoke_handler(tauri::generate_handler![
                 super::shell_session,
+                super::maintenance_session,
                 super::zedone_command,
                 super::files::snapshot_file_open,
                 super::files::snapshot_file_save,
                 super::files::backup_folder_select,
+                super::files::maintenance_folder_select,
                 super::devices::device_host_start,
                 super::devices::device_host_stop,
                 super::devices::device_session

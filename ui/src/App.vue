@@ -8,6 +8,7 @@ import SpacesView from "./SpacesView.vue";
 import DevicesPanel from "./DevicesPanel.vue";
 import ExchangePanel from "./ExchangePanel.vue";
 import AccessPanel from "./AccessPanel.vue";
+import MaintenancePanel from "./MaintenancePanel.vue";
 
 const spacesView = ref<InstanceType<typeof SpacesView>>();
 async function selectBackup(space: string, archive: string, missing: boolean) {
@@ -78,6 +79,10 @@ async function probe() {
   if (timeout) clearTimeout(timeout);
   connection.value = result;
 }
+function maintenanceMode(ready: boolean) {
+  if (ready) { if (connection.value !== "ready") void probe(); }
+  else { controller?.abort(); generation++; if (timeout) clearTimeout(timeout); connection.value = "unavailable"; managementOpened.value = false; }
+}
 function resume() { if (document.visibilityState === "visible") void probe(); }
 onMounted(() => {
   window.addEventListener("hashchange", routeChanged);
@@ -132,6 +137,7 @@ onUnmounted(() => {
           <p>{{ page === 'spaces' ? 'Мысли и дела, собранные по темам.' : 'Удобный вид на этом устройстве.' }}</p>
         </div>
 
+        <MaintenancePanel :settings="page === 'settings'" @mode="maintenanceMode" />
         <div v-show="page === 'spaces'">
           <section class="connection-panel" :class="{ 'connection-panel-ready': connection === 'ready' }" aria-labelledby="connection-title" :aria-busy="connection === 'checking'">
             <span class="connection-indicator" :data-state="connection" aria-hidden="true"></span>

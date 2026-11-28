@@ -27,18 +27,7 @@ pub async fn choose(
     let root = if selection.default {
         None
     } else {
-        let output=tokio::task::spawn_blocking(|| {
-            std::process::Command::new("powershell.exe").args(["-NoProfile","-STA","-WindowStyle","Hidden","-Command",r#"[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false); Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'ZeDone: выберите папку резервных копий'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { ConvertTo-Json -Compress -InputObject $dialog.SelectedPath } else { 'null' }; $dialog.Dispose()"#]).output()
-        }).await.map_err(|_|CommandError{code:ErrorCode::Unavailable})?.map_err(|_|CommandError{code:ErrorCode::Unavailable})?;
-        if !output.status.success() || output.stdout.len() > 32768 {
-            return Err(CommandError {
-                code: ErrorCode::Unavailable,
-            });
-        }
-        let path: Option<String> =
-            serde_json::from_slice(&output.stdout).map_err(|_| CommandError {
-                code: ErrorCode::Unavailable,
-            })?;
+        let path = select_path().await?;
         let Some(path) = path else {
             return Ok(FolderSelectionReply::Cancelled);
         };
@@ -56,6 +45,30 @@ pub async fn choose(
     _key: &str,
     _selection: FolderSelection,
 ) -> Result<FolderSelectionReply, CommandError> {
+    Err(CommandError {
+        code: ErrorCode::Unavailable,
+    })
+}
+
+#[cfg(windows)]
+pub async fn select_path() -> Result<Option<String>, CommandError> {
+    let output=tokio::task::spawn_blocking(|| {
+        std::process::Command::new("powershell.exe").args(["-NoProfile","-STA","-WindowStyle","Hidden","-Command",r#"[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false); Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'ZeDone: выберите папку резервных копий'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { ConvertTo-Json -Compress -InputObject $dialog.SelectedPath } else { 'null' }; $dialog.Dispose()"#]).output()
+    }).await.map_err(|_|CommandError{code:ErrorCode::Unavailable})?.map_err(|_|CommandError{code:ErrorCode::Unavailable})?;
+    if !output.status.success() || output.stdout.len() > 32768 {
+        return Err(CommandError {
+            code: ErrorCode::Unavailable,
+        });
+    }
+    let path: Option<String> =
+        serde_json::from_slice(&output.stdout).map_err(|_| CommandError {
+            code: ErrorCode::Unavailable,
+        })?;
+    Ok(path)
+}
+
+#[cfg(not(windows))]
+pub async fn select_path() -> Result<Option<String>, CommandError> {
     Err(CommandError {
         code: ErrorCode::Unavailable,
     })

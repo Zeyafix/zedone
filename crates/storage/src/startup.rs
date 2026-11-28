@@ -27,7 +27,14 @@ pub struct Startup {
     path: PathBuf,
     state: StartupState,
     pending: Option<crate::Opening>,
+    problem: Option<PendingProblem>,
     pub(crate) registry: Registry,
+}
+
+struct PendingProblem {
+    folder: PathBuf,
+    max_total_bytes: u64,
+    ready: tokio::sync::oneshot::Receiver<StorageResult<crate::problem_state::ProblemState>>,
 }
 
 impl Startup {
@@ -36,12 +43,53 @@ impl Startup {
             path: path.into(),
             state: StartupState::New,
             pending: None,
+            problem: None,
             registry: schema::REGISTRY,
         }
     }
 
     pub fn state(&self) -> StartupState {
         self.state
+    }
+
+    pub async fn preserve_problem_state(
+        &mut self,
+        folder: PathBuf,
+        max_total_bytes: u64,
+    ) -> StorageResult<crate::problem_state::ProblemState> {
+        if !matches!(self.state, StartupState::Failed(_)) || self.pending.is_some() {
+            return Err(StorageError::RetryRequired);
+        }
+        if let Some(problem) = &self.problem {
+            if problem.folder != folder || problem.max_total_bytes != max_total_bytes {
+                return Err(StorageError::RetryRequired);
+            }
+        } else {
+            let path = self.path.clone();
+            let destination = folder.clone();
+            let (reply, ready) = tokio::sync::oneshot::channel();
+            std::thread::Builder::new()
+                .name("zedone-problem-state".into())
+                .spawn(move || {
+                    let _ = reply.send(crate::problem_state::preserve(
+                        &path,
+                        &destination,
+                        max_total_bytes,
+                    ));
+                })
+                .map_err(|_| StorageError::Unavailable)?;
+            self.problem = Some(PendingProblem {
+                folder,
+                max_total_bytes,
+                ready,
+            });
+        }
+        let problem = self.problem.as_mut().ok_or(StorageError::Unavailable)?;
+        let result = (&mut problem.ready)
+            .await
+            .map_err(|_| StorageError::OutcomeUnknown);
+        self.problem = None;
+        result?
     }
 
     pub async fn automatic(&mut self, options: Option<MigrationOptions>) -> StorageResult<Storage> {
@@ -53,7 +101,7 @@ impl Startup {
     }
 
     pub async fn retry(&mut self, options: Option<MigrationOptions>) -> StorageResult<Storage> {
-        if self.state == StartupState::Ready {
+        if self.state == StartupState::Ready || self.problem.is_some() {
             return Err(StorageError::RetryRequired);
         }
         if self.pending.is_none() {
@@ -122,5 +170,7 @@ pub(crate) fn initialize(
     schema::configure(connection)
 }
 
+#[cfg(test)]
+mod problem_tests;
 #[cfg(test)]
 mod tests;

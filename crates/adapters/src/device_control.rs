@@ -7,6 +7,9 @@ use zedone_core::{
 };
 type Response = CommandResponse<serde_json::Value>;
 pub trait DeviceControl: Send + Sync {
+    fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async {})
+    }
     fn dispatch<'a>(
         &'a self,
         operation: &'a str,
@@ -140,6 +143,16 @@ impl<S> Drop for Controller<S> {
     }
 }
 impl<S: SecretStore + 'static> DeviceControl for Controller<S> {
+    fn shutdown(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            if let Some(task) = &self.automatic {
+                task.abort();
+            }
+            if let Some((listener, _)) = self.listener.lock().await.take() {
+                listener.shutdown().await;
+            }
+        })
+    }
     fn dispatch<'a>(
         &'a self,
         operation: &'a str,

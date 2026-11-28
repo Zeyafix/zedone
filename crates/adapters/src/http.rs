@@ -19,7 +19,8 @@ pub fn router(service: Service) -> Router {
 
 #[derive(Clone)]
 struct HttpState {
-    service: Service,
+    service: Option<Service>,
+    maintenance: Option<std::sync::Arc<crate::maintenance::Maintenance>>,
     browser_origin: Option<String>,
 }
 
@@ -30,7 +31,24 @@ pub fn router_with_origin(service: Service, browser_origin: Option<String>) -> R
         .method_not_allowed_fallback(|| async { failure(ErrorCode::InvalidRequest) })
         .layer(DefaultBodyLimit::max(crate::MAX_EXCHANGE_BYTES))
         .with_state(HttpState {
-            service,
+            service: Some(service),
+            maintenance: None,
+            browser_origin,
+        })
+}
+
+pub fn maintenance_router(
+    maintenance: std::sync::Arc<crate::maintenance::Maintenance>,
+    browser_origin: Option<String>,
+) -> Router {
+    Router::new()
+        .route("/v1/commands/{operation}", post(dispatch))
+        .fallback(|| async { failure(ErrorCode::InvalidRequest) })
+        .method_not_allowed_fallback(|| async { failure(ErrorCode::InvalidRequest) })
+        .layer(DefaultBodyLimit::max(crate::MAX_EXCHANGE_BYTES))
+        .with_state(HttpState {
+            service: None,
+            maintenance: Some(maintenance),
             browser_origin,
         })
 }
@@ -80,7 +98,19 @@ async fn command(
     let Ok(body) = body else {
         return failure(ErrorCode::InvalidRequest);
     };
-    respond(state.service.dispatch(operation, &body, key).await)
+    if let Some(maintenance) = state.maintenance {
+        if operation == "maintenance.execute" {
+            return respond(maintenance.dispatch(operation, &body, key).await);
+        }
+        if let Some(service) = maintenance.service() {
+            return respond(service.dispatch(operation, &body, key).await);
+        }
+        return failure(ErrorCode::Unavailable);
+    }
+    match state.service {
+        Some(service) => respond(service.dispatch(operation, &body, key).await),
+        None => failure(ErrorCode::Unavailable),
+    }
 }
 
 fn failure(code: ErrorCode) -> Response {

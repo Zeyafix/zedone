@@ -96,7 +96,23 @@ async fn previous_development_schemas_are_rejected_without_migration_or_reset() 
             Some(error)
         );
         assert_eq!(durable_files(&path), before);
-        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+        let mut entries = fs::read_dir(root.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        entries.sort();
+        let mut expected = vec![
+            path.clone(),
+            crate::ownership::sibling(&path, ".owner.lock"),
+        ];
+        expected.sort();
+        assert_eq!(entries, expected);
+        assert_eq!(
+            fs::metadata(crate::ownership::sibling(&path, ".owner.lock"))
+                .unwrap()
+                .len(),
+            0
+        );
     }
 }
 

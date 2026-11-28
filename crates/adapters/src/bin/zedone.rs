@@ -37,6 +37,12 @@ async fn main() {
 
 async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args
+        .first()
+        .is_some_and(|a| a == "--maintenance" || a == "--maintenance-endpoint")
+    {
+        return maintenance(&args).await;
+    }
     if args.first().map(String::as_str) == Some("--select-backup-folder") {
         return select_backup_folder(&args).await;
     }
@@ -76,6 +82,73 @@ async fn run() -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
     }
     let _ = storage.shutdown().await;
     Ok(response)
+}
+
+async fn maintenance(args: &[String]) -> Result<CommandResponse<serde_json::Value>, ErrorCode> {
+    let (key_path, endpoint, database) = if args.len() == 5
+        && args[0] == "--maintenance-endpoint"
+        && args[2] == "--key-file"
+        && args[4] == "--stdin"
+    {
+        (&args[3], Some(&args[1]), None)
+    } else if args.len() == 6
+        && args[0] == "--maintenance"
+        && args[1] == "--database"
+        && args[3] == "--key-file"
+        && args[5] == "--stdin"
+    {
+        (&args[4], None, Some(&args[2]))
+    } else {
+        return Err(ErrorCode::InvalidRequest);
+    };
+    let mut material = Vec::new();
+    std::fs::File::open(key_path)
+        .map_err(|_| ErrorCode::AccessDenied)?
+        .take(4097)
+        .read_to_end(&mut material)
+        .map_err(|_| ErrorCode::AccessDenied)?;
+    if material.len() > 4096 {
+        return Err(ErrorCode::AccessDenied);
+    }
+    let key = if let Ok(session) =
+        serde_json::from_slice::<zedone_storage::emergency::LocalSession>(&material)
+    {
+        session.key
+    } else {
+        std::str::from_utf8(&material)
+            .map_err(|_| ErrorCode::AccessDenied)?
+            .trim_end_matches(['\r', '\n'])
+            .to_owned()
+    };
+    let mut body = Vec::new();
+    std::io::stdin()
+        .take(crate_limit())
+        .read_to_end(&mut body)
+        .map_err(|_| ErrorCode::InvalidRequest)?;
+    if let Some(endpoint) = endpoint {
+        return zedone_adapters::network::local_command(endpoint, &key, &body).await;
+    }
+    let path = std::path::PathBuf::from(database.ok_or(ErrorCode::InvalidRequest)?);
+    if !path.is_file() {
+        return Err(ErrorCode::Unavailable);
+    }
+    let (service, failure) = match zedone_storage::Storage::open(&path).await {
+        Ok(db) => (Some(Service::new(db)), None),
+        Err(error) => (None, Some(format!("{error}"))),
+    };
+    let controller = zedone_adapters::maintenance::Maintenance::open(path, service, failure)
+        .await
+        .map_err(|e| e.code)?;
+    let result = controller
+        .dispatch("maintenance.execute", &body, &key)
+        .await;
+    if let Some(service) = controller.service() {
+        let _ = service.storage_shutdown().await;
+    }
+    Ok(result)
+}
+fn crate_limit() -> u64 {
+    (zedone_adapters::MAX_REQUEST_BYTES + 1) as u64
 }
 
 fn read_key(path: &str) -> Result<String, ErrorCode> {

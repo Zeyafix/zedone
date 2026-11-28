@@ -75,7 +75,7 @@ impl PendingAccess {
     }
 }
 
-fn verifier(secret: &[u8]) -> [u8; 32] {
+pub(crate) fn verifier(secret: &[u8]) -> [u8; 32] {
     let mut hash = Sha256::new();
     hash.update(b"zedone/access-key/v1\0");
     hash.update(secret);

@@ -412,8 +412,10 @@ impl Emergency {
             state.reason=Some("База недоступна для служебной операции. Закройте другие процессы ZeDone и проверьте доступность файлов.".into());
             return self.store(&state);
         }
+        if reason != "RetryRequired" || !state.blocked || state.reason.is_none() {
+            state.reason = Some(reason);
+        }
         state.blocked = true;
-        state.reason = Some(reason);
         self.store(&state)?;
         if self.ensure_problem(&mut state).is_err() {
             state.reason=Some("Не удалось сохранить проблемное состояние. Проверьте свободное место и доступность файлов; перед восстановлением сохранение будет проверено снова.".into());
@@ -544,6 +546,9 @@ impl Emergency {
             MaintenanceCommand::Retry { .. } => {
                 if state.blocked {
                     return Err(StorageError::RetryRequired);
+                }
+                if ready {
+                    state.reason = None;
                 }
             }
             MaintenanceCommand::DeleteProblem { problem, .. } => {

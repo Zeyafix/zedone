@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, mkdir, stat } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, readdir, rm, mkdir, stat } from "node:fs/promises";
 import { resolve, dirname, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -31,9 +31,9 @@ async function digestTree(path) {
 }
 async function fullBackups(path) { return (await digestTree(path)).filter(([name]) => name.startsWith("zedone-migration-candidate-")); }
 const browserPaths = process.env.UI_BROWSER_PATHS ? JSON.parse(process.env.UI_BROWSER_PATHS) : [undefined];
-for (const executablePath of browserPaths) for (const touch of [false, true]) {
+for (const executablePath of browserPaths) for (const touch of [false, true]) for (const unsupported of [false, true]) {
   const directory = await mkdtemp(resolve(tmpdir(), "zedone-maintenance-ui-"));
-  const fixture = Bun.spawn([binary, "--serve", directory], { stdout: "pipe", stderr: "inherit" });
+  const fixture = Bun.spawn([binary, unsupported ? "--serve-unsupported" : "--serve", directory], { stdout: "pipe", stderr: "inherit" });
   let browser;
   try {
     const reader = fixture.stdout.getReader(); let address = "";
@@ -47,6 +47,36 @@ for (const executablePath of browserPaths) for (const touch of [false, true]) {
     await page.goto(address);
     const panel = page.locator(".maintenance-panel");
     await panel.getByRole("heading", { name: "Служебный режим", exact: true }).waitFor();
+    if (unsupported) {
+      const durable = async () => Promise.all(["", "-wal", "-journal"].map(suffix => readFile(resolve(directory, `zedone.sqlite${suffix}`)).catch(error => { assert.equal(error.code, "ENOENT"); return null; })));
+      const before = await durable();
+      const session = await page.evaluate(() => fetch("/host/maintenance-session").then(r => r.json()));
+      const inspect = () => command(page, session.key, { action: "inspect" });
+      const guidance = panel.getByRole("status").filter({ hasText: "Установите подходящую новую версию ZeDone" });
+      await guidance.waitFor();
+      assert.equal((await inspect()).result.reason, "UnsupportedSchema");
+      assert.equal(await page.getByRole("button", { name: "Создать пространство", exact: true }).count(), 0);
+      const denied = await page.evaluate(async key => fetch("/v1/commands/space.list", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ id: Array(16).fill(22), operation: "space.list", parameters: { include_trashed: false } }) }).then(r => r.json()), old.key);
+      assert.equal(denied.error.code, "unavailable");
+      await panel.getByRole("button", { name: "Повторить запуск", exact: true }).click();
+      await panel.getByRole("alert").waitFor();
+      await page.reload();
+      await guidance.waitFor();
+      assert.equal((await inspect()).result.reason, "UnsupportedSchema");
+      assert.deepEqual(await durable(), before);
+      assert.deepEqual(await fullBackups(resolve(directory, "zedone.sqlite.backups")), backups);
+      await page.screenshot({ path: resolve(reports, `unsupported-${touch ? "touch" : "desktop"}.png`), fullPage: true });
+      await writeFile(resolve(directory, "zedone.sqlite"), await readFile(resolve(directory, "supported.sqlite")));
+      assert.equal((await inspect()).result.normal_ready, false);
+      await panel.getByRole("button", { name: "Повторить исходную команду", exact: true }).click();
+      await page.getByText("База до сбоя", { exact: true }).first().waitFor();
+      await page.getByText("База до сбоя", { exact: true }).first().click();
+      await page.getByText("Вернуть документы", { exact: true }).first().waitFor();
+      assert.equal((await inspect()).result.normal_ready, true);
+      assert.deepEqual(await fullBackups(resolve(directory, "zedone.sqlite.backups")), backups);
+      console.log(`Unsupported schema ${touch ? "touch" : "desktop"}: guidance/API/closed access/unchanged files/failed retry/reload/explicit return passed.`);
+      continue;
+    }
     await panel.getByRole("radio").first().check();
     await panel.getByRole("button", { name: "Проверить копию", exact: true }).click();
     await waitText(page, "Копия проверена и подготовлена");

@@ -27,7 +27,7 @@ const heading = computed(() => state.value?.normal_ready ? "Аварийное �
 const reason = computed(() => {
   const value = state.value?.reason;
   if (value === "InvalidDatabase") return "Целостность рабочей базы не подтверждена.";
-  if (value === "UnsupportedSchema") return "Эта версия ZeDone не может открыть схему рабочей базы.";
+  if (value === "UnsupportedSchema") return "Эта версия ZeDone не поддерживает схему рабочей базы. Установите подходящую новую версию ZeDone. База сохранена без изменений; открытие только для чтения и автоматический откат не выполняются.";
   if (value === "RetryRequired") return "Обычный запуск остановлен до завершения служебного действия.";
   if (value === "Unavailable" || value === "OutcomeUnknown") return "Не удалось подтвердить готовность рабочей базы. Проверьте доступность файлов и свободное место.";
   return value;

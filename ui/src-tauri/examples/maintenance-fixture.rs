@@ -8,7 +8,7 @@ use zedone_storage::{
     Storage, access::PendingAccess, migration_backup::BackupLimits, snapshot::SnapshotLimits,
 };
 
-async fn prepare(directory: &Path) {
+async fn prepare(directory: &Path, unsupported: bool) {
     std::fs::create_dir_all(directory).unwrap();
     let path = directory.join("zedone.sqlite");
     if path.exists() {
@@ -68,18 +68,35 @@ async fn prepare(directory: &Path) {
         .unwrap();
     drop(backup);
     db.shutdown().await.unwrap();
-    std::fs::write(path, b"damaged maintenance fixture").unwrap();
+    if unsupported {
+        let mut bytes = std::fs::read(&path).unwrap();
+        std::fs::write(directory.join("supported.sqlite"), &bytes).unwrap();
+        bytes[60..64].copy_from_slice(&99_u32.to_be_bytes());
+        std::fs::write(path, bytes).unwrap();
+    } else {
+        std::fs::write(path, b"damaged maintenance fixture").unwrap();
+    }
 }
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     assert_eq!(args.len(), 2);
     let directory = Path::new(&args[1]);
-    prepare(directory).await;
-    if args[0] == "--prepare" {
+    assert!(
+        [
+            "--prepare",
+            "--serve",
+            "--prepare-unsupported",
+            "--serve-unsupported"
+        ]
+        .iter()
+        .any(|mode| args[0] == *mode)
+    );
+    let unsupported = args[0] == "--prepare-unsupported" || args[0] == "--serve-unsupported";
+    prepare(directory, unsupported).await;
+    if args[0] == "--prepare" || args[0] == "--prepare-unsupported" {
         return;
     }
-    assert_eq!(args[0], "--serve");
     let shell = zedone_shell::open_shell(directory).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();

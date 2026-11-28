@@ -111,6 +111,7 @@ next: "Один следующий шаг или действие с услов�
 
 | ID | Зависимости | Результат и минимальная проверка | Критерии | Состояние |
 | --- | --- | --- | --- | --- |
+| FIX.08 | Порученные CI/merge PR129;7be4018, два Linux shell10m timeout | Linux shell --main/--conflicts с полным pairing, прежние union/assertions/10m/strict aggregate/max-parallel2/cache ownership; routing/failure/cache/negative guards и actionlint passed локально, новая CI32 ожидается. LOG-910/[EV-162](verification/EV-162-reinstallation-recovery.md) | T16 | verified |
 | FIX.07 | Порученные CI/merge PR126;22ad155/GAP-047 | Три независимых field-case fixtures с теми же order/choice vectors/assertions и240s/15m; exact selector union/body hash/guards и CI31 passed, интегрировано0928f94. [EV-160](verification/EV-160-pairing-field-case-slices.md) | T09, T16 | done |
 | FIX.06 | Порученные CI/merge PR126; fde70ef, GAP-047 | Отдельный pairing-history runner, сохранение fields+history+placements==standard и budgets/cleanup; безопасные operation/side/exit/elapsed и --nocapture в private logs. Реальный timeout/capture и guards passed; окончательная матрица CI31 с FIX.07 passed, интегрировано0928f94. [EV-159](verification/EV-159-pairing-fields-history-slices.md) | T09, T16 | done |
 | FIX.05 | Порученные CI/merge PR126; head639434d, GAP-042 | Разделить Linux product tests/build через существующие режимы, сохранив все команды/guards/10m/strict aggregate и cache ownership; red→green guard и итоговый CI31 passed, интегрировано0928f94. [EV-158](verification/EV-158-linux-product-slices.md) | T16 | done |

@@ -270,12 +270,13 @@ const linuxSteps = [
   ["matrix.suite == 'product'", "bun scripts/check-product.mjs --host-tests", "."],
   ["matrix.suite == 'product-build'", "bun scripts/check-product.mjs --host-build", "."],
   ["matrix.suite == 'prototype-ui'", "bun run check", "prototypes"],
-  ["matrix.suite == 'shell'", "bun run ui:check", "."],
+  ["matrix.suite == 'shell'", "bun run ui:check --main", "."],
+  ["matrix.suite == 'shell-conflicts'", "bun run ui:check --conflicts", "."],
 ];
 for (const [os, runner, budget] of [["linux", "ubuntu-24.04", 10], ["windows", "windows-2025", 20]]) {
   const job = workflow.jobs[`${os}-checks`];
   assert.deepEqual(job.strategy.matrix.suite, os === 'windows'
-    ? ['shell', 'shell-conflicts', 'product', 'product-build', 'prototype-ui', 'prototype-native'] : ['product', 'product-build', 'shell', 'prototype-ui']);
+    ? ['shell', 'shell-conflicts', 'product', 'product-build', 'prototype-ui', 'prototype-native'] : ['product', 'product-build', 'shell', 'shell-conflicts', 'prototype-ui']);
   assert.equal(job.strategy['max-parallel'], os === 'linux' ? 2 : undefined);
   assert.equal(job.strategy["fail-fast"], false);
   assert.equal(job["runs-on"], runner);

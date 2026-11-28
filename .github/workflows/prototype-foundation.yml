@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        suite: [product, product-build, shell, prototype-ui]
+        suite: [product, product-build, shell, shell-conflicts, prototype-ui]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -80,9 +80,12 @@ jobs:
         if: matrix.suite == 'prototype-ui'
         working-directory: prototypes
         run: bun run check
-      - name: Check all shared UI shell, conflicts and pairing scenarios
+      - name: Check shared UI shell and real product HTTP in Chromium
         if: matrix.suite == 'shell'
-        run: bun run ui:check
+        run: bun run ui:check --main
+      - name: Check shared UI conflicts and pairing in Chromium
+        if: matrix.suite == 'shell-conflicts'
+        run: bun run ui:check --conflicts
 
   # Preserve the required Linux check; a green subset cannot pass it.
   linux:

@@ -216,3 +216,98 @@ commit/push ещё ожидается, исходный Linux failure остаё
 |---|---|
 | `scripts/check-ui-diagnostics.mjs` | `b04b55b6b14a3a1d87afa80aeed4943c62963a473e082e136c9b2099a924ebc4` |
 | `scripts/check-ui-native-controls.mjs` | `0bbf2e3cf67d348df629f6d7b44b13b93276d951973e179461149dcbf38c6f48` |
+
+## Повторная публикация — LOG-907
+
+Commit `7be4018ef8c6ee943f12508f10c179e61db63b99` отправлен в тот же
+[PR #129](https://github.com/Zeyafix/zedone/pull/129). Readback подтвердил
+точный head, main/bbdb055, nondraft/mergeable/behind0, пустые feedback/threads,
+совпадение обновлённого тела и прежнюю одну пару Before/After. Host
+run46114201034 и Android run46114200932 начаты:28 jobs pending, три strict
+aggregates ожидаются. Старый failure сохранён; успех новой CI-матрицы и
+merge/delete не заявляются. Существующий watch продолжается без повторного
+link/watch/list. Итоговый checkpoint локальный без нового push.
+
+### Прежний Ubuntu aggregate — LOG-908
+
+Запоздалое событие [check (ubuntu-24.04)](https://github.com/Zeyafix/zedone/actions/runs/46112534824/job/140881774086)
+относится к47dfa8c. Workflow этого commit требует success всей linux-checks
+матрицы; исходный snapshot показывает три других Linux suites SUCCESS и
+единственный shell failure LOG-906. Это зависимый итог прежнего отказа.
+ci_logs не получает старый aggregate после смены head: он отсутствует среди
+текущих checks, поэтому вывод опирается на точную workflow и сохранённые
+статусы. Свежий readback7be4018:0 SUCCESS/28 pending/0 failures, пустой
+feedback, behind0/mergeable/nondraft. Новый rerun/push не требуется;
+существующий watch остаётся активным до порученной условной интеграции.
+
+## Linux shell CANCELLED и один recovery — LOG-909
+
+На7be4018 [linux-checks (shell)](https://github.com/Zeyafix/zedone/actions/runs/46114201034/job/140884222831)
+прошёл все main lifecycle/board/touch, новые desktop/touch восстановления и
+изоляцию диагностики, затем весь conflicts/positions. Pairing начат06:11:47.911
+UTC, scanner и initial pending request passed;06:11:58.901 операция отменена,
+полного pairing результата нет. Assertion failure в доступном tail отсутствует.
+[Ubuntu aggregate](https://github.com/Zeyafix/zedone/actions/runs/46114201034/job/140888279786)
+получил RESULT cancelled и exit1. Остальные29 checks SUCCESS, включая весь
+Android/Windows и их aggregates; feedback пуст, head/base/behind0 прежние.
+
+Linux job имеет прежний10m budget. Исчерпание бюджета правдоподобно, но точная
+причина отмены и связь с прежним GAP-042 по ограниченным ci_logs tails не
+доказаны; metadata/annotation этим tool не предоставлены. Сохранены оба tail
+и исходный snapshot в ignored reports. Cancelled/aggregate failure не считаются
+успехом; прежние gaps и75 проблем сохранены.
+
+Принят ровно один адресный ci_rerun Linux shell: rerun=true, accepted1/limit1,
+тот же head7be4018/код/лимиты/assertions.29 успешных outcomes вручную не
+перезапускаются. Следующих same-head повторов нет; shell и зависимый aggregate
+должны пройти до merge.29 source fingerprints прежние, нового локального
+runtime/Device не было. Existing watch остаётся активным, checkpoint локальный.
+
+## FIX.08 — Linux main и conflicts/pairing отдельно — LOG-910
+
+Единственный recovery [job140888603327](https://github.com/Zeyafix/zedone/actions/runs/46114201034/job/140888603327)
+на7be4018 тоже CANCELLED. Все UI сценарии, включая pairing, завершились;
+сам UI step имеет success, но job достиг лимита при завершении. Новый
+[Ubuntu aggregate](https://github.com/Zeyafix/zedone/actions/runs/46114201034/job/140891035341)
+получил RESULT cancelled. Остальные29 outcomes SUCCESS; отменённый job
+не считается полным успехом. Accepted1/limit1 исчерпан, новых same-head
+повторов не запрашивается.
+
+После ci_logs отсутствующие в tool метаданные/annotations прочитаны read-only
+GitHub API через gh. Оба jobs имеют явную annotation:
+«The job has exceeded the maximum execution time of 10m0s».
+Исходный06:01:46→06:12:01 UTC, recovery06:13:25→06:23:26; UI step recovery
+06:14:24→06:23:24 success. Причина этих двух отмен теперь подтверждена;
+причины старых jobs GAP-042 не объявляются одинаковыми или устранёнными.
+Все metadata/annotations/tails и snapshots сохранены ignored.
+
+Рабочая карточка FIX.08: использовать существующие режимы Windows на Linux,
+сохранив полное объединение команд/assertions и строгую приёмку, без изменения
+продуктового runtime. Linux shell вызывает --main, новый shell-conflicts —
+--conflicts с полным conflicts/positions/pairing. У каждого прежние10m,
+max-parallel2/fail-fast false, aggregate success всей матрицы. Пины, namespaces,
+seed shell→shell-conflicts и правила записи кэшей прежние. Полная локальная
+команда без аргументов доступна. Подготовка двух jobs повторяется; экономия
+runner-minutes не обещается. Ожидаются32 outcomes:5 Linux+6 Windows+18 Android
+и3 strict aggregates. Возврат grouping обычным revert обратим, данных нет.
+
+Локально passed `bun prototypes/scripts/check-host-ci-suites.mjs`: полное
+объединение режимов, ошибки/сигналы каждого шага и draining, точный workflow,
+strict gates, caches/seed/owners, tool caches и main slices. Отрицательный
+контроль с удалённым обязательным Linux conflicts job отвергнут; workflow
+восстановлен побайтово. Actionlint1.7.12 passed, официальный Windows archive
+проверен по SHA-256; ShellCheck отсутствует и отдельно не запускался, тела
+shell не меняются. Comments482/diff --check passed.29 прежних fingerprints
+не изменились, дополнительно фиксируются два CI исходника:
+
+| Файл | SHA-256 |
+|---|---|
+| `.github/workflows/prototype-foundation.yml` | `505e72fcd4c43fd5dfb2c99aeb4c328eba117d6c908333ee9197819e0bc1bcac` |
+| `prototypes/scripts/check-host-ci-suites.mjs` | `48d2868daa428fd9cd86b82cfb1355770b14e1224e837703fe05a338ba9362b3` |
+
+FIX.08 verified локально; новые реальные split Linux jobs и полный CI32
+ещё не выполнены. UI-команды/тесты продукта не менялись, повторный локальный
+UI/Android/Device runtime не запускался; прежняя локальная матрица и успешные
+Windows/Android CI7be4018 сохраняют свой scope. A58/A59/T10/P07 partial,
+75 проблем и98 определения критериев прежние. Пять правил проекта сохраняются
+в прежнем продуктовом охвате. Далее commit/push и новый CI, merge/delete пока нет.

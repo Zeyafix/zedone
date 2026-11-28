@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { checkWorkspace } from "./check-ui-workspace.mjs";
 import { checkSpaceTransfer } from "./check-ui-space-transfer.mjs";
 import { checkRecovery } from "./check-ui-recovery.mjs";
+import { checkReinstallation } from "./check-ui-reinstallation.mjs";
 import { checkDailyBackups } from "./check-ui-backups.mjs";
 import { checkBackupCatalog } from "./check-ui-backup-catalog.mjs";
 import { checkCards } from "./check-ui-cards.mjs";
@@ -94,6 +95,7 @@ async function checkBrowserSlice(slice) {
       if (lifecycle) {
         await checkSpaceTransfer(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
         await checkRecovery(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
+        await checkReinstallation(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
         await checkDailyBackups(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
         await checkBackupCatalog(browser, resolve(target, `debug/examples/shell-fixture${suffix}`));
         await checkNativeControls(browser);

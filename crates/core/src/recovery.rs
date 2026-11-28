@@ -9,6 +9,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+pub mod missing;
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InspectRecovery {

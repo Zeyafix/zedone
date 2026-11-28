@@ -9,8 +9,8 @@
 - Охват: четыре среза .1 файловый порт/каталог, .2 перенос/удаление, .3 права/API/CLI/IPC, .4 UI/Device/документация. Один связанный результат; ориентир300 строк превышается необходимой атомарной парой перенос/возврат и платформенным доступом.
 - Проверки: штатные check-product host-tests/host-build/android, check-ui --main, целевые Windows desktop/touch и настоящий APK/Device; результаты окончательных прогонов ниже.
 - Обратные действия: смена папки обратно/по умолчанию, отмена выбора/удаления, чтение без восстановления. Удаление копии отдельное подтверждённое действие по A29; рабочее пространство не затрагивается.
-- Состояние: весь P07.05 и .1/.2/.3/.4 verified локально 2026-11-27, LOG-862. A29/A42/A57 partial до интеграционной приёмки; T10/P07 partial. Commit/push/PR/CI/merge не выполнялись.
-- Следующий шаг: ревью/фиксация и интеграция результата по отдельному поручению; затем P07.06 при готовой зависимости. Ни один из этих шагов не начат.
+- Состояние: весь P07.05 и .1/.2/.3/.4 done в2f2b8ea/PR127, checked head3d5dd8e, все31 CI SUCCESS; A29/A42/A57 passed. T10/P07 partial, LOG-869.
+- Следующий шаг: P07.06 готов, не начат; отдельное поручение. Ветка удалена local/remote, итоговые приёмочные записи локальные без нового commit/push.
 
 ## Промежуточный результат — LOG-861
 
@@ -165,3 +165,61 @@ shell fmt/clippy/tests3, каталог desktop/touch и lifecycle/board/touch, 
 проверяет оба host shell и прочую матрицу заново. Before/After актуальны.
 Состояние остаётся verified локально, A29/A42/A57 partial до интеграции;
 CI recovery не объявляется пройденным до фактического результата.
+
+
+## Ожидающий native recovery — LOG-867
+
+На3d5dd8e Android native job140341307143 отменён по подтверждённому15m0s,
+во время storage без итогового результата; adapters27/commands58 и новый
+catalog прошли. Полная native матрица этого запуска не пройдена. Это повтор
+GAP-055, конкретная причина длительности не установлена; state open сохранён.
+Один адресный rerun запрошен, но GitHub отказал, пока workflow ещё running;
+accepted0/limit1. После завершения workflow нужен новый адресный запрос без
+изменения head/лимитов/assertions. Исходные логи/metadata/annotations и отказ
+запроса сохранены ignored; успех recovery/merge пока не заявляется.
+
+
+### Recovery принят — LOG-868
+
+После завершения workflow на3d5dd8e29 checks success, native cancelled и
+android failed. Итоговый android прямо содержит RESULT cancelled, новой
+первичной ошибки нет. Повторный адресный запрос native принят: rerun=true,
+accepted1/limit1. Код/15m/assertions/head прежние, успешные29 jobs вручную
+не перезапускаются. Native и dependent aggregate должны пройти перед merge;
+GAP-055 остаётся open, исходные неуспешные outcomes сохранены. Recovery pending.
+
+
+## Интеграция — LOG-869
+
+[PR #127](https://github.com/Zeyafix/zedone/pull/127) merged в
+`2f2b8ea6ab6cc007d466d3bf819e150ff487dbeb`, checked head
+`3d5dd8e7f3017ef3fa9b93e58eb69b010065ec45`. Все31 checks SUCCESS:
+шесть Windows, четыре Linux, восемнадцать Android и три strict aggregates.
+Перед merge head/base/behind0/mergeability/nondraft, полный feedback и все
+checkRuns проверены заново; pending/failed/incomplete/unresolved отсутствуют.
+Merge с expectedHeadSha содержит checked head и имеет то же дерево.
+
+Новый Windows main и полный Linux shell passed после исправления явной
+CLI build dependency, первоначальные ENOENT на5949f81 сохранены как failures.
+Native на3d5dd8e прошёл после одного accepted targeted recovery; успешные29
+проверок вручную не перезапускались, dependent aggregate также passed.
+Recovery job140347404514 завершил runtime/search/парные TLS и pending-request
+probes/идентичный контракт/cleanup. Первоначальные15m/CANCELLED и итоговый
+RESULT cancelled не считаются успешным запуском. GAP-055 остаётся open:
+конкретная причина длительности не установлена, лимиты/assertions прежние.
+
+A29/A42/A57 passed по полной применимой матрице этой EV: files/new database,
+реальные purging/deletion, права общего API/CLI/IPC, process exits/cleanup/
+restart/collisions/migration package, Chrome/Opera desktop/touch и настоящий
+Windows chooser/Android Device/SAF. Физический arm64 runtime и аппаратный
+power-loss не проверялись; ограничения ADR-0081 сохраняются. Остальные
+95 состояния/все98 определения и75 ID/типы/состояния проблем прежние,
+T10/P07 partial и DEC-006 open. Полная приёмка остальных P07 отдельно.
+
+Main=origin/main/2f2b8ea, feature-ветка удалена local/remote/tracking.
+Два локальных CI checkpoint до switch сохранены по SHA-256 и восстановлены
+поверх совпадающего дерева; оригинальные baseline EV сохранены. Исходные
+APK/204 private entries восстановлены ранее, Device выключен. Медиа и
+машинные evidence только ignored/external. Итоговые приёмочные записи
+локальные без нового commit/push; новый post-merge CI не заявляется.
+Все пять проверок AGENTS.md соблюдены. Готов P07.06, не начат.

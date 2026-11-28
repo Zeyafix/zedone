@@ -253,7 +253,7 @@ async fn tag_deletion_assignment_conflict_is_restored_and_can_be_resolved_normal
         .unwrap();
     storage.shutdown().await.unwrap();
 }
-async fn archive(storage: &Storage) -> String {
+pub(crate) async fn archive(storage: &Storage) -> String {
     storage
         .export_snapshot(id(1), 42, LIMITS)
         .await

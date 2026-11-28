@@ -7,6 +7,23 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import java.util.UUID
 
+fun releaseBackupFolderPermission(instrumentation:Instrumentation,tree:String) {
+  val result=Bundle()
+  try {
+    require(tree.matches(Regex("primary:Download/ZeDone-P0706-[a-f0-9]{32}")))
+    val resolver=instrumentation.targetContext.contentResolver
+    val permission=resolver.persistedUriPermissions.single { it.uri.authority=="com.android.externalstorage.documents" && DocumentsContract.getTreeDocumentId(it.uri)==tree }
+    val flags=(if(permission.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or (if(permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+    resolver.releasePersistableUriPermission(permission.uri,flags)
+    check(resolver.persistedUriPermissions.none {it.uri==permission.uri})
+    result.putString("zedone_backup_folder_permission","released")
+    instrumentation.finish(Activity.RESULT_OK,result)
+  } catch(error:Throwable) {
+    result.putString("failure_type",error.javaClass.simpleName)
+    instrumentation.finish(Activity.RESULT_CANCELED,result)
+  }
+}
+
 fun verifySelectedBackupFolder(instrumentation: Instrumentation) {
   val result=Bundle()
   var success=false

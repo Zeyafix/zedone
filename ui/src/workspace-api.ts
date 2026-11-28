@@ -27,6 +27,7 @@ type Reads = {
   "space.backups.inspect": Schemas["DailyBackups"];
   "space.backups.read": Schemas["SpaceArchive"];
   "space.recovery.inspect": Schemas["RecoveryState"];
+  "space.recovery.inspect_missing": Schemas["MissingRecoveryState"];
   "space.recovery.read_backup": Schemas["SpaceArchive"];
   "card.inspect_tags": Schemas["CardTags"];
   "column.inspect_positions": Schemas["ColumnPositions"];
@@ -97,7 +98,7 @@ export async function mutationCredential() {
 }
 
 export type AdministrationMutation = "access.issue" | "access.replace" | "access.revoke" | "invitation.cancel" | "pairing.confirm" | "pairing.reject" | "pairing.unlink";
-export async function createMutation<O extends Mutation | AdministrationMutation | "backups.catalog.delete" | "backups.location.change" | "backups.location.cleanup" | "backups.folder.forget" | "sync.select" | "sync.pause" | "space.export" | "space.import" | "space.recovery.restore" | "space.recovery.pause" | "space.backups.retry" | "space.backups.delete">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
+export async function createMutation<O extends Mutation | AdministrationMutation | "backups.catalog.delete" | "backups.location.change" | "backups.location.cleanup" | "backups.folder.forget" | "sync.select" | "sync.pause" | "space.export" | "space.import" | "space.recovery.restore" | "space.recovery.restore_missing" | "space.recovery.pause" | "space.backups.retry" | "space.backups.delete">(operation: O, parameters: Parameters[O], subject?: string): Promise<string> {
   const credential = await mutationCredential();
   if (subject !== undefined && credential.subject !== subject) throw new Error("identity_changed");
   const saved = store();

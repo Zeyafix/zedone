@@ -18,9 +18,9 @@ async fn send(source: &Storage, receiver: &Storage, subject: String) -> StorageR
 #[tokio::test]
 async fn restored_snapshot_is_exchanged_as_new_changes_and_preserves_compatible_and_conflicting_peer_edits()
  {
-    for conflict in [false, true] {
+    for (reinstall, conflict) in [(false, false), (false, true), (true, false), (true, true)] {
         let directory = tempfile::tempdir().unwrap();
-        let source = Storage::open(directory.path().join("source"))
+        let mut source = Storage::open(directory.path().join("source"))
             .await
             .unwrap();
         let peer = Storage::open(directory.path().join("peer")).await.unwrap();
@@ -108,21 +108,56 @@ async fn restored_snapshot_is_exchanged_as_new_changes_and_preserves_compatible_
         })
         .await
         .unwrap();
-        source
-            .transact(move |ctx| {
-                let expected = ctx.recovery_state(SPACE)?.version;
-                ctx.restore_snapshot(
-                    &RestoreSnapshot {
-                        space: SPACE.into(),
-                        archive,
-                        expected,
-                    },
-                    50,
-                )?;
-                Ok(())
-            })
-            .await
-            .unwrap();
+        if reinstall {
+            use zedone_core::recovery::missing::{MissingRecoveryStore, RestoreMissingSnapshot};
+            source.shutdown().await.unwrap();
+            source = Storage::open(directory.path().join("reinstalled"))
+                .await
+                .unwrap();
+            let fresh = Arc::new(PendingAccess::generate().unwrap());
+            source
+                .transact(move |ctx| {
+                    ctx.bootstrap_access(&fresh)?;
+                    let expected = ctx.missing_recovery_state(&archive)?.version;
+                    ctx.restore_missing_snapshot(
+                        &RestoreMissingSnapshot {
+                            space: SPACE.into(),
+                            archive,
+                            expected,
+                        },
+                        fresh.subject(),
+                    )?;
+                    assert!(ctx.recovery_state(SPACE)?.paused);
+                    let selection = ctx.read().sync_selection(SPACE, PEER)?;
+                    assert!(!selection.selected);
+                    ctx.set_sync_selected(SPACE, PEER, true, selection.version)?;
+                    assert!(ctx.recovery_state(SPACE)?.paused);
+                    Ok(())
+                })
+                .await
+                .unwrap();
+            confirm_reinstalled_device(&peer, &admin).await;
+            source.shutdown().await.unwrap();
+            source = Storage::open(directory.path().join("reinstalled"))
+                .await
+                .unwrap();
+        } else {
+            source
+                .transact(move |ctx| {
+                    let expected = ctx.recovery_state(SPACE)?.version;
+                    ctx.restore_snapshot(
+                        &RestoreSnapshot {
+                            space: SPACE.into(),
+                            archive,
+                            expected,
+                        },
+                        50,
+                    )?;
+                    Ok(())
+                })
+                .await
+                .unwrap();
+        }
         assert!(
             source
                 .transact(|ctx| Ok(ctx.recovery_state(SPACE)?.paused))
@@ -144,7 +179,10 @@ async fn restored_snapshot_is_exchanged_as_new_changes_and_preserves_compatible_
                 .transact(move |ctx| {
                     let current = ctx.card_snapshot(SPACE, CARD)?;
                     assert!(current.titles.contains(&"Remote".into()));
-                    assert_eq!(current.titles.contains(&"Original".into()), conflict);
+                    assert_eq!(
+                        current.titles.contains(&"Original".into()),
+                        conflict && !reinstall
+                    );
                     assert_eq!(current.descriptions, ["Before"]);
                     assert!(
                         ctx.card_history(SPACE, CARD)?
@@ -160,4 +198,33 @@ async fn restored_snapshot_is_exchanged_as_new_changes_and_preserves_compatible_
         source.shutdown().await.unwrap();
         peer.shutdown().await.unwrap();
     }
+}
+
+async fn confirm_reinstalled_device(peer: &Storage, admin: &Arc<PendingAccess>) {
+    use serde_json::json;
+    use zedone_core::{
+        access::{AccessTransaction, Clock},
+        command::CommandResult,
+        invitations::{self, InvitationVerifier},
+        pairing::{self, PendingVerifier},
+        wire::decode_request,
+    };
+    struct Now;
+    impl Clock for Now {
+        fn now(&self) -> CommandResult<std::time::SystemTime> {
+            Ok(std::time::UNIX_EPOCH + std::time::Duration::from_millis(100))
+        }
+    }
+    let a = admin.clone();
+    peer.transact(move |ctx| {
+        invitations::create(ctx, &a.credential(), &Now, &decode_request::<invitations::CreateInvitation>(&serde_json::to_vec(&json!({"id":vec![70;16],"operation":"invitation.create","parameters":{"invitation":"ffffffffffffffffffffffffffffffff","verifier":vec![77;32]}})).unwrap())?)?;
+        let pending = pairing::request(ctx, &Now, &decode_request::<pairing::RequestPairing>(&serde_json::to_vec(&json!({"id":vec![71;16],"operation":"pairing.request","parameters":{"request":PEER,"invitation":"ffffffffffffffffffffffffffffffff","label":"Reinstalled device","access_verifier":vec![78;32]}})).unwrap())?, InvitationVerifier([77;32]), PendingVerifier([79;32]))?.unwrap().result;
+        assert_eq!(pending.status, pairing::PairingStatus::Pending);
+        let before = ctx.resolve_access(&a.credential())?.unwrap().grant;
+        let confirmed = pairing::confirm(ctx, &a.credential(), &Now, &decode_request::<pairing::ConfirmPairing>(&serde_json::to_vec(&json!({"id":vec![72;16],"operation":"pairing.confirm","parameters":{"request":PEER,"expected":pending.version,"scope":{"kind":"spaces","spaces":{SPACE:"read_write"}},"expires_at_unix_ms":null}})).unwrap())?)?.result;
+        assert_eq!(confirmed.status, pairing::PairingStatus::Confirmed);
+        assert_eq!(before.scope.spaces(), ctx.resolve_access(&a.credential())?.unwrap().grant.scope.spaces());
+        assert_eq!(before.scope.administration(), ctx.resolve_access(&a.credential())?.unwrap().grant.scope.administration());
+        Ok(())
+    }).await.unwrap();
 }

@@ -49,7 +49,7 @@ export async function prepare<O extends Operation>(subject: string, operation: O
   const { bytes, id } = randomId();
   if (await store.load(id)) throw new Error("unavailable");
   const body = JSON.stringify({ id: Array.from(bytes), operation, parameters });
-  if (new TextEncoder().encode(body).byteLength > (["space.import", "space.recovery.restore"].includes(operation) ? 3 * 1024 * 1024 : 65536)) throw new Error("invalid_request");
+  if (new TextEncoder().encode(body).byteLength > (["space.import", "space.recovery.restore", "space.recovery.inspect_missing", "space.recovery.restore_missing"].includes(operation) ? 3 * 1024 * 1024 : 65536)) throw new Error("invalid_request");
   await store.save(id, Object.freeze({ subject, operation, body }));
   return id;
 }

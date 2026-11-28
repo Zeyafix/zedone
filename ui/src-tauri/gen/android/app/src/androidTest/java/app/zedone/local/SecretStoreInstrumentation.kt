@@ -14,8 +14,10 @@ import javax.crypto.SecretKeyFactory
 
 class SecretStoreInstrumentation : Instrumentation() {
   private var backupFolderProbe=false
-  override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); backupFolderProbe=arguments?.getString("backup_folder_probe")=="true";start() }
+  private var backupFolderRelease:String?=null
+  override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); backupFolderProbe=arguments?.getString("backup_folder_probe")=="true";backupFolderRelease=arguments?.getString("backup_folder_release");start() }
   override fun onStart() {
+    backupFolderRelease?.let { releaseBackupFolderPermission(this,it);return }
     if(backupFolderProbe) { verifySelectedBackupFolder(this);return }
     val namespace = MessageDigest.getInstance("SHA-256").digest(UUID.randomUUID().toString().toByteArray())
       .joinToString("") { "%02x".format(it) }

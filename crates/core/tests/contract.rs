@@ -60,7 +60,7 @@ fn errors_have_distinct_strict_machine_readable_codes() {
 fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     assert_eq!(document["openapi"], "3.1.0");
-    assert_eq!(document["paths"].as_object().unwrap().len(), 91);
+    assert_eq!(document["paths"].as_object().unwrap().len(), 93);
     for operation in [
         "space.backups.inspect",
         "space.backups.retry",
@@ -96,6 +96,8 @@ fn openapi_matches_serialized_errors_and_exposes_no_unimplemented_operations() {
         "space.recovery.restore",
         "space.recovery.read_backup",
         "space.recovery.pause",
+        "space.recovery.inspect_missing",
+        "space.recovery.restore_missing",
         "space.read",
         "space.list",
         "space.rename",
@@ -371,6 +373,9 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         "ReadDailyBackup",
         "DailyBackups",
         "DailyCopy",
+        "InspectMissingRecovery",
+        "RestoreMissingSnapshot",
+        "MissingRecoveryState",
         "IssueAccess",
         "ReplaceAccess",
         "ListAccess",
@@ -411,7 +416,7 @@ fn wire_schemas_match_fixed_byte_arrays_and_strict_response_variants() {
         schemas["InvitationList"]["properties"]["entries"]["maxItems"],
         50
     );
-    assert_eq!(doc["paths"].as_object().unwrap().len(), 91);
+    assert_eq!(doc["paths"].as_object().unwrap().len(), 93);
     fn check_refs(value: &Value, schemas: &Value) {
         match value {
             Value::Object(fields) => {
